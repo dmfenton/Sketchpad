@@ -66,11 +66,14 @@ class StateManager:
 
     @property
     def monologue(self) -> str:
+        if not self._monologue:
+            self._monologue = workspace.load_monologue()
         return self._monologue
 
     @monologue.setter
     def monologue(self, value: str) -> None:
         self._monologue = value
+        workspace.save_monologue(value)
 
     @property
     def notes(self) -> str:

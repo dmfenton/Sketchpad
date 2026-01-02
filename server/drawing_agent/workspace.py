@@ -79,6 +79,22 @@ class Workspace:
         """Save agent notes."""
         self.notes_file.write_text(notes)
 
+    # --- Monologue (last agent thoughts) ---
+
+    @property
+    def monologue_file(self) -> Path:
+        return self.root / "monologue.txt"
+
+    def load_monologue(self) -> str:
+        """Load agent monologue (last thinking output)."""
+        if self.monologue_file.exists():
+            return self.monologue_file.read_text()
+        return ""
+
+    def save_monologue(self, monologue: str) -> None:
+        """Save agent monologue."""
+        self.monologue_file.write_text(monologue)
+
     # --- History (JSONL) ---
 
     @property
