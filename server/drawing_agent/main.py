@@ -237,14 +237,14 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                     logger.info("Canvas cleared")
 
                 case "pause":
-                    agent.pause()
+                    await agent.pause()
                     state_manager.state.agent.status = AgentStatus.PAUSED
                     state_manager.save()
                     await manager.broadcast(StatusMessage(status=AgentStatus.PAUSED))
                     logger.info("Agent paused")
 
                 case "resume":
-                    agent.resume()
+                    await agent.resume()
                     state_manager.state.agent.status = AgentStatus.IDLE
                     state_manager.save()
                     await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))

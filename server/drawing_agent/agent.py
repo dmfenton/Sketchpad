@@ -1,5 +1,6 @@
 """Claude Agent with code execution sandbox integration."""
 
+import asyncio
 import base64
 import io
 import logging
@@ -71,20 +72,28 @@ class DrawingAgent:
     def __init__(self) -> None:
         self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         self.pending_nudges: list[str] = []
-        self.paused = False
+        self._paused = False
+        self._pause_lock = asyncio.Lock()
         self.container_id: str | None = None
+
+    @property
+    def paused(self) -> bool:
+        """Check if agent is paused (non-blocking read)."""
+        return self._paused
 
     def add_nudge(self, text: str) -> None:
         """Queue a nudge for the next agent turn."""
         self.pending_nudges.append(text)
 
-    def pause(self) -> None:
-        """Pause the agent loop."""
-        self.paused = True
+    async def pause(self) -> None:
+        """Pause the agent loop (thread-safe)."""
+        async with self._pause_lock:
+            self._paused = True
 
-    def resume(self) -> None:
-        """Resume the agent loop."""
-        self.paused = False
+    async def resume(self) -> None:
+        """Resume the agent loop (thread-safe)."""
+        async with self._pause_lock:
+            self._paused = False
 
     def reset_container(self) -> None:
         """Reset the container for a new piece."""
