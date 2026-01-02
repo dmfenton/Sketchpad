@@ -233,3 +233,24 @@ ServerMessage = (
     | IterationMessage
 )
 ClientMessage = ClientStrokeMessage | ClientNudgeMessage | ClientControlMessage
+
+
+# Agent streaming events
+
+
+class AgentPathsEvent(BaseModel):
+    """Paths produced during agent turn - draw these immediately."""
+
+    type: Literal["paths"] = "paths"
+    paths: list[Path]
+
+
+class AgentTurnComplete(BaseModel):
+    """Agent turn completed."""
+
+    type: Literal["turn_complete"] = "turn_complete"
+    thinking: str
+    done: bool  # True if piece is complete
+
+
+AgentEvent = AgentPathsEvent | AgentTurnComplete

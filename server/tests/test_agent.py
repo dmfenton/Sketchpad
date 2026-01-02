@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image
 
-from drawing_agent.agent import DrawingAgent
-from drawing_agent.types import AgentStatus
+from drawing_agent.agent import AgentCallbacks, DrawingAgent
+from drawing_agent.types import AgentStatus, AgentTurnComplete
 
 
 class TestDrawingAgentPauseResume:
@@ -86,17 +86,17 @@ class TestDrawingAgentRunTurn:
         agent = DrawingAgent()
         await agent.pause()
 
-        thinking, paths, done = await agent.run_turn()
+        events = [event async for event in agent.run_turn()]
 
-        assert thinking == ""
-        assert paths is None
-        assert done is False
+        # Should yield a single AgentTurnComplete with empty values
+        assert len(events) == 1
+        assert isinstance(events[0], AgentTurnComplete)
+        assert events[0].thinking == ""
+        assert events[0].done is False
 
     @pytest.mark.asyncio
     async def test_run_turn_streams_thinking(self) -> None:
         """Test that thinking callback is called during streaming."""
-        from drawing_agent.agent import AgentCallbacks
-
         agent = DrawingAgent()
         await agent.resume()  # Agent starts paused, resume for test
 
@@ -139,12 +139,15 @@ class TestDrawingAgentRunTurn:
 
             mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
 
-            thinking, paths, done = await agent.run_turn(callbacks=callbacks)
+            events = [event async for event in agent.run_turn(callbacks=callbacks)]
 
         # Should have called thinking callback
         assert len(thinking_updates) > 0
         assert "I see a blank canvas..." in thinking_updates[0][0]
         assert thinking_updates[0][1] == 1  # First iteration
+
+        # Should yield AgentTurnComplete at the end
+        assert any(isinstance(e, AgentTurnComplete) for e in events)
 
 
 class TestDrawingAgentBuildUserMessage:

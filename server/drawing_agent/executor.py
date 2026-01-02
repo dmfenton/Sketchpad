@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any
 
 from drawing_agent.canvas import add_stroke
+from drawing_agent.config import settings
 from drawing_agent.state import state_manager
 from drawing_agent.types import (
     AgentStatus,
@@ -145,12 +146,23 @@ def interpolate_path(path: Path, steps_per_unit: float = 0.5) -> list[Point]:
 async def execute_paths(
     paths: list[Path],
     send_message: Callable[[Any], Awaitable[None]],
-    fps: int = 60,
+    fps: int | None = None,
+    stroke_delay: float | None = None,
 ) -> AsyncGenerator[None, None]:
     """Execute paths with real-time pen position updates.
 
+    Args:
+        paths: List of paths to draw
+        send_message: Callback to send messages to clients
+        fps: Frames per second for updates (default: from settings)
+        stroke_delay: Pause between strokes in seconds (default: from settings)
+
     Yields after each path is complete to allow for cooperative multitasking.
     """
+    # Use settings if not overridden
+    fps = fps or settings.drawing_fps
+    stroke_delay = stroke_delay if stroke_delay is not None else settings.stroke_delay
+
     frame_delay = 1.0 / fps
 
     # Local execution state (no persistence needed)
@@ -188,6 +200,10 @@ async def execute_paths(
         # Mark path complete
         add_stroke(path)
         await send_message(StrokeCompleteMessage(path=path))
+
+        # Pause between strokes for deliberate pacing
+        if stroke_delay > 0 and path_idx < len(paths) - 1:
+            await asyncio.sleep(stroke_delay)
 
         yield  # Allow other tasks to run
 
