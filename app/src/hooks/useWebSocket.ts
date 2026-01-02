@@ -54,7 +54,7 @@ export function useWebSocket({
         setState((prev) => ({ ...prev, error: 'Connection error' }));
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = (event: MessageEvent<string>) => {
         try {
           const message = JSON.parse(event.data) as ServerMessage;
           onMessage(message);
@@ -64,7 +64,7 @@ export function useWebSocket({
       };
 
       wsRef.current = ws;
-    } catch (error) {
+    } catch {
       setState({ connected: false, error: 'Failed to connect' });
     }
   }, [url, onMessage, reconnectInterval]);

@@ -120,6 +120,21 @@ cd app
 pnpm start
 ```
 
+### Pre-commit Hooks
+
+Install pre-commit to auto-run linting/formatting before each commit:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Set up hooks
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
+```
+
 ### Testing
 
 ```bash
@@ -135,6 +150,13 @@ make test-app
 # With coverage
 make coverage
 ```
+
+### CI/CD
+
+GitHub Actions runs on every push and PR:
+- **Server**: Ruff lint/format, Mypy type check, Pytest
+- **App**: ESLint, TypeScript check, Jest
+- **Docker**: Build verification
 
 ## API Reference
 
