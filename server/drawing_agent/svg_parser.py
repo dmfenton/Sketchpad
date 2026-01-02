@@ -1,6 +1,7 @@
 """Parse SVG files and path strings into drawable Path objects."""
 
 import json
+import logging
 import re
 from xml.etree import ElementTree as ET
 
@@ -13,6 +14,8 @@ from svgpathtools import (
 from svgpathtools import Path as SVGPath
 
 from drawing_agent.types import Path, PathType, Point
+
+logger = logging.getLogger(__name__)
 
 
 def parse_svg_path_d(d: str) -> list[Path]:
@@ -152,11 +155,14 @@ def parse_json_paths(json_text: str) -> list[Path]:
         if not isinstance(raw_points, list):
             continue
 
-        points = [
-            Point(x=float(p.get("x", 0)), y=float(p.get("y", 0)))
-            for p in raw_points
-            if isinstance(p, dict)
-        ]
+        points: list[Point] = []
+        for p in raw_points:
+            if not isinstance(p, dict):
+                continue
+            if "x" not in p or "y" not in p:
+                logger.warning(f"Point missing x or y coordinate: {p}")
+                continue
+            points.append(Point(x=float(p["x"]), y=float(p["y"])))
 
         if points:
             paths.append(Path(type=path_type, points=points))

@@ -53,11 +53,19 @@ class ConnectionManager:
         else:
             data = json.dumps(message)
 
+        failed_connections: list[WebSocket] = []
         for connection in self.active_connections:
             try:
                 await connection.send_text(data)
             except Exception as e:
                 logger.error(f"Broadcast error: {e}")
+                failed_connections.append(connection)
+
+        # Remove failed connections
+        for conn in failed_connections:
+            if conn in self.active_connections:
+                self.active_connections.remove(conn)
+                logger.info(f"Removed failed connection. Total: {len(self.active_connections)}")
 
     async def send_to(self, websocket: WebSocket, message: Any) -> None:
         """Send message to specific client."""
@@ -230,11 +238,16 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
                 case "pause":
                     agent.pause()
+                    state_manager.state.agent.status = AgentStatus.PAUSED
+                    state_manager.save()
                     await manager.broadcast(StatusMessage(status=AgentStatus.PAUSED))
                     logger.info("Agent paused")
 
                 case "resume":
                     agent.resume()
+                    state_manager.state.agent.status = AgentStatus.IDLE
+                    state_manager.save()
+                    await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
                     logger.info("Agent resumed")
 
                 case _:

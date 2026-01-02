@@ -2,7 +2,7 @@
 
 import asyncio
 import math
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any
 
 from drawing_agent.canvas import add_stroke
@@ -146,7 +146,7 @@ def interpolate_path(path: Path, steps_per_unit: float = 0.5) -> list[Point]:
 
 async def execute_paths(
     paths: list[Path],
-    send_message: Callable[[Any], asyncio.Future[None]],
+    send_message: Callable[[Any], Awaitable[None]],
     fps: int = 60,
 ) -> AsyncGenerator[None, None]:
     """Execute paths with real-time pen position updates.
