@@ -55,8 +55,8 @@ class ConnectionManager:
         for connection in self.active_connections:
             try:
                 await connection.send_text(data)
-            except Exception:
-                pass  # Connection might be closed
+            except Exception as e:
+                logger.error(f"Broadcast error: {e}")
 
     async def send_to(self, websocket: WebSocket, message: Any) -> None:
         """Send message to specific client."""
@@ -73,14 +73,25 @@ agent_loop_task: asyncio.Task[None] | None = None
 
 async def agent_loop() -> None:
     """Main agent loop that runs continuously."""
+    last_thinking = ""
+
+    async def stream_thinking(text: str) -> None:
+        """Callback to stream thinking updates to clients."""
+        nonlocal last_thinking
+        # Only send if there's new content
+        if text and text != last_thinking:
+            logger.info(f"Streaming thinking ({len(text)} chars) to {len(manager.active_connections)} clients")
+            await manager.broadcast(ThinkingMessage(text=text))
+            last_thinking = text
+
     while True:
         try:
             if not agent.paused:
-                thinking, paths, done = await agent.run_turn()
+                last_thinking = ""  # Reset for new turn
+                thinking, paths, done = await agent.run_turn(on_thinking=stream_thinking)
 
-                # Stream thinking to clients
-                if thinking:
-                    await manager.broadcast(ThinkingMessage(text=thinking))
+                # Final thinking already streamed via callback
+                pass
 
                 # Execute paths if any
                 if paths:

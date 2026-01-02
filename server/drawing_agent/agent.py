@@ -26,11 +26,14 @@ You can:
 2. Wait (if you're not sure what to do)
 3. Declare the piece done (return done=True)
 
-Your code has access to:
+Your code has access to (already imported, do NOT use import statements):
 - canvas_width, canvas_height (integers)
 - canvas_image (PIL Image of current state)
 - existing_strokes (list of paths already drawn)
-- Standard library (math, random)
+- math (the math module - use math.sin, math.cos, etc.)
+- random (the random module - use random.random(), random.uniform(), etc.)
+
+IMPORTANT: Do NOT use import statements. All modules are pre-imported.
 
 A path is a dict with "type" (line, quadratic, cubic, polyline) and "points" (list of {x, y} dicts).
 
@@ -43,34 +46,30 @@ When a human draws on the canvas, you'll see it in the next image. Decide how to
 When a human sends a nudge, consider it but don't feel obligated to follow it literally.
 """
 
-RESPONSE_FORMAT = {
-    "type": "json_schema",
-    "json_schema": {
-        "name": "agent_response",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "properties": {
-                "thinking": {
-                    "type": "string",
-                    "description": "Internal monologue, streamed to the app",
-                },
-                "code": {
-                    "type": ["string", "null"],
-                    "description": "Python code to execute, or null if waiting",
-                },
-                "notes": {
-                    "type": "string",
-                    "description": "Updated notes to persist between turns",
-                },
-                "done": {
-                    "type": "boolean",
-                    "description": "True if the piece is complete",
-                },
+AGENT_TOOL = {
+    "name": "respond",
+    "description": "Submit your response for this turn",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "thinking": {
+                "type": "string",
+                "description": "Internal monologue, streamed to the app",
             },
-            "required": ["thinking", "code", "notes", "done"],
-            "additionalProperties": False,
+            "code": {
+                "type": "string",
+                "description": "Python code to execute, or empty string if waiting",
+            },
+            "notes": {
+                "type": "string",
+                "description": "Updated notes to persist between turns",
+            },
+            "done": {
+                "type": "boolean",
+                "description": "True if the piece is complete",
+            },
         },
+        "required": ["thinking", "code", "notes", "done"],
     },
 }
 
@@ -133,11 +132,16 @@ class DrawingAgent:
 
         return content
 
-    async def run_turn(self) -> tuple[str, list[Path] | None, bool]:
-        """Run a single agent turn.
+    async def run_turn(
+        self, on_thinking: Any = None
+    ) -> tuple[str, list[Path] | None, bool]:
+        """Run a single agent turn with streaming.
+
+        Args:
+            on_thinking: Async callback for streaming thinking text chunks
 
         Returns:
-            Tuple of (thinking text, paths to draw or None, piece is done)
+            Tuple of (full thinking text, paths to draw or None, piece is done)
         """
         if self.paused:
             return "", None, False
@@ -147,22 +151,47 @@ class DrawingAgent:
         state_manager.save()
 
         try:
-            response = self.client.messages.create(
+            # Use streaming for real-time updates
+            full_json = ""
+            with self.client.messages.stream(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4096,
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": self._build_user_message()}],
-                response_format=RESPONSE_FORMAT,  # type: ignore[arg-type]
-            )
+                tools=[AGENT_TOOL],
+                tool_choice={"type": "tool", "name": "respond"},
+            ) as stream:
+                for event in stream:
+                    # Stream tool input as it arrives
+                    if hasattr(event, "type"):
+                        if event.type == "content_block_delta":
+                            if hasattr(event.delta, "partial_json"):
+                                chunk = event.delta.partial_json
+                                full_json += chunk
+                                # Try to extract and stream thinking as it builds
+                                if on_thinking and '"thinking":"' in full_json:
+                                    await self._stream_thinking(full_json, on_thinking)
 
-            # Parse response
-            response_text = response.content[0].text  # type: ignore[union-attr]
-            result = json.loads(response_text)
+                # Get final response
+                response = stream.get_final_message()
+
+            # Parse tool use response
+            tool_use_block = next(
+                (block for block in response.content if block.type == "tool_use"),
+                None,
+            )
+            if not tool_use_block:
+                raise RuntimeError("No tool use in response")
+            result = tool_use_block.input  # type: ignore[union-attr]
 
             thinking = result.get("thinking", "")
-            code = result.get("code")
+            code = result.get("code", "") or None  # Treat empty string as None
             notes = result.get("notes", "")
             done = result.get("done", False)
+
+            # Send final thinking if we have a callback
+            if on_thinking and thinking:
+                await on_thinking(thinking)
 
             # Update agent state
             state.agent.monologue = thinking
@@ -184,6 +213,25 @@ class DrawingAgent:
             state.agent.status = AgentStatus.IDLE
             state_manager.save()
             raise RuntimeError(f"Agent turn failed: {e}") from e
+
+    async def _stream_thinking(self, partial_json: str, on_thinking: Any) -> None:
+        """Extract and stream thinking from partial JSON."""
+        try:
+            # Find thinking value in partial JSON
+            start = partial_json.find('"thinking":"') + len('"thinking":"')
+            if start > len('"thinking":"') - 1:
+                # Find the end or use what we have
+                end = partial_json.find('","', start)
+                if end == -1:
+                    end = partial_json.find('"}', start)
+                if end == -1:
+                    end = len(partial_json)
+                thinking_so_far = partial_json[start:end]
+                # Unescape JSON string
+                thinking_so_far = thinking_so_far.replace("\\n", "\n").replace('\\"', '"')
+                await on_thinking(thinking_so_far)
+        except Exception:
+            pass  # Ignore parsing errors during streaming
 
     def _execute_code(self, code: str) -> list[Path]:
         """Execute agent code and extract paths.
