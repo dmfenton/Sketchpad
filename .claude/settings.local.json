@@ -16,7 +16,8 @@
       "Bash(pnpm add:*)",
       "Bash(pnpm typecheck:*)",
       "Bash(pnpm lint:*)",
-      "Bash(uv run ruff:*)"
+      "Bash(uv run ruff:*)",
+      "Bash(cat:*)"
     ]
   }
 }
