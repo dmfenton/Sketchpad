@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  server:
+    name: Server (Python)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        working-directory: server
+        run: uv sync --dev
+
+      - name: Lint with Ruff
+        working-directory: server
+        run: uv run ruff check .
+
+      - name: Format check with Ruff
+        working-directory: server
+        run: uv run ruff format --check .
+
+      - name: Type check with Mypy
+        working-directory: server
+        run: uv run mypy drawing_agent
+
+      - name: Run tests
+        working-directory: server
+        run: uv run python -m pytest --cov=drawing_agent --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: server/coverage.xml
+          flags: server
+        continue-on-error: true
+
+  app:
+    name: App (React Native)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        working-directory: app
+        run: pnpm lint
+
+      - name: Type check
+        working-directory: app
+        run: pnpm typecheck
+
+      - name: Run tests
+        working-directory: app
+        run: pnpm test
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [server]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t drawing-agent-server ./server
