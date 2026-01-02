@@ -4,8 +4,11 @@
 
 import { useCallback, useReducer } from 'react';
 
-import type { AgentStatus, Path, Point, ServerMessage } from '../types';
+import type { AgentMessage, AgentStatus, Path, Point, ServerMessage } from '../types';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '../types';
+
+let messageIdCounter = 0;
+const generateMessageId = () => `msg_${++messageIdCounter}_${Date.now()}`;
 
 export interface CanvasHookState {
   strokes: Path[];
@@ -14,6 +17,7 @@ export interface CanvasHookState {
   penDown: boolean;
   agentStatus: AgentStatus;
   thinking: string;
+  messages: AgentMessage[];
   pieceCount: number;
   drawingEnabled: boolean;
 }
@@ -28,6 +32,8 @@ type CanvasAction =
   | { type: 'SET_PEN'; x: number; y: number; down: boolean }
   | { type: 'SET_STATUS'; status: AgentStatus }
   | { type: 'SET_THINKING'; text: string }
+  | { type: 'ADD_MESSAGE'; message: AgentMessage }
+  | { type: 'CLEAR_MESSAGES' }
   | { type: 'TOGGLE_DRAWING' }
   | { type: 'SET_PIECE_COUNT'; count: number };
 
@@ -38,6 +44,7 @@ const initialState: CanvasHookState = {
   penDown: false,
   agentStatus: 'idle',
   thinking: '',
+  messages: [],
   pieceCount: 0,
   drawingEnabled: false,
 };
@@ -73,7 +80,13 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
       return { ...state, agentStatus: action.status };
 
     case 'SET_THINKING':
-      return { ...state, thinking: state.thinking + action.text };
+      return { ...state, thinking: action.text };
+
+    case 'ADD_MESSAGE':
+      return { ...state, messages: [...state.messages, action.message] };
+
+    case 'CLEAR_MESSAGES':
+      return { ...state, messages: [] };
 
     case 'TOGGLE_DRAWING':
       return { ...state, drawingEnabled: !state.drawingEnabled };
@@ -94,6 +107,7 @@ export interface UseCanvasReturn {
   endStroke: () => Path | null;
   toggleDrawing: () => void;
   clear: () => void;
+  clearMessages: () => void;
 }
 
 export function useCanvas(): UseCanvasReturn {
@@ -111,14 +125,37 @@ export function useCanvas(): UseCanvasReturn {
 
       case 'thinking':
         dispatch({ type: 'SET_THINKING', text: message.text });
+        // Add as a message to the stream
+        dispatch({
+          type: 'ADD_MESSAGE',
+          message: {
+            id: generateMessageId(),
+            type: 'thinking',
+            text: message.text,
+            timestamp: Date.now(),
+          },
+        });
         break;
 
       case 'status':
         dispatch({ type: 'SET_STATUS', status: message.status });
+        // Add status changes as messages (except idle which is too frequent)
+        if (message.status !== 'idle') {
+          dispatch({
+            type: 'ADD_MESSAGE',
+            message: {
+              id: generateMessageId(),
+              type: 'status',
+              text: message.status === 'thinking' ? 'Thinking...' : 'Drawing...',
+              timestamp: Date.now(),
+            },
+          });
+        }
         break;
 
       case 'clear':
         dispatch({ type: 'CLEAR' });
+        dispatch({ type: 'CLEAR_MESSAGES' });
         break;
     }
   }, []);
@@ -156,6 +193,10 @@ export function useCanvas(): UseCanvasReturn {
     dispatch({ type: 'CLEAR' });
   }, []);
 
+  const clearMessages = useCallback(() => {
+    dispatch({ type: 'CLEAR_MESSAGES' });
+  }, []);
+
   return {
     state,
     handleMessage,
@@ -164,6 +205,7 @@ export function useCanvas(): UseCanvasReturn {
     endStroke,
     toggleDrawing,
     clear,
+    clearMessages,
   };
 }
 

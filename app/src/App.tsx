@@ -3,19 +3,15 @@
  */
 
 import React, { useCallback, useState } from 'react';
-import { Alert, SafeAreaView, StyleSheet, View } from 'react-native';
+import { Alert, StatusBar, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import {
-  Canvas,
-  Controls,
-  NudgeModal,
-  StatusBar,
-  ThinkingPanel,
-} from './components';
+import { ActionBar, Canvas, MessageStream, NudgeModal, StatusPill } from './components';
 import { config } from './config';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
+import { colors, spacing } from './theme';
 
 export default function App(): React.JSX.Element {
   const [nudgeModalVisible, setNudgeModalVisible] = useState(false);
@@ -92,41 +88,47 @@ export default function App(): React.JSX.Element {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <View style={styles.content}>
-          {/* Canvas */}
-          <Canvas
-            strokes={canvas.state.strokes}
-            currentStroke={canvas.state.currentStroke}
-            penPosition={canvas.state.penPosition}
-            penDown={canvas.state.penDown}
-            drawingEnabled={canvas.state.drawingEnabled}
-            onStrokeStart={handleStrokeStart}
-            onStrokeMove={handleStrokeMove}
-            onStrokeEnd={handleStrokeEnd}
-          />
+          {/* Status Pill - Top */}
+          <View style={styles.statusRow}>
+            <StatusPill
+              pieceCount={canvas.state.pieceCount}
+              status={canvas.state.agentStatus}
+              connected={wsState.connected}
+            />
+          </View>
 
-          {/* Thinking Panel */}
-          <ThinkingPanel
+          {/* Canvas - Main area */}
+          <View style={styles.canvasContainer}>
+            <Canvas
+              strokes={canvas.state.strokes}
+              currentStroke={canvas.state.currentStroke}
+              penPosition={canvas.state.penPosition}
+              penDown={canvas.state.penDown}
+              drawingEnabled={canvas.state.drawingEnabled}
+              onStrokeStart={handleStrokeStart}
+              onStrokeMove={handleStrokeMove}
+              onStrokeEnd={handleStrokeEnd}
+            />
+          </View>
+
+          {/* Message Stream */}
+          <MessageStream
+            messages={canvas.state.messages}
             status={canvas.state.agentStatus}
-            thinking={canvas.state.thinking}
           />
 
-          {/* Controls */}
-          <Controls
+          {/* Action Bar - Bottom */}
+          <ActionBar
             drawingEnabled={canvas.state.drawingEnabled}
             paused={paused}
+            connected={wsState.connected}
             onDrawToggle={handleDrawToggle}
             onNudge={handleNudgePress}
             onClear={handleClear}
             onPauseToggle={handlePauseToggle}
-          />
-
-          {/* Status Bar */}
-          <StatusBar
-            pieceCount={canvas.state.pieceCount}
-            status={canvas.state.agentStatus}
-            connected={wsState.connected}
           />
         </View>
 
@@ -144,14 +146,25 @@ export default function App(): React.JSX.Element {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,
-    padding: 16,
-    gap: 12,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.lg,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingTop: spacing.sm,
+  },
+  canvasContainer: {
+    flex: 1,
+    justifyContent: 'center',
   },
 });

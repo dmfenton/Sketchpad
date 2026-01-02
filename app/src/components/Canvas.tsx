@@ -3,13 +3,14 @@
  */
 
 import React, { useCallback, useRef } from 'react';
-import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Circle, Path as SvgPath } from 'react-native-svg';
+import Svg, { Circle, Defs, Line, Pattern, Path as SvgPath, Rect } from 'react-native-svg';
 
 import { screenToCanvas } from '../hooks/useCanvas';
 import type { Path, Point } from '../types';
-import { CANVAS_ASPECT_RATIO, CANVAS_HEIGHT, CANVAS_WIDTH, COLORS } from '../types';
+import { CANVAS_ASPECT_RATIO, CANVAS_HEIGHT, CANVAS_WIDTH } from '../types';
+import { colors, borderRadius, shadows, spacing, typography } from '../theme';
 
 interface CanvasProps {
   strokes: Path[];
@@ -130,13 +131,27 @@ export function Canvas({
             viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
             preserveAspectRatio="xMidYMid meet"
           >
+            {/* Grid pattern */}
+            <Defs>
+              <Pattern
+                id="grid"
+                width="40"
+                height="40"
+                patternUnits="userSpaceOnUse"
+              >
+                <Line x1="40" y1="0" x2="40" y2="40" stroke="#E5E5E5" strokeWidth="0.5" />
+                <Line x1="0" y1="40" x2="40" y2="40" stroke="#E5E5E5" strokeWidth="0.5" />
+              </Pattern>
+            </Defs>
+            <Rect width="100%" height="100%" fill="url(#grid)" />
+
             {/* Completed strokes */}
             {strokes.map((stroke, index) => (
               <SvgPath
                 key={`stroke-${index}`}
                 d={pathToSvgD(stroke)}
-                stroke={COLORS.stroke}
-                strokeWidth={2}
+                stroke={colors.stroke}
+                strokeWidth={2.5}
                 fill="none"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -147,26 +162,46 @@ export function Canvas({
             {currentStroke.length > 0 && (
               <SvgPath
                 d={pointsToSvgD(currentStroke)}
-                stroke={COLORS.humanPreviewStroke}
-                strokeWidth={2}
+                stroke={colors.secondary}
+                strokeWidth={2.5}
                 fill="none"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             )}
 
-            {/* Pen position indicator */}
+            {/* Pen position indicator - larger and more visible */}
             {penPosition && (
-              <Circle
-                cx={penPosition.x}
-                cy={penPosition.y}
-                r={4}
-                fill={penDown ? COLORS.penIndicatorDown : 'none'}
-                stroke={penDown ? COLORS.penIndicatorDown : COLORS.penIndicatorUp}
-                strokeWidth={1}
-              />
+              <>
+                {/* Outer ring */}
+                <Circle
+                  cx={penPosition.x}
+                  cy={penPosition.y}
+                  r={penDown ? 12 : 16}
+                  fill="none"
+                  stroke={colors.primary}
+                  strokeWidth={2}
+                  opacity={0.5}
+                />
+                {/* Inner dot */}
+                <Circle
+                  cx={penPosition.x}
+                  cy={penPosition.y}
+                  r={penDown ? 6 : 4}
+                  fill={penDown ? colors.primary : 'none'}
+                  stroke={colors.primary}
+                  strokeWidth={2}
+                />
+              </>
             )}
           </Svg>
+
+          {/* Drawing mode indicator */}
+          {drawingEnabled && (
+            <View style={styles.drawingIndicator}>
+              <Text style={styles.drawingIndicatorText}>Drawing Mode</Text>
+            </View>
+          )}
         </View>
       </GestureDetector>
     </View>
@@ -177,11 +212,26 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     aspectRatio: CANVAS_ASPECT_RATIO,
-    backgroundColor: COLORS.canvasBackground,
-    borderRadius: 4,
+    backgroundColor: colors.canvasBackground,
+    borderRadius: borderRadius.lg,
     overflow: 'hidden',
+    ...shadows.md,
   },
   canvasWrapper: {
     flex: 1,
+  },
+  drawingIndicator: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.sm,
+    backgroundColor: colors.secondary,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  drawingIndicatorText: {
+    ...typography.small,
+    color: colors.background,
+    fontWeight: '600',
   },
 });

@@ -1,22 +1,37 @@
 /**
- * Modal for entering nudge text.
+ * Bottom sheet modal for entering nudge text.
  */
 
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 
 interface NudgeModalProps {
   visible: boolean;
   onClose: () => void;
   onSend: (text: string) => void;
 }
+
+const QUICK_SUGGESTIONS = [
+  'Add some curves',
+  'Try something bold',
+  'More detail please',
+  'Experiment freely',
+];
+
+const MAX_LENGTH = 200;
 
 export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React.JSX.Element {
   const [text, setText] = useState('');
@@ -34,109 +49,229 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
     onClose();
   };
 
+  const handleSuggestion = (suggestion: string) => {
+    setText(suggestion);
+  };
+
+  const remainingChars = MAX_LENGTH - text.length;
+
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={handleCancel}>
-        <Pressable style={styles.modal} onPress={() => {}}>
-          <Text style={styles.title}>Send a Nudge</Text>
-          <Text style={styles.subtitle}>
-            Suggest something to the agent (it may or may not follow)
-          </Text>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Pressable style={styles.overlay} onPress={handleCancel} />
 
-          <TextInput
-            style={styles.input}
-            value={text}
-            onChangeText={setText}
-            placeholder="Try adding something in the upper left..."
-            placeholderTextColor="#999999"
-            multiline
-            autoFocus
-          />
+        <View style={styles.sheet}>
+          {/* Handle */}
+          <View style={styles.handleContainer}>
+            <View style={styles.handle} />
+          </View>
 
-          <View style={styles.buttons}>
-            <Pressable style={styles.cancelButton} onPress={handleCancel}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+          {/* Header */}
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>Send a Nudge</Text>
+              <Text style={styles.subtitle}>
+                Suggest something to the agent
+              </Text>
+            </View>
+            <Pressable style={styles.closeButton} onPress={handleCancel}>
+              <Ionicons name="close" size={24} color={colors.textMuted} />
             </Pressable>
+          </View>
+
+          {/* Quick suggestions */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.suggestionsContainer}
+            contentContainerStyle={styles.suggestionsContent}
+          >
+            {QUICK_SUGGESTIONS.map((suggestion) => (
+              <Pressable
+                key={suggestion}
+                style={styles.suggestionChip}
+                onPress={() => handleSuggestion(suggestion)}
+              >
+                <Text style={styles.suggestionText}>{suggestion}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {/* Input */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={text}
+              onChangeText={(t) => setText(t.slice(0, MAX_LENGTH))}
+              placeholder="Type your suggestion..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+              autoFocus
+              maxLength={MAX_LENGTH}
+            />
+            <Text
+              style={[
+                styles.charCount,
+                remainingChars < 20 && styles.charCountLow,
+              ]}
+            >
+              {remainingChars}
+            </Text>
+          </View>
+
+          {/* Actions */}
+          <View style={styles.actions}>
             <Pressable
-              style={[styles.sendButton, !text.trim() && styles.sendButtonDisabled]}
+              style={({ pressed }) => [
+                styles.sendButton,
+                !text.trim() && styles.sendButtonDisabled,
+                pressed && text.trim() && styles.sendButtonPressed,
+              ]}
               onPress={handleSend}
               disabled={!text.trim()}
             >
-              <Text style={styles.sendButtonText}>Send</Text>
+              <Ionicons
+                name="send"
+                size={18}
+                color={text.trim() ? colors.textPrimary : colors.textMuted}
+              />
+              <Text
+                style={[
+                  styles.sendButtonText,
+                  !text.trim() && styles.sendButtonTextDisabled,
+                ]}
+              >
+                Send Nudge
+              </Text>
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
-  modal: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 20,
-    width: '100%',
-    maxWidth: 400,
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    paddingBottom: spacing['2xl'],
+    ...shadows.lg,
+  },
+  handleContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 4,
+    ...typography.heading,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 16,
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  closeButton: {
+    padding: spacing.xs,
+  },
+  suggestionsContainer: {
+    marginBottom: spacing.lg,
+  },
+  suggestionsContent: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
+  },
+  suggestionChip: {
+    backgroundColor: colors.surfaceElevated,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    marginRight: spacing.sm,
+  },
+  suggestionText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  inputContainer: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
+    position: 'relative',
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 4,
-    padding: 12,
-    fontSize: 14,
-    minHeight: 80,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
+    paddingBottom: spacing['2xl'],
+    ...typography.body,
+    color: colors.textPrimary,
+    minHeight: 100,
     textAlignVertical: 'top',
-    marginBottom: 16,
   },
-  buttons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
+  charCount: {
+    position: 'absolute',
+    bottom: spacing.md,
+    right: spacing.md,
+    ...typography.small,
+    color: colors.textMuted,
   },
-  cancelButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+  charCountLow: {
+    color: colors.warning,
   },
-  cancelButtonText: {
-    fontSize: 14,
-    color: '#666666',
+  actions: {
+    paddingHorizontal: spacing.xl,
   },
   sendButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: '#0066CC',
-    borderRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
+    gap: spacing.sm,
   },
   sendButtonDisabled: {
-    backgroundColor: '#CCCCCC',
+    backgroundColor: colors.surfaceElevated,
+  },
+  sendButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   sendButtonText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '500',
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  sendButtonTextDisabled: {
+    color: colors.textMuted,
   },
 });

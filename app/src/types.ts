@@ -108,19 +108,15 @@ export type ClientMessage =
   | ClientPauseMessage
   | ClientResumeMessage;
 
-// Colors
-export const COLORS = {
-  canvasBackground: '#FFFFFF',
-  stroke: '#000000',
-  humanPreviewStroke: '#0066CC',
-  penIndicatorDown: '#000000',
-  penIndicatorUp: '#999999',
-  thinkingPanelBackground: '#F5F5F5',
-  thinkingText: '#333333',
-  buttonBackground: '#FFFFFF',
-  buttonBorder: '#CCCCCC',
-  buttonActive: '#E6F0FF',
-} as const;
+// Agent message types for MessageStream component
+export type AgentMessageType = 'thinking' | 'status' | 'error' | 'piece_complete';
+
+export interface AgentMessage {
+  id: string;
+  type: AgentMessageType;
+  text: string;
+  timestamp: number;
+}
 
 // Canvas dimensions
 export const CANVAS_WIDTH = 800;

@@ -2,8 +2,8 @@
  * Component exports.
  */
 
+export { ActionBar } from './ActionBar';
 export { Canvas } from './Canvas';
-export { Controls } from './Controls';
+export { MessageStream } from './MessageStream';
 export { NudgeModal } from './NudgeModal';
-export { StatusBar } from './StatusBar';
-export { ThinkingPanel } from './ThinkingPanel';
+export { StatusPill } from './StatusPill';
