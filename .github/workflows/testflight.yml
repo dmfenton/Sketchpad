@@ -18,7 +18,7 @@ env:
 jobs:
   build-ios:
     name: Build & Deploy iOS
-    runs-on: macos-14  # Apple Silicon runner
+    runs-on: macos-15  # Apple Silicon runner with Xcode 16+
 
     steps:
       - name: Checkout code
