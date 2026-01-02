@@ -1,4 +1,4 @@
-.PHONY: install dev server app test lint format typecheck clean
+.PHONY: install dev server server-bg server-logs server-stop server-restart app test lint format typecheck clean
 
 # Install all dependencies
 install:
@@ -10,9 +10,33 @@ dev:
 	@echo "Starting server and app..."
 	@make -j2 server app
 
-# Run server only
+# Run server only (foreground)
 server:
 	cd server && uv run python -m drawing_agent.main
+
+# Run server in background with logging (for Claude debugging)
+server-bg:
+	@mkdir -p server/logs
+	@pkill -f "drawing_agent.main" 2>/dev/null || true
+	@sleep 1
+	@cd server && nohup uv run python -m drawing_agent.main > logs/server.log 2>&1 & echo $$! > logs/server.pid
+	@echo "Server started. Logs: server/logs/server.log"
+
+# Tail server logs
+server-logs:
+	@tail -f server/logs/server.log
+
+# Stop server
+server-stop:
+	@if [ -f server/logs/server.pid ]; then \
+		kill $$(cat server/logs/server.pid) 2>/dev/null || true; \
+		rm server/logs/server.pid; \
+	fi
+	@pkill -f "drawing_agent.main" 2>/dev/null || true
+	@echo "Server stopped"
+
+# Restart server (background mode)
+server-restart: server-stop server-bg
 
 # Run app only
 app:

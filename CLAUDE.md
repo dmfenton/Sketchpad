@@ -15,9 +15,42 @@ Drawing Agent is an autonomous AI artist application with:
 ## Claude Code Sandbox
 
 Sandbox configured in `.claude/settings.json`:
-- Auto-allows `make`, `uv`, `pnpm`, `git`, and common dev commands
+- Auto-allows `make`, `uv`, `pnpm`, `git`, `gh`, `curl`, and common dev commands
 - No permission prompts for standard development workflows
-- Run `make test`, `make dev`, `make lint` freely
+- Run `make test`, `make dev`, `make lint`, `git commit`, `git push` freely
+
+## Server Management (for Claude debugging)
+
+```bash
+# Start server in background with logging
+make server-bg
+
+# Tail server logs
+make server-logs
+# Or directly: tail -f server/logs/server.log
+
+# Stop server
+make server-stop
+
+# Restart server
+make server-restart
+```
+
+### Debug API Endpoints
+
+```bash
+# Check agent state
+curl localhost:8000/debug/agent
+
+# Get recent logs (default 100 lines)
+curl "localhost:8000/debug/logs?lines=50"
+```
+
+The `/debug/agent` endpoint returns:
+- `paused`, `status`, `container_id`
+- `piece_count`, `stroke_count`
+- `pending_nudges`, `connected_clients`
+- `notes` and `monologue_preview` (first 500 chars)
 
 ## Code Standards
 
