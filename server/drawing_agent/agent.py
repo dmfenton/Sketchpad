@@ -107,7 +107,6 @@ class DrawingAgent:
 
     def _build_user_message(self) -> list[dict[str, Any]]:
         """Build the user message with canvas image and context."""
-        state = state_manager.state
         canvas_image = get_canvas_image()
 
         content: list[dict[str, Any]] = [
@@ -123,12 +122,13 @@ class DrawingAgent:
                 "type": "text",
                 "text": f"Canvas size: {settings.canvas_width}x{settings.canvas_height}\n"
                 f"Existing strokes: {len(get_strokes())}\n"
-                f"Piece number: {state.agent.piece_count + 1}",
+                f"Piece number: {state_manager.piece_count + 1}",
             },
         ]
 
-        if state.agent.notes:
-            content.append({"type": "text", "text": f"Your notes:\n{state.agent.notes}"})
+        notes = state_manager.notes
+        if notes:
+            content.append({"type": "text", "text": f"Your notes:\n{notes}"})
 
         if self.pending_nudges:
             nudges_text = "\n".join(f"- {n}" for n in self.pending_nudges)
@@ -152,8 +152,7 @@ class DrawingAgent:
         if self.paused:
             return "", None, False
 
-        state = state_manager.state
-        state.agent.status = AgentStatus.THINKING
+        state_manager.status = AgentStatus.THINKING
         state_manager.save()
 
         try:
@@ -275,11 +274,11 @@ class DrawingAgent:
                     # The tool result is automatically handled by the API
 
             # Update agent state
-            state.agent.monologue = all_thinking
+            state_manager.monologue = all_thinking
             state_manager.save()
 
             if done:
-                state.agent.piece_count += 1
+                state_manager.piece_count += 1
                 self.reset_container()  # Fresh container for new piece
                 state_manager.save()
 
@@ -287,7 +286,7 @@ class DrawingAgent:
 
         except Exception as e:
             logger.exception("Agent turn failed")
-            state.agent.status = AgentStatus.IDLE
+            state_manager.status = AgentStatus.IDLE
             state_manager.save()
             raise RuntimeError(f"Agent turn failed: {e}") from e
 

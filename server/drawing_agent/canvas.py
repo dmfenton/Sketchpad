@@ -1,4 +1,4 @@
-"""Canvas state and rendering."""
+"""Canvas rendering and operations."""
 
 import io
 from xml.etree import ElementTree as ET
@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw
 
 from drawing_agent.state import state_manager
 from drawing_agent.types import Path, PathType
+from drawing_agent.workspace import workspace
 
 
 def render_path_to_svg_d(path: Path) -> str:
@@ -48,8 +49,7 @@ def render_path_to_svg_d(path: Path) -> str:
 
 def render_svg() -> str:
     """Render current canvas state to SVG."""
-    state = state_manager.state
-    canvas = state.canvas
+    canvas = state_manager.canvas
 
     svg = ET.Element(
         "svg",
@@ -99,8 +99,7 @@ def path_to_point_list(path: Path) -> list[tuple[float, float]]:
 
 def render_png() -> bytes:
     """Render current canvas state to PNG."""
-    state = state_manager.state
-    canvas = state.canvas
+    canvas = state_manager.canvas
 
     img = Image.new("RGB", (canvas.width, canvas.height), "#FFFFFF")
     draw = ImageDraw.Draw(img)
@@ -117,19 +116,17 @@ def render_png() -> bytes:
 
 def add_stroke(path: Path) -> None:
     """Add a completed stroke to the canvas."""
-    state_manager.state.canvas.strokes.append(path)
-    state_manager.save()
+    state_manager.add_stroke(path)
 
 
 def clear_canvas() -> None:
     """Clear all strokes from the canvas."""
-    state_manager.state.canvas.strokes = []
-    state_manager.save()
+    state_manager.clear_canvas()
 
 
 def get_strokes() -> list[Path]:
     """Get all strokes on the canvas."""
-    return state_manager.state.canvas.strokes
+    return state_manager.canvas.strokes
 
 
 def get_canvas_image() -> Image.Image:
@@ -139,46 +136,27 @@ def get_canvas_image() -> Image.Image:
 
 
 def save_current_canvas() -> str | None:
-    """Save current canvas to gallery and return its ID. Returns None if empty."""
-    import uuid
-    from datetime import UTC, datetime
-
-    from drawing_agent.types import SavedCanvas
-
-    state = state_manager.state
-    strokes = state.canvas.strokes
-
-    if not strokes:
-        return None
-
-    canvas_id = str(uuid.uuid4())[:8]
-    saved = SavedCanvas(
-        id=canvas_id,
-        strokes=strokes.copy(),
-        created_at=datetime.now(UTC).isoformat(),
-        piece_number=state.agent.piece_count,
-    )
-
-    state.gallery.canvases.append(saved)
-    state_manager.save()
-
-    return canvas_id
+    """Save current canvas to gallery. Returns saved ID or None if empty."""
+    return state_manager.new_canvas()
 
 
 def load_canvas_from_gallery(canvas_id: str) -> list[Path] | None:
-    """Load a canvas from gallery by ID. Returns strokes or None if not found."""
-    state = state_manager.state
-
-    for saved in state.gallery.canvases:
-        if saved.id == canvas_id:
-            return saved.strokes
-
+    """Load a canvas from gallery by ID."""
+    # canvas_id is like "piece_074" - extract piece number
+    if canvas_id.startswith("piece_"):
+        try:
+            piece_num = int(canvas_id.split("_")[1])
+            saved = workspace.load_from_gallery(piece_num)
+            if saved:
+                return saved.strokes
+        except (ValueError, IndexError):
+            pass
     return None
 
 
 def get_gallery() -> list[dict]:
-    """Get list of saved canvases (without full stroke data for efficiency)."""
-    state = state_manager.state
+    """Get list of saved canvases."""
+    canvases = workspace.list_gallery()
     return [
         {
             "id": c.id,
@@ -186,5 +164,5 @@ def get_gallery() -> list[dict]:
             "piece_number": c.piece_number,
             "stroke_count": len(c.strokes),
         }
-        for c in state.gallery.canvases
+        for c in canvases
     ]

@@ -138,7 +138,7 @@ async def agent_loop() -> None:
 
             if done:
                 logger.info(
-                    f"Piece {state_manager.state.agent.piece_count} complete"
+                    f"Piece {state_manager.piece_count} complete"
                 )
 
             # Wait before next turn
@@ -199,8 +199,12 @@ async def health() -> dict[str, str]:
 
 @app.get("/state")
 async def get_state() -> dict[str, Any]:
-    """Get full application state."""
-    return state_manager.state.model_dump()
+    """Get current state summary."""
+    return {
+        "canvas": state_manager.canvas.model_dump(),
+        "status": state_manager.status.value,
+        "piece_count": state_manager.piece_count,
+    }
 
 
 @app.get("/canvas.png")
@@ -224,7 +228,7 @@ async def get_gallery_list() -> list[dict]:
 @app.post("/piece_count/{count}")
 async def set_piece_count(count: int) -> dict[str, int]:
     """Set the piece count."""
-    state_manager.state.agent.piece_count = count
+    state_manager.piece_count = count
     state_manager.save()
     return {"piece_count": count}
 
@@ -232,16 +236,17 @@ async def set_piece_count(count: int) -> dict[str, int]:
 @app.get("/debug/agent")
 async def get_agent_debug() -> dict[str, Any]:
     """Get agent debug info for Claude inspection."""
-    state = state_manager.state
+    notes = state_manager.notes
+    monologue = state_manager.monologue
     return {
         "paused": agent.paused,
         "container_id": agent.container_id,
         "pending_nudges": agent.pending_nudges,
-        "status": state.agent.status.value,
-        "piece_count": state.agent.piece_count,
-        "notes": state.agent.notes[:500] if state.agent.notes else None,
-        "monologue_preview": state.agent.monologue[:500] if state.agent.monologue else None,
-        "stroke_count": len(state.canvas.strokes),
+        "status": state_manager.status.value,
+        "piece_count": state_manager.piece_count,
+        "notes": notes[:500] if notes else None,
+        "monologue_preview": monologue[:500] if monologue else None,
+        "stroke_count": len(state_manager.canvas.strokes),
         "connected_clients": len(manager.active_connections),
     }
 
@@ -275,19 +280,19 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
     try:
         # Send current state to new client
-        state = state_manager.state
+        gallery = get_gallery()
         await manager.send_to(
             websocket,
             {
                 "type": "init",
-                "strokes": [s.model_dump() for s in state.canvas.strokes],
-                "gallery": [c.model_dump() for c in state.gallery.canvases],
-                "status": state.agent.status.value,
+                "strokes": [s.model_dump() for s in state_manager.canvas.strokes],
+                "gallery": gallery,
+                "status": state_manager.status.value,
                 "paused": agent.paused,
-                "piece_count": state.agent.piece_count,
+                "piece_count": state_manager.piece_count,
             },
         )
-        logger.info(f"Sent init state: {len(state.canvas.strokes)} strokes, {len(state.gallery.canvases)} gallery items, piece #{state.agent.piece_count}")
+        logger.info(f"Sent init state: {len(state_manager.canvas.strokes)} strokes, {len(gallery)} gallery items, piece #{state_manager.piece_count}")
         while True:
             data = await websocket.receive_text()
             message = json.loads(data)
@@ -321,32 +326,27 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                     logger.info("Canvas cleared")
 
                 case "new_canvas":
-                    # Save current canvas and create new one
+                    # Save current canvas and create new one (increments piece_count)
                     saved_id = save_current_canvas()
-                    clear_canvas()
-                    # Increment piece count for new canvas
-                    state_manager.state.agent.piece_count += 1
-                    state_manager.save()
                     agent.reset_container()  # Fresh container for new piece
                     await manager.broadcast(NewCanvasMessage(saved_id=saved_id))
                     # Also send gallery update
+                    from drawing_agent.workspace import workspace
                     await manager.broadcast(
-                        GalleryUpdateMessage(
-                            canvases=state_manager.state.gallery.canvases
-                        )
+                        GalleryUpdateMessage(canvases=workspace.list_gallery())
                     )
                     # Send updated piece count
                     await manager.broadcast(
-                        {"type": "piece_count", "count": state_manager.state.agent.piece_count}
+                        {"type": "piece_count", "count": state_manager.piece_count}
                     )
-                    logger.info(f"New canvas created (piece #{state_manager.state.agent.piece_count}), saved old as: {saved_id}")
+                    logger.info(f"New canvas created (piece #{state_manager.piece_count}), saved old as: {saved_id}")
 
                 case "load_canvas":
                     # Load a canvas from gallery
                     canvas_id = message.get("canvas_id", "")
                     strokes = load_canvas_from_gallery(canvas_id)
                     if strokes:
-                        state_manager.state.canvas.strokes = list(strokes)
+                        state_manager.canvas.strokes[:] = strokes
                         state_manager.save()
                         await manager.broadcast(LoadCanvasMessage(strokes=strokes))
                         logger.info(f"Loaded canvas: {canvas_id}")
@@ -355,14 +355,14 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
                 case "pause":
                     await agent.pause()
-                    state_manager.state.agent.status = AgentStatus.PAUSED
+                    state_manager.status = AgentStatus.PAUSED
                     state_manager.save()
                     await manager.broadcast(StatusMessage(status=AgentStatus.PAUSED))
                     logger.info("Agent paused")
 
                 case "resume":
                     await agent.resume()
-                    state_manager.state.agent.status = AgentStatus.IDLE
+                    state_manager.status = AgentStatus.IDLE
                     state_manager.save()
                     await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
                     logger.info("Agent resumed")
@@ -383,4 +383,5 @@ if __name__ == "__main__":
         host=settings.host,
         port=settings.port,
         reload=True,
+        reload_excludes=["logs/*"],
     )

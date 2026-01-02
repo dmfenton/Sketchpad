@@ -52,8 +52,8 @@ yarn-debug.log*
 yarn-error.log*
 server/logs/
 
-# State
-state.json
+# Agent Workspace (state, generated files)
+agent_workspace/
 
 # Misc
 *.bak
