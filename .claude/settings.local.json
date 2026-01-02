@@ -17,7 +17,38 @@
       "Bash(pnpm typecheck:*)",
       "Bash(pnpm lint:*)",
       "Bash(uv run ruff:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(pnpm list:*)",
+      "Bash(python3:*)",
+      "Bash(true sleep 1 python3 -c \" import json with open\\(''/home/dmfenton/repos/sketchpad/server/state.json'', ''r''\\) as f: state = json.load\\(f\\) state[''agent''][''piece_count''] = 72 with open\\(''/home/dmfenton/repos/sketchpad/server/state.json'', ''w''\\) as f: json.dump\\(state, f, indent=2\\) print\\(''Updated piece count to 72''\\) \")",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(app/src/components/GalleryModal.tsx )",
+      "Bash(app/src/components/index.ts )",
+      "Bash(app/src/types.ts )",
+      "Bash(app/src/hooks/useCanvas.ts )",
+      "Bash(app/src/components/ActionBar.tsx )",
+      "Bash(app/src/components/StatusPill.tsx )",
+      "Bash(app/src/components/MessageStream.tsx )",
+      "Bash(app/src/components/Canvas.tsx )",
+      "Bash(app/src/App.tsx )",
+      "Bash(server/drawing_agent/types.py )",
+      "Bash(server/drawing_agent/canvas.py )",
+      "Bash(server/drawing_agent/agent.py )",
+      "Bash(server/drawing_agent/main.py)",
+      "Edit(/home/dmfenton/.cache/uv/**)",
+      "Bash(mv:*)",
+      "Bash(fuser:*)"
+    ],
+    "additionalDirectories": [
+      "/home/dmfenton/.cache/uv"
     ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "network": {
+      "allowAllUnixSockets": true,
+      "allowLocalBinding": true
+    }
   }
 }

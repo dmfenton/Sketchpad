@@ -12,13 +12,13 @@ Structure:
 """
 
 import json
-import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from drawing_agent.config import settings
-from drawing_agent.types import AgentStatus, CanvasState, Path as DrawPath, SavedCanvas
+from drawing_agent.types import AgentStatus, CanvasState, SavedCanvas
+from drawing_agent.types import Path as DrawPath
 
 
 class Workspace:
@@ -87,7 +87,7 @@ class Workspace:
 
     def append_history(self, entry: dict[str, Any]) -> None:
         """Append an entry to the history log."""
-        entry["timestamp"] = datetime.now(timezone.utc).isoformat()
+        entry["timestamp"] = datetime.now(UTC).isoformat()
         with open(self.history_file, "a") as f:
             f.write(json.dumps(entry) + "\n")
 
@@ -114,7 +114,7 @@ class Workspace:
         saved = SavedCanvas(
             id=canvas_id,
             strokes=strokes,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
             piece_number=piece_number,
         )
         filepath = self.gallery_dir / self._piece_filename(piece_number)

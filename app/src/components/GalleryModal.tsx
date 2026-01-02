@@ -52,7 +52,7 @@ function GalleryItem({ canvas, onPress }: GalleryItemProps): React.JSX.Element {
         <Text style={styles.itemDate}>{formatDate(canvas.created_at)}</Text>
       </View>
       <Text style={styles.itemMeta}>
-        {canvas.strokes.length} strokes
+        {canvas.stroke_count} strokes
       </Text>
     </Pressable>
   );

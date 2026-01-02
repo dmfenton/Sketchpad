@@ -20,7 +20,6 @@ class Settings(BaseSettings):
     # Agent
     agent_interval: int = 10  # seconds between agent turns
     agent_workspace: str = "../agent_workspace"
-    state_file: str = "../agent_workspace/state.json"
 
     # Canvas
     canvas_width: int = 800

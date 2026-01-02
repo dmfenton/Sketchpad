@@ -154,14 +154,15 @@ async def execute_paths(
     Yields after each path is complete to allow for cooperative multitasking.
     """
     frame_delay = 1.0 / fps
-    state = state_manager.state
 
-    state.agent.status = AgentStatus.DRAWING
-    state.execution.active = True
-    state.execution.paths = paths
+    # Local execution state (no persistence needed)
+    pen_x = 0.0
+    pen_y = 0.0
 
-    for path_idx, path in enumerate(paths):
-        state.execution.path_index = path_idx
+    state_manager.status = AgentStatus.DRAWING
+    state_manager.save()
+
+    for path in paths:
         interpolated = interpolate_path(path)
 
         if not interpolated:
@@ -169,28 +170,22 @@ async def execute_paths(
 
         # Move to start (pen up)
         first_point = interpolated[0]
-        state.execution.pen_x = first_point.x
-        state.execution.pen_y = first_point.y
-        state.execution.pen_down = False
+        pen_x = first_point.x
+        pen_y = first_point.y
         await send_message(PenMessage(x=first_point.x, y=first_point.y, down=False))
         await asyncio.sleep(frame_delay)
 
         # Lower pen and draw
-        state.execution.pen_down = True
         await send_message(PenMessage(x=first_point.x, y=first_point.y, down=True))
 
-        for point_idx, point in enumerate(interpolated[1:], 1):
-            state.execution.point_index = point_idx
-            state.execution.pen_x = point.x
-            state.execution.pen_y = point.y
+        for point in interpolated[1:]:
+            pen_x = point.x
+            pen_y = point.y
             await send_message(PenMessage(x=point.x, y=point.y, down=True))
             await asyncio.sleep(frame_delay)
 
         # Raise pen
-        state.execution.pen_down = False
-        await send_message(
-            PenMessage(x=state.execution.pen_x, y=state.execution.pen_y, down=False)
-        )
+        await send_message(PenMessage(x=pen_x, y=pen_y, down=False))
 
         # Mark path complete
         add_stroke(path)
@@ -199,7 +194,5 @@ async def execute_paths(
         yield  # Allow other tasks to run
 
     # Execution complete
-    state.execution.active = False
-    state.execution.paths = []
-    state.agent.status = AgentStatus.IDLE
+    state_manager.status = AgentStatus.IDLE
     state_manager.save()

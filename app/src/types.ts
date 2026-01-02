@@ -73,7 +73,7 @@ export interface ClearMessage {
 
 export interface SavedCanvas {
   id: string;
-  strokes: Path[];
+  stroke_count: number;
   created_at: string;
   piece_number: number;
 }
