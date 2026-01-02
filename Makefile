@@ -17,7 +17,7 @@ server:
 # Run server in background with logging (for Claude debugging)
 server-bg:
 	@mkdir -p server/logs
-	@pkill -f "drawing_agent.main" 2>/dev/null || true
+	@pkill -f "python.*drawing_agent" 2>/dev/null || true
 	@sleep 1
 	@cd server && nohup uv run python -m drawing_agent.main > logs/server.log 2>&1 & echo $$! > logs/server.pid
 	@echo "Server started. Logs: server/logs/server.log"
@@ -32,7 +32,7 @@ server-stop:
 		kill $$(cat server/logs/server.pid) 2>/dev/null || true; \
 		rm server/logs/server.pid; \
 	fi
-	@pkill -f "drawing_agent.main" 2>/dev/null || true
+	@pkill -f "python.*drawing_agent" 2>/dev/null || true
 	@echo "Server stopped"
 
 # Restart server (background mode)

@@ -2,7 +2,11 @@
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
-    "excludedCommands": ["sudo", "docker"]
+    "excludedCommands": ["sudo", "docker", "uv"],
+    "network": {
+      "allowLocalBinding": true,
+      "allowAllUnixSockets": true
+    }
   },
   "permissions": {
     "allow": [
@@ -44,7 +48,8 @@
       "Bash(pnpm lint:*)",
       "Bash(uv run ruff:*)",
       "Bash(tail:*)",
-      "Bash(nohup:*)"
+      "Bash(nohup:*)",
+      "Edit(~/.cache/uv/**)"
     ],
     "deny": [
       "Read(.env)",
