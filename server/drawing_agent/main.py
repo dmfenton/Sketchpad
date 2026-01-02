@@ -290,6 +290,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 "status": state_manager.status.value,
                 "paused": agent.paused,
                 "piece_count": state_manager.piece_count,
+                "monologue": state_manager.monologue or "",
             },
         )
         logger.info(f"Sent init state: {len(state_manager.canvas.strokes)} strokes, {len(gallery)} gallery items, piece #{state_manager.piece_count}")
@@ -346,9 +347,11 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                     canvas_id = message.get("canvas_id", "")
                     strokes = load_canvas_from_gallery(canvas_id)
                     if strokes:
+                        # Extract piece number from canvas_id (e.g., "piece_071" -> 71)
+                        piece_num = int(canvas_id.split("_")[1]) if "_" in canvas_id else 0
                         state_manager.canvas.strokes[:] = strokes
                         state_manager.save()
-                        await manager.broadcast(LoadCanvasMessage(strokes=strokes))
+                        await manager.broadcast(LoadCanvasMessage(strokes=strokes, piece_number=piece_num))
                         logger.info(f"Loaded canvas: {canvas_id}")
                     else:
                         logger.warning(f"Canvas not found: {canvas_id}")

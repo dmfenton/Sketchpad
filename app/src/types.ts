@@ -91,6 +91,7 @@ export interface GalleryUpdateMessage {
 export interface LoadCanvasMessage {
   type: 'load_canvas';
   strokes: Path[];
+  piece_number: number;
 }
 
 export interface InitMessage {
@@ -100,6 +101,7 @@ export interface InitMessage {
   status: AgentStatus;
   paused: boolean;
   piece_count: number;
+  monologue: string;
 }
 
 export interface PieceCountMessage {

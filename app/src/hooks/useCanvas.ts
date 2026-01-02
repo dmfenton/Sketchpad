@@ -19,6 +19,7 @@ export interface CanvasHookState {
   thinking: string;
   messages: AgentMessage[];
   pieceCount: number;
+  viewingPiece: number | null;  // Which gallery piece is being viewed (null = current)
   drawingEnabled: boolean;
   gallery: SavedCanvas[];
   paused: boolean;
@@ -39,7 +40,7 @@ type CanvasAction =
   | { type: 'TOGGLE_DRAWING' }
   | { type: 'SET_PIECE_COUNT'; count: number }
   | { type: 'SET_GALLERY'; canvases: SavedCanvas[] }
-  | { type: 'LOAD_CANVAS'; strokes: Path[] }
+  | { type: 'LOAD_CANVAS'; strokes: Path[]; pieceNumber: number }
   | { type: 'INIT'; strokes: Path[]; gallery: SavedCanvas[]; status: AgentStatus; pieceCount: number; paused: boolean }
   | { type: 'SET_PAUSED'; paused: boolean };
 
@@ -52,6 +53,7 @@ const initialState: CanvasHookState = {
   thinking: '',
   messages: [],
   pieceCount: 0,
+  viewingPiece: null,
   drawingEnabled: false,
   gallery: [],
   paused: true,  // Start paused
@@ -66,7 +68,7 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
       return { ...state, strokes: action.strokes };
 
     case 'CLEAR':
-      return { ...state, strokes: [], currentStroke: [] };
+      return { ...state, strokes: [], currentStroke: [], viewingPiece: null };
 
     case 'START_STROKE':
       return { ...state, currentStroke: [action.point] };
@@ -115,7 +117,7 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
       return { ...state, gallery: action.canvases };
 
     case 'LOAD_CANVAS':
-      return { ...state, strokes: action.strokes, currentStroke: [] };
+      return { ...state, strokes: action.strokes, currentStroke: [], viewingPiece: action.pieceNumber };
 
     case 'INIT':
       return {
@@ -125,6 +127,7 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
         agentStatus: action.status,
         pieceCount: action.pieceCount,
         paused: action.paused,
+        viewingPiece: null,  // Init shows current canvas
       };
 
     case 'SET_PAUSED':
@@ -205,7 +208,7 @@ export function useCanvas(): UseCanvasReturn {
         break;
 
       case 'load_canvas':
-        dispatch({ type: 'LOAD_CANVAS', strokes: message.strokes });
+        dispatch({ type: 'LOAD_CANVAS', strokes: message.strokes, pieceNumber: message.piece_number });
         break;
 
       case 'init':
@@ -217,6 +220,18 @@ export function useCanvas(): UseCanvasReturn {
           pieceCount: message.piece_count,
           paused: message.paused,
         });
+        // Add previous monologue as a message if it exists
+        if (message.monologue) {
+          dispatch({
+            type: 'ADD_MESSAGE',
+            message: {
+              id: generateMessageId(),
+              type: 'thinking',
+              text: message.monologue,
+              timestamp: Date.now(),
+            },
+          });
+        }
         break;
 
       case 'piece_count':

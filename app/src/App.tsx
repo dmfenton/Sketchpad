@@ -125,6 +125,7 @@ export default function App(): React.JSX.Element {
           <View style={styles.statusRow}>
             <StatusPill
               pieceCount={canvas.state.pieceCount}
+              viewingPiece={canvas.state.viewingPiece}
               status={canvas.state.agentStatus}
               connected={wsState.connected}
               paused={paused}

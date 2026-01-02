@@ -149,6 +149,7 @@ class LoadCanvasMessage(BaseModel):
 
     type: Literal["load_canvas"] = "load_canvas"
     strokes: list[Path]
+    piece_number: int
 
 
 class ClientStrokeMessage(BaseModel):

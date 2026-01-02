@@ -10,6 +10,7 @@ import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 
 interface StatusPillProps {
   pieceCount: number;
+  viewingPiece: number | null;
   status: AgentStatus;
   connected: boolean;
   paused: boolean;
@@ -24,6 +25,7 @@ const STATUS_LABELS: Record<AgentStatus, string> = {
 
 export function StatusPill({
   pieceCount,
+  viewingPiece,
   status,
   connected,
   paused,
@@ -72,7 +74,9 @@ export function StatusPill({
         {connected ? STATUS_LABELS[effectiveStatus] : 'Disconnected'}
       </Text>
       <View style={styles.divider} />
-      <Text style={styles.pieceText}>Piece #{pieceCount}</Text>
+      <Text style={styles.pieceText}>
+        {viewingPiece !== null ? `Viewing #${viewingPiece}` : `Piece #${pieceCount}`}
+      </Text>
     </View>
   );
 }
