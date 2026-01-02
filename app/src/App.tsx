@@ -13,10 +13,9 @@ import {
   StatusBar,
   ThinkingPanel,
 } from './components';
+import { config } from './config';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
-
-const WS_URL = 'ws://localhost:8000/ws';
 
 export default function App(): React.JSX.Element {
   const [nudgeModalVisible, setNudgeModalVisible] = useState(false);
@@ -24,7 +23,7 @@ export default function App(): React.JSX.Element {
 
   const canvas = useCanvas();
   const { state: wsState, send } = useWebSocket({
-    url: WS_URL,
+    url: config.wsUrl,
     onMessage: canvas.handleMessage,
   });
 

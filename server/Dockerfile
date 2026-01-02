@@ -3,14 +3,14 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install uv
-RUN pip install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Copy project files
-COPY pyproject.toml .
+COPY pyproject.toml uv.lock ./
 COPY drawing_agent/ drawing_agent/
 
 # Install dependencies
-RUN uv sync --frozen
+RUN uv sync --frozen --no-dev
 
 # Expose port
 EXPOSE 8000
