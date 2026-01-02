@@ -6,6 +6,19 @@ Drawing Agent is an autonomous AI artist application with:
 - **Backend**: Python 3.11+ with FastAPI, Claude Agent SDK, WebSocket support
 - **Frontend**: React Native with Expo, TypeScript, react-native-svg
 
+## Environment Setup
+
+- `.env` file lives in **project root** (not server/)
+- Config loads from both `../.env` and `.env` so it works from any directory
+- Required: `ANTHROPIC_API_KEY`
+
+## Claude Code Sandbox
+
+Sandbox configured in `.claude/settings.json`:
+- Auto-allows `make`, `uv`, `pnpm`, `git`, and common dev commands
+- No permission prompts for standard development workflows
+- Run `make test`, `make dev`, `make lint` freely
+
 ## Code Standards
 
 ### Python (Backend)
