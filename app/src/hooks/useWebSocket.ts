@@ -38,25 +38,30 @@ export function useWebSocket({
 
   const connect = useCallback(() => {
     try {
+      console.log('[WebSocket] Connecting to:', url);
       const ws = new WebSocket(url);
 
       ws.onopen = () => {
+        console.log('[WebSocket] Connected!');
         setState({ connected: true, error: null });
       };
 
       ws.onclose = () => {
+        console.log('[WebSocket] Closed, reconnecting in', reconnectInterval, 'ms');
         setState((prev) => ({ ...prev, connected: false }));
         // Schedule reconnect
         reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval);
       };
 
-      ws.onerror = () => {
+      ws.onerror = (e) => {
+        console.error('[WebSocket] Error:', e);
         setState((prev) => ({ ...prev, error: 'Connection error' }));
       };
 
       ws.onmessage = (event: MessageEvent<string>) => {
         try {
           const message = JSON.parse(event.data) as ServerMessage;
+          console.log('[WebSocket] Message:', message.type);
           onMessage(message);
         } catch {
           console.error('Failed to parse message:', event.data);
