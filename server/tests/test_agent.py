@@ -15,7 +15,7 @@ class TestDrawingAgentPauseResume:
 
     def test_initial_state(self) -> None:
         agent = DrawingAgent()
-        assert agent.paused is False
+        assert agent.paused is True  # Starts paused by default
         assert agent.container_id is None
         assert agent.pending_nudges == []
 
@@ -96,6 +96,7 @@ class TestDrawingAgentRunTurn:
     async def test_run_turn_streams_thinking(self) -> None:
         """Test that thinking callback is called during streaming."""
         agent = DrawingAgent()
+        await agent.resume()  # Agent starts paused, resume for test
 
         # Track thinking callbacks
         thinking_updates: list[str] = []
@@ -128,9 +129,9 @@ class TestDrawingAgentRunTurn:
             patch('drawing_agent.agent.get_strokes', return_value=[]),
             patch('drawing_agent.agent.state_manager') as mock_state,
         ):
-            mock_state.state.agent.notes = ""
-            mock_state.state.agent.piece_count = 0
-            mock_state.state.agent.status = AgentStatus.IDLE
+            mock_state.notes = ""
+            mock_state.piece_count = 0
+            mock_state.status = AgentStatus.IDLE
 
             mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
 
@@ -152,8 +153,8 @@ class TestDrawingAgentBuildUserMessage:
             patch('drawing_agent.agent.get_strokes', return_value=[]),
             patch('drawing_agent.agent.state_manager') as mock_state,
         ):
-            mock_state.state.agent.notes = ""
-            mock_state.state.agent.piece_count = 0
+            mock_state.notes = ""
+            mock_state.piece_count = 0
 
             mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
 
@@ -173,8 +174,8 @@ class TestDrawingAgentBuildUserMessage:
             patch('drawing_agent.agent.get_strokes', return_value=[]),
             patch('drawing_agent.agent.state_manager') as mock_state,
         ):
-            mock_state.state.agent.notes = "Previous work: drew a circle"
-            mock_state.state.agent.piece_count = 1
+            mock_state.notes = "Previous work: drew a circle"
+            mock_state.piece_count = 1
 
             mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
 
@@ -195,8 +196,8 @@ class TestDrawingAgentBuildUserMessage:
             patch('drawing_agent.agent.get_strokes', return_value=[]),
             patch('drawing_agent.agent.state_manager') as mock_state,
         ):
-            mock_state.state.agent.notes = ""
-            mock_state.state.agent.piece_count = 0
+            mock_state.notes = ""
+            mock_state.piece_count = 0
 
             mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
 
@@ -220,8 +221,8 @@ class TestDrawingAgentBuildUserMessage:
             patch('drawing_agent.agent.get_strokes', return_value=[]),
             patch('drawing_agent.agent.state_manager') as mock_state,
         ):
-            mock_state.state.agent.notes = ""
-            mock_state.state.agent.piece_count = 0
+            mock_state.notes = ""
+            mock_state.piece_count = 0
 
             mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
 
