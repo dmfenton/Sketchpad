@@ -6,7 +6,7 @@ from xml.etree import ElementTree as ET
 from PIL import Image, ImageDraw
 
 from drawing_agent.state import state_manager
-from drawing_agent.types import Path, PathType, Point
+from drawing_agent.types import Path, PathType
 
 
 def render_path_to_svg_d(path: Path) -> str:

@@ -25,6 +25,7 @@ const STATUS_LABELS: Record<AgentStatus, string> = {
   idle: 'Idle',
   thinking: 'Thinking',
   drawing: 'Drawing',
+  paused: 'Paused',
 };
 
 function formatTime(timestamp: number): string {
@@ -162,7 +163,7 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
     setCollapsed((prev) => !prev);
   }, []);
 
-  const isActive = status !== 'idle';
+  const isActive = status === 'thinking' || status === 'drawing';
 
   return (
     <View style={styles.container}>

@@ -2,7 +2,6 @@
 
 import base64
 import io
-import json
 from typing import Any
 
 import anthropic
@@ -163,14 +162,16 @@ class DrawingAgent:
             ) as stream:
                 for event in stream:
                     # Stream tool input as it arrives
-                    if hasattr(event, "type"):
-                        if event.type == "content_block_delta":
-                            if hasattr(event.delta, "partial_json"):
-                                chunk = event.delta.partial_json
-                                full_json += chunk
-                                # Try to extract and stream thinking as it builds
-                                if on_thinking and '"thinking":"' in full_json:
-                                    await self._stream_thinking(full_json, on_thinking)
+                    if (
+                        hasattr(event, "type")
+                        and event.type == "content_block_delta"
+                        and hasattr(event.delta, "partial_json")
+                    ):
+                        chunk = event.delta.partial_json
+                        full_json += chunk
+                        # Try to extract and stream thinking as it builds
+                        if on_thinking and '"thinking":"' in full_json:
+                            await self._stream_thinking(full_json, on_thinking)
 
                 # Get final response
                 response = stream.get_final_message()

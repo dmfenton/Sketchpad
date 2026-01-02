@@ -35,6 +35,7 @@ class AgentStatus(str, Enum):
     IDLE = "idle"
     THINKING = "thinking"
     DRAWING = "drawing"
+    PAUSED = "paused"
 
 
 class CanvasState(BaseModel):

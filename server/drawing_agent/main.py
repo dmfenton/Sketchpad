@@ -1,6 +1,7 @@
 """FastAPI application with WebSocket support."""
 
 import asyncio
+import contextlib
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -86,40 +87,46 @@ async def agent_loop() -> None:
 
     while True:
         try:
-            if not agent.paused:
-                last_thinking = ""  # Reset for new turn
-                thinking, paths, done = await agent.run_turn(on_thinking=stream_thinking)
+            if agent.paused:
+                # Ensure UI shows paused/idle state
+                await asyncio.sleep(settings.agent_interval)
+                continue
 
-                # Final thinking already streamed via callback
-                pass
+            # Broadcast THINKING status at start of turn
+            await manager.broadcast(StatusMessage(status=AgentStatus.THINKING))
+            last_thinking = ""  # Reset for new turn
 
-                # Execute paths if any
-                if paths:
-                    await manager.broadcast(StatusMessage(status=AgentStatus.DRAWING))
+            thinking, paths, done = await agent.run_turn(on_thinking=stream_thinking)
 
-                    async def send_message(msg: Any) -> None:
-                        await manager.broadcast(msg)
+            # Execute paths if any
+            if paths:
+                await manager.broadcast(StatusMessage(status=AgentStatus.DRAWING))
 
-                    async for _ in execute_paths(paths, send_message):
-                        pass  # Yield points handled in execute_paths
+                async def send_message(msg: Any) -> None:
+                    await manager.broadcast(msg)
 
-                    await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
+                async for _ in execute_paths(paths, send_message):
+                    pass  # Yield points handled in execute_paths
 
-                if done:
-                    logger.info(
-                        f"Piece {state_manager.state.agent.piece_count} complete"
-                    )
+            # Always broadcast IDLE after turn completes
+            await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
+
+            if done:
+                logger.info(
+                    f"Piece {state_manager.state.agent.piece_count} complete"
+                )
 
             # Wait before next turn
             await asyncio.sleep(settings.agent_interval)
 
         except Exception as e:
             logger.error(f"Agent loop error: {e}")
+            await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
             await asyncio.sleep(settings.agent_interval)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
+async def lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
     """Application lifespan handler."""
     global agent_loop_task
 
@@ -136,10 +143,8 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     # Cleanup
     if agent_loop_task:
         agent_loop_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await agent_loop_task
-        except asyncio.CancelledError:
-            pass
 
     state_manager.save()
     logger.info("State saved")
@@ -225,7 +230,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
                 case "pause":
                     agent.pause()
-                    await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
+                    await manager.broadcast(StatusMessage(status=AgentStatus.PAUSED))
                     logger.info("Agent paused")
 
                 case "resume":

@@ -16,7 +16,7 @@ export interface Path {
 }
 
 // Agent status
-export type AgentStatus = 'idle' | 'thinking' | 'drawing';
+export type AgentStatus = 'idle' | 'thinking' | 'drawing' | 'paused';
 
 // Application state
 export interface CanvasState {

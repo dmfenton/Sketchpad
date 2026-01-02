@@ -7,7 +7,14 @@ from typing import Any
 
 from drawing_agent.canvas import add_stroke
 from drawing_agent.state import state_manager
-from drawing_agent.types import AgentStatus, Path, PathType, PenMessage, Point, StrokeCompleteMessage
+from drawing_agent.types import (
+    AgentStatus,
+    Path,
+    PathType,
+    PenMessage,
+    Point,
+    StrokeCompleteMessage,
+)
 
 
 def lerp(a: float, b: float, t: float) -> float:

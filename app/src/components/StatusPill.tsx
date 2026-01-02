@@ -18,6 +18,7 @@ const STATUS_LABELS: Record<AgentStatus, string> = {
   idle: 'Ready',
   thinking: 'Thinking',
   drawing: 'Drawing',
+  paused: 'Paused',
 };
 
 export function StatusPill({
@@ -28,7 +29,8 @@ export function StatusPill({
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (status !== 'idle' && connected) {
+    // Only pulse when actively thinking or drawing, not when idle or paused
+    if ((status === 'thinking' || status === 'drawing') && connected) {
       const animation = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -50,7 +52,7 @@ export function StatusPill({
     }
   }, [status, connected, pulseAnim]);
 
-  const isActive = status !== 'idle';
+  const isActive = status === 'thinking' || status === 'drawing';
 
   return (
     <View style={styles.container}>
