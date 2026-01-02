@@ -37,7 +37,10 @@
       "Bash(server/drawing_agent/main.py)",
       "Edit(/home/dmfenton/.cache/uv/**)",
       "Bash(mv:*)",
-      "Bash(fuser:*)"
+      "Bash(fuser:*)",
+      "Bash(timeout 5 bash:*)",
+      "Bash(for f in /home/dmfenton/repos/sketchpad/agent_workspace/gallery/*.json)",
+      "Bash(done)"
     ],
     "additionalDirectories": [
       "/home/dmfenton/.cache/uv"
