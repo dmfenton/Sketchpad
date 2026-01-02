@@ -1,0 +1,15 @@
+# App Store Connect configuration
+# https://docs.fastlane.tools/actions/appfile/
+
+# The bundle identifier of your app
+app_identifier("net.dmfenton.sketchpad")
+
+# Your Apple Developer Portal username (email)
+# This is read from environment variable set in GitHub Actions
+apple_id(ENV["APPLE_ID"])
+
+# The ID of your App Store Connect team (if applicable)
+itc_team_id(ENV["ITC_TEAM_ID"])
+
+# The ID of your Developer Portal team (if applicable)
+team_id(ENV["TEAM_ID"])
