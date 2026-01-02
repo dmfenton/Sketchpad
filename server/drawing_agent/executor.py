@@ -137,9 +137,7 @@ def interpolate_path(path: Path, steps_per_unit: float = 0.5) -> list[Point]:
             if len(points) >= 4:
                 for i in range(num_steps + 1):
                     t = i / num_steps
-                    interpolated.append(
-                        cubic_bezier(points[0], points[1], points[2], points[3], t)
-                    )
+                    interpolated.append(cubic_bezier(points[0], points[1], points[2], points[3], t))
 
     return interpolated
 

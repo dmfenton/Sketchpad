@@ -19,8 +19,10 @@ interface StatusPillProps {
 const STATUS_LABELS: Record<AgentStatus, string> = {
   idle: 'Ready',
   thinking: 'Thinking',
+  executing: 'Running Code',
   drawing: 'Drawing',
   paused: 'Paused',
+  error: 'Error',
 };
 
 export function StatusPill({
@@ -36,8 +38,9 @@ export function StatusPill({
   const effectiveStatus: AgentStatus = paused ? 'paused' : status;
 
   useEffect(() => {
-    // Only pulse when actively thinking or drawing, not when idle or paused
-    if ((effectiveStatus === 'thinking' || effectiveStatus === 'drawing') && connected) {
+    // Only pulse when actively thinking, executing, or drawing
+    const isActiveStatus = effectiveStatus === 'thinking' || effectiveStatus === 'executing' || effectiveStatus === 'drawing';
+    if (isActiveStatus && connected) {
       const animation = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -59,7 +62,7 @@ export function StatusPill({
     }
   }, [effectiveStatus, connected, pulseAnim]);
 
-  const isActive = effectiveStatus === 'thinking' || effectiveStatus === 'drawing';
+  const isActive = effectiveStatus === 'thinking' || effectiveStatus === 'executing' || effectiveStatus === 'drawing';
 
   return (
     <View style={styles.container}>
