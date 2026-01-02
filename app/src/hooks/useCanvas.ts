@@ -4,7 +4,7 @@
 
 import { useCallback, useReducer } from 'react';
 
-import type { AgentMessage, AgentStatus, Path, Point, ServerMessage } from '../types';
+import type { AgentMessage, AgentStatus, Path, Point, SavedCanvas, ServerMessage } from '../types';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '../types';
 
 let messageIdCounter = 0;
@@ -20,6 +20,8 @@ export interface CanvasHookState {
   messages: AgentMessage[];
   pieceCount: number;
   drawingEnabled: boolean;
+  gallery: SavedCanvas[];
+  paused: boolean;
 }
 
 type CanvasAction =
@@ -35,18 +37,24 @@ type CanvasAction =
   | { type: 'ADD_MESSAGE'; message: AgentMessage }
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'TOGGLE_DRAWING' }
-  | { type: 'SET_PIECE_COUNT'; count: number };
+  | { type: 'SET_PIECE_COUNT'; count: number }
+  | { type: 'SET_GALLERY'; canvases: SavedCanvas[] }
+  | { type: 'LOAD_CANVAS'; strokes: Path[] }
+  | { type: 'INIT'; strokes: Path[]; gallery: SavedCanvas[]; status: AgentStatus; pieceCount: number; paused: boolean }
+  | { type: 'SET_PAUSED'; paused: boolean };
 
 const initialState: CanvasHookState = {
   strokes: [],
   currentStroke: [],
   penPosition: null,
   penDown: false,
-  agentStatus: 'idle',
+  agentStatus: 'paused',  // Start paused
   thinking: '',
   messages: [],
   pieceCount: 0,
   drawingEnabled: false,
+  gallery: [],
+  paused: true,  // Start paused
 };
 
 function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHookState {
@@ -82,8 +90,17 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
     case 'SET_THINKING':
       return { ...state, thinking: action.text };
 
-    case 'ADD_MESSAGE':
-      return { ...state, messages: [...state.messages, action.message] };
+    case 'ADD_MESSAGE': {
+      // Limit messages to prevent memory issues
+      const MAX_MESSAGES = 50;
+      const newMessages = [...state.messages, action.message];
+      return {
+        ...state,
+        messages: newMessages.length > MAX_MESSAGES
+          ? newMessages.slice(-MAX_MESSAGES)
+          : newMessages,
+      };
+    }
 
     case 'CLEAR_MESSAGES':
       return { ...state, messages: [] };
@@ -93,6 +110,25 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
 
     case 'SET_PIECE_COUNT':
       return { ...state, pieceCount: action.count };
+
+    case 'SET_GALLERY':
+      return { ...state, gallery: action.canvases };
+
+    case 'LOAD_CANVAS':
+      return { ...state, strokes: action.strokes, currentStroke: [] };
+
+    case 'INIT':
+      return {
+        ...state,
+        strokes: action.strokes,
+        gallery: action.gallery,
+        agentStatus: action.status,
+        pieceCount: action.pieceCount,
+        paused: action.paused,
+      };
+
+    case 'SET_PAUSED':
+      return { ...state, paused: action.paused };
 
     default:
       return state;
@@ -108,6 +144,7 @@ export interface UseCanvasReturn {
   toggleDrawing: () => void;
   clear: () => void;
   clearMessages: () => void;
+  setPaused: (paused: boolean) => void;
 }
 
 export function useCanvas(): UseCanvasReturn {
@@ -157,7 +194,39 @@ export function useCanvas(): UseCanvasReturn {
         dispatch({ type: 'CLEAR' });
         dispatch({ type: 'CLEAR_MESSAGES' });
         break;
+
+      case 'new_canvas':
+        dispatch({ type: 'CLEAR' });
+        dispatch({ type: 'CLEAR_MESSAGES' });
+        break;
+
+      case 'gallery_update':
+        dispatch({ type: 'SET_GALLERY', canvases: message.canvases });
+        break;
+
+      case 'load_canvas':
+        dispatch({ type: 'LOAD_CANVAS', strokes: message.strokes });
+        break;
+
+      case 'init':
+        dispatch({
+          type: 'INIT',
+          strokes: message.strokes,
+          gallery: message.gallery,
+          status: message.status,
+          pieceCount: message.piece_count,
+          paused: message.paused,
+        });
+        break;
+
+      case 'piece_count':
+        dispatch({ type: 'SET_PIECE_COUNT', count: message.count });
+        break;
     }
+  }, []);
+
+  const setPaused = useCallback((paused: boolean) => {
+    dispatch({ type: 'SET_PAUSED', paused });
   }, []);
 
   const startStroke = useCallback((x: number, y: number) => {
@@ -206,6 +275,7 @@ export function useCanvas(): UseCanvasReturn {
     toggleDrawing,
     clear,
     clearMessages,
+    setPaused,
   };
 }
 

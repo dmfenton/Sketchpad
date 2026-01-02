@@ -71,12 +71,53 @@ export interface ClearMessage {
   type: 'clear';
 }
 
+export interface SavedCanvas {
+  id: string;
+  strokes: Path[];
+  created_at: string;
+  piece_number: number;
+}
+
+export interface NewCanvasMessage {
+  type: 'new_canvas';
+  saved_id: string | null;
+}
+
+export interface GalleryUpdateMessage {
+  type: 'gallery_update';
+  canvases: SavedCanvas[];
+}
+
+export interface LoadCanvasMessage {
+  type: 'load_canvas';
+  strokes: Path[];
+}
+
+export interface InitMessage {
+  type: 'init';
+  strokes: Path[];
+  gallery: SavedCanvas[];
+  status: AgentStatus;
+  paused: boolean;
+  piece_count: number;
+}
+
+export interface PieceCountMessage {
+  type: 'piece_count';
+  count: number;
+}
+
 export type ServerMessage =
   | PenMessage
   | StrokeCompleteMessage
   | ThinkingMessage
   | StatusMessage
-  | ClearMessage;
+  | ClearMessage
+  | NewCanvasMessage
+  | GalleryUpdateMessage
+  | LoadCanvasMessage
+  | InitMessage
+  | PieceCountMessage;
 
 // WebSocket messages - Client to Server
 export interface ClientStrokeMessage {
@@ -101,12 +142,23 @@ export interface ClientResumeMessage {
   type: 'resume';
 }
 
+export interface ClientNewCanvasMessage {
+  type: 'new_canvas';
+}
+
+export interface ClientLoadCanvasMessage {
+  type: 'load_canvas';
+  canvas_id: string;
+}
+
 export type ClientMessage =
   | ClientStrokeMessage
   | ClientNudgeMessage
   | ClientClearMessage
   | ClientPauseMessage
-  | ClientResumeMessage;
+  | ClientResumeMessage
+  | ClientNewCanvasMessage
+  | ClientLoadCanvasMessage;
 
 // Agent message types for MessageStream component
 export type AgentMessageType = 'thinking' | 'status' | 'error' | 'piece_complete';

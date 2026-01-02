@@ -12,6 +12,7 @@ interface StatusPillProps {
   pieceCount: number;
   status: AgentStatus;
   connected: boolean;
+  paused: boolean;
 }
 
 const STATUS_LABELS: Record<AgentStatus, string> = {
@@ -25,12 +26,16 @@ export function StatusPill({
   pieceCount,
   status,
   connected,
+  paused,
 }: StatusPillProps): React.JSX.Element {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  // Effective status - paused overrides other statuses
+  const effectiveStatus: AgentStatus = paused ? 'paused' : status;
+
   useEffect(() => {
     // Only pulse when actively thinking or drawing, not when idle or paused
-    if ((status === 'thinking' || status === 'drawing') && connected) {
+    if ((effectiveStatus === 'thinking' || effectiveStatus === 'drawing') && connected) {
       const animation = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -50,9 +55,9 @@ export function StatusPill({
     } else {
       pulseAnim.setValue(1);
     }
-  }, [status, connected, pulseAnim]);
+  }, [effectiveStatus, connected, pulseAnim]);
 
-  const isActive = status === 'thinking' || status === 'drawing';
+  const isActive = effectiveStatus === 'thinking' || effectiveStatus === 'drawing';
 
   return (
     <View style={styles.container}>
@@ -64,7 +69,7 @@ export function StatusPill({
         ]}
       />
       <Text style={styles.statusText}>
-        {connected ? STATUS_LABELS[status] : 'Disconnected'}
+        {connected ? STATUS_LABELS[effectiveStatus] : 'Disconnected'}
       </Text>
       <View style={styles.divider} />
       <Text style={styles.pieceText}>Piece #{pieceCount}</Text>

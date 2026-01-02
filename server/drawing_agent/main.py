@@ -13,13 +13,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from drawing_agent.agent import agent
-from drawing_agent.canvas import add_stroke, clear_canvas, render_png, render_svg
+from drawing_agent.canvas import (
+    add_stroke,
+    clear_canvas,
+    get_gallery,
+    load_canvas_from_gallery,
+    render_png,
+    render_svg,
+    save_current_canvas,
+)
 from drawing_agent.config import settings
 from drawing_agent.executor import execute_paths
 from drawing_agent.state import state_manager
 from drawing_agent.types import (
     AgentStatus,
     ClearMessage,
+    GalleryUpdateMessage,
+    LoadCanvasMessage,
+    NewCanvasMessage,
     Path,
     PathType,
     Point,
@@ -43,7 +54,8 @@ class ConnectionManager:
         logger.info(f"Client connected. Total: {len(self.active_connections)}")
 
     def disconnect(self, websocket: WebSocket) -> None:
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
         logger.info(f"Client disconnected. Total: {len(self.active_connections)}")
 
     async def broadcast(self, message: Any) -> None:
@@ -95,6 +107,11 @@ async def agent_loop() -> None:
 
     while True:
         try:
+            # Only run when clients are connected (cost control)
+            if not manager.active_connections:
+                await asyncio.sleep(settings.agent_interval)
+                continue
+
             if agent.paused:
                 # Ensure UI shows paused/idle state
                 await asyncio.sleep(settings.agent_interval)
@@ -198,12 +215,79 @@ async def get_canvas_svg() -> Response:
     return Response(content=render_svg(), media_type="image/svg+xml")
 
 
+@app.get("/gallery")
+async def get_gallery_list() -> list[dict]:
+    """Get list of saved canvases."""
+    return get_gallery()
+
+
+@app.post("/piece_count/{count}")
+async def set_piece_count(count: int) -> dict[str, int]:
+    """Set the piece count."""
+    state_manager.state.agent.piece_count = count
+    state_manager.save()
+    return {"piece_count": count}
+
+
+@app.get("/debug/agent")
+async def get_agent_debug() -> dict[str, Any]:
+    """Get agent debug info for Claude inspection."""
+    state = state_manager.state
+    return {
+        "paused": agent.paused,
+        "container_id": agent.container_id,
+        "pending_nudges": agent.pending_nudges,
+        "status": state.agent.status.value,
+        "piece_count": state.agent.piece_count,
+        "notes": state.agent.notes[:500] if state.agent.notes else None,
+        "monologue_preview": state.agent.monologue[:500] if state.agent.monologue else None,
+        "stroke_count": len(state.canvas.strokes),
+        "connected_clients": len(manager.active_connections),
+    }
+
+
+@app.get("/debug/logs")
+async def get_debug_logs(lines: int = 100) -> dict[str, Any]:
+    """Get recent log lines from server log file."""
+    from pathlib import Path
+
+    log_path = Path(__file__).parent.parent / "logs" / "server.log"
+    if not log_path.exists():
+        return {"error": "Log file not found. Use 'make server-bg' to start with logging."}
+
+    try:
+        with open(log_path) as f:
+            all_lines = f.readlines()
+            recent = all_lines[-lines:] if len(all_lines) > lines else all_lines
+            return {
+                "total_lines": len(all_lines),
+                "returned_lines": len(recent),
+                "logs": "".join(recent),
+            }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time communication."""
     await manager.connect(websocket)
 
     try:
+        # Send current state to new client
+        state = state_manager.state
+        await manager.send_to(
+            websocket,
+            {
+                "type": "init",
+                "strokes": [s.model_dump() for s in state.canvas.strokes],
+                "gallery": [c.model_dump() for c in state.gallery.canvases],
+                "status": state.agent.status.value,
+                "paused": agent.paused,
+                "piece_count": state.agent.piece_count,
+            },
+        )
+        logger.info(f"Sent init state: {len(state.canvas.strokes)} strokes, {len(state.gallery.canvases)} gallery items, piece #{state.agent.piece_count}")
         while True:
             data = await websocket.receive_text()
             message = json.loads(data)
@@ -235,6 +319,39 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                     clear_canvas()
                     await manager.broadcast(ClearMessage())
                     logger.info("Canvas cleared")
+
+                case "new_canvas":
+                    # Save current canvas and create new one
+                    saved_id = save_current_canvas()
+                    clear_canvas()
+                    # Increment piece count for new canvas
+                    state_manager.state.agent.piece_count += 1
+                    state_manager.save()
+                    agent.reset_container()  # Fresh container for new piece
+                    await manager.broadcast(NewCanvasMessage(saved_id=saved_id))
+                    # Also send gallery update
+                    await manager.broadcast(
+                        GalleryUpdateMessage(
+                            canvases=state_manager.state.gallery.canvases
+                        )
+                    )
+                    # Send updated piece count
+                    await manager.broadcast(
+                        {"type": "piece_count", "count": state_manager.state.agent.piece_count}
+                    )
+                    logger.info(f"New canvas created (piece #{state_manager.state.agent.piece_count}), saved old as: {saved_id}")
+
+                case "load_canvas":
+                    # Load a canvas from gallery
+                    canvas_id = message.get("canvas_id", "")
+                    strokes = load_canvas_from_gallery(canvas_id)
+                    if strokes:
+                        state_manager.state.canvas.strokes = list(strokes)
+                        state_manager.save()
+                        await manager.broadcast(LoadCanvasMessage(strokes=strokes))
+                        logger.info(f"Loaded canvas: {canvas_id}")
+                    else:
+                        logger.warning(f"Canvas not found: {canvas_id}")
 
                 case "pause":
                     await agent.pause()

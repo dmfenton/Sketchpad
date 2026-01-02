@@ -67,12 +67,28 @@ class AgentState(BaseModel):
     piece_count: int = 0
 
 
+class SavedCanvas(BaseModel):
+    """A saved canvas in the gallery."""
+
+    id: str
+    strokes: list[Path]
+    created_at: str  # ISO timestamp
+    piece_number: int
+
+
+class GalleryState(BaseModel):
+    """Gallery of saved canvases."""
+
+    canvases: list[SavedCanvas] = []
+
+
 class AppState(BaseModel):
     """Full application state."""
 
     canvas: CanvasState = CanvasState()
     execution: ExecutionState = ExecutionState()
     agent: AgentState = AgentState()
+    gallery: GalleryState = GalleryState()
 
 
 # WebSocket message types
@@ -114,6 +130,27 @@ class ClearMessage(BaseModel):
     type: Literal["clear"] = "clear"
 
 
+class NewCanvasMessage(BaseModel):
+    """New canvas created, old one saved to gallery."""
+
+    type: Literal["new_canvas"] = "new_canvas"
+    saved_id: str | None = None  # ID of saved canvas, None if was empty
+
+
+class GalleryUpdateMessage(BaseModel):
+    """Gallery was updated."""
+
+    type: Literal["gallery_update"] = "gallery_update"
+    canvases: list[SavedCanvas]
+
+
+class LoadCanvasMessage(BaseModel):
+    """Load a canvas from gallery."""
+
+    type: Literal["load_canvas"] = "load_canvas"
+    strokes: list[Path]
+
+
 class ClientStrokeMessage(BaseModel):
     """Human stroke from client."""
 
@@ -134,5 +171,14 @@ class ClientControlMessage(BaseModel):
     type: Literal["clear", "pause", "resume"]
 
 
-ServerMessage = PenMessage | StrokeCompleteMessage | ThinkingMessage | StatusMessage | ClearMessage
+ServerMessage = (
+    PenMessage
+    | StrokeCompleteMessage
+    | ThinkingMessage
+    | StatusMessage
+    | ClearMessage
+    | NewCanvasMessage
+    | GalleryUpdateMessage
+    | LoadCanvasMessage
+)
 ClientMessage = ClientStrokeMessage | ClientNudgeMessage | ClientControlMessage

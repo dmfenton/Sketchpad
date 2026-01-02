@@ -2,7 +2,7 @@
  * SVG canvas component with stroke rendering and touch handling.
  */
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Circle, Defs, Line, Pattern, Path as SvgPath, Rect } from 'react-native-svg';
@@ -101,25 +101,29 @@ export function Canvas({
     };
   }, []);
 
-  const panGesture = Gesture.Pan()
-    .enabled(drawingEnabled)
-    .onStart((event) => {
-      const { width, height } = containerRef.current;
-      if (width > 0 && height > 0) {
-        const point = screenToCanvas(event.x, event.y, width, height);
-        onStrokeStart(point.x, point.y);
-      }
-    })
-    .onUpdate((event) => {
-      const { width, height } = containerRef.current;
-      if (width > 0 && height > 0) {
-        const point = screenToCanvas(event.x, event.y, width, height);
-        onStrokeMove(point.x, point.y);
-      }
-    })
-    .onEnd(() => {
-      onStrokeEnd();
-    });
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(drawingEnabled)
+        .onStart((event) => {
+          const { width, height } = containerRef.current;
+          if (width > 0 && height > 0) {
+            const point = screenToCanvas(event.x, event.y, width, height);
+            onStrokeStart(point.x, point.y);
+          }
+        })
+        .onUpdate((event) => {
+          const { width, height } = containerRef.current;
+          if (width > 0 && height > 0) {
+            const point = screenToCanvas(event.x, event.y, width, height);
+            onStrokeMove(point.x, point.y);
+          }
+        })
+        .onEnd(() => {
+          onStrokeEnd();
+        }),
+    [drawingEnabled, onStrokeStart, onStrokeMove, onStrokeEnd]
+  );
 
   return (
     <View style={styles.container} onLayout={handleLayout}>

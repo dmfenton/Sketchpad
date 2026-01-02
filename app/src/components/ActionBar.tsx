@@ -17,10 +17,13 @@ interface ActionBarProps {
   drawingEnabled: boolean;
   paused: boolean;
   connected: boolean;
+  galleryCount: number;
   onDrawToggle: () => void;
   onNudge: () => void;
   onClear: () => void;
   onPauseToggle: () => void;
+  onNewCanvas: () => void;
+  onGallery: () => void;
 }
 
 interface ActionButtonProps {
@@ -88,11 +91,16 @@ export function ActionBar({
   drawingEnabled,
   paused,
   connected,
+  galleryCount,
   onDrawToggle,
   onNudge,
-  onClear,
+  onClear: _onClear,
   onPauseToggle,
+  onNewCanvas,
+  onGallery,
 }: ActionBarProps): React.JSX.Element {
+  // Note: onClear is still in props for API compatibility but removed from UI
+  void _onClear;
   return (
     <View style={styles.container}>
       <View style={styles.bar}>
@@ -110,15 +118,20 @@ export function ActionBar({
           onPress={onNudge}
         />
         <ActionButton
-          icon="trash-outline"
-          label="Clear"
-          variant="danger"
+          icon="add-circle-outline"
+          label="New"
           disabled={!connected}
-          onPress={onClear}
+          onPress={onNewCanvas}
+        />
+        <ActionButton
+          icon="images-outline"
+          label={galleryCount > 0 ? `Gallery (${galleryCount})` : 'Gallery'}
+          disabled={!connected || galleryCount === 0}
+          onPress={onGallery}
         />
         <ActionButton
           icon={paused ? 'play' : 'pause'}
-          label={paused ? 'Resume' : 'Pause'}
+          label={paused ? 'Start' : 'Pause'}
           active={paused}
           disabled={!connected}
           onPress={onPauseToggle}
@@ -130,24 +143,24 @@ export function ActionBar({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xs,
   },
   bar: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.xl,
-    padding: spacing.sm,
-    gap: spacing.xs,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xs,
+    gap: 2,
     ...shadows.lg,
   },
   button: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.lg,
-    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    borderRadius: borderRadius.md,
+    gap: 2,
   },
   buttonActive: {
     backgroundColor: colors.surfaceElevated,

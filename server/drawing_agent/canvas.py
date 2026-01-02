@@ -136,3 +136,55 @@ def get_canvas_image() -> Image.Image:
     """Get canvas as PIL Image for agent consumption."""
     png_bytes = render_png()
     return Image.open(io.BytesIO(png_bytes))
+
+
+def save_current_canvas() -> str | None:
+    """Save current canvas to gallery and return its ID. Returns None if empty."""
+    import uuid
+    from datetime import UTC, datetime
+
+    from drawing_agent.types import SavedCanvas
+
+    state = state_manager.state
+    strokes = state.canvas.strokes
+
+    if not strokes:
+        return None
+
+    canvas_id = str(uuid.uuid4())[:8]
+    saved = SavedCanvas(
+        id=canvas_id,
+        strokes=strokes.copy(),
+        created_at=datetime.now(UTC).isoformat(),
+        piece_number=state.agent.piece_count,
+    )
+
+    state.gallery.canvases.append(saved)
+    state_manager.save()
+
+    return canvas_id
+
+
+def load_canvas_from_gallery(canvas_id: str) -> list[Path] | None:
+    """Load a canvas from gallery by ID. Returns strokes or None if not found."""
+    state = state_manager.state
+
+    for saved in state.gallery.canvases:
+        if saved.id == canvas_id:
+            return saved.strokes
+
+    return None
+
+
+def get_gallery() -> list[dict]:
+    """Get list of saved canvases (without full stroke data for efficiency)."""
+    state = state_manager.state
+    return [
+        {
+            "id": c.id,
+            "created_at": c.created_at,
+            "piece_number": c.piece_number,
+            "stroke_count": len(c.strokes),
+        }
+        for c in state.gallery.canvases
+    ]

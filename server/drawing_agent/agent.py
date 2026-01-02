@@ -72,7 +72,7 @@ class DrawingAgent:
     def __init__(self) -> None:
         self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         self.pending_nudges: list[str] = []
-        self._paused = False
+        self._paused = True  # Start paused by default
         self._pause_lock = asyncio.Lock()
         self.container_id: str | None = None
 
@@ -217,8 +217,10 @@ class DrawingAgent:
 
                 # Process response content
                 has_tool_use = False
+                logger.info(f"Response has {len(response_content)} blocks")
 
                 for block in response_content:
+                    logger.info(f"Block type: {block.type}, block: {block}")
                     if block.type == "text":
                         # Additional text (already captured via streaming)
                         pass
@@ -228,16 +230,19 @@ class DrawingAgent:
                         has_tool_use = True
                         logger.info(f"Code execution tool use: {block.id}")
 
-                    elif block.type == "code_execution_tool_result":
-                        # Process code execution result
+                    elif block.type == "bash_code_execution_tool_result":
+                        # Process bash code execution result (current API version)
+                        logger.info(f"Bash code execution result block: {block}")
                         result = block.content
+                        logger.info(f"Result content type: {type(result)}")
+
+                        # The content is a bash_code_execution_result with stdout/stderr/return_code
                         stdout = getattr(result, "stdout", "") or ""
                         stderr = getattr(result, "stderr", "") or ""
                         return_code = getattr(result, "return_code", 0)
 
                         logger.info(f"Code execution result: return_code={return_code}")
-                        if stdout:
-                            logger.info(f"stdout: {stdout[:500]}...")
+                        logger.info(f"stdout (full): {repr(stdout)}")
                         if stderr:
                             logger.warning(f"stderr: {stderr[:500]}...")
 

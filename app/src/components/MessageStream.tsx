@@ -95,7 +95,7 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
 }
 
 export function MessageStream({ messages, status }: MessageStreamProps): React.JSX.Element {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);  // Start collapsed
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -236,8 +236,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -269,11 +269,11 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   scrollView: {
-    maxHeight: 200,
+    maxHeight: 120,
   },
   scrollContent: {
-    padding: spacing.lg,
-    gap: spacing.md,
+    padding: spacing.sm,
+    gap: spacing.xs,
   },
   emptyState: {
     alignItems: 'center',

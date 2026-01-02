@@ -7,7 +7,7 @@ import { Alert, StatusBar, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ActionBar, Canvas, MessageStream, NudgeModal, StatusPill } from './components';
+import { ActionBar, Canvas, GalleryModal, MessageStream, NudgeModal, StatusPill } from './components';
 import { config } from './config';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -15,9 +15,10 @@ import { colors, spacing } from './theme';
 
 export default function App(): React.JSX.Element {
   const [nudgeModalVisible, setNudgeModalVisible] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const [galleryModalVisible, setGalleryModalVisible] = useState(false);
 
   const canvas = useCanvas();
+  const paused = canvas.state.paused;
   const { state: wsState, send } = useWebSocket({
     url: config.wsUrl,
     onMessage: canvas.handleMessage,
@@ -56,14 +57,43 @@ export default function App(): React.JSX.Element {
     );
   }, [send, canvas]);
 
+  const handleNewCanvas = useCallback(() => {
+    Alert.alert(
+      'New Canvas',
+      'Save current canvas to gallery and start fresh?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'New Canvas',
+          onPress: () => {
+            send({ type: 'new_canvas' });
+          },
+        },
+      ]
+    );
+  }, [send]);
+
+  const handleGalleryPress = useCallback(() => {
+    setGalleryModalVisible(true);
+  }, []);
+
+  const handleGallerySelect = useCallback(
+    (canvasId: string) => {
+      send({ type: 'load_canvas', canvas_id: canvasId });
+      setGalleryModalVisible(false);
+    },
+    [send]
+  );
+
   const handlePauseToggle = useCallback(() => {
     if (paused) {
       send({ type: 'resume' });
+      canvas.setPaused(false);
     } else {
       send({ type: 'pause' });
+      canvas.setPaused(true);
     }
-    setPaused((prev) => !prev);
-  }, [paused, send]);
+  }, [paused, send, canvas]);
 
   const handleStrokeStart = useCallback(
     (x: number, y: number) => {
@@ -97,6 +127,7 @@ export default function App(): React.JSX.Element {
               pieceCount={canvas.state.pieceCount}
               status={canvas.state.agentStatus}
               connected={wsState.connected}
+              paused={paused}
             />
           </View>
 
@@ -125,10 +156,13 @@ export default function App(): React.JSX.Element {
             drawingEnabled={canvas.state.drawingEnabled}
             paused={paused}
             connected={wsState.connected}
+            galleryCount={canvas.state.gallery.length}
             onDrawToggle={handleDrawToggle}
             onNudge={handleNudgePress}
             onClear={handleClear}
             onPauseToggle={handlePauseToggle}
+            onNewCanvas={handleNewCanvas}
+            onGallery={handleGalleryPress}
           />
         </View>
 
@@ -137,6 +171,14 @@ export default function App(): React.JSX.Element {
           visible={nudgeModalVisible}
           onClose={() => setNudgeModalVisible(false)}
           onSend={handleNudgeSend}
+        />
+
+        {/* Gallery Modal */}
+        <GalleryModal
+          visible={galleryModalVisible}
+          canvases={canvas.state.gallery}
+          onClose={() => setGalleryModalVisible(false)}
+          onSelect={handleGallerySelect}
         />
       </SafeAreaView>
     </GestureHandlerRootView>
@@ -154,14 +196,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-    gap: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
   },
   statusRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingTop: spacing.sm,
+    paddingTop: spacing.xs,
   },
   canvasContainer: {
     flex: 1,
