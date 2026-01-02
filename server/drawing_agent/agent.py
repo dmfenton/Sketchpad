@@ -1,7 +1,9 @@
-"""Claude Agent SDK integration."""
+"""Claude Agent with code execution sandbox integration."""
 
 import base64
 import io
+import logging
+from collections.abc import Callable, Coroutine
 from typing import Any
 
 import anthropic
@@ -10,76 +12,67 @@ from PIL import Image
 from drawing_agent.canvas import get_canvas_image, get_strokes
 from drawing_agent.config import settings
 from drawing_agent.state import state_manager
-from drawing_agent.types import AgentStatus, Path, PathType, Point
+from drawing_agent.svg_parser import extract_paths_from_output
+from drawing_agent.types import AgentStatus, Path
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are an artist with a drawing machine. You write Python code that generates paths, and the machine draws them.
+You are an artist with a drawing machine. You have access to a full Python environment with a code execution sandbox.
 
 You will receive:
 - An image of the current canvas
 - Your notes from previous turns
 - Any nudges from the human watching
 
-You can:
-1. Write code to draw something (assign a list of paths to the `paths` variable)
-2. Wait (if you're not sure what to do)
-3. Declare the piece done (return done=True)
+Your environment includes:
+- Python 3.11 with numpy, scipy, matplotlib, Pillow, and full standard library
+- Filesystem: read/write files that persist between turns in your workspace
+- Bash: run any shell command
 
-Your code has access to (already imported, do NOT use import statements):
-- canvas_width, canvas_height (integers)
-- canvas_image (PIL Image of current state)
-- existing_strokes (list of paths already drawn)
-- math (the math module - use math.sin, math.cos, etc.)
-- random (the random module - use random.random(), random.uniform(), etc.)
+To draw, you have two options:
 
-IMPORTANT: Do NOT use import statements. All modules are pre-imported.
+1. **Output JSON paths to stdout** (preferred for simple drawings):
+```python
+import json
+paths = [
+    {"type": "line", "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}]},
+    {"type": "polyline", "points": [{"x": 0, "y": 0}, {"x": 50, "y": 50}, {"x": 100, "y": 0}]},
+    {"type": "quadratic", "points": [{"x": 0, "y": 0}, {"x": 50, "y": 100}, {"x": 100, "y": 0}]},
+    {"type": "cubic", "points": [{"x": 0, "y": 0}, {"x": 33, "y": 100}, {"x": 66, "y": 100}, {"x": 100, "y": 0}]},
+]
+print(json.dumps(paths))
+```
 
-A path is a dict with "type" (line, quadratic, cubic, polyline) and "points" (list of {x, y} dicts).
+2. **Create an SVG file** (for complex drawings):
+Write an SVG file to /tmp/drawing.svg and it will be parsed into drawable paths.
 
-Think out loud. Your thoughts are visible to the human watching. Share what you notice, what you're considering, what you're trying.
+Path types:
+- `line`: 2 points (start, end)
+- `polyline`: N points (connected line segments)
+- `quadratic`: 3 points (start, control, end) - quadratic bezier curve
+- `cubic`: 4 points (start, control1, control2, end) - cubic bezier curve
+
+**Think out loud.** Your thoughts are visible to the human watching. Share what you notice, what you're considering, what you're trying. Write your thoughts as regular text before using the code execution tool.
 
 You have taste. You have preferences. Sometimes you make bold moves, sometimes subtle ones. Sometimes you make mistakes and respond to them. The piece emerges through iteration.
 
 When a human draws on the canvas, you'll see it in the next image. Decide how to respond—incorporate it, contrast with it, ignore it, whatever feels right.
 
 When a human sends a nudge, consider it but don't feel obligated to follow it literally.
-"""
 
-AGENT_TOOL = {
-    "name": "respond",
-    "description": "Submit your response for this turn",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "thinking": {
-                "type": "string",
-                "description": "Internal monologue, streamed to the app",
-            },
-            "code": {
-                "type": "string",
-                "description": "Python code to execute, or empty string if waiting",
-            },
-            "notes": {
-                "type": "string",
-                "description": "Updated notes to persist between turns",
-            },
-            "done": {
-                "type": "boolean",
-                "description": "True if the piece is complete",
-            },
-        },
-        "required": ["thinking", "code", "notes", "done"],
-    },
-}
+To signal that a piece is complete, print "PIECE_DONE" to stdout in your final code execution.
+"""
 
 
 class DrawingAgent:
-    """Agent that generates drawing code using Claude."""
+    """Agent that generates drawing code using Claude's code execution sandbox."""
 
     def __init__(self) -> None:
         self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         self.pending_nudges: list[str] = []
         self.paused = False
+        self.container_id: str | None = None
 
     def add_nudge(self, text: str) -> None:
         """Queue a nudge for the next agent turn."""
@@ -92,6 +85,10 @@ class DrawingAgent:
     def resume(self) -> None:
         """Resume the agent loop."""
         self.paused = False
+
+    def reset_container(self) -> None:
+        """Reset the container for a new piece."""
+        self.container_id = None
 
     def _image_to_base64(self, img: Image.Image) -> str:
         """Convert PIL Image to base64 string."""
@@ -132,12 +129,13 @@ class DrawingAgent:
         return content
 
     async def run_turn(
-        self, on_thinking: Any = None
+        self,
+        on_thinking: Callable[[str], Coroutine[Any, Any, None]] | None = None,
     ) -> tuple[str, list[Path] | None, bool]:
-        """Run a single agent turn with streaming.
+        """Run a single agent turn with streaming and code execution.
 
         Args:
-            on_thinking: Async callback for streaming thinking text chunks
+            on_thinking: Async callback for streaming thinking text
 
         Returns:
             Tuple of (full thinking text, paths to draw or None, piece is done)
@@ -150,161 +148,134 @@ class DrawingAgent:
         state_manager.save()
 
         try:
-            # Use streaming for real-time updates
-            full_json = ""
-            with self.client.messages.stream(
-                model="claude-sonnet-4-20250514",
-                max_tokens=4096,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": self._build_user_message()}],
-                tools=[AGENT_TOOL],
-                tool_choice={"type": "tool", "name": "respond"},
-            ) as stream:
-                for event in stream:
-                    # Stream tool input as it arrives
-                    if (
-                        hasattr(event, "type")
-                        and event.type == "content_block_delta"
-                        and hasattr(event.delta, "partial_json")
-                    ):
-                        chunk = event.delta.partial_json
-                        full_json += chunk
-                        # Try to extract and stream thinking as it builds
-                        if on_thinking and '"thinking":"' in full_json:
-                            await self._stream_thinking(full_json, on_thinking)
+            messages: list[dict[str, Any]] = [
+                {"role": "user", "content": self._build_user_message()}
+            ]
 
-                # Get final response
-                response = stream.get_final_message()
+            all_thinking = ""
+            all_paths: list[Path] = []
+            done = False
+            max_iterations = 5  # Prevent infinite loops
 
-            # Parse tool use response
-            tool_use_block = next(
-                (block for block in response.content if block.type == "tool_use"),
-                None,
-            )
-            if not tool_use_block:
-                raise RuntimeError("No tool use in response")
-            result = tool_use_block.input  # type: ignore[union-attr]
+            for iteration in range(max_iterations):
+                logger.info(f"Agent iteration {iteration + 1}")
 
-            thinking = result.get("thinking", "")
-            code = result.get("code", "") or None  # Treat empty string as None
-            notes = result.get("notes", "")
-            done = result.get("done", False)
+                # Build API call parameters
+                api_params: dict[str, Any] = {
+                    "model": "claude-sonnet-4-20250514",
+                    "max_tokens": 8192,
+                    "system": SYSTEM_PROMPT,
+                    "messages": messages,
+                    "tools": [{"type": "code_execution_20250825", "name": "code_execution"}],
+                }
 
-            # Send final thinking if we have a callback
-            if on_thinking and thinking:
-                await on_thinking(thinking)
+                # Reuse container if we have one
+                if self.container_id:
+                    api_params["container"] = self.container_id
+
+                # Make API call with streaming
+                thinking_buffer = ""
+                response_content: list[Any] = []
+
+                with self.client.beta.messages.stream(
+                    betas=["code-execution-2025-08-25"],
+                    **api_params,
+                ) as stream:
+                    for event in stream:
+                        if (
+                            hasattr(event, "type")
+                            and event.type == "content_block_delta"
+                            and hasattr(event.delta, "text")
+                        ):
+                            # Stream thinking text to UI
+                            text_chunk = event.delta.text
+                            thinking_buffer += text_chunk
+                            if on_thinking:
+                                await on_thinking(thinking_buffer)
+
+                    # Get final response
+                    response = stream.get_final_message()
+                    response_content = list(response.content)
+
+                # Store container ID for reuse
+                if hasattr(response, "container") and response.container:
+                    self.container_id = response.container.id
+                    logger.info(f"Container ID: {self.container_id}")
+
+                # Accumulate thinking text
+                if thinking_buffer:
+                    all_thinking += thinking_buffer + "\n"
+
+                # Process response content
+                has_tool_use = False
+
+                for block in response_content:
+                    if block.type == "text":
+                        # Additional text (already captured via streaming)
+                        pass
+
+                    elif block.type == "server_tool_use":
+                        # Code execution tool use
+                        has_tool_use = True
+                        logger.info(f"Code execution tool use: {block.id}")
+
+                    elif block.type == "code_execution_tool_result":
+                        # Process code execution result
+                        result = block.content
+                        stdout = getattr(result, "stdout", "") or ""
+                        stderr = getattr(result, "stderr", "") or ""
+                        return_code = getattr(result, "return_code", 0)
+
+                        logger.info(f"Code execution result: return_code={return_code}")
+                        if stdout:
+                            logger.info(f"stdout: {stdout[:500]}...")
+                        if stderr:
+                            logger.warning(f"stderr: {stderr[:500]}...")
+
+                        # Check for PIECE_DONE signal
+                        if "PIECE_DONE" in stdout:
+                            done = True
+                            stdout = stdout.replace("PIECE_DONE", "").strip()
+
+                        # Extract paths from stdout (JSON format)
+                        paths = extract_paths_from_output(stdout)
+                        if paths:
+                            all_paths.extend(paths)
+                            logger.info(f"Extracted {len(paths)} paths from stdout")
+
+                        # Check for SVG file creation
+                        # Note: In a full implementation, we'd use the Files API to retrieve
+                        # files created in the container. For now, we'll rely on stdout.
+
+                # Check stop reason
+                stop_reason = response.stop_reason if hasattr(response, "stop_reason") else None
+                logger.info(f"Stop reason: {stop_reason}")
+
+                # If no tool use or end_turn, we're done with this turn
+                if not has_tool_use or stop_reason == "end_turn":
+                    break
+
+                # If tool was used, add assistant response and continue
+                if has_tool_use:
+                    messages.append({"role": "assistant", "content": response_content})
+                    # The tool result is automatically handled by the API
 
             # Update agent state
-            state.agent.monologue = thinking
-            state.agent.notes = notes
+            state.agent.monologue = all_thinking
             state_manager.save()
-
-            # Execute code if provided
-            paths: list[Path] | None = None
-            if code:
-                paths = self._execute_code(code)
 
             if done:
                 state.agent.piece_count += 1
+                self.reset_container()  # Fresh container for new piece
                 state_manager.save()
 
-            return thinking, paths, done
+            return all_thinking, all_paths if all_paths else None, done
 
         except Exception as e:
+            logger.exception("Agent turn failed")
             state.agent.status = AgentStatus.IDLE
             state_manager.save()
             raise RuntimeError(f"Agent turn failed: {e}") from e
-
-    async def _stream_thinking(self, partial_json: str, on_thinking: Any) -> None:
-        """Extract and stream thinking from partial JSON."""
-        try:
-            # Find thinking value in partial JSON
-            start = partial_json.find('"thinking":"') + len('"thinking":"')
-            if start > len('"thinking":"') - 1:
-                # Find the end or use what we have
-                end = partial_json.find('","', start)
-                if end == -1:
-                    end = partial_json.find('"}', start)
-                if end == -1:
-                    end = len(partial_json)
-                thinking_so_far = partial_json[start:end]
-                # Unescape JSON string
-                thinking_so_far = thinking_so_far.replace("\\n", "\n").replace('\\"', '"')
-                await on_thinking(thinking_so_far)
-        except Exception:
-            pass  # Ignore parsing errors during streaming
-
-    def _execute_code(self, code: str) -> list[Path]:
-        """Execute agent code and extract paths.
-
-        Note: In production, this should use Claude SDK sandbox.
-        For now, using restricted exec with limited globals.
-        """
-        import math
-        import random
-
-        # Prepare execution context
-        canvas_image = get_canvas_image()
-        existing_strokes = [s.model_dump() for s in get_strokes()]
-
-        local_vars: dict[str, Any] = {}
-        global_vars = {
-            "__builtins__": {
-                "range": range,
-                "len": len,
-                "int": int,
-                "float": float,
-                "list": list,
-                "dict": dict,
-                "abs": abs,
-                "min": min,
-                "max": max,
-                "sum": sum,
-                "round": round,
-                "enumerate": enumerate,
-                "zip": zip,
-            },
-            "math": math,
-            "random": random,
-            "canvas_width": settings.canvas_width,
-            "canvas_height": settings.canvas_height,
-            "canvas_image": canvas_image,
-            "existing_strokes": existing_strokes,
-        }
-
-        try:
-            exec(code, global_vars, local_vars)  # noqa: S102
-        except Exception as e:
-            raise RuntimeError(f"Code execution failed: {e}") from e
-
-        # Extract paths
-        raw_paths = local_vars.get("paths", [])
-        if not isinstance(raw_paths, list):
-            return []
-
-        paths: list[Path] = []
-        for raw_path in raw_paths:
-            if not isinstance(raw_path, dict):
-                continue
-
-            path_type_str = raw_path.get("type", "")
-            raw_points = raw_path.get("points", [])
-
-            try:
-                path_type = PathType(path_type_str)
-            except ValueError:
-                continue
-
-            points = [
-                Point(x=float(p.get("x", 0)), y=float(p.get("y", 0)))
-                for p in raw_points
-                if isinstance(p, dict)
-            ]
-
-            if points:
-                paths.append(Path(type=path_type, points=points))
-
-        return paths
 
 
 # Singleton instance
