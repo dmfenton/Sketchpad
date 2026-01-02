@@ -24,8 +24,10 @@ interface MessageStreamProps {
 const STATUS_LABELS: Record<AgentStatus, string> = {
   idle: 'Idle',
   thinking: 'Thinking',
+  executing: 'Running Code',
   drawing: 'Drawing',
   paused: 'Paused',
+  error: 'Error',
 };
 
 function formatTime(timestamp: number): string {
@@ -41,6 +43,7 @@ interface MessageBubbleProps {
 function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Element {
   const fadeAnim = useRef(new Animated.Value(isNew ? 0 : 1)).current;
   const slideAnim = useRef(new Animated.Value(isNew ? 20 : 0)).current;
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (isNew) {
@@ -59,9 +62,8 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
     }
   }, [isNew, fadeAnim, slideAnim]);
 
-  const isStatus = message.type === 'status';
-
-  if (isStatus) {
+  // Status pill (centered, minimal)
+  if (message.type === 'status') {
     return (
       <Animated.View
         style={[
@@ -78,6 +80,121 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
     );
   }
 
+  // Iteration indicator (centered, subtle)
+  if (message.type === 'iteration') {
+    return (
+      <Animated.View
+        style={[
+          styles.iterationPill,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <Ionicons name="repeat" size={12} color={colors.textMuted} />
+        <Text style={styles.iterationText}>{message.text}</Text>
+      </Animated.View>
+    );
+  }
+
+  // Error message (red accent)
+  if (message.type === 'error') {
+    return (
+      <Animated.View
+        style={[
+          styles.messageBubble,
+          styles.errorBubble,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View style={styles.messageHeader}>
+          <Ionicons name="alert-circle" size={16} color={colors.error} />
+          <Text style={[styles.messageText, styles.errorText]}>{message.text}</Text>
+        </View>
+        {message.metadata?.stderr && (
+          <Text style={styles.errorDetails}>{message.metadata.stderr}</Text>
+        )}
+        <Text style={styles.timestamp}>{formatTime(message.timestamp)}</Text>
+      </Animated.View>
+    );
+  }
+
+  // Piece complete (celebration style)
+  if (message.type === 'piece_complete') {
+    return (
+      <Animated.View
+        style={[
+          styles.messageBubble,
+          styles.successBubble,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View style={styles.messageHeader}>
+          <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+          <Text style={[styles.messageText, styles.successText]}>{message.text}</Text>
+        </View>
+        <Text style={styles.timestamp}>{formatTime(message.timestamp)}</Text>
+      </Animated.View>
+    );
+  }
+
+  // Code execution (expandable with output)
+  if (message.type === 'code_execution') {
+    const hasOutput = message.metadata?.stdout || message.metadata?.stderr;
+    const isSuccess = message.metadata?.return_code === 0;
+
+    return (
+      <Animated.View
+        style={[
+          styles.messageBubble,
+          styles.codeBubble,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <Pressable
+          style={styles.messageHeader}
+          onPress={() => hasOutput && setExpanded(!expanded)}
+        >
+          <Ionicons
+            name={message.text.includes('Executing') ? 'code-working' : (isSuccess ? 'code' : 'code-slash')}
+            size={16}
+            color={isSuccess !== false ? colors.primary : colors.error}
+          />
+          <Text style={styles.messageText}>{message.text}</Text>
+          {hasOutput && (
+            <Ionicons
+              name={expanded ? 'chevron-up' : 'chevron-down'}
+              size={14}
+              color={colors.textMuted}
+            />
+          )}
+        </Pressable>
+        {expanded && message.metadata?.stdout && (
+          <View style={styles.codeOutput}>
+            <Text style={styles.codeOutputText}>{message.metadata.stdout}</Text>
+          </View>
+        )}
+        {expanded && message.metadata?.stderr && (
+          <View style={[styles.codeOutput, styles.codeOutputError]}>
+            <Text style={styles.codeOutputText}>{message.metadata.stderr}</Text>
+          </View>
+        )}
+        <Text style={styles.timestamp}>{formatTime(message.timestamp)}</Text>
+      </Animated.View>
+    );
+  }
+
+  // Default thinking/other message
   return (
     <Animated.View
       style={[
@@ -163,7 +280,7 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
     setCollapsed((prev) => !prev);
   }, []);
 
-  const isActive = status === 'thinking' || status === 'drawing';
+  const isActive = status === 'thinking' || status === 'executing' || status === 'drawing';
 
   return (
     <View style={styles.container}>
@@ -334,5 +451,67 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.sm,
+  },
+  // Iteration pill style
+  iterationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: colors.surfaceElevated,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    gap: spacing.xs,
+    opacity: 0.7,
+  },
+  iterationText: {
+    ...typography.small,
+    color: colors.textMuted,
+  },
+  // Message header with icon
+  messageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  // Error styles
+  errorBubble: {
+    borderLeftColor: colors.error,
+  },
+  errorText: {
+    color: colors.error,
+  },
+  errorDetails: {
+    ...typography.small,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    fontFamily: 'monospace',
+  },
+  // Success styles
+  successBubble: {
+    borderLeftColor: colors.success,
+  },
+  successText: {
+    color: colors.success,
+  },
+  // Code execution styles
+  codeBubble: {
+    borderLeftColor: colors.primary,
+  },
+  codeOutput: {
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.sm,
+    maxHeight: 150,
+    overflow: 'hidden',
+  },
+  codeOutputError: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  codeOutputText: {
+    ...typography.small,
+    fontFamily: 'monospace',
+    color: colors.textSecondary,
   },
 });

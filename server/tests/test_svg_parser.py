@@ -103,57 +103,66 @@ class TestParseJsonPaths:
     """Tests for parse_json_paths function."""
 
     def test_parse_line(self) -> None:
-        json_str = json.dumps([
-            {"type": "line", "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}]}
-        ])
+        json_str = json.dumps(
+            [{"type": "line", "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}]}]
+        )
         paths = parse_json_paths(json_str)
         assert len(paths) == 1
         assert paths[0].type == PathType.LINE
         assert len(paths[0].points) == 2
 
     def test_parse_polyline(self) -> None:
-        json_str = json.dumps([
-            {"type": "polyline", "points": [
-                {"x": 0, "y": 0},
-                {"x": 50, "y": 50},
-                {"x": 100, "y": 0}
-            ]}
-        ])
+        json_str = json.dumps(
+            [
+                {
+                    "type": "polyline",
+                    "points": [{"x": 0, "y": 0}, {"x": 50, "y": 50}, {"x": 100, "y": 0}],
+                }
+            ]
+        )
         paths = parse_json_paths(json_str)
         assert len(paths) == 1
         assert paths[0].type == PathType.POLYLINE
         assert len(paths[0].points) == 3
 
     def test_parse_quadratic(self) -> None:
-        json_str = json.dumps([
-            {"type": "quadratic", "points": [
-                {"x": 0, "y": 0},
-                {"x": 50, "y": 100},
-                {"x": 100, "y": 0}
-            ]}
-        ])
+        json_str = json.dumps(
+            [
+                {
+                    "type": "quadratic",
+                    "points": [{"x": 0, "y": 0}, {"x": 50, "y": 100}, {"x": 100, "y": 0}],
+                }
+            ]
+        )
         paths = parse_json_paths(json_str)
         assert len(paths) == 1
         assert paths[0].type == PathType.QUADRATIC
 
     def test_parse_cubic(self) -> None:
-        json_str = json.dumps([
-            {"type": "cubic", "points": [
-                {"x": 0, "y": 0},
-                {"x": 33, "y": 100},
-                {"x": 66, "y": 100},
-                {"x": 100, "y": 0}
-            ]}
-        ])
+        json_str = json.dumps(
+            [
+                {
+                    "type": "cubic",
+                    "points": [
+                        {"x": 0, "y": 0},
+                        {"x": 33, "y": 100},
+                        {"x": 66, "y": 100},
+                        {"x": 100, "y": 0},
+                    ],
+                }
+            ]
+        )
         paths = parse_json_paths(json_str)
         assert len(paths) == 1
         assert paths[0].type == PathType.CUBIC
 
     def test_parse_multiple_paths(self) -> None:
-        json_str = json.dumps([
-            {"type": "line", "points": [{"x": 0, "y": 0}, {"x": 50, "y": 50}]},
-            {"type": "line", "points": [{"x": 50, "y": 50}, {"x": 100, "y": 100}]},
-        ])
+        json_str = json.dumps(
+            [
+                {"type": "line", "points": [{"x": 0, "y": 0}, {"x": 50, "y": 50}]},
+                {"type": "line", "points": [{"x": 50, "y": 50}, {"x": 100, "y": 100}]},
+            ]
+        )
         paths = parse_json_paths(json_str)
         assert len(paths) == 2
 
@@ -170,31 +179,32 @@ class TestParseJsonPaths:
         assert paths == []
 
     def test_parse_invalid_type(self) -> None:
-        json_str = json.dumps([
-            {"type": "invalid_type", "points": [{"x": 0, "y": 0}]}
-        ])
+        json_str = json.dumps([{"type": "invalid_type", "points": [{"x": 0, "y": 0}]}])
         paths = parse_json_paths(json_str)
         assert paths == []
 
     def test_skip_malformed_points(self) -> None:
         # Points missing x or y should be skipped
-        json_str = json.dumps([
-            {"type": "polyline", "points": [
-                {"x": 0, "y": 0},
-                {"x": 50},  # Missing y
-                {"y": 100},  # Missing x
-                {"x": 100, "y": 100}
-            ]}
-        ])
+        json_str = json.dumps(
+            [
+                {
+                    "type": "polyline",
+                    "points": [
+                        {"x": 0, "y": 0},
+                        {"x": 50},  # Missing y
+                        {"y": 100},  # Missing x
+                        {"x": 100, "y": 100},
+                    ],
+                }
+            ]
+        )
         paths = parse_json_paths(json_str)
         assert len(paths) == 1
         # Only 2 valid points
         assert len(paths[0].points) == 2
 
     def test_skip_empty_points(self) -> None:
-        json_str = json.dumps([
-            {"type": "line", "points": []}
-        ])
+        json_str = json.dumps([{"type": "line", "points": []}])
         paths = parse_json_paths(json_str)
         assert paths == []
 
@@ -203,9 +213,7 @@ class TestExtractPathsFromOutput:
     """Tests for extract_paths_from_output function."""
 
     def test_extract_clean_json(self) -> None:
-        output = json.dumps([
-            {"type": "line", "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}]}
-        ])
+        output = json.dumps([{"type": "line", "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}]}])
         paths = extract_paths_from_output(output)
         assert len(paths) == 1
 

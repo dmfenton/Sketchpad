@@ -12,7 +12,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
-from drawing_agent.agent import agent
+from drawing_agent.agent import AgentCallbacks, CodeExecutionResult, agent
 from drawing_agent.canvas import add_stroke, clear_canvas, render_png, render_svg
 from drawing_agent.config import settings
 from drawing_agent.executor import execute_paths
@@ -20,11 +20,15 @@ from drawing_agent.state import state_manager
 from drawing_agent.types import (
     AgentStatus,
     ClearMessage,
+    CodeExecutionMessage,
+    ErrorMessage,
+    IterationMessage,
     Path,
     PathType,
+    PieceCompleteMessage,
     Point,
     StatusMessage,
-    ThinkingMessage,
+    ThinkingDeltaMessage,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -82,16 +86,49 @@ agent_loop_task: asyncio.Task[None] | None = None
 
 async def agent_loop() -> None:
     """Main agent loop that runs continuously."""
-    last_thinking = ""
 
-    async def stream_thinking(text: str) -> None:
-        """Callback to stream thinking updates to clients."""
-        nonlocal last_thinking
-        # Only send if there's new content
-        if text and text != last_thinking:
-            logger.info(f"Streaming thinking ({len(text)} chars) to {len(manager.active_connections)} clients")
-            await manager.broadcast(ThinkingMessage(text=text))
-            last_thinking = text
+    async def on_thinking(text: str, iteration: int) -> None:
+        """Callback to stream thinking updates to clients (delta only)."""
+        if text:
+            await manager.broadcast(ThinkingDeltaMessage(text=text, iteration=iteration))
+
+    async def on_iteration_start(current: int, max_iter: int) -> None:
+        """Callback when a new iteration starts."""
+        logger.info(f"Iteration {current}/{max_iter}")
+        await manager.broadcast(IterationMessage(current=current, max=max_iter))
+
+    async def on_code_start(iteration: int) -> None:
+        """Callback when code execution starts."""
+        logger.info(f"Code execution started (iteration {iteration})")
+        await manager.broadcast(StatusMessage(status=AgentStatus.EXECUTING))
+        await manager.broadcast(CodeExecutionMessage(status="started", iteration=iteration))
+
+    async def on_code_result(result: CodeExecutionResult) -> None:
+        """Callback when code execution completes."""
+        logger.info(f"Code execution completed (iteration {result.iteration})")
+        await manager.broadcast(
+            CodeExecutionMessage(
+                status="completed",
+                stdout=result.stdout[:2000] if result.stdout else None,  # Limit size
+                stderr=result.stderr[:500] if result.stderr else None,
+                return_code=result.return_code,
+                iteration=result.iteration,
+            )
+        )
+
+    async def on_error(message: str, details: str | None) -> None:
+        """Callback when an error occurs."""
+        logger.error(f"Agent error: {message}")
+        await manager.broadcast(StatusMessage(status=AgentStatus.ERROR))
+        await manager.broadcast(ErrorMessage(message=message, details=details))
+
+    callbacks = AgentCallbacks(
+        on_thinking=on_thinking,
+        on_iteration_start=on_iteration_start,
+        on_code_start=on_code_start,
+        on_code_result=on_code_result,
+        on_error=on_error,
+    )
 
     while True:
         try:
@@ -102,9 +139,8 @@ async def agent_loop() -> None:
 
             # Broadcast THINKING status at start of turn
             await manager.broadcast(StatusMessage(status=AgentStatus.THINKING))
-            last_thinking = ""  # Reset for new turn
 
-            thinking, paths, done = await agent.run_turn(on_thinking=stream_thinking)
+            thinking, paths, done = await agent.run_turn(callbacks=callbacks)
 
             # Execute paths if any
             if paths:
@@ -120,15 +156,16 @@ async def agent_loop() -> None:
             await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
 
             if done:
-                logger.info(
-                    f"Piece {state_manager.state.agent.piece_count} complete"
-                )
+                piece_num = state_manager.state.agent.piece_count
+                logger.info(f"Piece {piece_num} complete")
+                await manager.broadcast(PieceCompleteMessage(piece_number=piece_num))
 
             # Wait before next turn
             await asyncio.sleep(settings.agent_interval)
 
         except Exception as e:
             logger.error(f"Agent loop error: {e}")
+            await manager.broadcast(ErrorMessage(message=str(e)))
             await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
             await asyncio.sleep(settings.agent_interval)
 
@@ -212,9 +249,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             match msg_type:
                 case "stroke":
                     # Human drew something
-                    points = [
-                        Point(x=p["x"], y=p["y"]) for p in message.get("points", [])
-                    ]
+                    points = [Point(x=p["x"], y=p["y"]) for p in message.get("points", [])]
                     if points:
                         path = Path(type=PathType.POLYLINE, points=points)
                         add_stroke(path)

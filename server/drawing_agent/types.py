@@ -34,8 +34,10 @@ class AgentStatus(str, Enum):
 
     IDLE = "idle"
     THINKING = "thinking"
+    EXECUTING = "executing"  # Running code in sandbox
     DRAWING = "drawing"
     PAUSED = "paused"
+    ERROR = "error"
 
 
 class CanvasState(BaseModel):
@@ -114,6 +116,48 @@ class ClearMessage(BaseModel):
     type: Literal["clear"] = "clear"
 
 
+class ThinkingDeltaMessage(BaseModel):
+    """Incremental thinking text (delta only, not accumulated)."""
+
+    type: Literal["thinking_delta"] = "thinking_delta"
+    text: str  # Only the new text since last message
+    iteration: int = 1  # Which iteration (1-5)
+
+
+class CodeExecutionMessage(BaseModel):
+    """Code execution started or completed."""
+
+    type: Literal["code_execution"] = "code_execution"
+    status: Literal["started", "completed"]
+    stdout: str | None = None
+    stderr: str | None = None
+    return_code: int | None = None
+    iteration: int = 1
+
+
+class ErrorMessage(BaseModel):
+    """Error occurred during agent execution."""
+
+    type: Literal["error"] = "error"
+    message: str
+    details: str | None = None
+
+
+class PieceCompleteMessage(BaseModel):
+    """A piece has been completed."""
+
+    type: Literal["piece_complete"] = "piece_complete"
+    piece_number: int
+
+
+class IterationMessage(BaseModel):
+    """Agent iteration update."""
+
+    type: Literal["iteration"] = "iteration"
+    current: int  # Current iteration number (1-5)
+    max: int = 5  # Maximum iterations
+
+
 class ClientStrokeMessage(BaseModel):
     """Human stroke from client."""
 
@@ -134,5 +178,16 @@ class ClientControlMessage(BaseModel):
     type: Literal["clear", "pause", "resume"]
 
 
-ServerMessage = PenMessage | StrokeCompleteMessage | ThinkingMessage | StatusMessage | ClearMessage
+ServerMessage = (
+    PenMessage
+    | StrokeCompleteMessage
+    | ThinkingMessage
+    | ThinkingDeltaMessage
+    | StatusMessage
+    | ClearMessage
+    | CodeExecutionMessage
+    | ErrorMessage
+    | PieceCompleteMessage
+    | IterationMessage
+)
 ClientMessage = ClientStrokeMessage | ClientNudgeMessage | ClientControlMessage

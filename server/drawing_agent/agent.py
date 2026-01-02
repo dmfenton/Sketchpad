@@ -5,6 +5,7 @@ import base64
 import io
 import logging
 from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
 from typing import Any
 
 import anthropic
@@ -15,6 +16,28 @@ from drawing_agent.config import settings
 from drawing_agent.state import state_manager
 from drawing_agent.svg_parser import extract_paths_from_output
 from drawing_agent.types import AgentStatus, Path
+
+
+@dataclass
+class CodeExecutionResult:
+    """Result of a code execution."""
+
+    stdout: str
+    stderr: str
+    return_code: int
+    iteration: int
+
+
+@dataclass
+class AgentCallbacks:
+    """Callbacks for agent events."""
+
+    on_thinking: Callable[[str, int], Coroutine[Any, Any, None]] | None = None
+    on_iteration_start: Callable[[int, int], Coroutine[Any, Any, None]] | None = None
+    on_code_start: Callable[[int], Coroutine[Any, Any, None]] | None = None
+    on_code_result: Callable[[CodeExecutionResult], Coroutine[Any, Any, None]] | None = None
+    on_error: Callable[[str, str | None], Coroutine[Any, Any, None]] | None = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -139,12 +162,12 @@ class DrawingAgent:
 
     async def run_turn(
         self,
-        on_thinking: Callable[[str], Coroutine[Any, Any, None]] | None = None,
+        callbacks: AgentCallbacks | None = None,
     ) -> tuple[str, list[Path] | None, bool]:
         """Run a single agent turn with streaming and code execution.
 
         Args:
-            on_thinking: Async callback for streaming thinking text
+            callbacks: Callbacks for various agent events
 
         Returns:
             Tuple of (full thinking text, paths to draw or None, piece is done)
@@ -152,6 +175,7 @@ class DrawingAgent:
         if self.paused:
             return "", None, False
 
+        cb = callbacks or AgentCallbacks()
         state = state_manager.state
         state.agent.status = AgentStatus.THINKING
         state_manager.save()
@@ -167,7 +191,12 @@ class DrawingAgent:
             max_iterations = 5  # Prevent infinite loops
 
             for iteration in range(max_iterations):
-                logger.info(f"Agent iteration {iteration + 1}")
+                iteration_num = iteration + 1
+                logger.info(f"Agent iteration {iteration_num}")
+
+                # Notify iteration start
+                if cb.on_iteration_start:
+                    await cb.on_iteration_start(iteration_num, max_iterations)
 
                 # Build API call parameters
                 api_params: dict[str, Any] = {
@@ -184,6 +213,7 @@ class DrawingAgent:
 
                 # Make API call with streaming
                 thinking_buffer = ""
+                last_sent_length = 0
                 response_content: list[Any] = []
 
                 with self.client.beta.messages.stream(
@@ -196,11 +226,13 @@ class DrawingAgent:
                             and event.type == "content_block_delta"
                             and hasattr(event.delta, "text")
                         ):
-                            # Stream thinking text to UI
+                            # Stream thinking text to UI (delta only)
                             text_chunk = event.delta.text
                             thinking_buffer += text_chunk
-                            if on_thinking:
-                                await on_thinking(thinking_buffer)
+                            if cb.on_thinking and len(thinking_buffer) > last_sent_length:
+                                # Send only the delta
+                                await cb.on_thinking(text_chunk, iteration_num)
+                                last_sent_length = len(thinking_buffer)
 
                     # Get final response
                     response = stream.get_final_message()
@@ -224,9 +256,11 @@ class DrawingAgent:
                         pass
 
                     elif block.type == "server_tool_use":
-                        # Code execution tool use
+                        # Code execution tool use - notify UI
                         has_tool_use = True
                         logger.info(f"Code execution tool use: {block.id}")
+                        if cb.on_code_start:
+                            await cb.on_code_start(iteration_num)
 
                     elif block.type == "code_execution_tool_result":
                         # Process code execution result
@@ -240,6 +274,17 @@ class DrawingAgent:
                             logger.info(f"stdout: {stdout[:500]}...")
                         if stderr:
                             logger.warning(f"stderr: {stderr[:500]}...")
+
+                        # Notify UI of code execution result
+                        if cb.on_code_result:
+                            await cb.on_code_result(
+                                CodeExecutionResult(
+                                    stdout=stdout,
+                                    stderr=stderr,
+                                    return_code=return_code,
+                                    iteration=iteration_num,
+                                )
+                            )
 
                         # Check for PIECE_DONE signal
                         if "PIECE_DONE" in stdout:
@@ -282,8 +327,13 @@ class DrawingAgent:
 
         except Exception as e:
             logger.exception("Agent turn failed")
-            state.agent.status = AgentStatus.IDLE
+            state.agent.status = AgentStatus.ERROR
             state_manager.save()
+
+            # Notify UI of error
+            if cb.on_error:
+                await cb.on_error(str(e), None)
+
             raise RuntimeError(f"Agent turn failed: {e}") from e
 
 

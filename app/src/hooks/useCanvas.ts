@@ -20,6 +20,8 @@ export interface CanvasHookState {
   messages: AgentMessage[];
   pieceCount: number;
   drawingEnabled: boolean;
+  currentIteration: number;
+  maxIterations: number;
 }
 
 type CanvasAction =
@@ -32,10 +34,13 @@ type CanvasAction =
   | { type: 'SET_PEN'; x: number; y: number; down: boolean }
   | { type: 'SET_STATUS'; status: AgentStatus }
   | { type: 'SET_THINKING'; text: string }
+  | { type: 'APPEND_THINKING'; text: string }
   | { type: 'ADD_MESSAGE'; message: AgentMessage }
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'TOGGLE_DRAWING' }
-  | { type: 'SET_PIECE_COUNT'; count: number };
+  | { type: 'SET_PIECE_COUNT'; count: number }
+  | { type: 'SET_ITERATION'; current: number; max: number }
+  | { type: 'RESET_TURN' };
 
 const initialState: CanvasHookState = {
   strokes: [],
@@ -47,6 +52,8 @@ const initialState: CanvasHookState = {
   messages: [],
   pieceCount: 0,
   drawingEnabled: false,
+  currentIteration: 0,
+  maxIterations: 5,
 };
 
 function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHookState {
@@ -82,6 +89,9 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
     case 'SET_THINKING':
       return { ...state, thinking: action.text };
 
+    case 'APPEND_THINKING':
+      return { ...state, thinking: state.thinking + action.text };
+
     case 'ADD_MESSAGE':
       return { ...state, messages: [...state.messages, action.message] };
 
@@ -93,6 +103,12 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
 
     case 'SET_PIECE_COUNT':
       return { ...state, pieceCount: action.count };
+
+    case 'SET_ITERATION':
+      return { ...state, currentIteration: action.current, maxIterations: action.max };
+
+    case 'RESET_TURN':
+      return { ...state, thinking: '', currentIteration: 0 };
 
     default:
       return state;
@@ -124,8 +140,8 @@ export function useCanvas(): UseCanvasReturn {
         break;
 
       case 'thinking':
+        // Legacy full-text thinking message (for backwards compatibility)
         dispatch({ type: 'SET_THINKING', text: message.text });
-        // Add as a message to the stream
         dispatch({
           type: 'ADD_MESSAGE',
           message: {
@@ -137,20 +153,118 @@ export function useCanvas(): UseCanvasReturn {
         });
         break;
 
+      case 'thinking_delta':
+        // Incremental thinking update (new streaming format)
+        dispatch({ type: 'APPEND_THINKING', text: message.text });
+        // Don't add individual deltas as messages - they'd flood the stream
+        // The accumulated thinking is shown in a separate UI element
+        break;
+
       case 'status':
         dispatch({ type: 'SET_STATUS', status: message.status });
+        // Reset thinking when starting a new turn
+        if (message.status === 'thinking') {
+          dispatch({ type: 'RESET_TURN' });
+        }
         // Add status changes as messages (except idle which is too frequent)
         if (message.status !== 'idle') {
+          const statusText: Record<string, string> = {
+            thinking: 'Thinking...',
+            executing: 'Running code...',
+            drawing: 'Drawing...',
+            paused: 'Paused',
+            error: 'Error occurred',
+          };
           dispatch({
             type: 'ADD_MESSAGE',
             message: {
               id: generateMessageId(),
               type: 'status',
-              text: message.status === 'thinking' ? 'Thinking...' : 'Drawing...',
+              text: statusText[message.status] || message.status,
               timestamp: Date.now(),
             },
           });
         }
+        break;
+
+      case 'iteration':
+        dispatch({ type: 'SET_ITERATION', current: message.current, max: message.max });
+        dispatch({
+          type: 'ADD_MESSAGE',
+          message: {
+            id: generateMessageId(),
+            type: 'iteration',
+            text: `Iteration ${message.current}/${message.max}`,
+            timestamp: Date.now(),
+            iteration: message.current,
+            metadata: {
+              current_iteration: message.current,
+              max_iterations: message.max,
+            },
+          },
+        });
+        break;
+
+      case 'code_execution':
+        if (message.status === 'started') {
+          dispatch({
+            type: 'ADD_MESSAGE',
+            message: {
+              id: generateMessageId(),
+              type: 'code_execution',
+              text: 'Executing code...',
+              timestamp: Date.now(),
+              iteration: message.iteration,
+            },
+          });
+        } else if (message.status === 'completed') {
+          dispatch({
+            type: 'ADD_MESSAGE',
+            message: {
+              id: generateMessageId(),
+              type: 'code_execution',
+              text: message.return_code === 0 ? 'Code completed' : `Code failed (exit ${message.return_code})`,
+              timestamp: Date.now(),
+              iteration: message.iteration,
+              metadata: {
+                stdout: message.stdout,
+                stderr: message.stderr,
+                return_code: message.return_code,
+              },
+            },
+          });
+        }
+        break;
+
+      case 'error':
+        dispatch({
+          type: 'ADD_MESSAGE',
+          message: {
+            id: generateMessageId(),
+            type: 'error',
+            text: message.message,
+            timestamp: Date.now(),
+            metadata: {
+              stderr: message.details,
+            },
+          },
+        });
+        break;
+
+      case 'piece_complete':
+        dispatch({ type: 'SET_PIECE_COUNT', count: message.piece_number });
+        dispatch({
+          type: 'ADD_MESSAGE',
+          message: {
+            id: generateMessageId(),
+            type: 'piece_complete',
+            text: `Piece #${message.piece_number} complete!`,
+            timestamp: Date.now(),
+            metadata: {
+              piece_number: message.piece_number,
+            },
+          },
+        });
         break;
 
       case 'clear':

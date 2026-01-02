@@ -75,7 +75,7 @@ class TestDrawingAgentImageConversion:
         # Verify it's a PNG by decoding and checking header
         decoded = base64.standard_b64decode(result)
         # PNG magic bytes
-        assert decoded[:4] == b'\x89PNG'
+        assert decoded[:4] == b"\x89PNG"
 
 
 class TestDrawingAgentRunTurn:
@@ -95,13 +95,17 @@ class TestDrawingAgentRunTurn:
     @pytest.mark.asyncio
     async def test_run_turn_streams_thinking(self) -> None:
         """Test that thinking callback is called during streaming."""
+        from drawing_agent.agent import AgentCallbacks
+
         agent = DrawingAgent()
 
         # Track thinking callbacks
-        thinking_updates: list[str] = []
+        thinking_updates: list[tuple[str, int]] = []
 
-        async def on_thinking(text: str) -> None:
-            thinking_updates.append(text)
+        async def on_thinking(text: str, iteration: int) -> None:
+            thinking_updates.append((text, iteration))
+
+        callbacks = AgentCallbacks(on_thinking=on_thinking)
 
         # Mock the API response
         mock_response = MagicMock()
@@ -123,10 +127,10 @@ class TestDrawingAgentRunTurn:
         mock_stream.__iter__ = MagicMock(return_value=iter([mock_event]))
 
         with (
-            patch.object(agent.client.beta.messages, 'stream', return_value=mock_stream),
-            patch('drawing_agent.agent.get_canvas_image') as mock_get_canvas,
-            patch('drawing_agent.agent.get_strokes', return_value=[]),
-            patch('drawing_agent.agent.state_manager') as mock_state,
+            patch.object(agent.client.beta.messages, "stream", return_value=mock_stream),
+            patch("drawing_agent.agent.get_canvas_image") as mock_get_canvas,
+            patch("drawing_agent.agent.get_strokes", return_value=[]),
+            patch("drawing_agent.agent.state_manager") as mock_state,
         ):
             mock_state.state.agent.notes = ""
             mock_state.state.agent.piece_count = 0
@@ -134,11 +138,12 @@ class TestDrawingAgentRunTurn:
 
             mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
 
-            thinking, paths, done = await agent.run_turn(on_thinking=on_thinking)
+            thinking, paths, done = await agent.run_turn(callbacks=callbacks)
 
         # Should have called thinking callback
         assert len(thinking_updates) > 0
-        assert "I see a blank canvas..." in thinking_updates[0]
+        assert "I see a blank canvas..." in thinking_updates[0][0]
+        assert thinking_updates[0][1] == 1  # First iteration
 
 
 class TestDrawingAgentBuildUserMessage:
@@ -148,9 +153,9 @@ class TestDrawingAgentBuildUserMessage:
         agent = DrawingAgent()
 
         with (
-            patch('drawing_agent.agent.get_canvas_image') as mock_get_canvas,
-            patch('drawing_agent.agent.get_strokes', return_value=[]),
-            patch('drawing_agent.agent.state_manager') as mock_state,
+            patch("drawing_agent.agent.get_canvas_image") as mock_get_canvas,
+            patch("drawing_agent.agent.get_strokes", return_value=[]),
+            patch("drawing_agent.agent.state_manager") as mock_state,
         ):
             mock_state.state.agent.notes = ""
             mock_state.state.agent.piece_count = 0
@@ -169,9 +174,9 @@ class TestDrawingAgentBuildUserMessage:
         agent = DrawingAgent()
 
         with (
-            patch('drawing_agent.agent.get_canvas_image') as mock_get_canvas,
-            patch('drawing_agent.agent.get_strokes', return_value=[]),
-            patch('drawing_agent.agent.state_manager') as mock_state,
+            patch("drawing_agent.agent.get_canvas_image") as mock_get_canvas,
+            patch("drawing_agent.agent.get_strokes", return_value=[]),
+            patch("drawing_agent.agent.state_manager") as mock_state,
         ):
             mock_state.state.agent.notes = "Previous work: drew a circle"
             mock_state.state.agent.piece_count = 1
@@ -181,7 +186,9 @@ class TestDrawingAgentBuildUserMessage:
             message = agent._build_user_message()
 
         # Should include notes
-        notes_content = [m for m in message if m["type"] == "text" and "Your notes:" in m.get("text", "")]
+        notes_content = [
+            m for m in message if m["type"] == "text" and "Your notes:" in m.get("text", "")
+        ]
         assert len(notes_content) == 1
         assert "drew a circle" in notes_content[0]["text"]
 
@@ -191,9 +198,9 @@ class TestDrawingAgentBuildUserMessage:
         agent.add_nudge("Use green")
 
         with (
-            patch('drawing_agent.agent.get_canvas_image') as mock_get_canvas,
-            patch('drawing_agent.agent.get_strokes', return_value=[]),
-            patch('drawing_agent.agent.state_manager') as mock_state,
+            patch("drawing_agent.agent.get_canvas_image") as mock_get_canvas,
+            patch("drawing_agent.agent.get_strokes", return_value=[]),
+            patch("drawing_agent.agent.state_manager") as mock_state,
         ):
             mock_state.state.agent.notes = ""
             mock_state.state.agent.piece_count = 0
@@ -203,7 +210,9 @@ class TestDrawingAgentBuildUserMessage:
             message = agent._build_user_message()
 
         # Should include nudges
-        nudge_content = [m for m in message if m["type"] == "text" and "Human nudges:" in m.get("text", "")]
+        nudge_content = [
+            m for m in message if m["type"] == "text" and "Human nudges:" in m.get("text", "")
+        ]
         assert len(nudge_content) == 1
         assert "Draw a tree" in nudge_content[0]["text"]
         assert "Use green" in nudge_content[0]["text"]
@@ -216,9 +225,9 @@ class TestDrawingAgentBuildUserMessage:
         agent.add_nudge("Test nudge")
 
         with (
-            patch('drawing_agent.agent.get_canvas_image') as mock_get_canvas,
-            patch('drawing_agent.agent.get_strokes', return_value=[]),
-            patch('drawing_agent.agent.state_manager') as mock_state,
+            patch("drawing_agent.agent.get_canvas_image") as mock_get_canvas,
+            patch("drawing_agent.agent.get_strokes", return_value=[]),
+            patch("drawing_agent.agent.state_manager") as mock_state,
         ):
             mock_state.state.agent.notes = ""
             mock_state.state.agent.piece_count = 0

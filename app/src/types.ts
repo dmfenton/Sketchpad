@@ -16,7 +16,7 @@ export interface Path {
 }
 
 // Agent status
-export type AgentStatus = 'idle' | 'thinking' | 'drawing' | 'paused';
+export type AgentStatus = 'idle' | 'thinking' | 'executing' | 'drawing' | 'paused' | 'error';
 
 // Application state
 export interface CanvasState {
@@ -71,12 +71,50 @@ export interface ClearMessage {
   type: 'clear';
 }
 
+// New message types for real-time status streaming
+export interface ThinkingDeltaMessage {
+  type: 'thinking_delta';
+  text: string; // Only the new text since last message
+  iteration: number;
+}
+
+export interface CodeExecutionMessage {
+  type: 'code_execution';
+  status: 'started' | 'completed';
+  stdout?: string | null;
+  stderr?: string | null;
+  return_code?: number | null;
+  iteration: number;
+}
+
+export interface ErrorMessage {
+  type: 'error';
+  message: string;
+  details?: string | null;
+}
+
+export interface PieceCompleteMessage {
+  type: 'piece_complete';
+  piece_number: number;
+}
+
+export interface IterationMessage {
+  type: 'iteration';
+  current: number;
+  max: number;
+}
+
 export type ServerMessage =
   | PenMessage
   | StrokeCompleteMessage
   | ThinkingMessage
+  | ThinkingDeltaMessage
   | StatusMessage
-  | ClearMessage;
+  | ClearMessage
+  | CodeExecutionMessage
+  | ErrorMessage
+  | PieceCompleteMessage
+  | IterationMessage;
 
 // WebSocket messages - Client to Server
 export interface ClientStrokeMessage {
@@ -109,13 +147,29 @@ export type ClientMessage =
   | ClientResumeMessage;
 
 // Agent message types for MessageStream component
-export type AgentMessageType = 'thinking' | 'status' | 'error' | 'piece_complete';
+export type AgentMessageType =
+  | 'thinking'
+  | 'thinking_delta'
+  | 'status'
+  | 'error'
+  | 'piece_complete'
+  | 'code_execution'
+  | 'iteration';
 
 export interface AgentMessage {
   id: string;
   type: AgentMessageType;
   text: string;
   timestamp: number;
+  iteration?: number; // For iteration-aware messages
+  metadata?: {
+    stdout?: string | null;
+    stderr?: string | null;
+    return_code?: number | null;
+    piece_number?: number;
+    current_iteration?: number;
+    max_iterations?: number;
+  };
 }
 
 // Canvas dimensions
