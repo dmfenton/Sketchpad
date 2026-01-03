@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # Agent
     agent_interval: int = 10  # seconds between agent turns
     agent_workspace: str = "../agent_workspace"
+    workspace_base_dir: str = "../agent_workspace/users"  # Per-user workspace directories
     max_agent_iterations: int = 5  # max iterations per turn
     agent_max_tokens: int = 8192  # max tokens for Claude response
     agent_model: str = "claude-sonnet-4-20250514"
