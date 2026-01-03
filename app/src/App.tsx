@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ActionBar,
   Canvas,
+  DirectionModal,
   GalleryModal,
   MessageStream,
   NudgeModal,
@@ -27,6 +28,7 @@ function AppContent(): React.JSX.Element {
   const [showSplash, setShowSplash] = useState(true);
   const [nudgeModalVisible, setNudgeModalVisible] = useState(false);
   const [galleryModalVisible, setGalleryModalVisible] = useState(false);
+  const [directionModalVisible, setDirectionModalVisible] = useState(false);
 
   const canvas = useCanvas();
   const paused = canvas.state.paused;
@@ -79,20 +81,15 @@ function AppContent(): React.JSX.Element {
   }, [send, canvas]);
 
   const handleNewCanvas = useCallback(() => {
-    Alert.alert(
-      'New Canvas',
-      'Save current canvas to gallery and start fresh?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'New Canvas',
-          onPress: () => {
-            send({ type: 'new_canvas' });
-          },
-        },
-      ]
-    );
-  }, [send]);
+    setDirectionModalVisible(true);
+  }, []);
+
+  const handleDirectionStart = useCallback(
+    (direction?: string) => {
+      send({ type: 'new_canvas', direction });
+    },
+    [send]
+  );
 
   const handleGalleryPress = useCallback(() => {
     setGalleryModalVisible(true);
@@ -212,6 +209,13 @@ function AppContent(): React.JSX.Element {
           canvases={canvas.state.gallery}
           onClose={() => setGalleryModalVisible(false)}
           onSelect={handleGallerySelect}
+        />
+
+        {/* Direction Modal for New Canvas */}
+        <DirectionModal
+          visible={directionModalVisible}
+          onClose={() => setDirectionModalVisible(false)}
+          onStart={handleDirectionStart}
         />
       </SafeAreaView>
     </GestureHandlerRootView>

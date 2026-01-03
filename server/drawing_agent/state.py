@@ -28,6 +28,7 @@ class StateManager:
         self._piece_count: int = 0
         self._monologue: str = ""
         self._loaded = False
+        self._direction: str = ""  # Optional direction for new canvas
 
     @property
     def is_loaded(self) -> bool:
@@ -118,6 +119,22 @@ class StateManager:
     def notes(self, value: str) -> None:
         """Set agent notes (persisted to workspace)."""
         workspace.save_notes(value)
+
+    @property
+    def direction(self) -> str:
+        """Get direction for current piece (not persisted, consumed once)."""
+        return self._direction
+
+    @direction.setter
+    def direction(self, value: str) -> None:
+        """Set direction for next piece."""
+        self._direction = value
+
+    def consume_direction(self) -> str:
+        """Get and clear direction. Returns empty string if none set."""
+        direction = self._direction
+        self._direction = ""
+        return direction
 
     def add_stroke(self, path: Path) -> None:
         """Add a stroke to the canvas."""

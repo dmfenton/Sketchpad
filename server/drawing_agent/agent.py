@@ -179,6 +179,11 @@ class DrawingAgent:
             f"Piece number: {state_manager.piece_count + 1}"
         )
 
+        # Direction (consumed on first turn of a new piece)
+        direction = state_manager.consume_direction()
+        if direction:
+            parts.append(f"Direction from human:\n{direction}")
+
         # Notes
         notes = state_manager.notes
         if notes:
