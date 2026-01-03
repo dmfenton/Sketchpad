@@ -19,6 +19,7 @@ from drawing_agent.types import (
     PieceCompleteMessage,
     StatusMessage,
     ThinkingDeltaMessage,
+    ThinkingMessage,
 )
 
 if TYPE_CHECKING:
@@ -64,6 +65,7 @@ class AgentOrchestrator:
     async def _handle_thinking(self, text: str, iteration: int) -> None:
         """Handle streaming thinking updates (delta only)."""
         if text:
+            logger.debug(f"Streaming thinking delta: {len(text)} chars")
             await self.broadcaster.broadcast(
                 ThinkingDeltaMessage(text=text, iteration=iteration)
             )
@@ -135,6 +137,11 @@ class AgentOrchestrator:
             elif isinstance(event, AgentTurnComplete):
                 done = event.done
                 logger.info(f"Turn complete. Piece done: {done}")
+                # Send complete thinking text as a final message
+                if event.thinking:
+                    await self.broadcaster.broadcast(
+                        ThinkingMessage(text=event.thinking)
+                    )
 
         # Always broadcast IDLE after turn completes
         await self.broadcast_status(AgentStatus.IDLE)
