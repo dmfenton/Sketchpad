@@ -65,18 +65,10 @@ export const handleThinking: MessageHandler<ThinkingMessage> = (
   message,
   dispatch
 ) => {
-  // Finalize any live message first (removes it so we can add the complete one)
+  // Finalize any live message (converts it to permanent, keeping streamed content)
+  // Don't add a new message since content was already streamed via thinking_delta
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
   dispatch({ type: 'SET_THINKING', text: message.text });
-  dispatch({
-    type: 'ADD_MESSAGE',
-    message: {
-      id: generateMessageId(),
-      type: 'thinking',
-      text: message.text,
-      timestamp: Date.now(),
-    },
-  });
 };
 
 export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (
@@ -84,7 +76,6 @@ export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (
   dispatch
 ) => {
   // Update both the legacy thinking state and the live message
-  console.log('[handleThinkingDelta]', message.text.substring(0, 20));
   dispatch({ type: 'APPEND_THINKING', text: message.text });
   dispatch({ type: 'APPEND_LIVE_MESSAGE', text: message.text });
 };
@@ -119,6 +110,8 @@ export const handleIteration: MessageHandler<IterationMessage> = (
   message,
   dispatch
 ) => {
+  // Finalize any streaming thinking before showing iteration
+  dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
   dispatch({
     type: 'SET_ITERATION',
     current: message.current,
@@ -144,6 +137,9 @@ export const handleCodeExecution: MessageHandler<CodeExecutionMessage> = (
   message,
   dispatch
 ) => {
+  // Finalize any streaming thinking before showing code execution
+  dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
+
   const baseMessage: Omit<AgentMessage, 'text'> = {
     id: generateMessageId(),
     type: 'code_execution',
@@ -179,6 +175,8 @@ export const handleError: MessageHandler<ErrorMessage> = (
   message,
   dispatch
 ) => {
+  // Finalize any streaming thinking before showing error
+  dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
   dispatch({
     type: 'ADD_MESSAGE',
     message: {
@@ -197,6 +195,8 @@ export const handlePieceComplete: MessageHandler<PieceCompleteMessage> = (
   message,
   dispatch
 ) => {
+  // Finalize any streaming thinking before showing piece complete
+  dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
   dispatch({ type: 'SET_PIECE_COUNT', count: message.piece_number });
   dispatch({
     type: 'ADD_MESSAGE',
