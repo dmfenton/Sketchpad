@@ -76,7 +76,6 @@ export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (
   dispatch
 ) => {
   // Update both the legacy thinking state and the live message
-  console.log('[handleThinkingDelta]', message.text.substring(0, 20));
   dispatch({ type: 'APPEND_THINKING', text: message.text });
   dispatch({ type: 'APPEND_LIVE_MESSAGE', text: message.text });
 };
