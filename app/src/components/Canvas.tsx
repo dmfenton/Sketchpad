@@ -143,8 +143,8 @@ export function Canvas({
                 height="40"
                 patternUnits="userSpaceOnUse"
               >
-                <Line x1="40" y1="0" x2="40" y2="40" stroke="#E5E5E5" strokeWidth="0.5" />
-                <Line x1="0" y1="40" x2="40" y2="40" stroke="#E5E5E5" strokeWidth="0.5" />
+                <Line x1="40" y1="0" x2="40" y2="40" stroke={colors.border} strokeWidth="0.5" />
+                <Line x1="0" y1="40" x2="40" y2="40" stroke={colors.border} strokeWidth="0.5" />
               </Pattern>
             </Defs>
             <Rect width="100%" height="100%" fill="url(#grid)" />
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   },
   drawingIndicatorText: {
     ...typography.small,
-    color: colors.background,
+    color: colors.textOnPrimary,
     fontWeight: '600',
   },
 });

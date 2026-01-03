@@ -141,7 +141,7 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
               <Ionicons
                 name="send"
                 size={18}
-                color={text.trim() ? colors.textPrimary : colors.textMuted}
+                color={text.trim() ? colors.textOnPrimary : colors.textMuted}
               />
               <Text
                 style={[
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   sendButtonText: {
     ...typography.body,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: colors.textOnPrimary,
   },
   sendButtonTextDisabled: {
     color: colors.textMuted,
