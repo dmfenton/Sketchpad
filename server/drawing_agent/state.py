@@ -8,8 +8,19 @@ from drawing_agent.workspace import workspace
 logger = logging.getLogger(__name__)
 
 
+class StateNotLoadedError(RuntimeError):
+    """Raised when state is accessed before loading."""
+
+    def __init__(self) -> None:
+        super().__init__("State not loaded. Call state_manager.load() first.")
+
+
 class StateManager:
-    """Manages in-memory state with file persistence via workspace."""
+    """Manages in-memory state with file persistence via workspace.
+
+    State must be explicitly loaded before use via the load() method.
+    This avoids hidden side effects in property getters.
+    """
 
     def __init__(self) -> None:
         self._canvas: CanvasState = CanvasState()
@@ -18,10 +29,20 @@ class StateManager:
         self._monologue: str = ""
         self._loaded = False
 
-    def load(self) -> None:
-        """Load state from workspace."""
+    @property
+    def is_loaded(self) -> bool:
+        """Check if state has been loaded."""
+        return self._loaded
+
+    def _ensure_loaded(self) -> None:
+        """Raise if state hasn't been loaded."""
+        if not self._loaded:
+            raise StateNotLoadedError()
+
+    def load(self) -> "StateManager":
+        """Load state from workspace. Returns self for chaining."""
         if self._loaded:
-            return
+            return self
 
         # Load current canvas state
         current = workspace.load_current()
@@ -35,69 +56,84 @@ class StateManager:
         self._piece_count = current.get("piece_count", 0)
 
         self._loaded = True
-        logger.info(f"State loaded: piece {self._piece_count}, {len(self._canvas.strokes)} strokes")
+        logger.info(
+            f"State loaded: piece {self._piece_count}, {len(self._canvas.strokes)} strokes"
+        )
+        return self
 
     def save(self) -> None:
         """Save state to workspace."""
+        self._ensure_loaded()
         workspace.save_current(self._canvas, self._status, self._piece_count)
 
     @property
     def canvas(self) -> CanvasState:
-        self.load()
+        """Get canvas state. Raises if not loaded."""
+        self._ensure_loaded()
         return self._canvas
 
     @property
     def status(self) -> AgentStatus:
-        self.load()
+        """Get agent status. Raises if not loaded."""
+        self._ensure_loaded()
         return self._status
 
     @status.setter
     def status(self, value: AgentStatus) -> None:
+        """Set agent status."""
+        self._ensure_loaded()
         self._status = value
 
     @property
     def piece_count(self) -> int:
-        self.load()
+        """Get piece count. Raises if not loaded."""
+        self._ensure_loaded()
         return self._piece_count
 
     @piece_count.setter
     def piece_count(self, value: int) -> None:
+        """Set piece count."""
+        self._ensure_loaded()
         self._piece_count = value
 
     @property
     def monologue(self) -> str:
+        """Get agent monologue (lazily loaded from workspace)."""
         if not self._monologue:
             self._monologue = workspace.load_monologue()
         return self._monologue
 
     @monologue.setter
     def monologue(self, value: str) -> None:
+        """Set agent monologue (persisted to workspace)."""
         self._monologue = value
         workspace.save_monologue(value)
 
     @property
     def notes(self) -> str:
+        """Get agent notes (loaded from workspace each time)."""
         return workspace.load_notes()
 
     @notes.setter
     def notes(self, value: str) -> None:
+        """Set agent notes (persisted to workspace)."""
         workspace.save_notes(value)
 
     def add_stroke(self, path: Path) -> None:
         """Add a stroke to the canvas."""
-        self.load()
+        self._ensure_loaded()
         self._canvas.strokes.append(path)
         self.save()
 
     def clear_canvas(self) -> None:
         """Clear the canvas."""
-        self.load()
+        self._ensure_loaded()
         self._canvas.strokes = []
         self.save()
 
     def new_canvas(self) -> str | None:
         """Save current canvas to gallery and start fresh. Returns saved ID or None."""
-        self.load()
+        self._ensure_loaded()
 
         saved_id = None
         if self._canvas.strokes:

@@ -191,7 +191,7 @@ class DrawingAgent:
 
             all_thinking = ""
             done = False
-            max_iterations = 5  # Prevent infinite loops
+            max_iterations = settings.max_agent_iterations
 
             for iteration in range(max_iterations):
                 iteration_num = iteration + 1
@@ -203,8 +203,8 @@ class DrawingAgent:
 
                 # Build API call parameters
                 api_params: dict[str, Any] = {
-                    "model": "claude-sonnet-4-20250514",
-                    "max_tokens": 8192,
+                    "model": settings.agent_model,
+                    "max_tokens": settings.agent_max_tokens,
                     "system": SYSTEM_PROMPT,
                     "messages": messages,
                     "tools": [{"type": "code_execution_20250825", "name": "code_execution"}],
