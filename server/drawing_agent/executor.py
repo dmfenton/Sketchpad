@@ -3,6 +3,9 @@
 This module handles the async execution of paths, sending pen position
 updates at the configured frame rate. The pure interpolation logic is
 in the interpolation module.
+
+Implements plotter-style pen movement where all pen travel is visible,
+including pen-up movements between strokes.
 """
 
 import asyncio
@@ -11,12 +14,14 @@ from typing import Any
 
 from drawing_agent.canvas import add_stroke
 from drawing_agent.config import settings
-from drawing_agent.interpolation import interpolate_path
+from drawing_agent.interpolation import interpolate_line, interpolate_path
 from drawing_agent.state import state_manager
 from drawing_agent.types import (
     AgentStatus,
     Path,
+    PathType,
     PenMessage,
+    Point,
     StrokeCompleteMessage,
 )
 
