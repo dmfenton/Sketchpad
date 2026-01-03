@@ -1,6 +1,6 @@
 """Pydantic schemas for authentication endpoints."""
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class SignupRequest(BaseModel):
@@ -9,6 +9,18 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     invite_code: str = Field(min_length=1, max_length=64)
+
+    @field_validator("password")
+    @classmethod
+    def password_complexity(cls, v: str) -> str:
+        """Validate password has minimum complexity."""
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one digit")
+        return v
 
 
 class SigninRequest(BaseModel):

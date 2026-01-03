@@ -84,7 +84,13 @@ async def signin(request: SigninRequest) -> TokenResponse:
     async with get_session() as session:
         user = await repository.get_user_by_email(session, request.email)
 
-    if user is None:
+    # Always verify password to prevent timing attacks
+    # Use a dummy hash if user doesn't exist to equalize timing
+    dummy_hash = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.a8HkA6K1qRQDSu"
+    password_hash = user.password_hash if user else dummy_hash
+    password_valid = verify_password(request.password, password_hash)
+
+    if user is None or not password_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -94,12 +100,6 @@ async def signin(request: SigninRequest) -> TokenResponse:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account is deactivated",
-        )
-
-    if not verify_password(request.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
         )
 
     logger.info(f"User signed in: {user.email} (id={user.id})")

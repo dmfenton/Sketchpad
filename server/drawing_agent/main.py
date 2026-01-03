@@ -54,6 +54,12 @@ async def lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
     """Application lifespan handler with graceful shutdown."""
     logger.info("=== Server startup initiated ===")
 
+    # Validate required settings
+    if not settings.jwt_secret:
+        raise RuntimeError("JWT_SECRET environment variable must be set")
+    if len(settings.jwt_secret) < 32:
+        raise RuntimeError("JWT_SECRET must be at least 32 characters")
+
     # Run database migrations
     await run_migrations()
 
@@ -79,9 +85,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS configuration - credentials require explicit origins
+# In development, allow localhost origins. In production, set CORS_ORIGINS env var.
+cors_origins = [
+    "http://localhost:8081",  # Expo web dev
+    "http://localhost:19006",  # Expo web
+    "http://127.0.0.1:8081",
+    "http://127.0.0.1:19006",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -272,6 +286,10 @@ async def websocket_endpoint(
         user_id = get_user_id_from_token(token, expected_type="access")
     except TokenError as e:
         await websocket.close(code=4001, reason=str(e))
+        return
+    except Exception as e:
+        logger.warning(f"WebSocket auth failed with unexpected error: {e}")
+        await websocket.close(code=4001, reason="Invalid token")
         return
 
     # Verify user exists and is active

@@ -34,6 +34,8 @@ export interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 // Web fallback for SecureStore (uses localStorage)
+// NOTE: localStorage is vulnerable to XSS attacks. For production web,
+// consider httpOnly cookies or ensure strong XSS protections are in place.
 const storage = {
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS === 'web') {
