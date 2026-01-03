@@ -13,6 +13,7 @@ import {
   Canvas,
   GalleryModal,
   MessageStream,
+  NewCanvasModal,
   NudgeModal,
   SplashScreen,
   StatusPill,
@@ -27,6 +28,7 @@ function AppContent(): React.JSX.Element {
   const [showSplash, setShowSplash] = useState(true);
   const [nudgeModalVisible, setNudgeModalVisible] = useState(false);
   const [galleryModalVisible, setGalleryModalVisible] = useState(false);
+  const [newCanvasModalVisible, setNewCanvasModalVisible] = useState(false);
 
   const canvas = useCanvas();
   const paused = canvas.state.paused;
@@ -79,20 +81,15 @@ function AppContent(): React.JSX.Element {
   }, [send, canvas]);
 
   const handleNewCanvas = useCallback(() => {
-    Alert.alert(
-      'New Canvas',
-      'Save current canvas to gallery and start fresh?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'New Canvas',
-          onPress: () => {
-            send({ type: 'new_canvas' });
-          },
-        },
-      ]
-    );
-  }, [send]);
+    setNewCanvasModalVisible(true);
+  }, []);
+
+  const handleNewCanvasStart = useCallback(
+    (direction?: string) => {
+      send({ type: 'new_canvas', direction });
+    },
+    [send]
+  );
 
   const handleGalleryPress = useCallback(() => {
     setGalleryModalVisible(true);
@@ -204,6 +201,13 @@ function AppContent(): React.JSX.Element {
           visible={nudgeModalVisible}
           onClose={() => setNudgeModalVisible(false)}
           onSend={handleNudgeSend}
+        />
+
+        {/* New Canvas Modal */}
+        <NewCanvasModal
+          visible={newCanvasModalVisible}
+          onClose={() => setNewCanvasModalVisible(false)}
+          onStart={handleNewCanvasStart}
         />
 
         {/* Gallery Modal */}

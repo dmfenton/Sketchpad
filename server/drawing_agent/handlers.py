@@ -52,10 +52,17 @@ async def handle_clear() -> None:
     logger.info("Canvas cleared")
 
 
-async def handle_new_canvas() -> None:
+async def handle_new_canvas(message: dict[str, Any] | None = None) -> None:
     """Handle new canvas request (save current and start fresh)."""
     saved_id = save_current_canvas()
     agent.reset_container()
+
+    # If direction provided, add it as an initial nudge for the new piece
+    direction = message.get("direction") if message else None
+    if direction:
+        agent.add_nudge(direction)
+        logger.info(f"New canvas with direction: {direction}")
+
     await manager.broadcast(NewCanvasMessage(saved_id=saved_id))
     await manager.broadcast(GalleryUpdateMessage(canvases=workspace.list_gallery()))
     await manager.broadcast({"type": "piece_count", "count": state_manager.piece_count})
@@ -114,7 +121,7 @@ async def handle_message(message: dict[str, Any]) -> bool:
 
     if handler:
         # Handlers that need the message get it, others don't
-        if msg_type in ("stroke", "nudge", "load_canvas"):
+        if msg_type in ("stroke", "nudge", "load_canvas", "new_canvas"):
             await handler(message)
         else:
             await handler()
