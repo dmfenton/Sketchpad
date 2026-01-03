@@ -40,7 +40,8 @@ class Workspace:
         """Load current canvas state."""
         if self.current_file.exists():
             try:
-                return json.loads(self.current_file.read_text())
+                data: dict[str, Any] = json.loads(self.current_file.read_text())
+                return data
             except (json.JSONDecodeError, OSError):
                 pass
         return {

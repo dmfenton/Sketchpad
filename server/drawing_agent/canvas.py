@@ -1,6 +1,7 @@
 """Canvas rendering and operations."""
 
 import io
+from typing import Any
 from xml.etree import ElementTree as ET
 
 from PIL import Image, ImageDraw
@@ -154,7 +155,7 @@ def load_canvas_from_gallery(canvas_id: str) -> list[Path] | None:
     return None
 
 
-def get_gallery() -> list[dict]:
+def get_gallery() -> list[dict[str, Any]]:
     """Get list of saved canvases."""
     canvases = workspace.list_gallery()
     return [

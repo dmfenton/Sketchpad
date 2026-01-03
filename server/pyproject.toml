@@ -12,6 +12,8 @@ dependencies = [
     "pydantic>=2.10.0",
     "pydantic-settings>=2.6.0",
     "svgpathtools>=1.6.0",
+    "typer>=0.12.0",
+    "rich>=13.0.0",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +25,9 @@ dev = [
     "ruff>=0.8.0",
     "httpx>=0.28.0",
 ]
+
+[project.scripts]
+drawing-agent = "drawing_agent.cli:app"
 
 [build-system]
 requires = ["hatchling"]

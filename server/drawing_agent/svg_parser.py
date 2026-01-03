@@ -5,13 +5,15 @@ import logging
 import re
 from xml.etree import ElementTree as ET
 
-from svgpathtools import (
+from svgpathtools import (  # type: ignore[import-untyped]
     CubicBezier,
     Line,
     QuadraticBezier,
     parse_path,
 )
-from svgpathtools import Path as SVGPath
+from svgpathtools import (
+    Path as SVGPath,
+)
 
 from drawing_agent.types import Path, PathType, Point
 

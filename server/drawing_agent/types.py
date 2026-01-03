@@ -196,7 +196,6 @@ class IterationMessage(BaseModel):
     max: int = 5  # Maximum iterations
 
 
-
 class ClientStrokeMessage(BaseModel):
     """Human stroke from client."""
 

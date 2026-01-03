@@ -1,4 +1,4 @@
-.PHONY: install dev server server-bg server-logs server-stop server-restart app test lint format typecheck clean
+.PHONY: install dev server server-bg server-logs server-stop server-restart app test lint format typecheck clean cli cli-turn cli-status
 
 # Install all dependencies
 install:
@@ -37,6 +37,16 @@ server-stop:
 
 # Restart server (background mode)
 server-restart: server-stop server-bg
+
+# CLI commands for testing agent
+cli:
+	cd server && uv run python -m drawing_agent.cli --help
+
+cli-turn:
+	cd server && uv run python -m drawing_agent.cli run-turn
+
+cli-status:
+	cd server && uv run python -m drawing_agent.cli status
 
 # Run app only
 app:
