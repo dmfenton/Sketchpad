@@ -6,8 +6,9 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Copy project files
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock alembic.ini ./
 COPY drawing_agent/ drawing_agent/
+COPY alembic/ alembic/
 
 # Install dependencies
 RUN uv sync --frozen --no-dev
