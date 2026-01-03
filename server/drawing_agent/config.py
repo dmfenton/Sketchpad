@@ -18,10 +18,21 @@ class Settings(BaseSettings):
     # Agent
     agent_interval: int = 10  # seconds between agent turns
     agent_workspace: str = "../agent_workspace"
+    max_agent_iterations: int = 5  # max iterations per turn
+    agent_max_tokens: int = 8192  # max tokens for Claude response
+    agent_model: str = "claude-sonnet-4-20250514"
 
     # Canvas
     canvas_width: int = 800
     canvas_height: int = 600
+
+    # Execution
+    drawing_fps: int = 60  # frames per second for drawing animation
+    path_steps_per_unit: float = 0.5  # interpolation density
+
+    # Limits
+    max_stdout_chars: int = 2000  # truncate stdout in messages
+    max_stderr_chars: int = 500  # truncate stderr in messages
 
 
 settings = Settings()  # type: ignore[call-arg]

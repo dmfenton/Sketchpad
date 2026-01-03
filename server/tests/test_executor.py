@@ -2,7 +2,7 @@
 
 import pytest
 
-from drawing_agent.executor import (
+from drawing_agent.interpolation import (
     cubic_bezier,
     estimate_path_length,
     interpolate_path,

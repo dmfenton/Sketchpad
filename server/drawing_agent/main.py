@@ -12,35 +12,13 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
-from drawing_agent.agent import AgentCallbacks, CodeExecutionResult, agent
-from drawing_agent.canvas import (
-    add_stroke,
-    clear_canvas,
-    get_gallery,
-    load_canvas_from_gallery,
-    render_png,
-    render_svg,
-    save_current_canvas,
-)
+from drawing_agent.agent import agent
+from drawing_agent.canvas import get_gallery, render_png, render_svg
 from drawing_agent.config import settings
-from drawing_agent.executor import execute_paths
+from drawing_agent.handlers import init_handlers
+from drawing_agent.handlers import router as message_router
+from drawing_agent.orchestrator import AgentOrchestrator
 from drawing_agent.state import state_manager
-from drawing_agent.types import (
-    AgentStatus,
-    ClearMessage,
-    CodeExecutionMessage,
-    ErrorMessage,
-    GalleryUpdateMessage,
-    IterationMessage,
-    LoadCanvasMessage,
-    NewCanvasMessage,
-    Path,
-    PathType,
-    PieceCompleteMessage,
-    Point,
-    StatusMessage,
-    ThinkingDeltaMessage,
-)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -93,111 +71,25 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+orchestrator: AgentOrchestrator | None = None
 agent_loop_task: asyncio.Task[None] | None = None
-
-
-async def agent_loop() -> None:
-    """Main agent loop that runs continuously."""
-
-    async def on_thinking(text: str, iteration: int) -> None:
-        """Callback to stream thinking updates to clients (delta only)."""
-        if text:
-            await manager.broadcast(ThinkingDeltaMessage(text=text, iteration=iteration))
-
-    async def on_iteration_start(current: int, max_iter: int) -> None:
-        """Callback when a new iteration starts."""
-        logger.info(f"Iteration {current}/{max_iter}")
-        await manager.broadcast(IterationMessage(current=current, max=max_iter))
-
-    async def on_code_start(iteration: int) -> None:
-        """Callback when code execution starts."""
-        logger.info(f"Code execution started (iteration {iteration})")
-        await manager.broadcast(StatusMessage(status=AgentStatus.EXECUTING))
-        await manager.broadcast(CodeExecutionMessage(status="started", iteration=iteration))
-
-    async def on_code_result(result: CodeExecutionResult) -> None:
-        """Callback when code execution completes."""
-        logger.info(f"Code execution completed (iteration {result.iteration})")
-        await manager.broadcast(
-            CodeExecutionMessage(
-                status="completed",
-                stdout=result.stdout[:2000] if result.stdout else None,  # Limit size
-                stderr=result.stderr[:500] if result.stderr else None,
-                return_code=result.return_code,
-                iteration=result.iteration,
-            )
-        )
-
-    async def on_error(message: str, details: str | None) -> None:
-        """Callback when an error occurs."""
-        logger.error(f"Agent error: {message}")
-        await manager.broadcast(StatusMessage(status=AgentStatus.ERROR))
-        await manager.broadcast(ErrorMessage(message=message, details=details))
-
-    callbacks = AgentCallbacks(
-        on_thinking=on_thinking,
-        on_iteration_start=on_iteration_start,
-        on_code_start=on_code_start,
-        on_code_result=on_code_result,
-        on_error=on_error,
-    )
-
-    while True:
-        try:
-            # Only run when clients are connected (cost control)
-            if not manager.active_connections:
-                await asyncio.sleep(settings.agent_interval)
-                continue
-
-            if agent.paused:
-                # Ensure UI shows paused/idle state
-                await asyncio.sleep(settings.agent_interval)
-                continue
-
-            # Broadcast THINKING status at start of turn
-            await manager.broadcast(StatusMessage(status=AgentStatus.THINKING))
-
-            thinking, paths, done = await agent.run_turn(callbacks=callbacks)
-
-            # Execute paths if any
-            if paths:
-                await manager.broadcast(StatusMessage(status=AgentStatus.DRAWING))
-
-                async def send_message(msg: Any) -> None:
-                    await manager.broadcast(msg)
-
-                async for _ in execute_paths(paths, send_message):
-                    pass  # Yield points handled in execute_paths
-
-            # Always broadcast IDLE after turn completes
-            await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
-
-            if done:
-                piece_num = state_manager.piece_count
-                logger.info(f"Piece {piece_num} complete")
-                await manager.broadcast(PieceCompleteMessage(piece_number=piece_num))
-
-            # Wait before next turn
-            await asyncio.sleep(settings.agent_interval)
-
-        except Exception as e:
-            logger.error(f"Agent loop error: {e}")
-            await manager.broadcast(ErrorMessage(message=str(e)))
-            await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
-            await asyncio.sleep(settings.agent_interval)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
     """Application lifespan handler."""
-    global agent_loop_task
+    global agent_loop_task, orchestrator
 
     # Load state on startup
     state_manager.load()
     logger.info("State loaded")
 
-    # Start agent loop
-    agent_loop_task = asyncio.create_task(agent_loop())
+    # Initialize handlers with dependencies
+    init_handlers(manager, agent)
+
+    # Create orchestrator and start agent loop
+    orchestrator = AgentOrchestrator(agent=agent, broadcaster=manager)
+    agent_loop_task = asyncio.create_task(orchestrator.run_loop())
     logger.info("Agent loop started")
 
     yield
@@ -330,83 +222,15 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 "monologue": state_manager.monologue or "",
             },
         )
-        logger.info(f"Sent init state: {len(state_manager.canvas.strokes)} strokes, {len(gallery)} gallery items, piece #{state_manager.piece_count}")
+        logger.info(
+            f"Sent init state: {len(state_manager.canvas.strokes)} strokes, "
+            f"{len(gallery)} gallery items, piece #{state_manager.piece_count}"
+        )
+
         while True:
             data = await websocket.receive_text()
             message = json.loads(data)
-            msg_type = message.get("type")
-
-            match msg_type:
-                case "stroke":
-                    # Human drew something
-                    points = [Point(x=p["x"], y=p["y"]) for p in message.get("points", [])]
-                    if points:
-                        path = Path(type=PathType.POLYLINE, points=points)
-                        add_stroke(path)
-                        # Broadcast to other clients
-                        await manager.broadcast(
-                            {"type": "stroke_complete", "path": path.model_dump()}
-                        )
-
-                case "nudge":
-                    # Human suggestion
-                    text = message.get("text", "")
-                    if text:
-                        agent.add_nudge(text)
-                        logger.info(f"Nudge received: {text}")
-
-                case "clear":
-                    # Clear canvas
-                    clear_canvas()
-                    await manager.broadcast(ClearMessage())
-                    logger.info("Canvas cleared")
-
-                case "new_canvas":
-                    # Save current canvas and create new one (increments piece_count)
-                    saved_id = save_current_canvas()
-                    agent.reset_container()  # Fresh container for new piece
-                    await manager.broadcast(NewCanvasMessage(saved_id=saved_id))
-                    # Also send gallery update
-                    from drawing_agent.workspace import workspace
-                    await manager.broadcast(
-                        GalleryUpdateMessage(canvases=workspace.list_gallery())
-                    )
-                    # Send updated piece count
-                    await manager.broadcast(
-                        {"type": "piece_count", "count": state_manager.piece_count}
-                    )
-                    logger.info(f"New canvas created (piece #{state_manager.piece_count}), saved old as: {saved_id}")
-
-                case "load_canvas":
-                    # Load a canvas from gallery
-                    canvas_id = message.get("canvas_id", "")
-                    strokes = load_canvas_from_gallery(canvas_id)
-                    if strokes:
-                        # Extract piece number from canvas_id (e.g., "piece_071" -> 71)
-                        piece_num = int(canvas_id.split("_")[1]) if "_" in canvas_id else 0
-                        state_manager.canvas.strokes[:] = strokes
-                        state_manager.save()
-                        await manager.broadcast(LoadCanvasMessage(strokes=strokes, piece_number=piece_num))
-                        logger.info(f"Loaded canvas: {canvas_id}")
-                    else:
-                        logger.warning(f"Canvas not found: {canvas_id}")
-
-                case "pause":
-                    await agent.pause()
-                    state_manager.status = AgentStatus.PAUSED
-                    state_manager.save()
-                    await manager.broadcast(StatusMessage(status=AgentStatus.PAUSED))
-                    logger.info("Agent paused")
-
-                case "resume":
-                    await agent.resume()
-                    state_manager.status = AgentStatus.IDLE
-                    state_manager.save()
-                    await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
-                    logger.info("Agent resumed")
-
-                case _:
-                    logger.warning(f"Unknown message type: {msg_type}")
+            await message_router.route(message, websocket)
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
