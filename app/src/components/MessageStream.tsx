@@ -333,7 +333,7 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
 
           {!autoScroll && messages.length > 0 && (
             <Pressable style={styles.scrollButton} onPress={scrollToBottom}>
-              <Ionicons name="arrow-down" size={16} color={colors.textPrimary} />
+              <Ionicons name="arrow-down" size={16} color={colors.textOnPrimary} />
             </Pressable>
           )}
         </View>

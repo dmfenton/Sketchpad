@@ -1,5 +1,6 @@
 /**
- * Main application component.
+ * Code Monet - Main Application
+ * An AI-powered drawing experience inspired by impressionist art.
  */
 
 import React, { useCallback, useState } from 'react';
@@ -7,13 +8,22 @@ import { Alert, StatusBar, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ActionBar, Canvas, GalleryModal, MessageStream, NudgeModal, StatusPill } from './components';
+import {
+  ActionBar,
+  Canvas,
+  GalleryModal,
+  MessageStream,
+  NudgeModal,
+  SplashScreen,
+  StatusPill,
+} from './components';
 import { config } from './config';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
 import { colors, spacing } from './theme';
 
 export default function App(): React.JSX.Element {
+  const [showSplash, setShowSplash] = useState(true);
   const [nudgeModalVisible, setNudgeModalVisible] = useState(false);
   const [galleryModalVisible, setGalleryModalVisible] = useState(false);
 
@@ -116,9 +126,17 @@ export default function App(): React.JSX.Element {
     }
   }, [canvas, send]);
 
+  const handleSplashFinish = useCallback(() => {
+    setShowSplash(false);
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+
+      {/* Splash Screen */}
+      {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
+
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <View style={styles.content}>
           {/* Status Pill - Top */}
