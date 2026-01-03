@@ -225,7 +225,6 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
 
 export function MessageStream({ messages, status }: MessageStreamProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
-  const [collapsed, setCollapsed] = useState(false);  // Start expanded
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -271,12 +270,12 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
 
   // Auto-scroll to bottom
   useEffect(() => {
-    if (!collapsed && autoScroll) {
+    if (autoScroll) {
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages, collapsed, autoScroll]);
+  }, [messages, autoScroll]);
 
   const handleScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number }; contentSize: { height: number }; layoutMeasurement: { height: number } } }) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -289,15 +288,11 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
     setAutoScroll(true);
   }, []);
 
-  const toggleCollapsed = useCallback(() => {
-    setCollapsed((prev) => !prev);
-  }, []);
-
   const isActive = status === 'thinking' || status === 'executing' || status === 'drawing';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }, shadows.md]}>
-      <Pressable style={[styles.header, { borderBottomColor: colors.border }]} onPress={toggleCollapsed}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
           <Animated.View
             style={[
@@ -306,52 +301,45 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
               { opacity: isActive ? pulseAnim : 1 },
             ]}
           />
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Agent Thoughts</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Artist&apos;s Mind</Text>
           {isActive && (
             <Text style={[styles.headerStatus, { color: colors.primary }]}>{STATUS_LABELS[status]}</Text>
           )}
         </View>
-        <Ionicons
-          name={collapsed ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color={colors.textMuted}
-        />
-      </Pressable>
+      </View>
 
-      {!collapsed && (
-        <View style={styles.content}>
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            showsVerticalScrollIndicator={false}
-          >
-            {messages.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="chatbubble-ellipses-outline" size={32} color={colors.textMuted} />
-                <Text style={[styles.emptyText, { color: colors.textMuted }]}>Waiting for agent thoughts...</Text>
-              </View>
-            ) : (
-              messages.map((message) => (
-                <MessageBubble
-                  key={message.id}
-                  message={message}
-                  isNew={newMessageIds.current.has(message.id) || message.id === LIVE_MESSAGE_ID}
-                  colors={colors}
-                />
-              ))
-            )}
-          </ScrollView>
-
-          {!autoScroll && messages.length > 0 && (
-            <Pressable style={[styles.scrollButton, { backgroundColor: colors.primary }, shadows.sm]} onPress={scrollToBottom}>
-              <Ionicons name="arrow-down" size={16} color={colors.textOnPrimary} />
-            </Pressable>
+      <View style={styles.content}>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+        >
+          {messages.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="color-palette-outline" size={32} color={colors.textMuted} />
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>Awaiting artistic inspiration...</Text>
+            </View>
+          ) : (
+            messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                isNew={newMessageIds.current.has(message.id) || message.id === LIVE_MESSAGE_ID}
+                colors={colors}
+              />
+            ))
           )}
-        </View>
-      )}
+        </ScrollView>
+
+        {!autoScroll && messages.length > 0 && (
+          <Pressable style={[styles.scrollButton, { backgroundColor: colors.primary }, shadows.sm]} onPress={scrollToBottom}>
+            <Ionicons name="arrow-down" size={16} color={colors.textOnPrimary} />
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
