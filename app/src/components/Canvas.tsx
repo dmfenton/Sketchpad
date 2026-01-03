@@ -27,6 +27,11 @@ interface CanvasProps {
  * Convert a path to SVG path 'd' attribute.
  */
 function pathToSvgD(path: Path): string {
+  // SVG paths already have their d-string
+  if (path.type === 'svg') {
+    return path.d || '';
+  }
+
   if (path.points.length === 0) return '';
 
   const points = path.points;

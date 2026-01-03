@@ -20,13 +20,15 @@ class PathType(str, Enum):
     QUADRATIC = "quadratic"
     CUBIC = "cubic"
     POLYLINE = "polyline"
+    SVG = "svg"  # Raw SVG path d-string
 
 
 class Path(BaseModel):
     """A drawable path."""
 
     type: PathType
-    points: list[Point]
+    points: list[Point] = []  # Empty for SVG paths
+    d: str | None = None  # SVG path d-string (for type=svg)
 
 
 class AgentStatus(str, Enum):

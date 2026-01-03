@@ -4,11 +4,239 @@ This module contains stateless, pure mathematical functions for
 interpolating paths into discrete points. No side effects or I/O.
 """
 
+import contextlib
 import math
+import re
 from collections.abc import Callable
 from functools import reduce
 
 from drawing_agent.types import Path, PathType, Point
+
+# SVG path command regex
+SVG_COMMAND_RE = re.compile(r"([MmLlHhVvCcSsQqTtAaZz])|(-?[\d.]+)")
+
+
+def parse_svg_path(d: str) -> list[tuple[str, list[float]]]:
+    """Parse SVG path d-string into commands with arguments.
+
+    Returns list of (command, [args]) tuples.
+    """
+    commands: list[tuple[str, list[float]]] = []
+    current_cmd = ""
+    current_args: list[float] = []
+
+    for match in SVG_COMMAND_RE.finditer(d):
+        token = match.group()
+        if token.isalpha():
+            # New command
+            if current_cmd:
+                commands.append((current_cmd, current_args))
+            current_cmd = token
+            current_args = []
+        else:
+            # Number argument
+            with contextlib.suppress(ValueError):
+                current_args.append(float(token))
+
+    # Don't forget the last command
+    if current_cmd:
+        commands.append((current_cmd, current_args))
+
+    return commands
+
+
+def svg_commands_to_points(
+    commands: list[tuple[str, list[float]]], steps_per_unit: float = 0.5
+) -> list[Point]:
+    """Convert SVG path commands to interpolated points.
+
+    This handles the common SVG path commands and interpolates curves.
+    Returns a flat list of points suitable for drawing.
+    """
+    points: list[Point] = []
+    current_x, current_y = 0.0, 0.0
+    start_x, start_y = 0.0, 0.0  # For Z command
+    last_control_x, last_control_y = 0.0, 0.0  # For smooth curves
+
+    for cmd, args in commands:
+        is_relative = cmd.islower()
+        cmd_upper = cmd.upper()
+
+        if cmd_upper == "M":  # MoveTo
+            i = 0
+            while i < len(args) - 1:
+                x, y = args[i], args[i + 1]
+                if is_relative:
+                    x += current_x
+                    y += current_y
+                current_x, current_y = x, y
+                if i == 0:
+                    start_x, start_y = x, y
+                points.append(Point(x=x, y=y))
+                i += 2
+
+        elif cmd_upper == "L":  # LineTo
+            i = 0
+            while i < len(args) - 1:
+                x, y = args[i], args[i + 1]
+                if is_relative:
+                    x += current_x
+                    y += current_y
+                # Interpolate line segment
+                dist = math.sqrt((x - current_x) ** 2 + (y - current_y) ** 2)
+                steps = max(2, int(dist * steps_per_unit))
+                for j in range(1, steps + 1):
+                    t = j / steps
+                    px = current_x + (x - current_x) * t
+                    py = current_y + (y - current_y) * t
+                    points.append(Point(x=px, y=py))
+                current_x, current_y = x, y
+                i += 2
+
+        elif cmd_upper == "H":  # Horizontal LineTo
+            for x in args:
+                if is_relative:
+                    x += current_x
+                dist = abs(x - current_x)
+                steps = max(2, int(dist * steps_per_unit))
+                for j in range(1, steps + 1):
+                    t = j / steps
+                    px = current_x + (x - current_x) * t
+                    points.append(Point(x=px, y=current_y))
+                current_x = x
+
+        elif cmd_upper == "V":  # Vertical LineTo
+            for y in args:
+                if is_relative:
+                    y += current_y
+                dist = abs(y - current_y)
+                steps = max(2, int(dist * steps_per_unit))
+                for j in range(1, steps + 1):
+                    t = j / steps
+                    py = current_y + (y - current_y) * t
+                    points.append(Point(x=current_x, y=py))
+                current_y = y
+
+        elif cmd_upper == "C":  # Cubic Bezier
+            i = 0
+            while i < len(args) - 5:
+                x1, y1, x2, y2, x, y = args[i : i + 6]
+                if is_relative:
+                    x1 += current_x
+                    y1 += current_y
+                    x2 += current_x
+                    y2 += current_y
+                    x += current_x
+                    y += current_y
+                # Interpolate cubic bezier
+                p0 = Point(x=current_x, y=current_y)
+                p1 = Point(x=x1, y=y1)
+                p2 = Point(x=x2, y=y2)
+                p3 = Point(x=x, y=y)
+                dist = (
+                    distance(p0, p1) + distance(p1, p2) + distance(p2, p3)
+                )  # Rough estimate
+                steps = max(10, int(dist * steps_per_unit))
+                for j in range(1, steps + 1):
+                    t = j / steps
+                    pt = cubic_bezier(p0, p1, p2, p3, t)
+                    points.append(pt)
+                current_x, current_y = x, y
+                last_control_x, last_control_y = x2, y2
+                i += 6
+
+        elif cmd_upper == "S":  # Smooth Cubic Bezier
+            i = 0
+            while i < len(args) - 3:
+                x2, y2, x, y = args[i : i + 4]
+                if is_relative:
+                    x2 += current_x
+                    y2 += current_y
+                    x += current_x
+                    y += current_y
+                # First control point is reflection of last
+                x1 = 2 * current_x - last_control_x
+                y1 = 2 * current_y - last_control_y
+                p0 = Point(x=current_x, y=current_y)
+                p1 = Point(x=x1, y=y1)
+                p2 = Point(x=x2, y=y2)
+                p3 = Point(x=x, y=y)
+                dist = distance(p0, p1) + distance(p1, p2) + distance(p2, p3)
+                steps = max(10, int(dist * steps_per_unit))
+                for j in range(1, steps + 1):
+                    t = j / steps
+                    pt = cubic_bezier(p0, p1, p2, p3, t)
+                    points.append(pt)
+                current_x, current_y = x, y
+                last_control_x, last_control_y = x2, y2
+                i += 4
+
+        elif cmd_upper == "Q":  # Quadratic Bezier
+            i = 0
+            while i < len(args) - 3:
+                x1, y1, x, y = args[i : i + 4]
+                if is_relative:
+                    x1 += current_x
+                    y1 += current_y
+                    x += current_x
+                    y += current_y
+                p0 = Point(x=current_x, y=current_y)
+                p1 = Point(x=x1, y=y1)
+                p2 = Point(x=x, y=y)
+                dist = distance(p0, p1) + distance(p1, p2)
+                steps = max(10, int(dist * steps_per_unit))
+                for j in range(1, steps + 1):
+                    t = j / steps
+                    pt = quadratic_bezier(p0, p1, p2, t)
+                    points.append(pt)
+                current_x, current_y = x, y
+                last_control_x, last_control_y = x1, y1
+                i += 4
+
+        elif cmd_upper == "T":  # Smooth Quadratic Bezier
+            i = 0
+            while i < len(args) - 1:
+                x, y = args[i], args[i + 1]
+                if is_relative:
+                    x += current_x
+                    y += current_y
+                x1 = 2 * current_x - last_control_x
+                y1 = 2 * current_y - last_control_y
+                p0 = Point(x=current_x, y=current_y)
+                p1 = Point(x=x1, y=y1)
+                p2 = Point(x=x, y=y)
+                dist = distance(p0, p1) + distance(p1, p2)
+                steps = max(10, int(dist * steps_per_unit))
+                for j in range(1, steps + 1):
+                    t = j / steps
+                    pt = quadratic_bezier(p0, p1, p2, t)
+                    points.append(pt)
+                current_x, current_y = x, y
+                last_control_x, last_control_y = x1, y1
+                i += 2
+
+        elif cmd_upper == "Z":  # Close Path
+            if start_x != current_x or start_y != current_y:
+                dist = math.sqrt(
+                    (start_x - current_x) ** 2 + (start_y - current_y) ** 2
+                )
+                steps = max(2, int(dist * steps_per_unit))
+                for j in range(1, steps + 1):
+                    t = j / steps
+                    px = current_x + (start_x - current_x) * t
+                    py = current_y + (start_y - current_y) * t
+                    points.append(Point(x=px, y=py))
+            current_x, current_y = start_x, start_y
+
+        # Note: Arc (A/a) command is complex and not implemented here
+
+    return points
+
+
+def interpolate_svg_path(d: str, steps_per_unit: float = 0.5) -> list[Point]:
+    """Interpolate an SVG path d-string into discrete points."""
+    commands = parse_svg_path(d)
+    return svg_commands_to_points(commands, steps_per_unit)
 
 
 def lerp(a: float, b: float, t: float) -> float:
@@ -58,6 +286,16 @@ def cubic_bezier(p0: Point, p1: Point, p2: Point, p3: Point, t: float) -> Point:
 
 def estimate_path_length(path: Path) -> float:
     """Estimate the length of a path for timing calculations."""
+    # Handle SVG paths specially - they may have no points array
+    if path.type == PathType.SVG:
+        if not path.d:
+            return 0.0
+        # Estimate by interpolating and measuring
+        points = interpolate_svg_path(path.d, steps_per_unit=0.1)
+        if len(points) < 2:
+            return 0.0
+        return sum(distance(points[i], points[i + 1]) for i in range(len(points) - 1))
+
     if len(path.points) < 2:
         return 0.0
 
@@ -151,6 +389,12 @@ def interpolate_path(path: Path, steps_per_unit: float = 0.5) -> list[Point]:
 
     This is a pure function - no side effects or external dependencies.
     """
+    # Handle SVG paths specially
+    if path.type == PathType.SVG:
+        if not path.d:
+            return []
+        return interpolate_svg_path(path.d, steps_per_unit)
+
     if len(path.points) < 2:
         return list(path.points)
 
