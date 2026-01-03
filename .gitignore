@@ -55,6 +55,17 @@ server/logs/
 # Agent Workspace (state, generated files)
 agent_workspace/
 
+# Terraform
+infrastructure/.terraform/
+infrastructure/*.tfstate
+infrastructure/*.tfstate.*
+infrastructure/.terraform.lock.hcl
+infrastructure/terraform.tfvars
+infrastructure/tfplan
+
+# Deploy secrets
+deploy/.env
+
 # Misc
 *.bak
 *.tmp

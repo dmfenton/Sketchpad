@@ -1,0 +1,136 @@
+# Get latest Amazon Linux 2023 AMI
+data "aws_ami" "amazon_linux_2023" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+# Security Group
+resource "aws_security_group" "main" {
+  name        = "drawing-agent-sg"
+  description = "Security group for Drawing Agent EC2"
+  vpc_id      = aws_vpc.main.id
+
+  # SSH
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.allowed_ssh_cidr]
+    description = "SSH access"
+  }
+
+  # HTTP
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTP"
+  }
+
+  # HTTPS
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTPS"
+  }
+
+  # Outbound
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound"
+  }
+
+  tags = {
+    Name = "drawing-agent-sg"
+  }
+}
+
+# IAM Role for EC2 (ECR access + CloudWatch)
+resource "aws_iam_role" "ec2_role" {
+  name = "drawing-agent-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecr_read" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
+resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "main" {
+  name = "drawing-agent-instance-profile"
+  role = aws_iam_role.ec2_role.name
+}
+
+# EC2 Instance
+resource "aws_instance" "main" {
+  ami                    = data.aws_ami.amazon_linux_2023.id
+  instance_type          = var.instance_type
+  key_name               = var.ssh_key_name
+  subnet_id              = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.main.id]
+  iam_instance_profile   = aws_iam_instance_profile.main.name
+
+  root_block_device {
+    volume_size           = 30
+    volume_type           = "gp3"
+    delete_on_termination = true
+    tags = {
+      Name   = "drawing-agent-root"
+      Backup = "true"
+    }
+  }
+
+  user_data = file("${path.module}/user_data.sh")
+
+  tags = {
+    Name = "drawing-agent"
+  }
+}
+
+# Elastic IP
+resource "aws_eip" "main" {
+  instance = aws_instance.main.id
+  domain   = "vpc"
+
+  tags = {
+    Name = "drawing-agent-eip"
+  }
+}
