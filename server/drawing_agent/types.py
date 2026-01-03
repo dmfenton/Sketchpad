@@ -29,6 +29,7 @@ class Path(BaseModel):
     type: PathType
     points: list[Point] = []  # Empty for SVG paths
     d: str | None = None  # SVG path d-string (for type=svg)
+    author: Literal["agent", "human"] = "agent"
 
 
 class AgentStatus(str, Enum):

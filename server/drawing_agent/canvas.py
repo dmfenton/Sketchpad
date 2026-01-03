@@ -109,8 +109,13 @@ def path_to_point_list(path: Path) -> list[tuple[float, float]]:
     return [(p.x, p.y) for p in path.points]
 
 
-def render_png() -> bytes:
-    """Render current canvas state to PNG."""
+def render_png(highlight_human: bool = True) -> bytes:
+    """Render current canvas state to PNG.
+
+    Args:
+        highlight_human: If True, render human strokes in blue (#0066CC),
+                        agent strokes in black. If False, all strokes are black.
+    """
     canvas = state_manager.canvas
 
     img = Image.new("RGB", (canvas.width, canvas.height), "#FFFFFF")
@@ -119,7 +124,9 @@ def render_png() -> bytes:
     for path in canvas.strokes:
         points = path_to_point_list(path)
         if len(points) >= 2:
-            draw.line(points, fill="#000000", width=2)
+            # Color-code by author: human strokes in blue, agent in black
+            color = "#0066CC" if highlight_human and path.author == "human" else "#000000"
+            draw.line(points, fill=color, width=2)
 
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
@@ -141,9 +148,14 @@ def get_strokes() -> list[Path]:
     return state_manager.canvas.strokes
 
 
-def get_canvas_image() -> Image.Image:
-    """Get canvas as PIL Image for agent consumption."""
-    png_bytes = render_png()
+def get_canvas_image(highlight_human: bool = True) -> Image.Image:
+    """Get canvas as PIL Image for agent consumption.
+
+    Args:
+        highlight_human: If True, render human strokes in blue (#0066CC),
+                        agent strokes in black. If False, all strokes are black.
+    """
+    png_bytes = render_png(highlight_human=highlight_human)
     return Image.open(io.BytesIO(png_bytes))
 
 

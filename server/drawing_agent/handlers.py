@@ -32,7 +32,7 @@ async def handle_stroke(message: dict[str, Any]) -> None:
     """Handle a stroke from the user."""
     points = [Point(x=p["x"], y=p["y"]) for p in message.get("points", [])]
     if points:
-        path = Path(type=PathType.POLYLINE, points=points)
+        path = Path(type=PathType.POLYLINE, points=points, author="human")
         add_stroke(path)
         await manager.broadcast({"type": "stroke_complete", "path": path.model_dump()})
 
