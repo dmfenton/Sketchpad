@@ -19,6 +19,23 @@ Sandbox configured in `.claude/settings.json`:
 - No permission prompts for standard development workflows
 - Run `make test`, `make dev`, `make lint`, `git commit`, `git push` freely
 
+### How it works
+
+Claude Code uses [bubblewrap](https://github.com/containers/bubblewrap) for sandboxing:
+- Creates isolated mount namespace with read-only bind mounts by default
+- `Edit()` permission rules in settings.json control bash write access (not `Write()`)
+- **Use absolute paths** - tilde (`~`) expansion is unreliable in sandbox configs
+
+Example: To allow uv cache writes, use `Edit(/home/user/.cache/uv/**)` not `Edit(~/.cache/uv/**)`
+
+### Workaround for external cache directories
+
+There's a path resolution bug where `Edit()` rules for paths outside the working directory get incorrectly concatenated. Until fixed, commands that write to `~/.cache/uv` or `~/.expo` require `dangerouslyDisableSandbox: true`.
+
+Affected commands:
+- `make server-bg` / `make server-restart` (uv cache)
+- `pnpm start` in app/ (Expo cache)
+
 ## Server Management (for Claude debugging)
 
 ```bash
