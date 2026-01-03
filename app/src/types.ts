@@ -8,11 +8,12 @@ export interface Point {
   y: number;
 }
 
-export type PathType = 'line' | 'quadratic' | 'cubic' | 'polyline';
+export type PathType = 'line' | 'quadratic' | 'cubic' | 'polyline' | 'svg';
 
 export interface Path {
   type: PathType;
   points: Point[];
+  d?: string; // SVG path d-string (for type='svg')
 }
 
 // Agent status

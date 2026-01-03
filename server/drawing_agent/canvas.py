@@ -6,6 +6,7 @@ from xml.etree import ElementTree as ET
 
 from PIL import Image, ImageDraw
 
+from drawing_agent.interpolation import interpolate_svg_path
 from drawing_agent.state import state_manager
 from drawing_agent.types import Path, PathType
 from drawing_agent.workspace import workspace
@@ -13,6 +14,10 @@ from drawing_agent.workspace import workspace
 
 def render_path_to_svg_d(path: Path) -> str:
     """Convert a path to SVG path 'd' attribute."""
+    # SVG paths already have their d-string
+    if path.type == PathType.SVG:
+        return path.d or ""
+
     if not path.points:
         return ""
 
@@ -95,6 +100,12 @@ def render_svg() -> str:
 
 def path_to_point_list(path: Path) -> list[tuple[float, float]]:
     """Convert path to list of (x, y) tuples for PIL drawing."""
+    # SVG paths need to be interpolated to get points
+    if path.type == PathType.SVG:
+        if not path.d:
+            return []
+        points = interpolate_svg_path(path.d, steps_per_unit=0.5)
+        return [(p.x, p.y) for p in points]
     return [(p.x, p.y) for p in path.points]
 
 
