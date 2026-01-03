@@ -184,6 +184,7 @@ export interface ClientResumeMessage {
 
 export interface ClientNewCanvasMessage {
   type: 'new_canvas';
+  direction?: string; // Optional direction for the agent
 }
 
 export interface ClientLoadCanvasMessage {

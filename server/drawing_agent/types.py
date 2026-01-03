@@ -216,6 +216,13 @@ class ClientControlMessage(BaseModel):
     type: Literal["clear", "pause", "resume"]
 
 
+class ClientNewCanvasMessage(BaseModel):
+    """New canvas request from client."""
+
+    type: Literal["new_canvas"] = "new_canvas"
+    direction: str | None = None  # Optional direction for the agent
+
+
 ServerMessage = (
     PenMessage
     | StrokeCompleteMessage
@@ -231,7 +238,9 @@ ServerMessage = (
     | PieceCompleteMessage
     | IterationMessage
 )
-ClientMessage = ClientStrokeMessage | ClientNudgeMessage | ClientControlMessage
+ClientMessage = (
+    ClientStrokeMessage | ClientNudgeMessage | ClientControlMessage | ClientNewCanvasMessage
+)
 
 
 # Agent streaming events
