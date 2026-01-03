@@ -163,18 +163,52 @@ This triggers `.github/workflows/release.yml` which:
 3. Creates GitHub Release with changelog
 4. Watchtower on EC2 auto-pulls new image within 30 seconds
 
-### Infrastructure
+### Infrastructure (Terraform)
 
-- **EC2 instance** running Docker Compose (`deploy/docker-compose.prod.yml`)
-- **Nginx** reverse proxy with Let's Encrypt SSL
-- **Watchtower** for automatic container updates
-- **ECR** for Docker image registry
+All infrastructure is managed via Terraform in `infrastructure/`:
+
+```
+infrastructure/
+├── main.tf          # Provider config
+├── variables.tf     # Input variables
+├── outputs.tf       # Output values (URLs, IPs, commands)
+├── vpc.tf           # VPC, subnet, internet gateway
+├── ec2.tf           # EC2 instance, security group, IAM role
+├── ecr.tf           # ECR repository + lifecycle policy
+├── route53.tf       # DNS records
+├── monitoring.tf    # CloudWatch alarms
+└── backup.tf        # EBS backup policies
+```
+
+**Key resources:**
+- **EC2** (t3.micro) running Docker Compose
+- **ECR** repository with 5-image retention
+- **Elastic IP** for stable addressing
+- **Route 53** DNS (drawing-agent.dmfenton.net)
+- **CloudWatch** alerts to email
+
+**Terraform commands:**
+```bash
+cd infrastructure
+
+# Initialize
+terraform init
+
+# Plan changes
+terraform plan -var="ssh_key_name=your-key" -var="alert_email=you@example.com"
+
+# Apply
+terraform apply -var="ssh_key_name=your-key" -var="alert_email=you@example.com"
+
+# Get outputs (IP, URLs, SSH command)
+terraform output
+```
 
 ### Manual Server Access
 
 ```bash
-# SSH to server (if configured)
-ssh ec2-user@<server-ip>
+# SSH to server (use output from terraform)
+ssh -i ~/.ssh/your-key.pem ec2-user@$(terraform -chdir=infrastructure output -raw public_ip)
 
 # On server: view logs
 docker logs -f drawing-agent
@@ -190,12 +224,27 @@ docker exec drawing-agent alembic upgrade head
 docker exec drawing-agent python -m drawing_agent.cli invite create
 ```
 
+### GitHub Actions IAM User
+
+The release workflow needs AWS credentials to push to ECR. Create a scoped IAM user:
+
+```bash
+# Add to infrastructure/github_actions.tf (not yet created)
+# Or create manually in AWS Console:
+# 1. IAM → Users → Create user "github-actions-ecr"
+# 2. Attach policy: AmazonEC2ContainerRegistryPowerUser
+# 3. Create access key → copy credentials
+# 4. Add to GitHub secrets (below)
+```
+
 ### Required GitHub Secrets (Server)
 
 | Secret | Description |
 |--------|-------------|
-| `AWS_ACCESS_KEY_ID` | AWS credentials for ECR push |
-| `AWS_SECRET_ACCESS_KEY` | AWS credentials for ECR push |
+| `AWS_ACCESS_KEY_ID` | IAM user access key for ECR push |
+| `AWS_SECRET_ACCESS_KEY` | IAM user secret key for ECR push |
+
+Add at: https://github.com/dmfenton/Sketchpad/settings/secrets/actions
 
 ---
 
