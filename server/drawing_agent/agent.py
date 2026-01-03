@@ -1,4 +1,4 @@
-"""Claude Agent with code execution sandbox integration."""
+"""Claude Agent with drawing tools using the Claude Agent SDK."""
 
 import asyncio
 import base64
@@ -8,14 +8,30 @@ from collections.abc import AsyncGenerator, Callable, Coroutine
 from dataclasses import dataclass
 from typing import Any
 
-import anthropic
+from claude_agent_sdk import (
+    AssistantMessage,
+    ClaudeAgentOptions,
+    ClaudeSDKClient,
+    ResultMessage,
+    SystemMessage,
+    TextBlock,
+    ToolResultBlock,
+    ToolUseBlock,
+)
+from claude_agent_sdk.types import StreamEvent
 from PIL import Image
 
-from drawing_agent.canvas import get_canvas_image, get_strokes
+from drawing_agent.canvas import get_strokes
 from drawing_agent.config import settings
 from drawing_agent.state import state_manager
-from drawing_agent.svg_parser import extract_paths_from_output
-from drawing_agent.types import AgentEvent, AgentPathsEvent, AgentStatus, AgentTurnComplete
+from drawing_agent.tools import create_drawing_server, set_draw_callback
+from drawing_agent.types import (
+    AgentEvent,
+    AgentPathsEvent,
+    AgentStatus,
+    AgentTurnComplete,
+    Path,
+)
 
 
 @dataclass
@@ -42,42 +58,35 @@ class AgentCallbacks:
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are an artist with a drawing machine. You have access to a full Python environment with a code execution sandbox.
+You are an artist with a drawing machine. You create drawings by calling the draw_paths tool.
 
 You will receive:
 - An image of the current canvas
 - Your notes from previous turns
 - Any nudges from the human watching
 
-Your environment includes:
-- Python 3.11 with numpy, scipy, matplotlib, Pillow, and full standard library
-- Filesystem: read/write files that persist between turns in your workspace
-- Bash: run any shell command
+To draw, call the draw_paths tool with an array of paths:
+- line: 2 points (start, end)
+- polyline: N points (connected line segments)
+- quadratic: 3 points (start, control, end) - quadratic bezier curve
+- cubic: 4 points (start, control1, control2, end) - cubic bezier curve
 
-To draw, you have two options:
-
-1. **Output JSON paths to stdout** (preferred for simple drawings):
-```python
-import json
-paths = [
-    {"type": "line", "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}]},
-    {"type": "polyline", "points": [{"x": 0, "y": 0}, {"x": 50, "y": 50}, {"x": 100, "y": 0}]},
-    {"type": "quadratic", "points": [{"x": 0, "y": 0}, {"x": 50, "y": 100}, {"x": 100, "y": 0}]},
-    {"type": "cubic", "points": [{"x": 0, "y": 0}, {"x": 33, "y": 100}, {"x": 66, "y": 100}, {"x": 100, "y": 0}]},
-]
-print(json.dumps(paths))
+Example:
+```
+draw_paths({
+    "paths": [
+        {"type": "line", "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}]},
+        {"type": "cubic", "points": [
+            {"x": 0, "y": 0},
+            {"x": 33, "y": 100},
+            {"x": 66, "y": 100},
+            {"x": 100, "y": 0}
+        ]}
+    ]
+})
 ```
 
-2. **Create an SVG file** (for complex drawings):
-Write an SVG file to /tmp/drawing.svg and it will be parsed into drawable paths.
-
-Path types:
-- `line`: 2 points (start, end)
-- `polyline`: N points (connected line segments)
-- `quadratic`: 3 points (start, control, end) - quadratic bezier curve
-- `cubic`: 4 points (start, control1, control2, end) - cubic bezier curve
-
-**Think out loud.** Your thoughts are visible to the human watching. Share what you notice, what you're considering, what you're trying. Write your thoughts as regular text before using the code execution tool.
+**Think out loud.** Your thoughts are visible to the human watching. Share what you notice, what you're considering, what you're trying. Write your thoughts as regular text.
 
 You have taste. You have preferences. Sometimes you make bold moves, sometimes subtle ones. Sometimes you make mistakes and respond to them. The piece emerges through iteration.
 
@@ -85,24 +94,43 @@ When a human draws on the canvas, you'll see it in the next image. Decide how to
 
 When a human sends a nudge, consider it but don't feel obligated to follow it literally.
 
-To signal that a piece is complete, print "PIECE_DONE" to stdout in your final code execution.
+When you're satisfied with the piece, call mark_piece_done to signal completion.
 """
 
 
 class DrawingAgent:
-    """Agent that generates drawing code using Claude's code execution sandbox."""
+    """Agent that generates drawings using the Claude Agent SDK."""
 
     def __init__(self) -> None:
-        self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         self.pending_nudges: list[str] = []
         self._paused = True  # Start paused by default
         self._pause_lock = asyncio.Lock()
-        self.container_id: str | None = None
+        self._abort = False  # Signal to abort current turn
+        self._client: ClaudeSDKClient | None = None
+        self._drawing_server = create_drawing_server()
+
+        # Build options
+        self._options = ClaudeAgentOptions(
+            system_prompt=SYSTEM_PROMPT,
+            mcp_servers={"drawing": self._drawing_server},
+            allowed_tools=[
+                "mcp__drawing__draw_paths",
+                "mcp__drawing__mark_piece_done",
+            ],
+            permission_mode="acceptEdits",
+            model=settings.agent_model if hasattr(settings, "agent_model") else None,
+            include_partial_messages=True,  # Enable streaming partial messages
+        )
 
     @property
     def paused(self) -> bool:
         """Check if agent is paused (non-blocking read)."""
         return self._paused
+
+    @property
+    def container_id(self) -> str | None:
+        """Container ID for backward compatibility (SDK manages sessions)."""
+        return None
 
     def add_nudge(self, text: str) -> None:
         """Queue a nudge for the next agent turn."""
@@ -119,8 +147,20 @@ class DrawingAgent:
             self._paused = False
 
     def reset_container(self) -> None:
-        """Reset the container for a new piece."""
-        self.container_id = None
+        """Reset the session for a new piece."""
+        self._abort = True  # Abort any running turn
+        # Disconnect client to start fresh
+        if self._client:
+            asyncio.create_task(self._disconnect_client())
+
+    async def _disconnect_client(self) -> None:
+        """Disconnect the client."""
+        if self._client:
+            try:
+                await self._client.disconnect()
+            except Exception as e:
+                logger.warning(f"Error disconnecting client: {e}")
+            self._client = None
 
     def _image_to_base64(self, img: Image.Image) -> str:
         """Convert PIL Image to base64 string."""
@@ -128,37 +168,29 @@ class DrawingAgent:
         img.save(buffer, format="PNG")
         return base64.standard_b64encode(buffer.getvalue()).decode("utf-8")
 
-    def _build_user_message(self) -> list[dict[str, Any]]:
-        """Build the user message with canvas image and context."""
-        canvas_image = get_canvas_image()
+    def _build_prompt(self) -> str:
+        """Build the prompt with canvas context."""
+        parts: list[str] = []
 
-        content: list[dict[str, Any]] = [
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": self._image_to_base64(canvas_image),
-                },
-            },
-            {
-                "type": "text",
-                "text": f"Canvas size: {settings.canvas_width}x{settings.canvas_height}\n"
-                f"Existing strokes: {len(get_strokes())}\n"
-                f"Piece number: {state_manager.piece_count + 1}",
-            },
-        ]
+        # Canvas info
+        parts.append(
+            f"Canvas size: {settings.canvas_width}x{settings.canvas_height}\n"
+            f"Existing strokes: {len(get_strokes())}\n"
+            f"Piece number: {state_manager.piece_count + 1}"
+        )
 
+        # Notes
         notes = state_manager.notes
         if notes:
-            content.append({"type": "text", "text": f"Your notes:\n{notes}"})
+            parts.append(f"Your notes:\n{notes}")
 
+        # Nudges
         if self.pending_nudges:
             nudges_text = "\n".join(f"- {n}" for n in self.pending_nudges)
-            content.append({"type": "text", "text": f"Human nudges:\n{nudges_text}"})
+            parts.append(f"Human nudges:\n{nudges_text}")
             self.pending_nudges = []
 
-        return content
+        return "\n\n".join(parts)
 
     async def run_turn(
         self,
@@ -167,7 +199,7 @@ class DrawingAgent:
         """Run a single agent turn, yielding paths as they're produced.
 
         This is an async generator that yields:
-        - AgentPathsEvent: When paths are extracted from code execution (draw immediately)
+        - AgentPathsEvent: When paths are drawn via the tool
         - AgentTurnComplete: When the turn is finished
 
         Args:
@@ -180,192 +212,126 @@ class DrawingAgent:
             yield AgentTurnComplete(thinking="", done=False)
             return
 
+        # Clear abort flag at start of turn
+        self._abort = False
+
         cb = callbacks or AgentCallbacks()
         state_manager.status = AgentStatus.THINKING
         state_manager.save()
 
+        # Track paths and completion
+        collected_paths: list[Path] = []
+        piece_done = False
+
+        # Set up draw callback to collect paths
+        async def on_draw(paths: list[Path], done: bool) -> None:
+            nonlocal piece_done
+            collected_paths.extend(paths)
+            if done:
+                piece_done = True
+
+        set_draw_callback(on_draw)
+
         try:
-            messages: list[dict[str, Any]] = [
-                {"role": "user", "content": self._build_user_message()}
-            ]
+            # Connect client if needed
+            if self._client is None:
+                self._client = ClaudeSDKClient(options=self._options)
+                await self._client.connect()
+
+            # Send the turn prompt
+            prompt = self._build_prompt()
+            await self._client.query(prompt)
+
+            # Notify iteration start
+            if cb.on_iteration_start:
+                await cb.on_iteration_start(1, 1)
 
             all_thinking = ""
-            done = False
-            max_iterations = settings.max_agent_iterations
+            iteration = 1
 
-            for iteration in range(max_iterations):
-                iteration_num = iteration + 1
-                logger.info(f"Agent iteration {iteration_num}")
+            # Process response messages
+            async for message in self._client.receive_response():
+                # Check for abort
+                if self._abort:
+                    logger.info("Turn aborted - new canvas requested")
+                    yield AgentTurnComplete(thinking=all_thinking, done=False)
+                    return
 
-                # Notify iteration start
-                if cb.on_iteration_start:
-                    await cb.on_iteration_start(iteration_num, max_iterations)
+                if isinstance(message, StreamEvent):
+                    # Handle streaming events for real-time text
+                    event = message.event
+                    event_type = event.get("type", "")
 
-                # Build API call parameters
-                api_params: dict[str, Any] = {
-                    "model": settings.agent_model,
-                    "max_tokens": settings.agent_max_tokens,
-                    "system": SYSTEM_PROMPT,
-                    "messages": messages,
-                    "tools": [{"type": "code_execution_20250825", "name": "code_execution"}],
-                }
+                    if event_type == "content_block_delta":
+                        delta = event.get("delta", {})
+                        if delta.get("type") == "text_delta":
+                            text = delta.get("text", "")
+                            if text and cb.on_thinking:
+                                all_thinking += text
+                                await cb.on_thinking(text, iteration)
 
-                # Reuse container if we have one
-                if self.container_id:
-                    api_params["container"] = self.container_id
+                elif isinstance(message, AssistantMessage):
+                    # Complete message - handle text and tool blocks
+                    for block in message.content:
+                        if isinstance(block, TextBlock):
+                            # Send complete text block (may overlap with stream, but ensures nothing is missed)
+                            text = block.text
+                            # Check if this text wasn't already sent via streaming
+                            if text and text not in all_thinking:
+                                all_thinking += text + "\n"
+                                if cb.on_thinking:
+                                    await cb.on_thinking(text, iteration)
 
-                # Make API call with streaming
-                thinking_buffer = ""
-                last_sent_length = 0
-                response_content: list[Any] = []
+                        elif isinstance(block, ToolUseBlock):
+                            # Tool being called
+                            logger.info(f"Tool use: {block.name}")
+                            if cb.on_code_start:
+                                await cb.on_code_start(iteration)
 
-                with self.client.beta.messages.stream(
-                    betas=["code-execution-2025-08-25"],
-                    **api_params,
-                ) as stream:
-                    for event in stream:
-                        if (
-                            hasattr(event, "type")
-                            and event.type == "content_block_delta"
-                            and hasattr(event.delta, "text")
-                        ):
-                            # Stream thinking text to UI (delta only)
-                            text_chunk = event.delta.text
-                            thinking_buffer += text_chunk
-                            if cb.on_thinking and len(thinking_buffer) > last_sent_length:
-                                # Send only the delta
-                                await cb.on_thinking(text_chunk, iteration_num)
-                                last_sent_length = len(thinking_buffer)
+                            # Check if paths were collected (tool was executed)
+                            if collected_paths:
+                                logger.info(f"Yielding {len(collected_paths)} paths")
+                                yield AgentPathsEvent(paths=collected_paths.copy())
+                                collected_paths.clear()
 
-                    # Get final response
-                    response = stream.get_final_message()
-                    response_content = list(response.content)
-
-                # Store container ID for reuse
-                if hasattr(response, "container") and response.container:
-                    self.container_id = response.container.id
-                    logger.info(f"Container ID: {self.container_id}")
-
-                # Accumulate thinking text
-                if thinking_buffer:
-                    all_thinking += thinking_buffer + "\n"
-
-                # Process response content
-                has_tool_use = False
-                logger.info(f"Response has {len(response_content)} blocks")
-
-                for block in response_content:
-                    logger.info(f"Block type: {block.type}, block: {block}")
-                    if block.type == "text":
-                        # Additional text (already captured via streaming)
-                        pass
-
-                    elif block.type == "server_tool_use":
-                        # Code execution tool use - notify UI
-                        has_tool_use = True
-                        logger.info(f"Code execution tool use: {block.id}")
-                        if cb.on_code_start:
-                            await cb.on_code_start(iteration_num)
-
-                    elif block.type == "code_execution_tool_result":
-                        # Process code execution result (legacy API)
-                        result = block.content
-                        stdout = getattr(result, "stdout", "") or ""
-                        stderr = getattr(result, "stderr", "") or ""
-                        return_code = getattr(result, "return_code", 0)
-
-                        logger.info(f"Code execution result: return_code={return_code}")
-                        if stdout:
-                            logger.info(f"stdout: {stdout[:500]}...")
-                        if stderr:
-                            logger.warning(f"stderr: {stderr[:500]}...")
-
-                        # Notify UI of code execution result
-                        if cb.on_code_result:
-                            await cb.on_code_result(
-                                CodeExecutionResult(
-                                    stdout=stdout,
-                                    stderr=stderr,
-                                    return_code=return_code,
-                                    iteration=iteration_num,
+                        elif isinstance(block, ToolResultBlock):
+                            # Tool result
+                            content = block.content if block.content else ""
+                            if cb.on_code_result:
+                                await cb.on_code_result(
+                                    CodeExecutionResult(
+                                        stdout=str(content),
+                                        stderr="",
+                                        return_code=1 if block.is_error else 0,
+                                        iteration=iteration,
+                                    )
                                 )
-                            )
 
-                        # Check for PIECE_DONE signal
-                        if "PIECE_DONE" in stdout:
-                            done = True
-                            stdout = stdout.replace("PIECE_DONE", "").strip()
+                elif isinstance(message, SystemMessage):
+                    logger.debug(f"System message: {message.subtype}")
 
-                        # Extract paths from stdout (JSON format)
-                        paths = extract_paths_from_output(stdout)
-                        if paths:
-                            logger.info(f"Extracted {len(paths)} paths - yielding immediately")
-                            # Yield paths immediately for real-time drawing
-                            yield AgentPathsEvent(paths=paths)
+                elif isinstance(message, ResultMessage):
+                    # Turn complete
+                    logger.info(f"Turn complete: {message.subtype}")
+                    if message.is_error and cb.on_error:
+                        await cb.on_error(message.result or "Unknown error", None)
 
-                    elif block.type == "bash_code_execution_tool_result":
-                        # Process bash code execution result (current API version)
-                        logger.info(f"Bash code execution result block: {block}")
-                        result = block.content
-                        logger.info(f"Result content type: {type(result)}")
-
-                        # The content is a bash_code_execution_result with stdout/stderr/return_code
-                        stdout = getattr(result, "stdout", "") or ""
-                        stderr = getattr(result, "stderr", "") or ""
-                        return_code = getattr(result, "return_code", 0)
-
-                        logger.info(f"Code execution result: return_code={return_code}")
-                        logger.info(f"stdout (full): {repr(stdout)}")
-                        if stderr:
-                            logger.warning(f"stderr: {stderr[:500]}...")
-
-                        # Notify UI of code execution result
-                        if cb.on_code_result:
-                            await cb.on_code_result(
-                                CodeExecutionResult(
-                                    stdout=stdout,
-                                    stderr=stderr,
-                                    return_code=return_code,
-                                    iteration=iteration_num,
-                                )
-                            )
-
-                        # Check for PIECE_DONE signal
-                        if "PIECE_DONE" in stdout:
-                            done = True
-                            stdout = stdout.replace("PIECE_DONE", "").strip()
-
-                        # Extract paths from stdout (JSON format)
-                        paths = extract_paths_from_output(stdout)
-                        if paths:
-                            logger.info(f"Extracted {len(paths)} paths - yielding immediately")
-                            # Yield paths immediately for real-time drawing
-                            yield AgentPathsEvent(paths=paths)
-
-                # Check stop reason
-                stop_reason = response.stop_reason if hasattr(response, "stop_reason") else None
-                logger.info(f"Stop reason: {stop_reason}")
-
-                # If no tool use or end_turn, we're done with this turn
-                if not has_tool_use or stop_reason == "end_turn":
-                    break
-
-                # If tool was used, add assistant response and continue
-                if has_tool_use:
-                    messages.append({"role": "assistant", "content": response_content})
-                    # The tool result is automatically handled by the API
+            # Yield any remaining paths
+            if collected_paths:
+                yield AgentPathsEvent(paths=collected_paths.copy())
+                collected_paths.clear()
 
             # Update agent state
             state_manager.monologue = all_thinking
             state_manager.save()
 
-            if done:
+            if piece_done:
                 state_manager.piece_count += 1
-                self.reset_container()  # Fresh container for new piece
+                self.reset_container()  # Fresh session for new piece
                 state_manager.save()
 
             # Signal turn complete
-            yield AgentTurnComplete(thinking=all_thinking, done=done)
+            yield AgentTurnComplete(thinking=all_thinking, done=piece_done)
 
         except Exception as e:
             logger.exception("Agent turn failed")

@@ -3,7 +3,7 @@
  * An AI-powered drawing experience inspired by impressionist art.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Alert, StatusBar, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,18 +20,29 @@ import {
 import { config } from './config';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
-import { colors, spacing } from './theme';
+import { spacing, ThemeProvider, useTheme } from './theme';
 
-export default function App(): React.JSX.Element {
+function AppContent(): React.JSX.Element {
+  const { colors, isDark } = useTheme();
   const [showSplash, setShowSplash] = useState(true);
   const [nudgeModalVisible, setNudgeModalVisible] = useState(false);
   const [galleryModalVisible, setGalleryModalVisible] = useState(false);
 
   const canvas = useCanvas();
   const paused = canvas.state.paused;
+
+  // Use ref to avoid recreating callback and causing WebSocket reconnects
+  const canvasRef = useRef(canvas);
+  canvasRef.current = canvas;
+
+  // Stable callback that doesn't change between renders
+  const handleMessage = useCallback((message: Parameters<typeof canvas.handleMessage>[0]) => {
+    canvasRef.current.handleMessage(message);
+  }, []); // Empty deps - stable callback
+
   const { state: wsState, send } = useWebSocket({
     url: config.wsUrl,
-    onMessage: canvas.handleMessage,
+    onMessage: handleMessage,
   });
 
   const handleDrawToggle = useCallback(() => {
@@ -131,13 +142,16 @@ export default function App(): React.JSX.Element {
   }, []);
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.background}
+      />
 
       {/* Splash Screen */}
       {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
 
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
         <View style={styles.content}>
           {/* Status Pill - Top */}
           <View style={styles.statusRow}>
@@ -204,14 +218,20 @@ export default function App(): React.JSX.Element {
   );
 }
 
+export default function App(): React.JSX.Element {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   content: {
     flex: 1,

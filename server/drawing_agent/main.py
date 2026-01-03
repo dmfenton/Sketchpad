@@ -20,7 +20,7 @@ from drawing_agent.handlers import handle_message
 from drawing_agent.orchestrator import AgentOrchestrator
 from drawing_agent.state import state_manager
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 orchestrator: AgentOrchestrator | None = None

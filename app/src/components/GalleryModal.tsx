@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import type { SavedCanvas } from '../types';
-import { colors, spacing, borderRadius, typography, shadows } from '../theme';
+import { spacing, borderRadius, typography, useTheme, type ColorScheme, type ShadowScheme } from '../theme';
 
 interface GalleryModalProps {
   visible: boolean;
@@ -36,22 +36,26 @@ function formatDate(isoString: string): string {
 interface GalleryItemProps {
   canvas: SavedCanvas;
   onPress: () => void;
+  colors: ColorScheme;
+  shadows: ShadowScheme;
 }
 
-function GalleryItem({ canvas, onPress }: GalleryItemProps): React.JSX.Element {
+function GalleryItem({ canvas, onPress, colors, shadows }: GalleryItemProps): React.JSX.Element {
   return (
     <Pressable
       style={({ pressed }) => [
         styles.item,
-        pressed && styles.itemPressed,
+        { backgroundColor: colors.surface },
+        shadows.sm,
+        pressed && { backgroundColor: colors.surfaceElevated, transform: [{ scale: 0.98 }] },
       ]}
       onPress={onPress}
     >
       <View style={styles.itemHeader}>
-        <Text style={styles.itemTitle}>Piece #{canvas.piece_number}</Text>
-        <Text style={styles.itemDate}>{formatDate(canvas.created_at)}</Text>
+        <Text style={[styles.itemTitle, { color: colors.textPrimary }]}>Piece #{canvas.piece_number}</Text>
+        <Text style={[styles.itemDate, { color: colors.textMuted }]}>{formatDate(canvas.created_at)}</Text>
       </View>
-      <Text style={styles.itemMeta}>
+      <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>
         {canvas.stroke_count} strokes
       </Text>
     </Pressable>
@@ -64,6 +68,7 @@ export function GalleryModal({
   onClose,
   onSelect,
 }: GalleryModalProps): React.JSX.Element {
+  const { colors, shadows } = useTheme();
   return (
     <Modal
       visible={visible}
@@ -71,9 +76,9 @@ export function GalleryModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Gallery</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Gallery</Text>
           <Pressable style={styles.closeButton} onPress={onClose}>
             <Ionicons name="close" size={24} color={colors.textPrimary} />
           </Pressable>
@@ -82,8 +87,8 @@ export function GalleryModal({
         {canvases.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="images-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.emptyText}>No saved canvases yet</Text>
-            <Text style={styles.emptyHint}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No saved canvases yet</Text>
+            <Text style={[styles.emptyHint, { color: colors.textMuted }]}>
               Tap &quot;New&quot; to save the current canvas and start fresh
             </Text>
           </View>
@@ -95,6 +100,8 @@ export function GalleryModal({
               <GalleryItem
                 canvas={item}
                 onPress={() => onSelect(item.id)}
+                colors={colors}
+                shadows={shadows}
               />
             )}
             contentContainerStyle={styles.list}
@@ -109,7 +116,6 @@ export function GalleryModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -118,11 +124,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   title: {
     ...typography.heading,
-    color: colors.textPrimary,
   },
   closeButton: {
     padding: spacing.sm,
@@ -132,15 +136,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   item: {
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     marginBottom: spacing.md,
-    ...shadows.sm,
-  },
-  itemPressed: {
-    backgroundColor: colors.surfaceElevated,
-    transform: [{ scale: 0.98 }],
   },
   itemHeader: {
     flexDirection: 'row',
@@ -150,16 +148,13 @@ const styles = StyleSheet.create({
   },
   itemTitle: {
     ...typography.body,
-    color: colors.textPrimary,
     fontWeight: '600',
   },
   itemDate: {
     ...typography.small,
-    color: colors.textMuted,
   },
   itemMeta: {
     ...typography.small,
-    color: colors.textSecondary,
   },
   empty: {
     flex: 1,
@@ -170,11 +165,9 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.body,
-    color: colors.textSecondary,
   },
   emptyHint: {
     ...typography.small,
-    color: colors.textMuted,
     textAlign: 'center',
   },
 });

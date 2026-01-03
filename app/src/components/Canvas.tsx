@@ -10,7 +10,7 @@ import Svg, { Circle, Defs, Line, Pattern, Path as SvgPath, Rect } from 'react-n
 import { screenToCanvas } from '../hooks/useCanvas';
 import type { Path, Point } from '../types';
 import { CANVAS_ASPECT_RATIO, CANVAS_HEIGHT, CANVAS_WIDTH } from '../types';
-import { colors, borderRadius, shadows, spacing, typography } from '../theme';
+import { borderRadius, spacing, typography, useTheme } from '../theme';
 
 interface CanvasProps {
   strokes: Path[];
@@ -92,6 +92,7 @@ export function Canvas({
   onStrokeMove,
   onStrokeEnd,
 }: CanvasProps): React.JSX.Element {
+  const { colors, shadows } = useTheme();
   const containerRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
@@ -126,7 +127,7 @@ export function Canvas({
   );
 
   return (
-    <View style={styles.container} onLayout={handleLayout}>
+    <View style={[styles.container, { backgroundColor: colors.canvasBackground }, shadows.md]} onLayout={handleLayout}>
       <GestureDetector gesture={panGesture}>
         <View style={styles.canvasWrapper}>
           <Svg
@@ -202,8 +203,8 @@ export function Canvas({
 
           {/* Drawing mode indicator */}
           {drawingEnabled && (
-            <View style={styles.drawingIndicator}>
-              <Text style={styles.drawingIndicatorText}>Drawing Mode</Text>
+            <View style={[styles.drawingIndicator, { backgroundColor: colors.secondary }]}>
+              <Text style={[styles.drawingIndicatorText, { color: colors.textOnPrimary }]}>Drawing Mode</Text>
             </View>
           )}
         </View>
@@ -216,10 +217,8 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     aspectRatio: CANVAS_ASPECT_RATIO,
-    backgroundColor: colors.canvasBackground,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    ...shadows.md,
   },
   canvasWrapper: {
     flex: 1,
@@ -228,14 +227,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.sm,
     left: spacing.sm,
-    backgroundColor: colors.secondary,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.sm,
   },
   drawingIndicatorText: {
     ...typography.small,
-    color: colors.textOnPrimary,
     fontWeight: '600',
   },
 });

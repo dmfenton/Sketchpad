@@ -6,7 +6,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import type { AgentStatus } from '../types';
-import { colors, spacing, borderRadius, typography, shadows } from '../theme';
+import { spacing, borderRadius, typography, useTheme } from '../theme';
 
 interface StatusPillProps {
   pieceCount: number;
@@ -32,6 +32,7 @@ export function StatusPill({
   connected,
   paused,
 }: StatusPillProps): React.JSX.Element {
+  const { colors, shadows } = useTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Effective status - paused overrides other statuses
@@ -65,19 +66,19 @@ export function StatusPill({
   const isActive = effectiveStatus === 'thinking' || effectiveStatus === 'executing' || effectiveStatus === 'drawing';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface }, shadows.sm]}>
       <Animated.View
         style={[
           styles.dot,
-          connected ? styles.dotConnected : styles.dotDisconnected,
+          { backgroundColor: connected ? colors.success : colors.error },
           isActive && { opacity: pulseAnim },
         ]}
       />
-      <Text style={styles.statusText}>
+      <Text style={[styles.statusText, { color: colors.textSecondary }]}>
         {connected ? STATUS_LABELS[effectiveStatus] : 'Disconnected'}
       </Text>
-      <View style={styles.divider} />
-      <Text style={styles.pieceText}>
+      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+      <Text style={[styles.pieceText, { color: colors.textMuted }]}>
         {viewingPiece !== null ? `Viewing #${viewingPiece}` : `Piece #${pieceCount}`}
       </Text>
     </View>
@@ -88,36 +89,25 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
     gap: spacing.sm,
-    ...shadows.sm,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
-  dotConnected: {
-    backgroundColor: colors.success,
-  },
-  dotDisconnected: {
-    backgroundColor: colors.error,
-  },
   statusText: {
     ...typography.small,
-    color: colors.textSecondary,
     fontWeight: '500',
   },
   divider: {
     width: 1,
     height: 12,
-    backgroundColor: colors.border,
   },
   pieceText: {
     ...typography.small,
-    color: colors.textMuted,
   },
 });

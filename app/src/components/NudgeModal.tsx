@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, spacing, borderRadius, typography, shadows } from '../theme';
+import { spacing, borderRadius, typography, useTheme } from '../theme';
 
 interface NudgeModalProps {
   visible: boolean;
@@ -34,6 +34,7 @@ const QUICK_SUGGESTIONS = [
 const MAX_LENGTH = 200;
 
 export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React.JSX.Element {
+  const { colors, shadows } = useTheme();
   const [text, setText] = useState('');
 
   const handleSend = () => {
@@ -68,17 +69,17 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
       >
         <Pressable style={styles.overlay} onPress={handleCancel} />
 
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { backgroundColor: colors.surface }, shadows.lg]}>
           {/* Handle */}
           <View style={styles.handleContainer}>
-            <View style={styles.handle} />
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
           </View>
 
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>Send a Nudge</Text>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.title, { color: colors.textPrimary }]}>Send a Nudge</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 Suggest something to the agent
               </Text>
             </View>
@@ -97,10 +98,10 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
             {QUICK_SUGGESTIONS.map((suggestion) => (
               <Pressable
                 key={suggestion}
-                style={styles.suggestionChip}
+                style={[styles.suggestionChip, { backgroundColor: colors.surfaceElevated }]}
                 onPress={() => handleSuggestion(suggestion)}
               >
-                <Text style={styles.suggestionText}>{suggestion}</Text>
+                <Text style={[styles.suggestionText, { color: colors.textSecondary }]}>{suggestion}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -108,7 +109,7 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
           {/* Input */}
           <View style={styles.inputContainer}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
               value={text}
               onChangeText={(t) => setText(t.slice(0, MAX_LENGTH))}
               placeholder="Type your suggestion..."
@@ -120,7 +121,8 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
             <Text
               style={[
                 styles.charCount,
-                remainingChars < 20 && styles.charCountLow,
+                { color: colors.textMuted },
+                remainingChars < 20 && { color: colors.warning },
               ]}
             >
               {remainingChars}
@@ -132,7 +134,7 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
             <Pressable
               style={({ pressed }) => [
                 styles.sendButton,
-                !text.trim() && styles.sendButtonDisabled,
+                { backgroundColor: text.trim() ? colors.primary : colors.surfaceElevated },
                 pressed && text.trim() && styles.sendButtonPressed,
               ]}
               onPress={handleSend}
@@ -146,7 +148,7 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
               <Text
                 style={[
                   styles.sendButtonText,
-                  !text.trim() && styles.sendButtonTextDisabled,
+                  { color: text.trim() ? colors.textOnPrimary : colors.textMuted },
                 ]}
               >
                 Send Nudge
@@ -169,11 +171,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   sheet: {
-    backgroundColor: colors.surface,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     paddingBottom: spacing['2xl'],
-    ...shadows.lg,
   },
   handleContainer: {
     alignItems: 'center',
@@ -182,7 +182,6 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: colors.border,
     borderRadius: 2,
   },
   header: {
@@ -194,12 +193,10 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.heading,
-    color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   subtitle: {
     ...typography.caption,
-    color: colors.textSecondary,
   },
   closeButton: {
     padding: spacing.xs,
@@ -212,7 +209,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   suggestionChip: {
-    backgroundColor: colors.surfaceElevated,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
@@ -220,7 +216,6 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     ...typography.caption,
-    color: colors.textSecondary,
   },
   inputContainer: {
     marginHorizontal: spacing.xl,
@@ -228,12 +223,10 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   input: {
-    backgroundColor: colors.surfaceElevated,
     borderRadius: borderRadius.md,
     padding: spacing.lg,
     paddingBottom: spacing['2xl'],
     ...typography.body,
-    color: colors.textPrimary,
     minHeight: 100,
     textAlignVertical: 'top',
   },
@@ -242,10 +235,6 @@ const styles = StyleSheet.create({
     bottom: spacing.md,
     right: spacing.md,
     ...typography.small,
-    color: colors.textMuted,
-  },
-  charCountLow: {
-    color: colors.warning,
   },
   actions: {
     paddingHorizontal: spacing.xl,
@@ -254,13 +243,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
     paddingVertical: spacing.lg,
     borderRadius: borderRadius.lg,
     gap: spacing.sm,
-  },
-  sendButtonDisabled: {
-    backgroundColor: colors.surfaceElevated,
   },
   sendButtonPressed: {
     opacity: 0.8,
@@ -269,9 +254,5 @@ const styles = StyleSheet.create({
   sendButtonText: {
     ...typography.body,
     fontWeight: '600',
-    color: colors.textOnPrimary,
-  },
-  sendButtonTextDisabled: {
-    color: colors.textMuted,
   },
 });
