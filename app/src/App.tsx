@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, StatusBar, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, StatusBar, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,13 +18,16 @@ import {
   SplashScreen,
   StatusPill,
 } from './components';
-import { config } from './config';
+import { getWebSocketUrl } from './config';
+import { AuthProvider, useAuth } from './context';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
+import { AuthScreen } from './screens';
 import { spacing, ThemeProvider, useTheme } from './theme';
 
-function AppContent(): React.JSX.Element {
+function MainApp(): React.JSX.Element {
   const { colors, isDark } = useTheme();
+  const { accessToken, signOut, refreshToken } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
   const [nudgeModalVisible, setNudgeModalVisible] = useState(false);
   const [galleryModalVisible, setGalleryModalVisible] = useState(false);
@@ -42,9 +45,23 @@ function AppContent(): React.JSX.Element {
     canvasRef.current.handleMessage(message);
   }, []); // Empty deps - stable callback
 
+  // Handle auth errors from WebSocket by trying to refresh, then sign out
+  const handleAuthError = useCallback(() => {
+    console.log('[App] WebSocket auth error, attempting token refresh');
+    void (async () => {
+      const refreshed = await refreshToken();
+      if (!refreshed) {
+        console.log('[App] Token refresh failed, signing out');
+        await signOut();
+      }
+    })();
+  }, [refreshToken, signOut]);
+
   const { state: wsState, send } = useWebSocket({
-    url: config.wsUrl,
+    url: getWebSocketUrl(),
+    token: accessToken,
     onMessage: handleMessage,
+    onAuthError: handleAuthError,
   });
 
   const handleDrawToggle = useCallback(() => {
@@ -222,10 +239,36 @@ function AppContent(): React.JSX.Element {
   );
 }
 
+function AppContent(): React.JSX.Element {
+  const { colors } = useTheme();
+  const { isLoading, isAuthenticated } = useAuth();
+
+  // Show loading screen while checking auth
+  if (isLoading) {
+    return (
+      <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
+        <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </GestureHandlerRootView>
+    );
+  }
+
+  // Show auth screen if not authenticated
+  if (!isAuthenticated) {
+    return <AuthScreen />;
+  }
+
+  // Show main app
+  return <MainApp />;
+}
+
 export default function App(): React.JSX.Element {
   return (
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }
@@ -233,6 +276,11 @@ export default function App(): React.JSX.Element {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   container: {
     flex: 1,

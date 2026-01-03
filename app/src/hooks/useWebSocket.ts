@@ -13,7 +13,9 @@ export interface WebSocketState {
 
 export interface UseWebSocketOptions {
   url: string;
+  token?: string | null;
   onMessage: (message: ServerMessage) => void;
+  onAuthError?: () => void;
   reconnectInterval?: number;
 }
 
@@ -25,7 +27,9 @@ export interface UseWebSocketReturn {
 
 export function useWebSocket({
   url,
+  token,
   onMessage,
+  onAuthError,
   reconnectInterval = 3000,
 }: UseWebSocketOptions): UseWebSocketReturn {
   const [state, setState] = useState<WebSocketState>({
@@ -36,11 +40,19 @@ export function useWebSocket({
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Use ref for message handler to avoid reconnecting when callback changes
+  // Use ref for handlers to avoid reconnecting when callbacks change
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
+  const onAuthErrorRef = useRef(onAuthError);
+  onAuthErrorRef.current = onAuthError;
 
   const connect = useCallback(() => {
+    // Don't connect without a token
+    if (!token) {
+      console.log('[WebSocket] No token, skipping connection');
+      return;
+    }
+
     // Don't create new connection if one already exists and is connecting/open
     if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
       console.log('[WebSocket] Already connected/connecting, skipping');
@@ -48,19 +60,29 @@ export function useWebSocket({
     }
 
     try {
+      // Append token to URL
+      const wsUrl = `${url}?token=${encodeURIComponent(token)}`;
       console.log('[WebSocket] Connecting to:', url);
-      const ws = new WebSocket(url);
+      const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         console.log('[WebSocket] Connected!');
         setState({ connected: true, error: null });
       };
 
-      ws.onclose = () => {
-        console.log('[WebSocket] Closed, reconnecting in', reconnectInterval, 'ms');
+      ws.onclose = (event) => {
+        console.log('[WebSocket] Closed with code:', event.code, 'reason:', event.reason);
         setState((prev) => ({ ...prev, connected: false }));
         wsRef.current = null;
-        // Schedule reconnect
+
+        // Auth error codes (4001 = auth failed)
+        if (event.code === 4001) {
+          console.log('[WebSocket] Auth error, triggering callback');
+          onAuthErrorRef.current?.();
+          return; // Don't reconnect on auth errors
+        }
+
+        // Schedule reconnect for other close reasons
         reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval);
       };
 
@@ -83,7 +105,7 @@ export function useWebSocket({
     } catch {
       setState({ connected: false, error: 'Failed to connect' });
     }
-  }, [url, reconnectInterval]); // Removed onMessage dependency
+  }, [url, token, reconnectInterval]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
