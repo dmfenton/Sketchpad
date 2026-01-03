@@ -1,6 +1,7 @@
 """MCP tools for the drawing agent."""
 
 import asyncio
+import base64
 import json
 import logging
 import tempfile
@@ -9,6 +10,7 @@ from typing import Any
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
+from drawing_agent.canvas import render_png
 from drawing_agent.types import Path, PathType, Point
 
 logger = logging.getLogger(__name__)
@@ -461,10 +463,43 @@ async def generate_svg(args: dict[str, Any]) -> dict[str, Any]:
     return await handle_generate_svg(args)
 
 
+async def handle_view_canvas() -> dict[str, Any]:
+    """Handle view_canvas tool call (testable without decorator).
+
+    Returns:
+        Tool result with the current canvas image
+    """
+    png_bytes = render_png(highlight_human=True)
+    image_b64 = base64.standard_b64encode(png_bytes).decode("utf-8")
+
+    return {
+        "content": [
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": image_b64,
+                },
+            }
+        ],
+    }
+
+
+@tool(
+    "view_canvas",
+    "View the current canvas state as an image. Your strokes appear in black, human strokes appear in blue. Call this anytime to see your work.",
+    {"type": "object", "properties": {}, "required": []},
+)
+async def view_canvas(_args: dict[str, Any]) -> dict[str, Any]:
+    """View the current canvas as an image."""
+    return await handle_view_canvas()
+
+
 def create_drawing_server() -> Any:
     """Create the MCP server with drawing tools."""
     return create_sdk_mcp_server(
         name="drawing",
         version="1.0.0",
-        tools=[draw_paths, mark_piece_done, generate_svg],
+        tools=[draw_paths, mark_piece_done, generate_svg, view_canvas],
     )

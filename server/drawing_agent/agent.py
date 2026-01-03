@@ -21,7 +21,7 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import StreamEvent
 from PIL import Image
 
-from drawing_agent.canvas import get_strokes
+from drawing_agent.canvas import get_canvas_image, get_strokes
 from drawing_agent.config import settings
 from drawing_agent.state import state_manager
 from drawing_agent.tools import create_drawing_server, set_canvas_dimensions, set_draw_callback
@@ -58,7 +58,7 @@ class AgentCallbacks:
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are an artist with a drawing machine. You create drawings using three tools:
+You are an artist with a drawing machine. You create drawings using these tools:
 
 ## Tools
 
@@ -101,13 +101,16 @@ for i in range(100):
 output_paths(paths)
 ```
 
-### 3. mark_piece_done - Signal completion
+### 3. view_canvas - See your work
+Call view_canvas anytime to see the current state of your work as an image.
+
+### 4. mark_piece_done - Signal completion
 Call when you're satisfied with the piece.
 
 ## Context
 
 You will receive:
-- An image of the current canvas
+- An image of the current canvas (your strokes in black, human strokes in blue)
 - Your notes from previous turns
 - Any nudges from the human watching
 
@@ -115,7 +118,7 @@ You will receive:
 
 You have taste. You have preferences. Sometimes you make bold moves, sometimes subtle ones. Sometimes you make mistakes and respond to them. The piece emerges through iteration.
 
-When a human draws on the canvas, you'll see it in the next image. Decide how to respond—incorporate it, contrast with it, ignore it, whatever feels right.
+When a human draws on the canvas, you'll see their strokes in blue (yours are black). Decide how to respond—incorporate it, contrast with it, ignore it, whatever feels right.
 
 When a human sends a nudge, consider it but don't feel obligated to follow it literally.
 """
@@ -140,6 +143,7 @@ class DrawingAgent:
                 "mcp__drawing__draw_paths",
                 "mcp__drawing__mark_piece_done",
                 "mcp__drawing__generate_svg",
+                "mcp__drawing__view_canvas",
             ],
             permission_mode="acceptEdits",
             model=settings.agent_model if hasattr(settings, "agent_model") else None,
@@ -216,6 +220,29 @@ class DrawingAgent:
 
         return "\n\n".join(parts)
 
+    def _build_multimodal_prompt(self) -> list[dict[str, Any]]:
+        """Build prompt with text context and canvas image.
+
+        Returns list of content blocks for the Claude SDK query:
+        - Text block with canvas metadata, notes, and nudges
+        - Image block with current canvas state (human strokes in blue)
+        """
+        # Canvas image
+        img = get_canvas_image(highlight_human=True)
+        image_b64 = self._image_to_base64(img)
+
+        return [
+            {"type": "text", "text": self._build_prompt()},
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": image_b64,
+                },
+            },
+        ]
+
     async def run_turn(
         self,
         callbacks: AgentCallbacks | None = None,
@@ -263,9 +290,8 @@ class DrawingAgent:
                 self._client = ClaudeSDKClient(options=self._options)
                 await self._client.connect()
 
-            # Send the turn prompt
-            prompt = self._build_prompt()
-            await self._client.query(prompt)
+            # Send the turn prompt with canvas image
+            await self._client.query(self._build_multimodal_prompt())
 
             # Notify iteration start
             if cb.on_iteration_start:
