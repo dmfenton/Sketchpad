@@ -5,7 +5,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
-import type { AgentStatus } from '../types';
+import { STATUS_LABELS, PULSE_DURATION_MS, type AgentStatus } from '../types';
 import { spacing, borderRadius, typography, useTheme } from '../theme';
 
 interface StatusPillProps {
@@ -15,15 +15,6 @@ interface StatusPillProps {
   connected: boolean;
   paused: boolean;
 }
-
-const STATUS_LABELS: Record<AgentStatus, string> = {
-  idle: 'Ready',
-  thinking: 'Thinking',
-  executing: 'Running Code',
-  drawing: 'Drawing',
-  paused: 'Paused',
-  error: 'Error',
-};
 
 export function StatusPill({
   pieceCount,
@@ -46,12 +37,12 @@ export function StatusPill({
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 0.4,
-            duration: 600,
+            duration: PULSE_DURATION_MS,
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 600,
+            duration: PULSE_DURATION_MS,
             useNativeDriver: true,
           }),
         ])

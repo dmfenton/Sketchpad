@@ -18,6 +18,19 @@ export interface Path {
 // Agent status
 export type AgentStatus = 'idle' | 'thinking' | 'executing' | 'drawing' | 'paused' | 'error';
 
+// Shared status labels for consistent UI across components
+export const STATUS_LABELS: Record<AgentStatus, string> = {
+  idle: 'Ready',
+  thinking: 'Thinking',
+  executing: 'Running Code',
+  drawing: 'Drawing',
+  paused: 'Paused',
+  error: 'Error',
+};
+
+// Animation constants
+export const PULSE_DURATION_MS = 800;
+
 // Application state
 export interface CanvasState {
   width: number;
@@ -205,7 +218,6 @@ export type ClientMessage =
 export type AgentMessageType =
   | 'thinking'
   | 'thinking_delta'
-  | 'status'
   | 'error'
   | 'piece_complete'
   | 'code_execution'
