@@ -10,7 +10,9 @@ from drawing_agent.config import settings
 from drawing_agent.executor import execute_paths
 from drawing_agent.state import state_manager
 from drawing_agent.types import (
+    AgentPathsEvent,
     AgentStatus,
+    AgentTurnComplete,
     CodeExecutionMessage,
     ErrorMessage,
     IterationMessage,
@@ -112,17 +114,27 @@ class AgentOrchestrator:
         # Broadcast THINKING status at start of turn
         await self.broadcast_status(AgentStatus.THINKING)
 
-        thinking, paths, done = await self.agent.run_turn(callbacks=callbacks)
+        async def send_message(msg: Any) -> None:
+            await self.broadcaster.broadcast(msg)
 
-        # Execute paths if any
-        if paths:
-            await self.broadcast_status(AgentStatus.DRAWING)
+        done = False
 
-            async def send_message(msg: Any) -> None:
-                await self.broadcaster.broadcast(msg)
+        # Consume streaming events from agent
+        async for event in self.agent.run_turn(callbacks=callbacks):
+            if isinstance(event, AgentPathsEvent):
+                # Draw paths immediately as they're produced
+                logger.info(f"Received {len(event.paths)} paths - drawing now")
+                await self.broadcast_status(AgentStatus.DRAWING)
 
-            async for _ in execute_paths(paths, send_message):
-                pass  # Yield points handled in execute_paths
+                async for _ in execute_paths(event.paths, send_message):
+                    pass
+
+                # Back to thinking (agent may produce more paths)
+                await self.broadcast_status(AgentStatus.THINKING)
+
+            elif isinstance(event, AgentTurnComplete):
+                done = event.done
+                logger.info(f"Turn complete. Piece done: {done}")
 
         # Always broadcast IDLE after turn completes
         await self.broadcast_status(AgentStatus.IDLE)
@@ -146,13 +158,10 @@ class AgentOrchestrator:
                     continue
 
                 if self.agent.paused:
-                    # Ensure UI shows paused/idle state
                     await asyncio.sleep(settings.agent_interval)
                     continue
 
                 await self.run_turn()
-
-                # Wait before next turn
                 await asyncio.sleep(settings.agent_interval)
 
             except Exception as e:

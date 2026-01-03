@@ -90,10 +90,11 @@ The `/debug/agent` endpoint returns:
 
 ### Adding a new WebSocket message type
 
-1. Add type to `server/drawing_agent/messages.py`
-2. Add handler in `server/drawing_agent/main.py`
-3. Add type to `app/src/types.ts`
-4. Add handler in `app/src/hooks/useWebSocket.ts`
+1. Add type to `server/drawing_agent/types.py`
+2. Add handler function in `server/drawing_agent/handlers.py`
+3. Add to `HANDLERS` dict in `handlers.py`
+4. Add type to `app/src/types.ts`
+5. Add handler in `app/src/utils/messageHandlers.ts`
 
 ### Modifying the agent prompt
 
@@ -101,17 +102,32 @@ Edit `server/drawing_agent/agent.py` - the `SYSTEM_PROMPT` constant
 
 ### Adding new path types
 
-1. Add type definition in `server/drawing_agent/executor.py`
-2. Add interpolation logic in `interpolate_path()`
+1. Add type to `PathType` enum in `server/drawing_agent/types.py`
+2. Add interpolation in `server/drawing_agent/interpolation.py`
 3. Add SVG rendering in `app/src/components/Canvas.tsx`
 
 ## File Locations
 
-- Server entry: `server/drawing_agent/main.py`
-- Agent logic: `server/drawing_agent/agent.py`
-- App entry: `app/src/App.tsx`
-- Canvas component: `app/src/components/Canvas.tsx`
-- WebSocket types: `app/src/types.ts`
+### Backend (server/drawing_agent/)
+- `main.py` - FastAPI app, routes, WebSocket endpoint
+- `agent.py` - Claude agent with streaming turn execution
+- `handlers.py` - WebSocket message handlers
+- `orchestrator.py` - Agent loop management
+- `connections.py` - WebSocket ConnectionManager
+- `interpolation.py` - Pure path interpolation functions
+- `executor.py` - Real-time path execution
+- `state.py` - In-memory state with persistence
+- `config.py` - All settings (drawing_fps, stroke_delay, etc.)
+- `types.py` - Pydantic models and message types
+
+### Frontend (app/src/)
+- `App.tsx` - Main app component
+- `components/Canvas.tsx` - SVG canvas with touch handling
+- `hooks/useCanvas.ts` - Canvas state management
+- `hooks/useWebSocket.ts` - WebSocket connection
+- `utils/messageHandlers.ts` - Message routing
+- `utils/canvas.ts` - Coordinate utilities
+- `types.ts` - TypeScript type definitions
 
 ## iOS Deployment (TestFlight)
 

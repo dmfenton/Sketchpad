@@ -25,25 +25,26 @@ async def execute_paths(
     paths: list[Path],
     send_message: Callable[[Any], Awaitable[None]],
     fps: int | None = None,
+    stroke_delay: float | None = None,
 ) -> AsyncGenerator[None, None]:
     """Execute paths with real-time pen position updates.
 
     Args:
-        paths: List of paths to execute
-        send_message: Async callback to send messages to clients
-        fps: Frames per second for animation (defaults to settings.drawing_fps)
+        paths: List of paths to draw
+        send_message: Callback to send messages to clients
+        fps: Frames per second for updates (default: from settings)
+        stroke_delay: Pause between strokes in seconds (default: from settings)
 
     Yields after each path is complete to allow for cooperative multitasking.
     """
-    if fps is None:
-        fps = settings.drawing_fps
+    fps = fps or settings.drawing_fps
+    stroke_delay = stroke_delay if stroke_delay is not None else settings.stroke_delay
     frame_delay = 1.0 / fps
 
     state_manager.status = AgentStatus.DRAWING
     state_manager.save()
 
-    for path in paths:
-        # Use config value for interpolation
+    for path_idx, path in enumerate(paths):
         interpolated = interpolate_path(path, settings.path_steps_per_unit)
 
         if not interpolated:
@@ -69,6 +70,10 @@ async def execute_paths(
         # Mark path complete
         add_stroke(path)
         await send_message(StrokeCompleteMessage(path=path))
+
+        # Pause between strokes for deliberate pacing
+        if stroke_delay > 0 and path_idx < len(paths) - 1:
+            await asyncio.sleep(stroke_delay)
 
         yield  # Allow other tasks to run
 

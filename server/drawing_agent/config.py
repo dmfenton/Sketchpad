@@ -26,8 +26,9 @@ class Settings(BaseSettings):
     canvas_width: int = 800
     canvas_height: int = 600
 
-    # Execution
-    drawing_fps: int = 60  # frames per second for drawing animation
+    # Drawing
+    drawing_fps: int = 30  # frames per second for pen updates
+    stroke_delay: float = 0.2  # pause between strokes in seconds
     path_steps_per_unit: float = 0.5  # interpolation density
 
     # Limits

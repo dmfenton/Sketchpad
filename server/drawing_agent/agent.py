@@ -4,7 +4,7 @@ import asyncio
 import base64
 import io
 import logging
-from collections.abc import Callable, Coroutine
+from collections.abc import AsyncGenerator, Callable, Coroutine
 from dataclasses import dataclass
 from typing import Any
 
@@ -15,7 +15,7 @@ from drawing_agent.canvas import get_canvas_image, get_strokes
 from drawing_agent.config import settings
 from drawing_agent.state import state_manager
 from drawing_agent.svg_parser import extract_paths_from_output
-from drawing_agent.types import AgentStatus, Path
+from drawing_agent.types import AgentEvent, AgentPathsEvent, AgentStatus, AgentTurnComplete
 
 
 @dataclass
@@ -163,17 +163,22 @@ class DrawingAgent:
     async def run_turn(
         self,
         callbacks: AgentCallbacks | None = None,
-    ) -> tuple[str, list[Path] | None, bool]:
-        """Run a single agent turn with streaming and code execution.
+    ) -> AsyncGenerator[AgentEvent, None]:
+        """Run a single agent turn, yielding paths as they're produced.
+
+        This is an async generator that yields:
+        - AgentPathsEvent: When paths are extracted from code execution (draw immediately)
+        - AgentTurnComplete: When the turn is finished
 
         Args:
             callbacks: Callbacks for various agent events
 
-        Returns:
-            Tuple of (full thinking text, paths to draw or None, piece is done)
+        Yields:
+            AgentEvent objects as the turn progresses
         """
         if self.paused:
-            return "", None, False
+            yield AgentTurnComplete(thinking="", done=False)
+            return
 
         cb = callbacks or AgentCallbacks()
         state_manager.status = AgentStatus.THINKING
@@ -185,7 +190,6 @@ class DrawingAgent:
             ]
 
             all_thinking = ""
-            all_paths: list[Path] = []
             done = False
             max_iterations = settings.max_agent_iterations
 
@@ -263,6 +267,42 @@ class DrawingAgent:
                         if cb.on_code_start:
                             await cb.on_code_start(iteration_num)
 
+                    elif block.type == "code_execution_tool_result":
+                        # Process code execution result (legacy API)
+                        result = block.content
+                        stdout = getattr(result, "stdout", "") or ""
+                        stderr = getattr(result, "stderr", "") or ""
+                        return_code = getattr(result, "return_code", 0)
+
+                        logger.info(f"Code execution result: return_code={return_code}")
+                        if stdout:
+                            logger.info(f"stdout: {stdout[:500]}...")
+                        if stderr:
+                            logger.warning(f"stderr: {stderr[:500]}...")
+
+                        # Notify UI of code execution result
+                        if cb.on_code_result:
+                            await cb.on_code_result(
+                                CodeExecutionResult(
+                                    stdout=stdout,
+                                    stderr=stderr,
+                                    return_code=return_code,
+                                    iteration=iteration_num,
+                                )
+                            )
+
+                        # Check for PIECE_DONE signal
+                        if "PIECE_DONE" in stdout:
+                            done = True
+                            stdout = stdout.replace("PIECE_DONE", "").strip()
+
+                        # Extract paths from stdout (JSON format)
+                        paths = extract_paths_from_output(stdout)
+                        if paths:
+                            logger.info(f"Extracted {len(paths)} paths - yielding immediately")
+                            # Yield paths immediately for real-time drawing
+                            yield AgentPathsEvent(paths=paths)
+
                     elif block.type == "bash_code_execution_tool_result":
                         # Process bash code execution result (current API version)
                         logger.info(f"Bash code execution result block: {block}")
@@ -298,12 +338,9 @@ class DrawingAgent:
                         # Extract paths from stdout (JSON format)
                         paths = extract_paths_from_output(stdout)
                         if paths:
-                            all_paths.extend(paths)
-                            logger.info(f"Extracted {len(paths)} paths from stdout")
-
-                        # Check for SVG file creation
-                        # Note: In a full implementation, we'd use the Files API to retrieve
-                        # files created in the container. For now, we'll rely on stdout.
+                            logger.info(f"Extracted {len(paths)} paths - yielding immediately")
+                            # Yield paths immediately for real-time drawing
+                            yield AgentPathsEvent(paths=paths)
 
                 # Check stop reason
                 stop_reason = response.stop_reason if hasattr(response, "stop_reason") else None
@@ -327,7 +364,8 @@ class DrawingAgent:
                 self.reset_container()  # Fresh container for new piece
                 state_manager.save()
 
-            return all_thinking, all_paths if all_paths else None, done
+            # Signal turn complete
+            yield AgentTurnComplete(thinking=all_thinking, done=done)
 
         except Exception as e:
             logger.exception("Agent turn failed")
