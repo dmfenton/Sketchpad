@@ -1,10 +1,10 @@
 """Filesystem-backed workspace state for multi-user isolation."""
 
+import asyncio
 import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path as FilePath
-from typing import Any
 
 import aiofiles
 import aiofiles.os
@@ -13,6 +13,13 @@ from drawing_agent.config import settings
 from drawing_agent.types import AgentStatus, CanvasState, Path, SavedCanvas
 
 logger = logging.getLogger(__name__)
+
+
+def _get_base_dir() -> FilePath:
+    """Get the base directory for user workspaces, resolved relative to server dir."""
+    # Resolve relative paths from the server directory
+    server_dir = FilePath(__file__).parent.parent
+    return (server_dir / settings.workspace_base_dir).resolve()
 
 
 class WorkspaceState:
@@ -31,6 +38,7 @@ class WorkspaceState:
         self._user_dir = user_dir
         self._workspace_file = user_dir / "workspace.json"
         self._gallery_dir = user_dir / "gallery"
+        self._write_lock = asyncio.Lock()
 
         # In-memory state
         self._canvas: CanvasState = CanvasState()
@@ -47,9 +55,16 @@ class WorkspaceState:
     @classmethod
     async def load_for_user(cls, user_id: int) -> "WorkspaceState":
         """Load or create workspace state for a user."""
-        # Determine user directory
-        base_dir = FilePath(settings.workspace_base_dir)
-        user_dir = base_dir / str(user_id)
+        # Validate user_id is a positive integer (path traversal protection)
+        if not isinstance(user_id, int) or user_id <= 0:
+            raise ValueError(f"Invalid user_id: {user_id}")
+
+        base_dir = _get_base_dir()
+        user_dir = (base_dir / str(user_id)).resolve()
+
+        # Ensure path stays within base directory (path traversal protection)
+        if not str(user_dir).startswith(str(base_dir)):
+            raise ValueError(f"Invalid user directory path for user {user_id}")
 
         # Create directories if needed
         await aiofiles.os.makedirs(user_dir, exist_ok=True)
@@ -62,8 +77,19 @@ class WorkspaceState:
     async def _load_from_file(self) -> None:
         """Load state from workspace.json."""
         if await aiofiles.os.path.exists(self._workspace_file):
-            async with aiofiles.open(self._workspace_file) as f:
-                data = json.loads(await f.read())
+            try:
+                async with aiofiles.open(self._workspace_file) as f:
+                    data = json.loads(await f.read())
+            except json.JSONDecodeError as e:
+                logger.error(
+                    f"Corrupted workspace.json for user {self.user_id}: {e}. "
+                    "Starting with fresh state."
+                )
+                # Backup corrupted file for debugging
+                backup_file = self._workspace_file.with_suffix(".json.corrupted")
+                await aiofiles.os.rename(self._workspace_file, backup_file)
+                self._loaded = True
+                return
 
             canvas_data = data.get("canvas", {})
             self._canvas = CanvasState(
@@ -86,17 +112,24 @@ class WorkspaceState:
         self._loaded = True
 
     async def save(self) -> None:
-        """Save state to filesystem."""
-        data = {
-            "canvas": self._canvas.model_dump(),
-            "status": self._status.value,
-            "piece_count": self._piece_count,
-            "notes": self._notes,
-            "monologue": self._monologue,
-        }
+        """Save state to filesystem atomically."""
+        async with self._write_lock:
+            data = {
+                "canvas": self._canvas.model_dump(),
+                "status": self._status.value,
+                "piece_count": self._piece_count,
+                "notes": self._notes,
+                "monologue": self._monologue,
+                "updated_at": datetime.now(UTC).isoformat(),
+            }
 
-        async with aiofiles.open(self._workspace_file, "w") as f:
-            await f.write(json.dumps(data, indent=2))
+            # Write to temp file first, then atomically rename
+            temp_file = self._workspace_file.with_suffix(".json.tmp")
+            async with aiofiles.open(temp_file, "w") as f:
+                await f.write(json.dumps(data, indent=2))
+
+            # Atomic rename (on POSIX systems)
+            await aiofiles.os.replace(temp_file, self._workspace_file)
 
     # --- Properties ---
 
@@ -150,26 +183,32 @@ class WorkspaceState:
 
     async def new_canvas(self) -> str | None:
         """Save current canvas to gallery and start fresh. Returns saved ID."""
-        saved_id = None
+        async with self._write_lock:
+            saved_id = None
 
-        if self._canvas.strokes:
-            # Save to gallery as JSON file
-            piece_file = self._gallery_dir / f"piece_{self._piece_count:03d}.json"
-            piece_data = {
-                "piece_number": self._piece_count,
-                "strokes": [s.model_dump() for s in self._canvas.strokes],
-                "created_at": datetime.now(UTC).isoformat(),
-            }
+            if self._canvas.strokes:
+                # Save to gallery as JSON file (use 6 digits for scalability)
+                piece_file = self._gallery_dir / f"piece_{self._piece_count:06d}.json"
+                piece_data = {
+                    "piece_number": self._piece_count,
+                    "strokes": [s.model_dump() for s in self._canvas.strokes],
+                    "created_at": datetime.now(UTC).isoformat(),
+                }
 
-            async with aiofiles.open(piece_file, "w") as f:
-                await f.write(json.dumps(piece_data, indent=2))
+                # Atomic write for gallery piece
+                temp_file = piece_file.with_suffix(".json.tmp")
+                async with aiofiles.open(temp_file, "w") as f:
+                    await f.write(json.dumps(piece_data, indent=2))
+                await aiofiles.os.replace(temp_file, piece_file)
 
-            saved_id = f"piece_{self._piece_count:03d}"
-            logger.info(f"Saved piece {self._piece_count} to gallery as {saved_id}")
+                saved_id = f"piece_{self._piece_count:06d}"
+                logger.info(f"Saved piece {self._piece_count} to gallery as {saved_id}")
 
-        # Start fresh
-        self._canvas.strokes = []
-        self._piece_count += 1
+            # Start fresh
+            self._canvas.strokes = []
+            self._piece_count += 1
+
+        # Save outside the lock (save() has its own lock)
         await self.save()
 
         return saved_id
@@ -187,17 +226,26 @@ class WorkspaceState:
         for entry in await aiofiles.os.listdir(self._gallery_dir):
             if entry.startswith("piece_") and entry.endswith(".json"):
                 piece_file = self._gallery_dir / entry
-                async with aiofiles.open(piece_file) as f:
-                    data = json.loads(await f.read())
+                try:
+                    async with aiofiles.open(piece_file) as f:
+                        data = json.loads(await f.read())
 
-                pieces.append(
-                    SavedCanvas(
-                        id=f"piece_{data['piece_number']:03d}",
-                        strokes=[Path.model_validate(s) for s in data.get("strokes", [])],
-                        created_at=data.get("created_at", ""),
-                        piece_number=data["piece_number"],
+                    piece_number = data.get("piece_number")
+                    if piece_number is None:
+                        logger.warning(f"Gallery file {entry} missing piece_number, skipping")
+                        continue
+
+                    pieces.append(
+                        SavedCanvas(
+                            id=f"piece_{piece_number:06d}",
+                            strokes=[Path.model_validate(s) for s in data.get("strokes", [])],
+                            created_at=data.get("created_at", ""),
+                            piece_number=piece_number,
+                        )
                     )
-                )
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.warning(f"Skipping corrupted gallery file {entry}: {e}")
+                    continue
 
         # Sort by piece number
         pieces.sort(key=lambda p: p.piece_number)
@@ -205,17 +253,16 @@ class WorkspaceState:
 
     async def load_from_gallery(self, piece_number: int) -> list[Path] | None:
         """Load strokes from a gallery piece."""
-        piece_file = self._gallery_dir / f"piece_{piece_number:03d}.json"
+        # Try both 3-digit and 6-digit formats for backwards compatibility
+        for fmt in [f"piece_{piece_number:06d}.json", f"piece_{piece_number:03d}.json"]:
+            piece_file = self._gallery_dir / fmt
+            if await aiofiles.os.path.exists(piece_file):
+                try:
+                    async with aiofiles.open(piece_file) as f:
+                        data = json.loads(await f.read())
+                    return [Path.model_validate(s) for s in data.get("strokes", [])]
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.warning(f"Failed to load gallery piece {piece_number}: {e}")
+                    return None
 
-        if not await aiofiles.os.path.exists(piece_file):
-            return None
-
-        async with aiofiles.open(piece_file) as f:
-            data = json.loads(await f.read())
-
-        return [Path.model_validate(s) for s in data.get("strokes", [])]
-
-    def get_gallery_data(self) -> list[dict[str, Any]]:
-        """Get gallery data synchronously (cached from last list_gallery call)."""
-        # For now, return empty - will be populated by list_gallery
-        return []
+        return None
