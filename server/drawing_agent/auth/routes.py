@@ -63,9 +63,6 @@ async def signup(request: SignupRequest) -> TokenResponse:
         # Mark invite as used
         await repository.use_invite_code(session, request.invite_code, user.id)
 
-        # Create workspace for user
-        await repository.create_workspace(session, user.id)
-
         logger.info(f"User signed up: {user.email} (id={user.id})")
 
     # Generate tokens
