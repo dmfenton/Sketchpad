@@ -36,7 +36,17 @@ export function useWebSocket({
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Use ref for message handler to avoid reconnecting when callback changes
+  const onMessageRef = useRef(onMessage);
+  onMessageRef.current = onMessage;
+
   const connect = useCallback(() => {
+    // Don't create new connection if one already exists and is connecting/open
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
+      console.log('[WebSocket] Already connected/connecting, skipping');
+      return;
+    }
+
     try {
       console.log('[WebSocket] Connecting to:', url);
       const ws = new WebSocket(url);
@@ -49,6 +59,7 @@ export function useWebSocket({
       ws.onclose = () => {
         console.log('[WebSocket] Closed, reconnecting in', reconnectInterval, 'ms');
         setState((prev) => ({ ...prev, connected: false }));
+        wsRef.current = null;
         // Schedule reconnect
         reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval);
       };
@@ -62,9 +73,9 @@ export function useWebSocket({
         try {
           const message = JSON.parse(event.data) as ServerMessage;
           console.log('[WebSocket] Message:', message.type);
-          onMessage(message);
-        } catch {
-          console.error('Failed to parse message:', event.data);
+          onMessageRef.current(message);
+        } catch (e) {
+          console.error('Failed to handle message:', e, '\nData:', event.data.substring(0, 200));
         }
       };
 
@@ -72,7 +83,7 @@ export function useWebSocket({
     } catch {
       setState({ connected: false, error: 'Failed to connect' });
     }
-  }, [url, onMessage, reconnectInterval]);
+  }, [url, reconnectInterval]); // Removed onMessage dependency
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
