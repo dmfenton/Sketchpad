@@ -28,22 +28,24 @@ class ShutdownManager:
 
     _shutdown_event: asyncio.Event = field(default_factory=asyncio.Event)
     _tasks: list[asyncio.Task[Any]] = field(default_factory=list)
-    _connections: list[WebSocket] = field(default_factory=list)
+    _connections: set[WebSocket] = field(default_factory=set)
+    _connections_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _cleanup_callbacks: list[Callable[[], Coroutine[Any, Any, None]]] = field(default_factory=list)
+    _signal_task: asyncio.Task[None] | None = field(default=None)
 
     def register_task(self, task: asyncio.Task[Any]) -> None:
         """Register a task that should be cancelled on shutdown."""
         self._tasks.append(task)
 
-    def register_connection(self, conn: WebSocket) -> None:
+    async def register_connection(self, conn: WebSocket) -> None:
         """Register a WebSocket connection for graceful close."""
-        if conn not in self._connections:
-            self._connections.append(conn)
+        async with self._connections_lock:
+            self._connections.add(conn)
 
-    def unregister_connection(self, conn: WebSocket) -> None:
+    async def unregister_connection(self, conn: WebSocket) -> None:
         """Unregister a WebSocket connection."""
-        if conn in self._connections:
-            self._connections.remove(conn)
+        async with self._connections_lock:
+            self._connections.discard(conn)
 
     def add_cleanup_callback(self, callback: Callable[[], Coroutine[Any, Any, None]]) -> None:
         """Add a callback to run during shutdown."""
@@ -60,7 +62,7 @@ class ShutdownManager:
 
         def make_handler(sig: signal.Signals) -> Callable[[], None]:
             def handler() -> None:
-                asyncio.create_task(self._handle_signal(sig))
+                self._signal_task = asyncio.create_task(self._handle_signal(sig))
 
             return handler
 
@@ -69,21 +71,27 @@ class ShutdownManager:
         logger.info("Signal handlers installed for SIGTERM and SIGINT")
 
     async def _handle_signal(self, sig: signal.Signals) -> None:
-        """Handle shutdown signal."""
+        """Handle shutdown signal.
+
+        Note: This only sets the shutdown event. The actual shutdown sequence
+        is triggered by uvicorn's graceful shutdown which exits the lifespan
+        context manager.
+        """
         logger.info(f"Received signal {sig.name}, initiating graceful shutdown")
         self._shutdown_event.set()
 
     async def drain_connections(self) -> None:
         """Gracefully close all WebSocket connections."""
-        if not self._connections:
+        async with self._connections_lock:
+            connections_to_close = list(self._connections)
+
+        if not connections_to_close:
             logger.info("No WebSocket connections to drain")
             return
 
-        logger.info(f"Draining {len(self._connections)} WebSocket connection(s)")
+        logger.info(f"Draining {len(connections_to_close)} WebSocket connection(s)")
 
-        close_tasks = []
-        for conn in self._connections.copy():
-            close_tasks.append(self._close_connection(conn))
+        close_tasks = [self._close_connection(conn) for conn in connections_to_close]
 
         if close_tasks:
             try:
@@ -102,7 +110,7 @@ class ShutdownManager:
         except Exception as e:
             logger.debug(f"Error closing WebSocket: {e}")
         finally:
-            self.unregister_connection(conn)
+            await self.unregister_connection(conn)
 
     async def cancel_tasks(self) -> None:
         """Cancel all registered tasks with timeout."""

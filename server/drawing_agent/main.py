@@ -62,12 +62,8 @@ async def lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
     yield
 
     # Shutdown - delegate to shutdown manager
+    # Note: Connections are already registered individually in the WebSocket endpoint
     logger.info("Lifespan shutdown triggered")
-
-    # Register all active connections for draining
-    for conn in manager.active_connections:
-        shutdown_manager.register_connection(conn)
-
     await shutdown_manager.shutdown()
 
 
@@ -112,7 +108,7 @@ async def get_canvas_svg() -> Response:
 
 
 @app.get("/gallery")
-async def get_gallery_list() -> list[dict]:
+async def get_gallery_list() -> list[dict[str, Any]]:
     return get_gallery()
 
 
@@ -163,13 +159,14 @@ async def get_debug_logs(lines: int = 100) -> dict[str, Any]:
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
-    # Reject new connections during shutdown
+    # Reject new connections during shutdown (must accept first per ASGI spec)
     if shutdown_manager.is_shutting_down:
+        await websocket.accept()
         await websocket.close(code=1001, reason="Server shutting down")
         return
 
     await manager.connect(websocket)
-    shutdown_manager.register_connection(websocket)
+    await shutdown_manager.register_connection(websocket)
 
     try:
         # Send current state to new client
@@ -201,11 +198,11 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-        shutdown_manager.unregister_connection(websocket)
+        await shutdown_manager.unregister_connection(websocket)
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(websocket)
-        shutdown_manager.unregister_connection(websocket)
+        await shutdown_manager.unregister_connection(websocket)
 
 
 if __name__ == "__main__":
