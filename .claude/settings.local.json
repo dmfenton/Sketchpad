@@ -40,15 +40,19 @@
       "Bash(fuser:*)",
       "Bash(timeout 5 bash:*)",
       "Bash(for f in /home/dmfenton/repos/sketchpad/agent_workspace/gallery/*.json)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(aws ec2 create-key-pair:*)",
+      "Bash(terraform plan:*)",
+      "Bash(terraform apply:*)",
+      "Bash(ssh:*)"
     ],
     "additionalDirectories": [
       "/home/dmfenton/.cache/uv"
     ]
   },
   "sandbox": {
-    "enabled": true,
-    "autoAllowBashIfSandboxed": true,
+    "enabled": false,
+    "autoAllowBashIfSandboxed": false,
     "network": {
       "allowAllUnixSockets": true,
       "allowLocalBinding": true

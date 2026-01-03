@@ -1,12 +1,14 @@
 """Claude Agent with drawing tools using the Claude Agent SDK."""
 
+from __future__ import annotations
+
 import asyncio
 import base64
 import io
 import logging
 from collections.abc import AsyncGenerator, Callable, Coroutine
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from claude_agent_sdk import (
     AssistantMessage,
@@ -21,9 +23,7 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import StreamEvent
 from PIL import Image
 
-from drawing_agent.canvas import get_canvas_image, get_strokes
 from drawing_agent.config import settings
-from drawing_agent.state import state_manager
 from drawing_agent.tools import create_drawing_server, set_canvas_dimensions, set_draw_callback
 from drawing_agent.types import (
     AgentEvent,
@@ -32,6 +32,9 @@ from drawing_agent.types import (
     AgentTurnComplete,
     Path,
 )
+
+if TYPE_CHECKING:
+    from drawing_agent.workspace_state import WorkspaceState
 
 
 @dataclass
@@ -125,9 +128,19 @@ When a human sends a nudge, consider it but don't feel obligated to follow it li
 
 
 class DrawingAgent:
-    """Agent that generates drawings using the Claude Agent SDK."""
+    """Agent that generates drawings using the Claude Agent SDK.
 
-    def __init__(self) -> None:
+    In multi-user mode, each user has their own DrawingAgent instance
+    with an injected WorkspaceState.
+    """
+
+    def __init__(self, state: WorkspaceState | None = None) -> None:
+        """Initialize the agent.
+
+        Args:
+            state: WorkspaceState for multi-user mode. If None, uses legacy singleton.
+        """
+        self._state = state
         self.pending_nudges: list[str] = []
         self._paused = True  # Start paused by default
         self._pause_lock = asyncio.Lock()
@@ -149,6 +162,23 @@ class DrawingAgent:
             model=settings.agent_model if hasattr(settings, "agent_model") else None,
             include_partial_messages=True,  # Enable streaming partial messages
         )
+
+    def _get_state(self) -> Any:
+        """Get the workspace state (injected or singleton fallback)."""
+        if self._state is not None:
+            return self._state
+        # Fallback to singleton for backwards compatibility
+        from drawing_agent.state import state_manager
+        return state_manager
+
+    async def _save_state(self) -> None:
+        """Save state (async for WorkspaceState, sync for StateManager)."""
+        state = self._get_state()
+        if hasattr(state, "save"):
+            result = state.save()
+            # If it's a coroutine (WorkspaceState), await it
+            if asyncio.iscoroutine(result):
+                await result
 
     @property
     def paused(self) -> bool:
@@ -198,17 +228,18 @@ class DrawingAgent:
 
     def _build_prompt(self) -> str:
         """Build the prompt with canvas context."""
+        state = self._get_state()
         parts: list[str] = []
 
         # Canvas info
         parts.append(
             f"Canvas size: {settings.canvas_width}x{settings.canvas_height}\n"
-            f"Existing strokes: {len(get_strokes())}\n"
-            f"Piece number: {state_manager.piece_count + 1}"
+            f"Existing strokes: {len(state.canvas.strokes)}\n"
+            f"Piece number: {state.piece_count + 1}"
         )
 
         # Notes
-        notes = state_manager.notes
+        notes = state.notes
         if notes:
             parts.append(f"Your notes:\n{notes}")
 
@@ -220,6 +251,26 @@ class DrawingAgent:
 
         return "\n\n".join(parts)
 
+    def _get_canvas_image(self, highlight_human: bool = True) -> Image.Image:
+        """Get canvas as PIL Image from current state."""
+        from PIL import ImageDraw
+
+        from drawing_agent.canvas import path_to_point_list
+
+        state = self._get_state()
+        canvas = state.canvas
+
+        img = Image.new("RGB", (canvas.width, canvas.height), "#FFFFFF")
+        draw = ImageDraw.Draw(img)
+
+        for path in canvas.strokes:
+            points = path_to_point_list(path)
+            if len(points) >= 2:
+                color = "#0066CC" if highlight_human and path.author == "human" else "#000000"
+                draw.line(points, fill=color, width=2)
+
+        return img
+
     def _build_multimodal_prompt(self) -> list[dict[str, Any]]:
         """Build prompt with text context and canvas image.
 
@@ -228,7 +279,7 @@ class DrawingAgent:
         - Image block with current canvas state (human strokes in blue)
         """
         # Canvas image
-        img = get_canvas_image(highlight_human=True)
+        img = self._get_canvas_image(highlight_human=True)
         image_b64 = self._image_to_base64(img)
 
         return [
@@ -265,10 +316,11 @@ class DrawingAgent:
 
         # Clear abort flag at start of turn
         self._abort = False
+        state = self._get_state()
 
         cb = callbacks or AgentCallbacks()
-        state_manager.status = AgentStatus.THINKING
-        state_manager.save()
+        state.status = AgentStatus.THINKING
+        await self._save_state()
 
         # Track paths and completion
         collected_paths: list[Path] = []
@@ -373,21 +425,21 @@ class DrawingAgent:
                 collected_paths.clear()
 
             # Update agent state
-            state_manager.monologue = all_thinking
-            state_manager.save()
+            state.monologue = all_thinking
+            await self._save_state()
 
             if piece_done:
-                state_manager.piece_count += 1
+                state.piece_count += 1
                 self.reset_container()  # Fresh session for new piece
-                state_manager.save()
+                await self._save_state()
 
             # Signal turn complete
             yield AgentTurnComplete(thinking=all_thinking, done=piece_done)
 
         except Exception as e:
             logger.exception("Agent turn failed")
-            state_manager.status = AgentStatus.ERROR
-            state_manager.save()
+            state.status = AgentStatus.ERROR
+            await self._save_state()
 
             # Notify UI of error
             if cb.on_error:

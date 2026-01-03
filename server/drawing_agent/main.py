@@ -1,68 +1,73 @@
 """FastAPI application with WebSocket support."""
 
 import asyncio
+import io
 import json
 import logging
 from contextlib import asynccontextmanager
 from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from PIL import Image, ImageDraw
 
-from drawing_agent.agent import agent
-from drawing_agent.canvas import get_gallery, render_png, render_svg
+from drawing_agent.auth import auth_router
+from drawing_agent.auth.dependencies import CurrentUser
+from drawing_agent.auth.jwt import TokenError, get_user_id_from_token
+from drawing_agent.canvas import path_to_point_list
 from drawing_agent.config import settings
-from drawing_agent.connections import manager
-from drawing_agent.handlers import handle_message
-from drawing_agent.orchestrator import AgentOrchestrator
+from drawing_agent.db import User, get_session, repository
+from drawing_agent.registry import workspace_registry
 from drawing_agent.shutdown import shutdown_manager
-from drawing_agent.state import state_manager
+from drawing_agent.user_handlers import handle_user_message
+from drawing_agent.workspace_state import WorkspaceState
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-orchestrator: AgentOrchestrator | None = None
-agent_loop_task: asyncio.Task[None] | None = None
 
-
-async def save_state_callback() -> None:
-    """Callback to save state during shutdown."""
+async def shutdown_all_workspaces() -> None:
+    """Callback to shutdown all active workspaces during shutdown."""
     try:
-        state_manager.save()
-        logger.info("State saved successfully")
+        await workspace_registry.shutdown_all()
+        logger.info("All workspaces shutdown successfully")
     except Exception as e:
-        logger.error(f"Failed to save state during shutdown: {e}")
+        logger.error(f"Failed to shutdown workspaces: {e}")
+
+
+async def run_migrations() -> None:
+    """Run database migrations on startup."""
+    from alembic.config import Config
+
+    from alembic import command
+
+    # Run alembic upgrade head
+    alembic_cfg = Config("alembic.ini")
+    await asyncio.to_thread(command.upgrade, alembic_cfg, "head")
+    logger.info("Database migrations completed")
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
     """Application lifespan handler with graceful shutdown."""
-    global agent_loop_task, orchestrator
-
     logger.info("=== Server startup initiated ===")
 
-    state_manager.load()
-    logger.info("State loaded")
+    # Run database migrations
+    await run_migrations()
 
-    orchestrator = AgentOrchestrator(agent=agent, broadcaster=manager)
-    agent_loop_task = asyncio.create_task(orchestrator.run_loop())
-    logger.info("Agent loop started")
-
-    # Register task and cleanup callback with shutdown manager
-    shutdown_manager.register_task(agent_loop_task)
-    shutdown_manager.add_cleanup_callback(save_state_callback)
+    # Register cleanup callback with shutdown manager
+    shutdown_manager.add_cleanup_callback(shutdown_all_workspaces)
 
     # Install signal handlers
     shutdown_manager.install_signal_handlers()
 
-    logger.info("=== Server startup completed ===")
+    logger.info("=== Server startup completed (multi-user mode) ===")
 
     yield
 
     # Shutdown - delegate to shutdown manager
-    # Note: Connections are already registered individually in the WebSocket endpoint
     logger.info("Lifespan shutdown triggered")
     await shutdown_manager.shutdown()
 
@@ -82,62 +87,141 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add auth routes
+app.include_router(auth_router)
+
 
 @app.get("/health")
 async def health() -> dict[str, str]:
+    """Health check endpoint - no auth required."""
     return {"status": "ok"}
 
 
+async def get_user_state(user: User) -> WorkspaceState:
+    """Get or create workspace state for a user."""
+    workspace = workspace_registry.get(user.id)
+    if workspace:
+        return workspace.state
+    # User not connected via WebSocket yet - load state directly
+    return await WorkspaceState.load_for_user(user.id)
+
+
+def render_user_png(state: WorkspaceState, highlight_human: bool = True) -> bytes:
+    """Render user's canvas to PNG."""
+    canvas = state.canvas
+    img = Image.new("RGB", (canvas.width, canvas.height), "#FFFFFF")
+    draw = ImageDraw.Draw(img)
+
+    for path in canvas.strokes:
+        points = path_to_point_list(path)
+        if len(points) >= 2:
+            color = "#0066CC" if highlight_human and path.author == "human" else "#000000"
+            draw.line(points, fill=color, width=2)
+
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
 @app.get("/state")
-async def get_state() -> dict[str, Any]:
+async def get_state(user: CurrentUser) -> dict[str, Any]:
+    """Get current canvas state for authenticated user."""
+    state = await get_user_state(user)
     return {
-        "canvas": state_manager.canvas.model_dump(),
-        "status": state_manager.status.value,
-        "piece_count": state_manager.piece_count,
+        "canvas": state.canvas.model_dump(),
+        "status": state.status.value,
+        "piece_count": state.piece_count,
     }
 
 
 @app.get("/canvas.png")
-async def get_canvas_png() -> Response:
-    return Response(content=render_png(), media_type="image/png")
+async def get_canvas_png(user: CurrentUser) -> Response:
+    """Get user's canvas as PNG image."""
+    state = await get_user_state(user)
+    return Response(content=render_user_png(state), media_type="image/png")
 
 
 @app.get("/canvas.svg")
-async def get_canvas_svg() -> Response:
-    return Response(content=render_svg(), media_type="image/svg+xml")
+async def get_canvas_svg(user: CurrentUser) -> Response:
+    """Get user's canvas as SVG image."""
+    from xml.etree import ElementTree as ET
+
+    from drawing_agent.canvas import render_path_to_svg_d
+
+    state = await get_user_state(user)
+    canvas = state.canvas
+
+    svg = ET.Element(
+        "svg",
+        {
+            "xmlns": "http://www.w3.org/2000/svg",
+            "width": str(canvas.width),
+            "height": str(canvas.height),
+            "viewBox": f"0 0 {canvas.width} {canvas.height}",
+        },
+    )
+    ET.SubElement(svg, "rect", {"width": "100%", "height": "100%", "fill": "#FFFFFF"})
+
+    for path in canvas.strokes:
+        d = render_path_to_svg_d(path)
+        if d:
+            ET.SubElement(
+                svg, "path",
+                {"d": d, "stroke": "#000000", "stroke-width": "2", "fill": "none"},
+            )
+
+    return Response(content=ET.tostring(svg, encoding="unicode"), media_type="image/svg+xml")
 
 
 @app.get("/gallery")
-async def get_gallery_list() -> list[dict[str, Any]]:
-    return get_gallery()
+async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
+    """Get user's gallery pieces."""
+    state = await get_user_state(user)
+    pieces = await state.list_gallery()
+    return [
+        {
+            "id": p.id,
+            "created_at": p.created_at,
+            "piece_number": p.piece_number,
+            "stroke_count": len(p.strokes),
+        }
+        for p in pieces
+    ]
 
 
 @app.post("/piece_count/{count}")
-async def set_piece_count(count: int) -> dict[str, int]:
-    state_manager.piece_count = count
-    state_manager.save()
+async def set_piece_count(count: int, user: CurrentUser) -> dict[str, int]:
+    """Set piece count for user's workspace."""
+    state = await get_user_state(user)
+    state.piece_count = count
+    await state.save()
     return {"piece_count": count}
 
 
 @app.get("/debug/agent")
-async def get_agent_debug() -> dict[str, Any]:
-    notes = state_manager.notes
-    monologue = state_manager.monologue
+async def get_agent_debug(user: CurrentUser) -> dict[str, Any]:
+    """Get agent debug info for user's workspace."""
+    workspace = workspace_registry.get(user.id)
+    if not workspace:
+        return {"error": "No active workspace. Connect via WebSocket first."}
+
+    state = workspace.state
     return {
-        "paused": agent.paused,
-        "container_id": agent.container_id,
-        "pending_nudges": agent.pending_nudges,
-        "status": state_manager.status.value,
-        "piece_count": state_manager.piece_count,
-        "notes": notes[:500] if notes else None,
-        "monologue_preview": monologue[:500] if monologue else None,
-        "stroke_count": len(state_manager.canvas.strokes),
-        "connected_clients": len(manager.active_connections),
+        "paused": workspace.agent.paused,
+        "container_id": workspace.agent.container_id,
+        "pending_nudges": workspace.agent.pending_nudges,
+        "status": state.status.value,
+        "piece_count": state.piece_count,
+        "notes": state.notes[:500] if state.notes else None,
+        "monologue_preview": state.monologue[:500] if state.monologue else None,
+        "stroke_count": len(state.canvas.strokes),
+        "connected_clients": workspace.connections.connection_count,
     }
 
 
 @app.get("/debug/logs")
-async def get_debug_logs(lines: int = 100) -> dict[str, Any]:
+async def get_debug_logs(_user: CurrentUser, lines: int = 100) -> dict[str, Any]:
+    """Get recent server logs."""
     from pathlib import Path
 
     log_path = Path(__file__).parent.parent / "logs" / "server.log"
@@ -158,34 +242,81 @@ async def get_debug_logs(lines: int = 100) -> dict[str, Any]:
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket) -> None:
-    # Reject new connections during shutdown (must accept first per ASGI spec)
+async def websocket_endpoint(
+    websocket: WebSocket,
+    token: str | None = Query(default=None),
+) -> None:
+    """WebSocket endpoint with JWT authentication and per-user routing.
+
+    Connect with: ws://host/ws?token=<jwt_access_token>
+
+    Each authenticated user gets their own workspace with:
+    - Isolated canvas state
+    - Personal agent instance
+    - Private gallery
+    """
+    # Must accept before any operations per ASGI spec
+    await websocket.accept()
+
+    # Reject during shutdown
     if shutdown_manager.is_shutting_down:
-        await websocket.accept()
         await websocket.close(code=1001, reason="Server shutting down")
         return
 
-    await manager.connect(websocket)
+    # Validate token
+    if not token:
+        await websocket.close(code=4001, reason="Missing authentication token")
+        return
+
+    try:
+        user_id = get_user_id_from_token(token, expected_type="access")
+    except TokenError as e:
+        await websocket.close(code=4001, reason=str(e))
+        return
+
+    # Verify user exists and is active
+    async with get_session() as session:
+        user = await repository.get_user_by_id(session, user_id)
+
+    if user is None or not user.is_active:
+        await websocket.close(code=4001, reason="User not found or inactive")
+        return
+
+    logger.info(f"WebSocket authenticated: user {user.email} (id={user_id})")
+
+    # Get or create user's workspace
+    workspace = await workspace_registry.get_or_activate(user_id)
+    workspace.connections.add(websocket)
     await shutdown_manager.register_connection(websocket)
 
     try:
         # Send current state to new client
-        gallery = get_gallery()
-        await manager.send_to(
+        gallery_pieces = await workspace.state.list_gallery()
+        gallery_data = [
+            {
+                "id": p.id,
+                "created_at": p.created_at,
+                "piece_number": p.piece_number,
+                "stroke_count": len(p.strokes),
+            }
+            for p in gallery_pieces
+        ]
+
+        await workspace.connections.send_to(
             websocket,
             {
                 "type": "init",
-                "strokes": [s.model_dump() for s in state_manager.canvas.strokes],
-                "gallery": gallery,
-                "status": state_manager.status.value,
-                "paused": agent.paused,
-                "piece_count": state_manager.piece_count,
-                "monologue": state_manager.monologue or "",
+                "strokes": [s.model_dump() for s in workspace.state.canvas.strokes],
+                "gallery": gallery_data,
+                "status": workspace.state.status.value,
+                "paused": workspace.agent.paused,
+                "piece_count": workspace.state.piece_count,
+                "monologue": workspace.state.monologue or "",
             },
         )
         logger.info(
-            f"Sent init: {len(state_manager.canvas.strokes)} strokes, "
-            f"{len(gallery)} gallery, piece #{state_manager.piece_count}"
+            f"User {user_id}: sent init with {len(workspace.state.canvas.strokes)} strokes, "
+            f"{len(gallery_data)} gallery, piece #{workspace.state.piece_count}"
         )
 
         while True:
@@ -194,14 +325,14 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 break
 
             data = await websocket.receive_text()
-            await handle_message(json.loads(data))
+            await handle_user_message(workspace, json.loads(data))
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        await workspace_registry.on_disconnect(user_id, websocket)
         await shutdown_manager.unregister_connection(websocket)
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-        manager.disconnect(websocket)
+        logger.error(f"WebSocket error for user {user_id}: {e}")
+        await workspace_registry.on_disconnect(user_id, websocket)
         await shutdown_manager.unregister_connection(websocket)
 
 

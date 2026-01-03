@@ -11,6 +11,16 @@ class Settings(BaseSettings):
     # Required
     anthropic_api_key: str
 
+    # Database
+    database_url: str = "sqlite+aiosqlite:///./data/drawing_agent.db"
+    database_echo: bool = False
+
+    # Auth (required when auth is enabled)
+    jwt_secret: str = ""  # Must be set in production
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 30
+    jwt_refresh_token_expire_days: int = 7
+
     # Server
     host: str = "0.0.0.0"
     port: int = 8000

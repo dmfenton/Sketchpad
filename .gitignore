@@ -69,3 +69,4 @@ deploy/.env
 # Misc
 *.bak
 *.tmp
+data/
