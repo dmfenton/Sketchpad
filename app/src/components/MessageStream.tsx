@@ -13,22 +13,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import type { AgentMessage, AgentStatus } from '../types';
+import { STATUS_LABELS, PULSE_DURATION_MS, type AgentMessage, type AgentStatus } from '../types';
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
 
 interface MessageStreamProps {
   messages: AgentMessage[];
   status: AgentStatus;
 }
-
-const STATUS_LABELS: Record<AgentStatus, string> = {
-  idle: 'Idle',
-  thinking: 'Thinking',
-  executing: 'Running Code',
-  drawing: 'Drawing',
-  paused: 'Paused',
-  error: 'Error',
-};
 
 function formatTime(timestamp: number): string {
   const date = new Date(timestamp);
@@ -65,25 +56,6 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
       ]).start();
     }
   }, [isNew, fadeAnim, slideAnim]);
-
-  // Status pill (centered, minimal)
-  if (message.type === 'status') {
-    return (
-      <Animated.View
-        style={[
-          styles.statusPill,
-          { backgroundColor: colors.surfaceElevated },
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        <View style={[styles.statusDot, { backgroundColor: colors.primary }]} />
-        <Text style={[styles.statusText, { color: colors.textSecondary }]}>{message.text}</Text>
-      </Animated.View>
-    );
-  }
 
   // Iteration indicator (centered, subtle)
   if (message.type === 'iteration') {
@@ -230,6 +202,8 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const lastMessageCount = useRef(messages.length);
 
+  const isActive = status === 'thinking' || status === 'executing' || status === 'drawing';
+
   // Track new messages for animation
   const newMessageIds = useRef(new Set<string>());
   useEffect(() => {
@@ -244,19 +218,19 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
     lastMessageCount.current = messages.length;
   }, [messages]);
 
-  // Pulse animation when thinking
+  // Pulse animation when active (thinking, executing, drawing)
   useEffect(() => {
-    if (status === 'thinking') {
+    if (isActive) {
       const animation = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 0.6,
-            duration: 1000,
+            toValue: 0.4,
+            duration: PULSE_DURATION_MS,
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 1000,
+            duration: PULSE_DURATION_MS,
             useNativeDriver: true,
           }),
         ])
@@ -266,7 +240,7 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
     } else {
       pulseAnim.setValue(1);
     }
-  }, [status, pulseAnim]);
+  }, [isActive, pulseAnim]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -287,8 +261,6 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
     scrollViewRef.current?.scrollToEnd({ animated: true });
     setAutoScroll(true);
   }, []);
-
-  const isActive = status === 'thinking' || status === 'executing' || status === 'drawing';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }, shadows.md]}>
@@ -408,23 +380,6 @@ const styles = StyleSheet.create({
     ...typography.small,
     marginTop: spacing.sm,
     textAlign: 'right',
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
-    gap: spacing.xs,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
-    ...typography.small,
   },
   scrollButton: {
     position: 'absolute',

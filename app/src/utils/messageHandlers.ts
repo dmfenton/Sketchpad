@@ -34,15 +34,6 @@ let messageIdCounter = 0;
 export const generateMessageId = (): string =>
   `msg_${++messageIdCounter}_${Date.now()}`;
 
-// Status text mapping
-const STATUS_TEXT: Record<string, string> = {
-  thinking: 'Thinking...',
-  executing: 'Running code...',
-  drawing: 'Drawing...',
-  paused: 'Paused',
-  error: 'Error occurred',
-};
-
 // Handler type
 type MessageHandler<T extends ServerMessage> = (
   message: T,
@@ -91,19 +82,7 @@ export const handleStatus: MessageHandler<StatusMessage> = (
     dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
     dispatch({ type: 'RESET_TURN' });
   }
-
-  // Add status changes as messages (except idle which is too frequent)
-  if (message.status !== 'idle') {
-    dispatch({
-      type: 'ADD_MESSAGE',
-      message: {
-        id: generateMessageId(),
-        type: 'status',
-        text: STATUS_TEXT[message.status] || message.status,
-        timestamp: Date.now(),
-      },
-    });
-  }
+  // Status is shown by StatusPill - no need to add to message stream
 };
 
 export const handleIteration: MessageHandler<IterationMessage> = (
