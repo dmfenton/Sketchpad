@@ -154,6 +154,7 @@ export default function App(): React.JSX.Element {
           <View style={styles.canvasContainer}>
             <Canvas
               strokes={canvas.state.strokes}
+              travelPaths={canvas.state.travelPaths}
               currentStroke={canvas.state.currentStroke}
               penPosition={canvas.state.penPosition}
               penDown={canvas.state.penDown}

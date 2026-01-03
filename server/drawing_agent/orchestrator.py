@@ -64,16 +64,12 @@ class AgentOrchestrator:
     async def _handle_thinking(self, text: str, iteration: int) -> None:
         """Handle streaming thinking updates (delta only)."""
         if text:
-            await self.broadcaster.broadcast(
-                ThinkingDeltaMessage(text=text, iteration=iteration)
-            )
+            await self.broadcaster.broadcast(ThinkingDeltaMessage(text=text, iteration=iteration))
 
     async def _handle_iteration_start(self, current: int, max_iter: int) -> None:
         """Handle when a new iteration starts."""
         logger.info(f"Iteration {current}/{max_iter}")
-        await self.broadcaster.broadcast(
-            IterationMessage(current=current, max=max_iter)
-        )
+        await self.broadcaster.broadcast(IterationMessage(current=current, max=max_iter))
 
     async def _handle_code_start(self, iteration: int) -> None:
         """Handle when code execution starts."""
@@ -142,9 +138,7 @@ class AgentOrchestrator:
         if done:
             piece_num = state_manager.piece_count
             logger.info(f"Piece {piece_num} complete")
-            await self.broadcaster.broadcast(
-                PieceCompleteMessage(piece_number=piece_num)
-            )
+            await self.broadcaster.broadcast(PieceCompleteMessage(piece_number=piece_num))
 
         return done
 

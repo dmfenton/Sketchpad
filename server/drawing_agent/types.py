@@ -112,6 +112,14 @@ class StrokeCompleteMessage(BaseModel):
     path: Path
 
 
+class TravelCompleteMessage(BaseModel):
+    """Pen-up travel completed (for plotter visualization)."""
+
+    type: Literal["travel_complete"] = "travel_complete"
+    start: Point
+    end: Point
+
+
 class ThinkingMessage(BaseModel):
     """Agent thinking stream."""
 
@@ -219,6 +227,7 @@ class ClientControlMessage(BaseModel):
 ServerMessage = (
     PenMessage
     | StrokeCompleteMessage
+    | TravelCompleteMessage
     | ThinkingMessage
     | ThinkingDeltaMessage
     | StatusMessage

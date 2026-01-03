@@ -68,9 +68,7 @@ def estimate_path_length(path: Path) -> float:
             return distance(points[0], points[1])
 
         case PathType.POLYLINE:
-            return sum(
-                distance(points[i], points[i + 1]) for i in range(len(points) - 1)
-            )
+            return sum(distance(points[i], points[i + 1]) for i in range(len(points) - 1))
 
         case PathType.QUADRATIC | PathType.CUBIC:
             # Approximate with linear segments

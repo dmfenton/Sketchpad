@@ -57,6 +57,12 @@ export interface StrokeCompleteMessage {
   path: Path;
 }
 
+export interface TravelCompleteMessage {
+  type: 'travel_complete';
+  start: Point;
+  end: Point;
+}
+
 export interface ThinkingMessage {
   type: 'thinking';
   text: string;
@@ -145,6 +151,7 @@ export interface IterationMessage {
 export type ServerMessage =
   | PenMessage
   | StrokeCompleteMessage
+  | TravelCompleteMessage
   | ThinkingMessage
   | ThinkingDeltaMessage
   | StatusMessage

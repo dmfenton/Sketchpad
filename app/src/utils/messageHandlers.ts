@@ -25,6 +25,7 @@ import type {
   StrokeCompleteMessage,
   ThinkingDeltaMessage,
   ThinkingMessage,
+  TravelCompleteMessage,
 } from '../types';
 
 import type { CanvasAction } from '../hooks/useCanvas';
@@ -59,6 +60,13 @@ export const handleStrokeComplete: MessageHandler<StrokeCompleteMessage> = (
   dispatch
 ) => {
   dispatch({ type: 'ADD_STROKE', path: message.path });
+};
+
+export const handleTravelComplete: MessageHandler<TravelCompleteMessage> = (
+  message,
+  dispatch
+) => {
+  dispatch({ type: 'ADD_TRAVEL', start: message.start, end: message.end });
 };
 
 export const handleThinking: MessageHandler<ThinkingMessage> = (
@@ -274,6 +282,7 @@ const handlers: Partial<
 > = {
   pen: handlePen as MessageHandler<ServerMessage>,
   stroke_complete: handleStrokeComplete as MessageHandler<ServerMessage>,
+  travel_complete: handleTravelComplete as MessageHandler<ServerMessage>,
   thinking: handleThinking as MessageHandler<ServerMessage>,
   thinking_delta: handleThinkingDelta as MessageHandler<ServerMessage>,
   status: handleStatus as MessageHandler<ServerMessage>,

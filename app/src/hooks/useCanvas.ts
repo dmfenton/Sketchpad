@@ -10,8 +10,14 @@ import { boundedPush, routeMessage } from '../utils';
 // Max messages to keep in state to prevent memory issues
 const MAX_MESSAGES = 50;
 
+export interface TravelPath {
+  start: Point;
+  end: Point;
+}
+
 export interface CanvasHookState {
   strokes: Path[];
+  travelPaths: TravelPath[];  // Pen-up travel paths (for plotter visualization)
   currentStroke: Point[];
   penPosition: Point | null;
   penDown: boolean;
@@ -47,10 +53,12 @@ export type CanvasAction =
   | { type: 'INIT'; strokes: Path[]; gallery: SavedCanvas[]; status: AgentStatus; pieceCount: number; paused: boolean }
   | { type: 'SET_PAUSED'; paused: boolean }
   | { type: 'SET_ITERATION'; current: number; max: number }
-  | { type: 'RESET_TURN' };
+  | { type: 'RESET_TURN' }
+  | { type: 'ADD_TRAVEL'; start: Point; end: Point };
 
 const initialState: CanvasHookState = {
   strokes: [],
+  travelPaths: [],
   currentStroke: [],
   penPosition: null,
   penDown: false,
@@ -75,7 +83,7 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
       return { ...state, strokes: action.strokes };
 
     case 'CLEAR':
-      return { ...state, strokes: [], currentStroke: [], viewingPiece: null };
+      return { ...state, strokes: [], travelPaths: [], currentStroke: [], viewingPiece: null };
 
     case 'START_STROKE':
       return { ...state, currentStroke: [action.point] };
@@ -121,12 +129,13 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
       return { ...state, gallery: action.canvases };
 
     case 'LOAD_CANVAS':
-      return { ...state, strokes: action.strokes, currentStroke: [], viewingPiece: action.pieceNumber };
+      return { ...state, strokes: action.strokes, travelPaths: [], currentStroke: [], viewingPiece: action.pieceNumber };
 
     case 'INIT':
       return {
         ...state,
         strokes: action.strokes,
+        travelPaths: [],
         gallery: action.gallery,
         agentStatus: action.status,
         pieceCount: action.pieceCount,
@@ -142,6 +151,12 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
 
     case 'RESET_TURN':
       return { ...state, thinking: '', currentIteration: 0 };
+
+    case 'ADD_TRAVEL':
+      return {
+        ...state,
+        travelPaths: [...state.travelPaths, { start: action.start, end: action.end }],
+      };
 
     default:
       return state;

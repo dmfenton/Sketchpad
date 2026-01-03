@@ -1,19 +1,21 @@
 /**
  * SVG canvas component with stroke rendering and touch handling.
+ * Implements plotter-style pen visualization with visible travel paths.
  */
 
 import React, { useCallback, useMemo, useRef } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Circle, Defs, Line, Pattern, Path as SvgPath, Rect } from 'react-native-svg';
+import Svg, { Circle, Defs, G, Line, Pattern, Path as SvgPath, Polygon, Rect } from 'react-native-svg';
 
-import { screenToCanvas } from '../hooks/useCanvas';
+import { screenToCanvas, TravelPath } from '../hooks/useCanvas';
 import type { Path, Point } from '../types';
 import { CANVAS_ASPECT_RATIO, CANVAS_HEIGHT, CANVAS_WIDTH } from '../types';
 import { colors, borderRadius, shadows, spacing, typography } from '../theme';
 
 interface CanvasProps {
   strokes: Path[];
+  travelPaths: TravelPath[];
   currentStroke: Point[];
   penPosition: Point | null;
   penDown: boolean;
@@ -82,8 +84,91 @@ function pointsToSvgD(points: Point[]): string {
   return parts.join(' ');
 }
 
+/**
+ * Convert a travel path to SVG line coordinates.
+ */
+function travelToSvgD(travel: TravelPath): string {
+  return `M ${travel.start.x} ${travel.start.y} L ${travel.end.x} ${travel.end.y}`;
+}
+
+/**
+ * Plotter pen nib component - triangular pen holder shape.
+ */
+function PlotterPen({ x, y, down }: { x: number; y: number; down: boolean }): React.JSX.Element {
+  // Pen dimensions
+  const nibSize = down ? 8 : 6;
+  const holderHeight = 24;
+  const holderWidth = 16;
+
+  // Pen nib (triangle pointing down)
+  const nibPoints = `${x},${y} ${x - nibSize},${y - nibSize * 1.5} ${x + nibSize},${y - nibSize * 1.5}`;
+
+  // Pen holder (rectangle above nib)
+  const holderY = y - nibSize * 1.5 - (down ? 0 : 4);
+
+  return (
+    <G opacity={down ? 1 : 0.7}>
+      {/* Shadow/glow when pen is down */}
+      {down && (
+        <Circle
+          cx={x}
+          cy={y}
+          r={4}
+          fill={colors.primary}
+          opacity={0.3}
+        />
+      )}
+
+      {/* Pen holder body */}
+      <Rect
+        x={x - holderWidth / 2}
+        y={holderY - holderHeight}
+        width={holderWidth}
+        height={holderHeight}
+        fill={colors.primary}
+        rx={3}
+        ry={3}
+        opacity={0.9}
+      />
+
+      {/* Pen nib (triangle) */}
+      <Polygon
+        points={nibPoints}
+        fill={down ? colors.stroke : colors.primary}
+        stroke={colors.primary}
+        strokeWidth={1.5}
+      />
+
+      {/* Pen tip dot when drawing */}
+      {down && (
+        <Circle
+          cx={x}
+          cy={y}
+          r={2}
+          fill={colors.stroke}
+        />
+      )}
+
+      {/* Lifted indicator ring when pen is up */}
+      {!down && (
+        <Circle
+          cx={x}
+          cy={y + 8}
+          r={10}
+          fill="none"
+          stroke={colors.primary}
+          strokeWidth={1}
+          strokeDasharray="3,3"
+          opacity={0.5}
+        />
+      )}
+    </G>
+  );
+}
+
 export function Canvas({
   strokes,
+  travelPaths,
   currentStroke,
   penPosition,
   penDown,
@@ -149,6 +234,19 @@ export function Canvas({
             </Defs>
             <Rect width="100%" height="100%" fill="url(#grid)" />
 
+            {/* Travel paths (pen-up movements) - rendered first so they're behind strokes */}
+            {travelPaths.map((travel, index) => (
+              <SvgPath
+                key={`travel-${index}`}
+                d={travelToSvgD(travel)}
+                stroke={colors.border}
+                strokeWidth={1}
+                fill="none"
+                strokeDasharray="6,4"
+                opacity={0.4}
+              />
+            ))}
+
             {/* Completed strokes */}
             {strokes.map((stroke, index) => (
               <SvgPath
@@ -174,29 +272,9 @@ export function Canvas({
               />
             )}
 
-            {/* Pen position indicator - larger and more visible */}
+            {/* Plotter pen indicator */}
             {penPosition && (
-              <>
-                {/* Outer ring */}
-                <Circle
-                  cx={penPosition.x}
-                  cy={penPosition.y}
-                  r={penDown ? 12 : 16}
-                  fill="none"
-                  stroke={colors.primary}
-                  strokeWidth={2}
-                  opacity={0.5}
-                />
-                {/* Inner dot */}
-                <Circle
-                  cx={penPosition.x}
-                  cy={penPosition.y}
-                  r={penDown ? 6 : 4}
-                  fill={penDown ? colors.primary : 'none'}
-                  stroke={colors.primary}
-                  strokeWidth={2}
-                />
-              </>
+              <PlotterPen x={penPosition.x} y={penPosition.y} down={penDown} />
             )}
           </Svg>
 
