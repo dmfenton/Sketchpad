@@ -23,7 +23,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from drawing_agent.agent import AgentCallbacks, CodeExecutionResult, DrawingAgent
-from drawing_agent.executor import estimate_path_length, interpolate_path
+from drawing_agent.interpolation import estimate_path_length, interpolate_path
 from drawing_agent.state import state_manager
 from drawing_agent.types import AgentPathsEvent, AgentStatus, AgentTurnComplete, Path
 from drawing_agent.workspace import workspace
@@ -156,9 +156,23 @@ def _print_strokes_table(strokes: list[Path]) -> None:
     console.print(table)
 
 
-async def _run_turn_async(json_output: bool, verbose: bool, nudge_text: str | None = None) -> None:
+async def _run_turn_async(
+    json_output: bool,
+    verbose: bool,
+    nudge_text: str | None = None,
+    new_canvas: bool = False,
+) -> None:
     """Async implementation of run-turn."""
     state_manager.load()
+
+    # Clear canvas if requested
+    if new_canvas:
+        state_manager.clear_canvas()
+        state_manager.notes = ""  # Clear notes too for fresh start
+        state_manager.save()
+        if not json_output:
+            console.print("[yellow]Starting with fresh canvas[/yellow]")
+
     agent = DrawingAgent()
     if nudge_text:
         agent.add_nudge(nudge_text)
@@ -244,16 +258,25 @@ async def _run_turn_async(json_output: bool, verbose: bool, nudge_text: str | No
 
 @app.command("run-turn")
 def run_turn(
+    message: str = typer.Argument(None, help="Message/prompt for the agent"),
+    new: bool = typer.Option(False, "--new", "-n", help="Start with a fresh canvas"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output raw JSON events"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed path info"),
 ) -> None:
-    """Execute one agent turn, streaming events to stdout."""
-    asyncio.run(_run_turn_async(json_output, verbose))
+    """Execute one agent turn, streaming events to stdout.
+
+    Examples:
+        python -m drawing_agent.cli run-turn
+        python -m drawing_agent.cli run-turn "Draw a simple tree"
+        python -m drawing_agent.cli run-turn --new "Draw 3 simple shapes"
+    """
+    asyncio.run(_run_turn_async(json_output, verbose, nudge_text=message, new_canvas=new))
 
 
 @app.command()
 def nudge(
     text: str = typer.Argument(..., help="Nudge message for the agent"),
+    new: bool = typer.Option(False, "--new", "-n", help="Start with a fresh canvas"),
     run: bool = typer.Option(True, "--run/--no-run", help="Run a turn after nudging"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output raw JSON"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed path info"),
@@ -262,7 +285,7 @@ def nudge(
     console.print(f"[green]Nudge:[/green] {text}")
 
     if run:
-        asyncio.run(_run_turn_async(json_output, verbose, nudge_text=text))
+        asyncio.run(_run_turn_async(json_output, verbose, nudge_text=text, new_canvas=new))
     else:
         console.print(
             "[yellow]Note: Nudges are not persisted. Use without --no-run to send nudge.[/yellow]"
