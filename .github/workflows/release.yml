@@ -1,0 +1,120 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version override (e.g., 1.0.0)'
+        required: false
+        type: string
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: drawing-agent
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="0.0.0"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Build the image
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION ./server
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+          # Push both tags
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -n "$PREV_TAG" ]; then
+            echo "Generating changelog from $PREV_TAG to HEAD"
+            CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "No previous tag found, using recent commits"
+            CHANGELOG=$(git log -20 --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          # Write to output using delimiter
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body: |
+            ## Docker Image
+
+            ```
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:v${{ steps.version.outputs.version }}
+            ```
+
+            ## Changes
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## Deployment
+
+            Watchtower will automatically deploy this release within 30 seconds.
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+
+      - name: Summary
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: v$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: \`$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Latest tag**: \`$ECR_REGISTRY/$ECR_REPOSITORY:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Watchtower**: Will auto-deploy within 30 seconds" >> $GITHUB_STEP_SUMMARY
