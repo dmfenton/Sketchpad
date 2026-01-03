@@ -21,7 +21,7 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import StreamEvent
 from PIL import Image
 
-from drawing_agent.canvas import get_canvas_image, get_strokes
+from drawing_agent.canvas import get_strokes
 from drawing_agent.config import settings
 from drawing_agent.state import state_manager
 from drawing_agent.tools import create_drawing_server, set_draw_callback
@@ -276,12 +276,11 @@ class DrawingAgent:
                         if isinstance(block, TextBlock):
                             # Send complete text block (may overlap with stream, but ensures nothing is missed)
                             text = block.text
-                            if text:
-                                # Check if this text wasn't already sent via streaming
-                                if text not in all_thinking:
-                                    all_thinking += text + "\n"
-                                    if cb.on_thinking:
-                                        await cb.on_thinking(text, iteration)
+                            # Check if this text wasn't already sent via streaming
+                            if text and text not in all_thinking:
+                                all_thinking += text + "\n"
+                                if cb.on_thinking:
+                                    await cb.on_thinking(text, iteration)
 
                         elif isinstance(block, ToolUseBlock):
                             # Tool being called
@@ -314,9 +313,8 @@ class DrawingAgent:
                 elif isinstance(message, ResultMessage):
                     # Turn complete
                     logger.info(f"Turn complete: {message.subtype}")
-                    if message.is_error:
-                        if cb.on_error:
-                            await cb.on_error(message.result or "Unknown error", None)
+                    if message.is_error and cb.on_error:
+                        await cb.on_error(message.result or "Unknown error", None)
 
             # Yield any remaining paths
             if collected_paths:

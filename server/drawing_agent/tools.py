@@ -156,7 +156,7 @@ async def draw_paths(args: dict[str, Any]) -> dict[str, Any]:
     "Signal that the current piece is complete. Call this when you're satisfied with the drawing.",
     {"type": "object", "properties": {}, "required": []},
 )
-async def mark_piece_done(args: dict[str, Any]) -> dict[str, Any]:
+async def mark_piece_done(_args: dict[str, Any]) -> dict[str, Any]:
     """Mark the current piece as complete.
 
     Returns:
