@@ -133,11 +133,27 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
     }
 
     case 'FINALIZE_LIVE_MESSAGE': {
-      // Remove the live message (it will be replaced by a proper thinking message)
-      return {
-        ...state,
-        messages: state.messages.filter(m => m.id !== LIVE_MESSAGE_ID),
-      };
+      // Convert live message to a permanent message (with unique ID)
+      const liveIndex = state.messages.findIndex(m => m.id === LIVE_MESSAGE_ID);
+      if (liveIndex >= 0) {
+        const liveMsg = state.messages[liveIndex];
+        if (liveMsg && liveMsg.text.trim()) {
+          // Replace with permanent message
+          const updated = [...state.messages];
+          updated[liveIndex] = {
+            ...liveMsg,
+            id: `thinking_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          };
+          return { ...state, messages: updated };
+        } else {
+          // Empty message, just remove it
+          return {
+            ...state,
+            messages: state.messages.filter(m => m.id !== LIVE_MESSAGE_ID),
+          };
+        }
+      }
+      return state;
     }
 
     case 'ADD_MESSAGE':
