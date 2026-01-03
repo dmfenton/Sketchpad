@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     agent_interval: int = 10  # seconds between agent turns
     agent_workspace: str = "../agent_workspace"
 
+    # Drawing speed
+    drawing_fps: int = 30  # frames per second for pen updates (lower = slower)
+    stroke_delay: float = 0.2  # pause between strokes in seconds
+
     # Canvas
     canvas_width: int = 800
     canvas_height: int = 600

@@ -26,7 +26,9 @@ from drawing_agent.config import settings
 from drawing_agent.executor import execute_paths
 from drawing_agent.state import state_manager
 from drawing_agent.types import (
+    AgentPathsEvent,
     AgentStatus,
+    AgentTurnComplete,
     ClearMessage,
     CodeExecutionMessage,
     ErrorMessage,
@@ -142,6 +144,10 @@ async def agent_loop() -> None:
         on_error=on_error,
     )
 
+    async def send_message(msg: Any) -> None:
+        """Broadcast a message to all clients."""
+        await manager.broadcast(msg)
+
     while True:
         try:
             # Only run when clients are connected (cost control)
@@ -157,17 +163,24 @@ async def agent_loop() -> None:
             # Broadcast THINKING status at start of turn
             await manager.broadcast(StatusMessage(status=AgentStatus.THINKING))
 
-            thinking, paths, done = await agent.run_turn(callbacks=callbacks)
+            done = False
 
-            # Execute paths if any
-            if paths:
-                await manager.broadcast(StatusMessage(status=AgentStatus.DRAWING))
+            # Consume the streaming generator - paths are drawn as they arrive
+            async for event in agent.run_turn(callbacks=callbacks):
+                if isinstance(event, AgentPathsEvent):
+                    # Draw paths immediately as they're produced
+                    logger.info(f"Received {len(event.paths)} paths - drawing now")
+                    await manager.broadcast(StatusMessage(status=AgentStatus.DRAWING))
 
-                async def send_message(msg: Any) -> None:
-                    await manager.broadcast(msg)
+                    async for _ in execute_paths(event.paths, send_message):
+                        pass  # Points are sent in execute_paths
 
-                async for _ in execute_paths(paths, send_message):
-                    pass  # Yield points handled in execute_paths
+                    # Back to thinking (agent may produce more paths)
+                    await manager.broadcast(StatusMessage(status=AgentStatus.THINKING))
+
+                elif isinstance(event, AgentTurnComplete):
+                    done = event.done
+                    logger.info(f"Turn complete. Piece done: {done}")
 
             # Always broadcast IDLE after turn completes
             await manager.broadcast(StatusMessage(status=AgentStatus.IDLE))
