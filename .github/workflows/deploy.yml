@@ -1,12 +1,16 @@
 name: Build and Push to ECR
 
+# DEPRECATED: Use release.yml instead
+# This workflow is disabled - deployment should only happen via version tags
+# To deploy: git tag v1.x.x && git push origin v1.x.x
+
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'server/**'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm manual deployment'
+        required: true
+        type: string
 
 env:
   AWS_REGION: us-east-1
@@ -15,6 +19,7 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'deploy' }}
 
     steps:
       - name: Checkout

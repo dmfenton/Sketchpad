@@ -146,6 +146,152 @@ Edit `server/drawing_agent/agent.py` - the `SYSTEM_PROMPT` constant
 - `utils/canvas.ts` - Coordinate utilities
 - `types.ts` - TypeScript type definitions
 
+## Server Deployment (AWS)
+
+### Cutting a Release
+
+Deploy to production by creating a version tag:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+This triggers `.github/workflows/release.yml` which:
+1. Builds Docker image from `server/`
+2. Pushes to AWS ECR with version tag + `latest`
+3. Creates GitHub Release with changelog
+4. Watchtower on EC2 auto-pulls new image within 30 seconds
+
+### Infrastructure
+
+- **EC2 instance** running Docker Compose (`deploy/docker-compose.prod.yml`)
+- **Nginx** reverse proxy with Let's Encrypt SSL
+- **Watchtower** for automatic container updates
+- **ECR** for Docker image registry
+
+### Manual Server Access
+
+```bash
+# SSH to server (if configured)
+ssh ec2-user@<server-ip>
+
+# On server: view logs
+docker logs -f drawing-agent
+
+# On server: restart manually
+cd /home/ec2-user/deploy
+docker-compose -f docker-compose.prod.yml restart drawing-agent
+
+# On server: run migrations
+docker exec drawing-agent alembic upgrade head
+
+# On server: create invite code
+docker exec drawing-agent python -m drawing_agent.cli invite create
+```
+
+### Required GitHub Secrets (Server)
+
+| Secret | Description |
+|--------|-------------|
+| `AWS_ACCESS_KEY_ID` | AWS credentials for ECR push |
+| `AWS_SECRET_ACCESS_KEY` | AWS credentials for ECR push |
+
+---
+
+## Database & Storage
+
+### Architecture
+
+- **SQLite** (via SQLAlchemy async): Auth only (users, invite codes)
+- **Filesystem**: Per-user workspace data
+
+### Database Location
+
+- Dev: `server/data/drawing_agent.db`
+- Prod: `/app/data/drawing_agent.db` (Docker volume)
+
+### Migrations
+
+```bash
+# Create new migration
+uv run alembic revision -m "description"
+
+# Run migrations
+uv run alembic upgrade head
+
+# Check current version
+uv run alembic current
+```
+
+### Workspace Storage
+
+Each user has a filesystem directory:
+```
+agent_workspace/users/{user_id}/
+├── workspace.json       # Canvas state, notes, piece_count
+└── gallery/
+    └── piece_000001.json  # Saved artwork
+```
+
+### CLI Commands
+
+```bash
+# Create invite code
+uv run python -m drawing_agent.cli invite create
+
+# List invite codes
+uv run python -m drawing_agent.cli invite list
+
+# Revoke unused invite code
+uv run python -m drawing_agent.cli invite revoke CODE
+```
+
+### Creating Users Directly
+
+To create a user without an invite code (e.g., admin):
+
+```python
+# Run from server/ directory
+uv run python -c "
+import asyncio
+from drawing_agent.db import get_session, repository
+from drawing_agent.auth.password import hash_password
+
+async def create_user(email: str, password: str):
+    async with get_session() as session:
+        existing = await repository.get_user_by_email(session, email)
+        if existing:
+            print(f'User already exists: id={existing.id}')
+            return
+        user = await repository.create_user(session, email, hash_password(password))
+        print(f'Created user: {email} (id={user.id})')
+
+asyncio.run(create_user('admin@example.com', 'ChangeMe123!'))
+"
+```
+
+---
+
+## Authentication
+
+### Flow
+
+1. Admin creates invite code via CLI
+2. User signs up with invite code → gets JWT tokens
+3. Access token (30 min) for API calls
+4. Refresh token (7 days) to get new access token
+5. WebSocket auth via `?token=<jwt>` query param
+
+### Environment Variables
+
+```bash
+# Required for auth
+JWT_SECRET=<generate with: python -c "import secrets; print(secrets.token_hex(32))">
+```
+
+---
+
 ## iOS Deployment (TestFlight)
 
 ### Triggering a Build
