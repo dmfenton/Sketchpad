@@ -85,18 +85,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configuration - credentials require explicit origins
-# In development, allow localhost origins. In production, set CORS_ORIGINS env var.
-cors_origins = [
-    "http://localhost:8081",  # Expo web dev
-    "http://localhost:19006",  # Expo web
-    "http://127.0.0.1:8081",
-    "http://127.0.0.1:19006",
-]
+# CORS configuration
+# Since we use JWT tokens (not cookies), we don't need allow_credentials=True
+# This allows native apps and any web origin to connect
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
