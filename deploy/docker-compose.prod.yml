@@ -43,6 +43,9 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+    # Graceful shutdown: 5s drain + 10s task cancel + 15s buffer
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

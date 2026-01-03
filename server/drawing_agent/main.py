@@ -1,7 +1,6 @@
 """FastAPI application with WebSocket support."""
 
 import asyncio
-import contextlib
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -18,6 +17,7 @@ from drawing_agent.config import settings
 from drawing_agent.connections import manager
 from drawing_agent.handlers import handle_message
 from drawing_agent.orchestrator import AgentOrchestrator
+from drawing_agent.shutdown import shutdown_manager
 from drawing_agent.state import state_manager
 
 logging.basicConfig(level=logging.DEBUG)
@@ -27,10 +27,21 @@ orchestrator: AgentOrchestrator | None = None
 agent_loop_task: asyncio.Task[None] | None = None
 
 
+async def save_state_callback() -> None:
+    """Callback to save state during shutdown."""
+    try:
+        state_manager.save()
+        logger.info("State saved successfully")
+    except Exception as e:
+        logger.error(f"Failed to save state during shutdown: {e}")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
-    """Application lifespan handler."""
+    """Application lifespan handler with graceful shutdown."""
     global agent_loop_task, orchestrator
+
+    logger.info("=== Server startup initiated ===")
 
     state_manager.load()
     logger.info("State loaded")
@@ -39,15 +50,25 @@ async def lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
     agent_loop_task = asyncio.create_task(orchestrator.run_loop())
     logger.info("Agent loop started")
 
+    # Register task and cleanup callback with shutdown manager
+    shutdown_manager.register_task(agent_loop_task)
+    shutdown_manager.add_cleanup_callback(save_state_callback)
+
+    # Install signal handlers
+    shutdown_manager.install_signal_handlers()
+
+    logger.info("=== Server startup completed ===")
+
     yield
 
-    if agent_loop_task:
-        agent_loop_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await agent_loop_task
+    # Shutdown - delegate to shutdown manager
+    logger.info("Lifespan shutdown triggered")
 
-    state_manager.save()
-    logger.info("State saved")
+    # Register all active connections for draining
+    for conn in manager.active_connections:
+        shutdown_manager.register_connection(conn)
+
+    await shutdown_manager.shutdown()
 
 
 app = FastAPI(
@@ -142,7 +163,13 @@ async def get_debug_logs(lines: int = 100) -> dict[str, Any]:
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
+    # Reject new connections during shutdown
+    if shutdown_manager.is_shutting_down:
+        await websocket.close(code=1001, reason="Server shutting down")
+        return
+
     await manager.connect(websocket)
+    shutdown_manager.register_connection(websocket)
 
     try:
         # Send current state to new client
@@ -165,14 +192,20 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         )
 
         while True:
+            # Check shutdown between receives
+            if shutdown_manager.is_shutting_down:
+                break
+
             data = await websocket.receive_text()
             await handle_message(json.loads(data))
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+        shutdown_manager.unregister_connection(websocket)
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(websocket)
+        shutdown_manager.unregister_connection(websocket)
 
 
 if __name__ == "__main__":
