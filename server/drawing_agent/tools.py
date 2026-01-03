@@ -52,6 +52,81 @@ def set_draw_callback(callback: Any) -> None:
     _draw_callback = callback
 
 
+async def handle_draw_paths(args: dict[str, Any]) -> dict[str, Any]:
+    """Handle draw_paths tool call (testable without decorator).
+
+    Args:
+        args: Dictionary with 'paths' (array of path objects) and optional 'done' (bool)
+
+    Returns:
+        Tool result with success/error status
+    """
+    paths_data = args.get("paths", [])
+    done = args.get("done", False)
+
+    if not isinstance(paths_data, list):
+        return {
+            "content": [{"type": "text", "text": "Error: paths must be an array"}],
+            "is_error": True,
+        }
+
+    # Parse paths
+    parsed_paths: list[Path] = []
+    errors: list[str] = []
+
+    for i, path_data in enumerate(paths_data):
+        if not isinstance(path_data, dict):
+            errors.append(f"Path {i}: must be an object")
+            continue
+
+        path = parse_path_data(path_data)
+        if path is None:
+            errors.append(f"Path {i}: invalid format (need type and points)")
+        else:
+            parsed_paths.append(path)
+
+    # Call the draw callback with valid paths (even if there were some errors)
+    if parsed_paths and _draw_callback is not None:
+        await _draw_callback(parsed_paths, done)
+
+    # Report errors if any
+    if errors:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": f"Parsed {len(parsed_paths)} paths with {len(errors)} errors:\n"
+                    + "\n".join(errors),
+                }
+            ],
+            "is_error": len(parsed_paths) == 0,
+        }
+
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": f"Successfully drew {len(parsed_paths)} paths."
+                + (" Piece marked as complete." if done else ""),
+            }
+        ],
+    }
+
+
+async def handle_mark_piece_done() -> dict[str, Any]:
+    """Handle mark_piece_done tool call (testable without decorator).
+
+    Returns:
+        Tool result confirming the piece is done
+    """
+    if _draw_callback is not None:
+        await _draw_callback([], True)
+
+    return {
+        "content": [{"type": "text", "text": "Piece marked as complete."}],
+    }
+
+
 @tool(
     "draw_paths",
     "Draw paths on the canvas. Each path has a type (line, polyline, quadratic, cubic) and an array of point objects with x and y coordinates.",
@@ -91,64 +166,8 @@ def set_draw_callback(callback: Any) -> None:
     },
 )
 async def draw_paths(args: dict[str, Any]) -> dict[str, Any]:
-    """Draw paths on the canvas.
-
-    Args:
-        args: Dictionary with 'paths' (array of path objects) and optional 'done' (bool)
-
-    Returns:
-        Tool result with success/error status
-    """
-    paths_data = args.get("paths", [])
-    done = args.get("done", False)
-
-    if not isinstance(paths_data, list):
-        return {
-            "content": [{"type": "text", "text": "Error: paths must be an array"}],
-            "is_error": True,
-        }
-
-    # Parse paths
-    parsed_paths: list[Path] = []
-    errors: list[str] = []
-
-    for i, path_data in enumerate(paths_data):
-        if not isinstance(path_data, dict):
-            errors.append(f"Path {i}: must be an object")
-            continue
-
-        path = parse_path_data(path_data)
-        if path is None:
-            errors.append(f"Path {i}: invalid format (need type and points)")
-        else:
-            parsed_paths.append(path)
-
-    # Report errors if any
-    if errors:
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": f"Parsed {len(parsed_paths)} paths with {len(errors)} errors:\n"
-                    + "\n".join(errors),
-                }
-            ],
-            "is_error": len(parsed_paths) == 0,
-        }
-
-    # Call the draw callback if set
-    if _draw_callback is not None:
-        await _draw_callback(parsed_paths, done)
-
-    return {
-        "content": [
-            {
-                "type": "text",
-                "text": f"Successfully drew {len(parsed_paths)} paths."
-                + (" Piece marked as complete." if done else ""),
-            }
-        ],
-    }
+    """Draw paths on the canvas."""
+    return await handle_draw_paths(args)
 
 
 @tool(
@@ -157,17 +176,8 @@ async def draw_paths(args: dict[str, Any]) -> dict[str, Any]:
     {"type": "object", "properties": {}, "required": []},
 )
 async def mark_piece_done(_args: dict[str, Any]) -> dict[str, Any]:
-    """Mark the current piece as complete.
-
-    Returns:
-        Tool result confirming the piece is done
-    """
-    if _draw_callback is not None:
-        await _draw_callback([], True)
-
-    return {
-        "content": [{"type": "text", "text": "Piece marked as complete."}],
-    }
+    """Mark the current piece as complete."""
+    return await handle_mark_piece_done()
 
 
 def create_drawing_server() -> Any:

@@ -1,13 +1,13 @@
 """Tests for the drawing agent module."""
 
 import base64
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from PIL import Image
 
-from drawing_agent.agent import AgentCallbacks, DrawingAgent
-from drawing_agent.types import AgentStatus, AgentTurnComplete
+from drawing_agent.agent import DrawingAgent
+from drawing_agent.types import AgentTurnComplete
 
 
 class TestDrawingAgentPauseResume:
@@ -16,7 +16,7 @@ class TestDrawingAgentPauseResume:
     def test_initial_state(self) -> None:
         agent = DrawingAgent()
         assert agent.paused is True  # Starts paused by default
-        assert agent.container_id is None
+        assert agent.container_id is None  # SDK manages sessions
         assert agent.pending_nudges == []
 
     @pytest.mark.asyncio
@@ -40,11 +40,11 @@ class TestDrawingAgentPauseResume:
         assert "Draw a circle" in agent.pending_nudges
         assert "Use blue color" in agent.pending_nudges
 
-    def test_reset_container(self) -> None:
+    def test_reset_container_sets_abort(self) -> None:
+        """reset_container sets abort flag (SDK manages actual session)."""
         agent = DrawingAgent()
-        agent.container_id = "test-container-123"
         agent.reset_container()
-        assert agent.container_id is None
+        assert agent._abort is True
 
 
 class TestDrawingAgentImageConversion:
@@ -94,170 +94,94 @@ class TestDrawingAgentRunTurn:
         assert events[0].thinking == ""
         assert events[0].done is False
 
-    @pytest.mark.asyncio
-    async def test_run_turn_streams_thinking(self) -> None:
-        """Test that thinking callback is called during streaming."""
-        agent = DrawingAgent()
-        await agent.resume()  # Agent starts paused, resume for test
 
-        # Track thinking callbacks
-        thinking_updates: list[tuple[str, int]] = []
+class TestDrawingAgentBuildPrompt:
+    """Tests for building the prompt string."""
 
-        async def on_thinking(text: str, iteration: int) -> None:
-            thinking_updates.append((text, iteration))
-
-        callbacks = AgentCallbacks(on_thinking=on_thinking)
-
-        # Mock the API response
-        mock_response = MagicMock()
-        mock_response.content = []
-        mock_response.stop_reason = "end_turn"
-        mock_response.container = None
-
-        mock_stream = MagicMock()
-        mock_stream.__enter__ = MagicMock(return_value=mock_stream)
-        mock_stream.__exit__ = MagicMock(return_value=False)
-        mock_stream.get_final_message = MagicMock(return_value=mock_response)
-
-        # Create a mock event with text delta
-        mock_event = MagicMock()
-        mock_event.type = "content_block_delta"
-        mock_event.delta = MagicMock()
-        mock_event.delta.text = "I see a blank canvas..."
-
-        mock_stream.__iter__ = MagicMock(return_value=iter([mock_event]))
-
-        with (
-            patch.object(agent.client.beta.messages, "stream", return_value=mock_stream),
-            patch("drawing_agent.agent.get_canvas_image") as mock_get_canvas,
-            patch("drawing_agent.agent.get_strokes", return_value=[]),
-            patch("drawing_agent.agent.state_manager") as mock_state,
-        ):
-            mock_state.notes = ""
-            mock_state.piece_count = 0
-            mock_state.status = AgentStatus.IDLE
-
-            mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
-
-            events = [event async for event in agent.run_turn(callbacks=callbacks)]
-
-        # Should have called thinking callback
-        assert len(thinking_updates) > 0
-        assert "I see a blank canvas..." in thinking_updates[0][0]
-        assert thinking_updates[0][1] == 1  # First iteration
-
-        # Should yield AgentTurnComplete at the end
-        assert any(isinstance(e, AgentTurnComplete) for e in events)
-
-
-class TestDrawingAgentBuildUserMessage:
-    """Tests for building user messages."""
-
-    def test_build_user_message_basic(self) -> None:
+    def test_build_prompt_basic(self) -> None:
         agent = DrawingAgent()
 
         with (
-            patch("drawing_agent.agent.get_canvas_image") as mock_get_canvas,
             patch("drawing_agent.agent.get_strokes", return_value=[]),
             patch("drawing_agent.agent.state_manager") as mock_state,
         ):
             mock_state.notes = ""
             mock_state.piece_count = 0
 
-            mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
+            prompt = agent._build_prompt()
 
-            message = agent._build_user_message()
+        # Should be a string with canvas info
+        assert isinstance(prompt, str)
+        assert "Canvas size:" in prompt
+        assert "Existing strokes: 0" in prompt
+        assert "Piece number: 1" in prompt
 
-        # Should have image and text content
-        assert len(message) >= 2
-        assert message[0]["type"] == "image"
-        assert message[1]["type"] == "text"
-        assert "Canvas size:" in message[1]["text"]
-
-    def test_build_user_message_with_notes(self) -> None:
+    def test_build_prompt_with_notes(self) -> None:
         agent = DrawingAgent()
 
         with (
-            patch("drawing_agent.agent.get_canvas_image") as mock_get_canvas,
             patch("drawing_agent.agent.get_strokes", return_value=[]),
             patch("drawing_agent.agent.state_manager") as mock_state,
         ):
             mock_state.notes = "Previous work: drew a circle"
             mock_state.piece_count = 1
 
-            mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
-
-            message = agent._build_user_message()
+            prompt = agent._build_prompt()
 
         # Should include notes
-        notes_content = [
-            m for m in message if m["type"] == "text" and "Your notes:" in m.get("text", "")
-        ]
-        assert len(notes_content) == 1
-        assert "drew a circle" in notes_content[0]["text"]
+        assert "Your notes:" in prompt
+        assert "drew a circle" in prompt
 
-    def test_build_user_message_with_nudges(self) -> None:
+    def test_build_prompt_with_nudges(self) -> None:
         agent = DrawingAgent()
         agent.add_nudge("Draw a tree")
         agent.add_nudge("Use green")
 
         with (
-            patch("drawing_agent.agent.get_canvas_image") as mock_get_canvas,
             patch("drawing_agent.agent.get_strokes", return_value=[]),
             patch("drawing_agent.agent.state_manager") as mock_state,
         ):
             mock_state.notes = ""
             mock_state.piece_count = 0
 
-            mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
-
-            message = agent._build_user_message()
+            prompt = agent._build_prompt()
 
         # Should include nudges
-        nudge_content = [
-            m for m in message if m["type"] == "text" and "Human nudges:" in m.get("text", "")
-        ]
-        assert len(nudge_content) == 1
-        assert "Draw a tree" in nudge_content[0]["text"]
-        assert "Use green" in nudge_content[0]["text"]
+        assert "Human nudges:" in prompt
+        assert "Draw a tree" in prompt
+        assert "Use green" in prompt
 
-        # Nudges should be cleared after building message
+        # Nudges should be cleared after building prompt
         assert agent.pending_nudges == []
 
-    def test_build_user_message_clears_nudges(self) -> None:
+    def test_build_prompt_clears_nudges(self) -> None:
         agent = DrawingAgent()
         agent.add_nudge("Test nudge")
 
         with (
-            patch("drawing_agent.agent.get_canvas_image") as mock_get_canvas,
             patch("drawing_agent.agent.get_strokes", return_value=[]),
             patch("drawing_agent.agent.state_manager") as mock_state,
         ):
             mock_state.notes = ""
             mock_state.piece_count = 0
 
-            mock_get_canvas.return_value = Image.new("RGB", (100, 100), "white")
-
-            agent._build_user_message()
+            agent._build_prompt()
 
         # Nudges should be cleared
         assert agent.pending_nudges == []
 
 
 class TestDrawingAgentContainerManagement:
-    """Tests for container ID management."""
+    """Tests for container/session management."""
 
-    def test_container_id_initially_none(self) -> None:
+    def test_container_id_always_none(self) -> None:
+        """container_id always returns None (SDK manages sessions)."""
         agent = DrawingAgent()
         assert agent.container_id is None
 
-    def test_container_id_persists(self) -> None:
+    def test_reset_container_disconnects_client(self) -> None:
+        """reset_container sets abort flag and triggers disconnect."""
         agent = DrawingAgent()
-        agent.container_id = "container-abc-123"
-        assert agent.container_id == "container-abc-123"
-
-    def test_reset_container_clears_id(self) -> None:
-        agent = DrawingAgent()
-        agent.container_id = "container-abc-123"
         agent.reset_container()
-        assert agent.container_id is None
+        assert agent._abort is True
+        # Client disconnect happens async - just verify abort is set
