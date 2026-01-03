@@ -226,15 +226,17 @@ docker exec drawing-agent python -m drawing_agent.cli invite create
 
 ### GitHub Actions IAM User
 
-The release workflow needs AWS credentials to push to ECR. Create a scoped IAM user:
+Managed by Terraform in `infrastructure/github_actions.tf`:
 
 ```bash
-# Add to infrastructure/github_actions.tf (not yet created)
-# Or create manually in AWS Console:
-# 1. IAM → Users → Create user "github-actions-ecr"
-# 2. Attach policy: AmazonEC2ContainerRegistryPowerUser
-# 3. Create access key → copy credentials
-# 4. Add to GitHub secrets (below)
+cd infrastructure
+
+# Create/update IAM user
+terraform apply
+
+# Get credentials and set GitHub secrets
+gh secret set AWS_ACCESS_KEY_ID --body "$(terraform output -raw github_actions_access_key_id)"
+gh secret set AWS_SECRET_ACCESS_KEY --body "$(terraform output -raw github_actions_secret_access_key)"
 ```
 
 ### Required GitHub Secrets (Server)
