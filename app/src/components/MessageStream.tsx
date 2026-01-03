@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import type { AgentMessage, AgentStatus } from '../types';
-import { colors, spacing, borderRadius, typography, shadows } from '../theme';
+import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
 
 interface MessageStreamProps {
   messages: AgentMessage[];
@@ -35,12 +35,16 @@ function formatTime(timestamp: number): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+// ID for the live streaming message (from useCanvas)
+const LIVE_MESSAGE_ID = 'live_thinking';
+
 interface MessageBubbleProps {
   message: AgentMessage;
   isNew: boolean;
+  colors: ColorScheme;
 }
 
-function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Element {
+function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JSX.Element {
   const fadeAnim = useRef(new Animated.Value(isNew ? 0 : 1)).current;
   const slideAnim = useRef(new Animated.Value(isNew ? 20 : 0)).current;
   const [expanded, setExpanded] = useState(false);
@@ -68,14 +72,15 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
       <Animated.View
         style={[
           styles.statusPill,
+          { backgroundColor: colors.surfaceElevated },
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
           },
         ]}
       >
-        <View style={styles.statusDot} />
-        <Text style={styles.statusText}>{message.text}</Text>
+        <View style={[styles.statusDot, { backgroundColor: colors.primary }]} />
+        <Text style={[styles.statusText, { color: colors.textSecondary }]}>{message.text}</Text>
       </Animated.View>
     );
   }
@@ -86,6 +91,7 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
       <Animated.View
         style={[
           styles.iterationPill,
+          { backgroundColor: colors.surfaceElevated },
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
@@ -93,7 +99,7 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
         ]}
       >
         <Ionicons name="repeat" size={12} color={colors.textMuted} />
-        <Text style={styles.iterationText}>{message.text}</Text>
+        <Text style={[styles.iterationText, { color: colors.textMuted }]}>{message.text}</Text>
       </Animated.View>
     );
   }
@@ -104,7 +110,7 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
       <Animated.View
         style={[
           styles.messageBubble,
-          styles.errorBubble,
+          { backgroundColor: colors.surfaceElevated, borderLeftColor: colors.error },
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
@@ -113,12 +119,12 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
       >
         <View style={styles.messageHeader}>
           <Ionicons name="alert-circle" size={16} color={colors.error} />
-          <Text style={[styles.messageText, styles.errorText]}>{message.text}</Text>
+          <Text style={[styles.messageText, { color: colors.error }]}>{message.text}</Text>
         </View>
         {message.metadata?.stderr && (
-          <Text style={styles.errorDetails}>{message.metadata.stderr}</Text>
+          <Text style={[styles.errorDetails, { color: colors.textMuted }]}>{message.metadata.stderr}</Text>
         )}
-        <Text style={styles.timestamp}>{formatTime(message.timestamp)}</Text>
+        <Text style={[styles.timestamp, { color: colors.textMuted }]}>{formatTime(message.timestamp)}</Text>
       </Animated.View>
     );
   }
@@ -129,7 +135,7 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
       <Animated.View
         style={[
           styles.messageBubble,
-          styles.successBubble,
+          { backgroundColor: colors.surfaceElevated, borderLeftColor: colors.success },
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
@@ -138,9 +144,9 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
       >
         <View style={styles.messageHeader}>
           <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-          <Text style={[styles.messageText, styles.successText]}>{message.text}</Text>
+          <Text style={[styles.messageText, { color: colors.success }]}>{message.text}</Text>
         </View>
-        <Text style={styles.timestamp}>{formatTime(message.timestamp)}</Text>
+        <Text style={[styles.timestamp, { color: colors.textMuted }]}>{formatTime(message.timestamp)}</Text>
       </Animated.View>
     );
   }
@@ -154,7 +160,7 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
       <Animated.View
         style={[
           styles.messageBubble,
-          styles.codeBubble,
+          { backgroundColor: colors.surfaceElevated, borderLeftColor: colors.primary },
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
@@ -170,7 +176,7 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
             size={16}
             color={isSuccess !== false ? colors.primary : colors.error}
           />
-          <Text style={styles.messageText}>{message.text}</Text>
+          <Text style={[styles.messageText, { color: colors.textPrimary }]}>{message.text}</Text>
           {hasOutput && (
             <Ionicons
               name={expanded ? 'chevron-up' : 'chevron-down'}
@@ -180,38 +186,45 @@ function MessageBubble({ message, isNew }: MessageBubbleProps): React.JSX.Elemen
           )}
         </Pressable>
         {expanded && message.metadata?.stdout && (
-          <View style={styles.codeOutput}>
-            <Text style={styles.codeOutputText}>{message.metadata.stdout}</Text>
+          <View style={[styles.codeOutput, { backgroundColor: colors.background }]}>
+            <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{message.metadata.stdout}</Text>
           </View>
         )}
         {expanded && message.metadata?.stderr && (
           <View style={[styles.codeOutput, styles.codeOutputError]}>
-            <Text style={styles.codeOutputText}>{message.metadata.stderr}</Text>
+            <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{message.metadata.stderr}</Text>
           </View>
         )}
-        <Text style={styles.timestamp}>{formatTime(message.timestamp)}</Text>
+        <Text style={[styles.timestamp, { color: colors.textMuted }]}>{formatTime(message.timestamp)}</Text>
       </Animated.View>
     );
   }
 
   // Default thinking/other message
+  const isLive = message.id === LIVE_MESSAGE_ID;
   return (
     <Animated.View
       style={[
         styles.messageBubble,
+        { backgroundColor: colors.surfaceElevated, borderLeftColor: colors.primary },
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
         },
       ]}
     >
-      <Text style={styles.messageText}>{message.text}</Text>
-      <Text style={styles.timestamp}>{formatTime(message.timestamp)}</Text>
+      <Text style={[styles.messageText, { color: colors.textPrimary }]}>{message.text}</Text>
+      {isLive ? (
+        <Text style={[styles.timestamp, { color: colors.primary, fontStyle: 'italic' }]}>streaming...</Text>
+      ) : (
+        <Text style={[styles.timestamp, { color: colors.textMuted }]}>{formatTime(message.timestamp)}</Text>
+      )}
     </Animated.View>
   );
 }
 
 export function MessageStream({ messages, status }: MessageStreamProps): React.JSX.Element {
+  const { colors, shadows } = useTheme();
   const [collapsed, setCollapsed] = useState(false);  // Start expanded
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -283,19 +296,19 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
   const isActive = status === 'thinking' || status === 'executing' || status === 'drawing';
 
   return (
-    <View style={styles.container}>
-      <Pressable style={styles.header} onPress={toggleCollapsed}>
+    <View style={[styles.container, { backgroundColor: colors.surface }, shadows.md]}>
+      <Pressable style={[styles.header, { borderBottomColor: colors.border }]} onPress={toggleCollapsed}>
         <View style={styles.headerLeft}>
           <Animated.View
             style={[
               styles.statusIndicator,
-              isActive && styles.statusIndicatorActive,
+              { backgroundColor: isActive ? colors.primary : colors.textMuted },
               { opacity: isActive ? pulseAnim : 1 },
             ]}
           />
-          <Text style={styles.headerTitle}>Agent Thoughts</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Agent Thoughts</Text>
           {isActive && (
-            <Text style={styles.headerStatus}>{STATUS_LABELS[status]}</Text>
+            <Text style={[styles.headerStatus, { color: colors.primary }]}>{STATUS_LABELS[status]}</Text>
           )}
         </View>
         <Ionicons
@@ -318,21 +331,22 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
             {messages.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="chatbubble-ellipses-outline" size={32} color={colors.textMuted} />
-                <Text style={styles.emptyText}>Waiting for agent thoughts...</Text>
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>Waiting for agent thoughts...</Text>
               </View>
             ) : (
               messages.map((message) => (
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  isNew={newMessageIds.current.has(message.id)}
+                  isNew={newMessageIds.current.has(message.id) || message.id === LIVE_MESSAGE_ID}
+                  colors={colors}
                 />
               ))
             )}
           </ScrollView>
 
           {!autoScroll && messages.length > 0 && (
-            <Pressable style={styles.scrollButton} onPress={scrollToBottom}>
+            <Pressable style={[styles.scrollButton, { backgroundColor: colors.primary }, shadows.sm]} onPress={scrollToBottom}>
               <Ionicons name="arrow-down" size={16} color={colors.textOnPrimary} />
             </Pressable>
           )}
@@ -344,10 +358,8 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    ...shadows.md,
   },
   header: {
     flexDirection: 'row',
@@ -356,7 +368,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -367,19 +378,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.textMuted,
-  },
-  statusIndicatorActive: {
-    backgroundColor: colors.primary,
   },
   headerTitle: {
     ...typography.body,
     fontWeight: '600',
-    color: colors.textPrimary,
   },
   headerStatus: {
     ...typography.small,
-    color: colors.primary,
     marginLeft: spacing.xs,
   },
   content: {
@@ -400,24 +405,19 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.caption,
-    color: colors.textMuted,
   },
   messageBubble: {
-    backgroundColor: colors.surfaceElevated,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     paddingVertical: spacing.lg,
     borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
   },
   messageText: {
     ...typography.body,
-    color: colors.textPrimary,
     lineHeight: 24,
   },
   timestamp: {
     ...typography.small,
-    color: colors.textMuted,
     marginTop: spacing.sm,
     textAlign: 'right',
   },
@@ -425,7 +425,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: colors.surfaceElevated,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
@@ -435,11 +434,9 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.primary,
   },
   statusText: {
     ...typography.small,
-    color: colors.textSecondary,
   },
   scrollButton: {
     position: 'absolute',
@@ -448,17 +445,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.sm,
   },
-  // Iteration pill style
   iterationPill: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: colors.surfaceElevated,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
@@ -467,42 +460,20 @@ const styles = StyleSheet.create({
   },
   iterationText: {
     ...typography.small,
-    color: colors.textMuted,
   },
-  // Message header with icon
   messageHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  // Error styles
-  errorBubble: {
-    borderLeftColor: colors.error,
-  },
-  errorText: {
-    color: colors.error,
-  },
   errorDetails: {
     ...typography.small,
-    color: colors.textMuted,
     marginTop: spacing.sm,
     fontFamily: 'monospace',
-  },
-  // Success styles
-  successBubble: {
-    borderLeftColor: colors.success,
-  },
-  successText: {
-    color: colors.success,
-  },
-  // Code execution styles
-  codeBubble: {
-    borderLeftColor: colors.primary,
   },
   codeOutput: {
     marginTop: spacing.sm,
     padding: spacing.sm,
-    backgroundColor: colors.background,
     borderRadius: borderRadius.sm,
     maxHeight: 150,
     overflow: 'hidden',
@@ -513,6 +484,5 @@ const styles = StyleSheet.create({
   codeOutputText: {
     ...typography.small,
     fontFamily: 'monospace',
-    color: colors.textSecondary,
   },
 });

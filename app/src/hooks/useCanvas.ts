@@ -27,6 +27,9 @@ export interface CanvasHookState {
   maxIterations: number;
 }
 
+// Special ID for the live streaming message
+export const LIVE_MESSAGE_ID = 'live_thinking';
+
 export type CanvasAction =
   | { type: 'ADD_STROKE'; path: Path }
   | { type: 'SET_STROKES'; strokes: Path[] }
@@ -38,6 +41,8 @@ export type CanvasAction =
   | { type: 'SET_STATUS'; status: AgentStatus }
   | { type: 'SET_THINKING'; text: string }
   | { type: 'APPEND_THINKING'; text: string }
+  | { type: 'APPEND_LIVE_MESSAGE'; text: string }
+  | { type: 'FINALIZE_LIVE_MESSAGE' }
   | { type: 'ADD_MESSAGE'; message: AgentMessage }
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'TOGGLE_DRAWING' }
@@ -101,6 +106,39 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
 
     case 'APPEND_THINKING':
       return { ...state, thinking: state.thinking + action.text };
+
+    case 'APPEND_LIVE_MESSAGE': {
+      const existingIndex = state.messages.findIndex(m => m.id === LIVE_MESSAGE_ID);
+      const existing = state.messages[existingIndex];
+      if (existingIndex >= 0 && existing) {
+        // Update existing live message
+        const updated = [...state.messages];
+        updated[existingIndex] = {
+          id: existing.id,
+          type: existing.type,
+          text: existing.text + action.text,
+          timestamp: Date.now(),
+        };
+        return { ...state, messages: updated };
+      } else {
+        // Create new live message
+        const liveMessage: AgentMessage = {
+          id: LIVE_MESSAGE_ID,
+          type: 'thinking',
+          text: action.text,
+          timestamp: Date.now(),
+        };
+        return { ...state, messages: [...state.messages, liveMessage] };
+      }
+    }
+
+    case 'FINALIZE_LIVE_MESSAGE': {
+      // Remove the live message (it will be replaced by a proper thinking message)
+      return {
+        ...state,
+        messages: state.messages.filter(m => m.id !== LIVE_MESSAGE_ID),
+      };
+    }
 
     case 'ADD_MESSAGE':
       return {

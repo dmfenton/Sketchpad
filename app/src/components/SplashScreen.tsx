@@ -7,7 +7,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
-import { colors, gradients, shadows, spacing, typography } from '../theme';
+import { spacing, typography, useTheme } from '../theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -22,12 +22,18 @@ function WaterLily({
   size,
   petalColor,
   rotation = 0,
+  accent,
+  accentMuted,
+  gold,
 }: {
   cx: number;
   cy: number;
   size: number;
   petalColor: string;
   rotation?: number;
+  accent: string;
+  accentMuted: string;
+  gold: string;
 }) {
   const petalCount = 8;
   const petals = [];
@@ -55,12 +61,12 @@ function WaterLily({
   return (
     <G>
       {/* Lily pad (green circle beneath) */}
-      <Circle cx={cx} cy={cy} r={size * 1.2} fill={colors.accent} opacity={0.4} />
-      <Circle cx={cx - size * 0.2} cy={cy} r={size * 1.1} fill={colors.accentMuted} opacity={0.3} />
+      <Circle cx={cx} cy={cy} r={size * 1.2} fill={accent} opacity={0.4} />
+      <Circle cx={cx - size * 0.2} cy={cy} r={size * 1.1} fill={accentMuted} opacity={0.3} />
       {/* Petals */}
       {petals}
       {/* Center of flower */}
-      <Circle cx={cx} cy={cy} r={size * 0.25} fill={colors.gold} opacity={0.9} />
+      <Circle cx={cx} cy={cy} r={size * 0.25} fill={gold} opacity={0.9} />
       <Circle cx={cx} cy={cy} r={size * 0.15} fill="#F0E0A0" />
     </G>
   );
@@ -98,6 +104,7 @@ function BrushStroke({
 }
 
 export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element {
+  const { colors, gradients, shadows } = useTheme();
   // Animation values
   const fadeIn = useRef(new Animated.Value(0)).current;
   const titleSlide = useRef(new Animated.Value(30)).current;
@@ -167,13 +174,13 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
   });
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeOut }]}>
+    <Animated.View style={[styles.container, { backgroundColor: colors.background, opacity: fadeOut }]}>
       {/* Gradient-like background with overlapping circles */}
       <View style={styles.gradientBackground}>
-        <View style={[styles.gradientCircle, styles.gradientCircle1]} />
-        <View style={[styles.gradientCircle, styles.gradientCircle2]} />
-        <View style={[styles.gradientCircle, styles.gradientCircle3]} />
-        <View style={[styles.gradientCircle, styles.gradientCircle4]} />
+        <View style={[styles.gradientCircle, styles.gradientCircle1, { backgroundColor: gradients.mist[0] }]} />
+        <View style={[styles.gradientCircle, styles.gradientCircle2, { backgroundColor: gradients.waterLilies[1] }]} />
+        <View style={[styles.gradientCircle, styles.gradientCircle3, { backgroundColor: gradients.garden[0] }]} />
+        <View style={[styles.gradientCircle, styles.gradientCircle4, { backgroundColor: gradients.sunrise[0] }]} />
       </View>
 
       {/* SVG decorations */}
@@ -200,6 +207,9 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
             size={35}
             petalColor={colors.secondary}
             rotation={15}
+            accent={colors.accent}
+            accentMuted={colors.accentMuted}
+            gold={colors.gold}
           />
 
           <WaterLily
@@ -208,6 +218,9 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
             size={28}
             petalColor={colors.lavender}
             rotation={-20}
+            accent={colors.accent}
+            accentMuted={colors.accentMuted}
+            gold={colors.gold}
           />
 
           <WaterLily
@@ -216,6 +229,9 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
             size={32}
             petalColor={colors.coral}
             rotation={45}
+            accent={colors.accent}
+            accentMuted={colors.accentMuted}
+            gold={colors.gold}
           />
 
           <WaterLily
@@ -224,6 +240,9 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
             size={40}
             petalColor={colors.secondary}
             rotation={-10}
+            accent={colors.accent}
+            accentMuted={colors.accentMuted}
+            gold={colors.gold}
           />
 
           {/* Small accent lilies */}
@@ -233,6 +252,9 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
             size={18}
             petalColor={colors.lavender}
             rotation={30}
+            accent={colors.accent}
+            accentMuted={colors.accentMuted}
+            gold={colors.gold}
           />
           <WaterLily
             cx={SCREEN_WIDTH * 0.35}
@@ -240,6 +262,9 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
             size={22}
             petalColor={colors.coral}
             rotation={-25}
+            accent={colors.accent}
+            accentMuted={colors.accentMuted}
+            gold={colors.gold}
           />
         </Svg>
       </Animated.View>
@@ -255,16 +280,16 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
             },
           ]}
         >
-          <Animated.Text style={styles.title}>Code Monet</Animated.Text>
-          <View style={styles.titleUnderline} />
+          <Animated.Text style={[styles.title, { color: colors.textPrimary }]}>Code Monet</Animated.Text>
+          <View style={[styles.titleUnderline, { backgroundColor: colors.secondary }]} />
         </Animated.View>
 
-        <Animated.Text style={[styles.subtitle, { opacity: subtitleFade }]}>
+        <Animated.Text style={[styles.subtitle, { color: colors.textSecondary, opacity: subtitleFade }]}>
           Where AI Meets Impressionism
         </Animated.Text>
 
         <Animated.View style={[styles.brushContainer, { opacity: subtitleFade }]}>
-          <View style={styles.brushIcon}>
+          <View style={[styles.brushIcon, shadows.glow]}>
             <Svg width={40} height={40} viewBox="0 0 40 40">
               <Path
                 d="M8 32 Q12 28 16 24 L28 12 Q32 8 34 6 Q36 8 34 12 L22 24 Q18 28 14 32 Q10 36 8 32Z"
@@ -278,7 +303,7 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
       </View>
 
       {/* Bottom attribution */}
-      <Animated.Text style={[styles.attribution, { opacity: subtitleFade }]}>
+      <Animated.Text style={[styles.attribution, { color: colors.textMuted, opacity: subtitleFade }]}>
         An AI Drawing Experience
       </Animated.Text>
     </Animated.View>
@@ -288,7 +313,6 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 100,
@@ -304,7 +328,6 @@ const styles = StyleSheet.create({
   gradientCircle1: {
     width: SCREEN_WIDTH * 1.5,
     height: SCREEN_WIDTH * 1.5,
-    backgroundColor: gradients.mist[0],
     top: -SCREEN_WIDTH * 0.5,
     left: -SCREEN_WIDTH * 0.25,
     opacity: 0.5,
@@ -312,7 +335,6 @@ const styles = StyleSheet.create({
   gradientCircle2: {
     width: SCREEN_WIDTH * 1.2,
     height: SCREEN_WIDTH * 1.2,
-    backgroundColor: gradients.waterLilies[1],
     bottom: -SCREEN_WIDTH * 0.4,
     right: -SCREEN_WIDTH * 0.3,
     opacity: 0.3,
@@ -320,7 +342,6 @@ const styles = StyleSheet.create({
   gradientCircle3: {
     width: SCREEN_WIDTH * 0.8,
     height: SCREEN_WIDTH * 0.8,
-    backgroundColor: gradients.garden[0],
     top: SCREEN_HEIGHT * 0.3,
     left: -SCREEN_WIDTH * 0.2,
     opacity: 0.25,
@@ -328,7 +349,6 @@ const styles = StyleSheet.create({
   gradientCircle4: {
     width: SCREEN_WIDTH * 0.6,
     height: SCREEN_WIDTH * 0.6,
-    backgroundColor: gradients.sunrise[0],
     bottom: SCREEN_HEIGHT * 0.25,
     right: -SCREEN_WIDTH * 0.15,
     opacity: 0.3,
@@ -350,7 +370,6 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.artistic,
-    color: colors.textPrimary,
     textAlign: 'center',
     textShadowColor: 'rgba(123, 140, 222, 0.3)',
     textShadowOffset: { width: 0, height: 2 },
@@ -359,14 +378,12 @@ const styles = StyleSheet.create({
   titleUnderline: {
     width: 120,
     height: 3,
-    backgroundColor: colors.secondary,
     marginTop: spacing.md,
     borderRadius: 2,
     opacity: 0.8,
   },
   subtitle: {
     ...typography.heading,
-    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: spacing.sm,
     fontStyle: 'italic',
@@ -374,14 +391,11 @@ const styles = StyleSheet.create({
   brushContainer: {
     marginTop: spacing['2xl'],
   },
-  brushIcon: {
-    ...shadows.glow,
-  },
+  brushIcon: {},
   attribution: {
     position: 'absolute',
     bottom: spacing['3xl'],
     ...typography.caption,
-    color: colors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },

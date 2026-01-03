@@ -65,6 +65,8 @@ export const handleThinking: MessageHandler<ThinkingMessage> = (
   message,
   dispatch
 ) => {
+  // Finalize any live message first (removes it so we can add the complete one)
+  dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
   dispatch({ type: 'SET_THINKING', text: message.text });
   dispatch({
     type: 'ADD_MESSAGE',
@@ -81,7 +83,10 @@ export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (
   message,
   dispatch
 ) => {
+  // Update both the legacy thinking state and the live message
+  console.log('[handleThinkingDelta]', message.text.substring(0, 20));
   dispatch({ type: 'APPEND_THINKING', text: message.text });
+  dispatch({ type: 'APPEND_LIVE_MESSAGE', text: message.text });
 };
 
 export const handleStatus: MessageHandler<StatusMessage> = (
@@ -92,6 +97,7 @@ export const handleStatus: MessageHandler<StatusMessage> = (
 
   // Reset thinking when starting a new turn
   if (message.status === 'thinking') {
+    dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
     dispatch({ type: 'RESET_TURN' });
   }
 
@@ -215,6 +221,7 @@ export const handleNewCanvas: MessageHandler<NewCanvasMessage> = (
   _message,
   dispatch
 ) => {
+  console.log('[handleNewCanvas] Clearing canvas');
   dispatch({ type: 'CLEAR' });
   dispatch({ type: 'CLEAR_MESSAGES' });
 };
@@ -238,6 +245,7 @@ export const handleLoadCanvas: MessageHandler<LoadCanvasMessage> = (
 };
 
 export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
+  console.log(`[handleInit] Loading ${message.strokes.length} strokes, piece ${message.piece_count}`);
   dispatch({
     type: 'INIT',
     strokes: message.strokes,

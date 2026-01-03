@@ -21,7 +21,7 @@ export function getWebSocketUrl(): string {
   }
 
   // For native devices, use the LAN IP of the dev machine
-  // This is the IP where the Python server is running
+  // This is where the Python server is running
   return 'ws://192.168.4.65:8000/ws';
 }
 
