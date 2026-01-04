@@ -27,12 +27,14 @@ interface AuthScreenProps {
 
 export function AuthScreen({ magicLinkError, onClearError }: AuthScreenProps): React.JSX.Element {
   const { colors } = useTheme();
-  const { signIn, signUp, requestMagicLink } = useAuth();
+  const { signIn, signUp, requestMagicLink, verifyMagicLinkCode } = useAuth();
 
   const [mode, setMode] = useState<AuthMode>('magic-link');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [code, setCode] = useState('');
+  const [showCodeInput, setShowCodeInput] = useState(false);
   const [error, setError] = useState<string | null>(magicLinkError ?? null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,9 +59,22 @@ export function AuthScreen({ magicLinkError, onClearError }: AuthScreenProps): R
             setLoading(false);
             return;
           }
-          result = await requestMagicLink(email);
-          if (result.success) {
-            setSuccess('Check your email for a sign-in link');
+
+          // If showing code input, verify the code
+          if (showCodeInput) {
+            if (code.length !== 6) {
+              setError('Please enter the 6-digit code');
+              setLoading(false);
+              return;
+            }
+            result = await verifyMagicLinkCode(email, code);
+          } else {
+            // Request a new magic link
+            result = await requestMagicLink(email);
+            if (result.success) {
+              setSuccess('Check your email for a sign-in link or enter the code below');
+              setShowCodeInput(true);
+            }
           }
         } else if (mode === 'signin') {
           result = await signIn(email, password);
@@ -94,6 +109,8 @@ export function AuthScreen({ magicLinkError, onClearError }: AuthScreenProps): R
     }
     clearError();
     setSuccess(null);
+    setShowCodeInput(false);
+    setCode('');
   };
 
   return (
@@ -129,12 +146,47 @@ export function AuthScreen({ magicLinkError, onClearError }: AuthScreenProps): R
               placeholder="Email"
               placeholderTextColor={colors.textSecondary}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                // Reset code input if email changes
+                if (showCodeInput) {
+                  setShowCodeInput(false);
+                  setCode('');
+                }
+              }}
               autoCapitalize="none"
               autoCorrect={false}
+              autoComplete="email"
               keyboardType="email-address"
+              textContentType="emailAddress"
+              accessibilityLabel="Email address"
               editable={!loading}
             />
+
+            {mode === 'magic-link' && showCodeInput && (
+              <TextInput
+                style={[
+                  styles.input,
+                  styles.codeInput,
+                  {
+                    backgroundColor: colors.surface,
+                    color: colors.textPrimary,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="000000"
+                placeholderTextColor={colors.textSecondary}
+                value={code}
+                onChangeText={(text) => setCode(text.replace(/[^0-9]/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="one-time-code"
+                accessibilityLabel="6-digit verification code"
+                maxLength={6}
+                editable={!loading}
+                autoFocus
+              />
+            )}
 
             {mode !== 'magic-link' && (
               <TextInput
@@ -201,7 +253,9 @@ export function AuthScreen({ magicLinkError, onClearError }: AuthScreenProps): R
               ) : (
                 <Text style={[styles.buttonText, { color: colors.background }]}>
                   {mode === 'magic-link'
-                    ? 'Send Magic Link'
+                    ? showCodeInput
+                      ? 'Verify Code'
+                      : 'Send Magic Link'
                     : mode === 'signin'
                       ? 'Sign In'
                       : 'Sign Up'}
@@ -266,6 +320,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     fontSize: 16,
+  },
+  codeInput: {
+    fontSize: 24,
+    fontWeight: '600' as const,
+    letterSpacing: 8,
+    textAlign: 'center',
   },
   errorBox: {
     padding: spacing.sm,

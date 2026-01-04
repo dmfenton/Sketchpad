@@ -22,6 +22,7 @@ from drawing_agent.auth.rate_limit import (
     rate_limiter,
 )
 from drawing_agent.auth.schemas import (
+    MagicLinkCodeVerifyRequest,
     MagicLinkRequest,
     MagicLinkVerifyRequest,
     MessageResponse,
@@ -206,20 +207,25 @@ async def request_magic_link(
 
         # Only send email if user exists and is active
         if user and user.is_active:
-            # Generate token
+            # Generate token and 6-digit code
             token = secrets.token_urlsafe(32)
+            code = f"{secrets.randbelow(1000000):06d}"
             expires_at = datetime.now(UTC) + timedelta(minutes=settings.magic_link_expire_minutes)
 
-            # Store token
+            # Store token with code
             await repository.create_magic_link_token(
-                session, token=token, email=request.email, expires_at=expires_at
+                session, token=token, code=code, email=request.email, expires_at=expires_at
             )
 
             # Build magic link URL
             magic_link_url = f"{settings.magic_link_base_url}/auth/verify?token={token}"
 
+            # In dev mode, log the code for easy local testing
+            if settings.dev_mode:
+                logger.info(f"[DEV] Magic link code for {request.email}: {code}")
+
             # Send email (fire and forget - don't fail the request if email fails)
-            email_sent = send_magic_link_email(request.email, magic_link_url)
+            email_sent = send_magic_link_email(request.email, magic_link_url, code)
             if email_sent:
                 logger.info(f"Magic link sent to {request.email}")
             else:
@@ -375,3 +381,47 @@ async def verify_magic_link(request: MagicLinkVerifyRequest) -> TokenResponse:
     refresh_token = create_refresh_token(user.id)
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+
+
+@router.post("/magic-link/verify-code", response_model=TokenResponse)
+async def verify_magic_link_code(request: MagicLinkCodeVerifyRequest) -> TokenResponse:
+    """Verify a magic link using email and 6-digit code.
+
+    Alternative to clicking the link - user can enter the code manually.
+    The code must be valid, not expired, and not already used.
+    """
+    try:
+        async with get_session() as session:
+            # Attempt to use the code (marks it as used if valid)
+            magic_link = await repository.use_magic_link_code(session, request.email, request.code)
+
+            if magic_link is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or expired code",
+                )
+
+            # Get the user
+            user = await repository.get_user_by_email(session, magic_link.email)
+
+            if user is None or not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User not found or inactive",
+                )
+
+            # Extract values before session closes
+            user_id = user.id
+            user_email = user.email
+            logger.info(f"User signed in via magic code: {user_email} (id={user_id})")
+
+        # Generate tokens
+        access_token = create_access_token(user_id, user_email)
+        refresh_token = create_refresh_token(user_id)
+
+        return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error verifying magic code: {e}")
+        raise

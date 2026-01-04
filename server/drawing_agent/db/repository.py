@@ -103,11 +103,12 @@ async def revoke_invite_code(session: AsyncSession, code: str) -> bool:
 async def create_magic_link_token(
     session: AsyncSession,
     token: str,
+    code: str,
     email: str,
     expires_at: datetime,
 ) -> MagicLinkToken:
-    """Create a new magic link token."""
-    magic_link = MagicLinkToken(token=token, email=email, expires_at=expires_at)
+    """Create a new magic link token with verification code."""
+    magic_link = MagicLinkToken(token=token, code=code, email=email, expires_at=expires_at)
     session.add(magic_link)
     await session.flush()
     return magic_link
@@ -122,6 +123,34 @@ async def get_magic_link_token(session: AsyncSession, token: str) -> MagicLinkTo
 async def use_magic_link_token(session: AsyncSession, token: str) -> MagicLinkToken | None:
     """Mark a magic link token as used. Returns None if token doesn't exist, expired, or already used."""
     magic_link = await get_magic_link_token(session, token)
+    if magic_link is None:
+        return None
+    if magic_link.used_at is not None:
+        return None  # Already used
+    if magic_link.expires_at < datetime.now(UTC):
+        return None  # Expired
+    magic_link.used_at = datetime.now(UTC)
+    return magic_link
+
+
+async def get_magic_link_by_code(
+    session: AsyncSession, email: str, code: str
+) -> MagicLinkToken | None:
+    """Get magic link token by email and code."""
+    result = await session.execute(
+        select(MagicLinkToken).where(
+            MagicLinkToken.email == email,
+            MagicLinkToken.code == code,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def use_magic_link_code(
+    session: AsyncSession, email: str, code: str
+) -> MagicLinkToken | None:
+    """Mark a magic link token as used by code. Returns None if not found, expired, or already used."""
+    magic_link = await get_magic_link_by_code(session, email, code)
     if magic_link is None:
         return None
     if magic_link.used_at is not None:

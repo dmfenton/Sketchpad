@@ -16,7 +16,7 @@ def get_ses_client() -> Any:
     return boto3.client("ses", region_name=settings.ses_region)
 
 
-def send_magic_link_email(to_email: str, magic_link_url: str) -> bool:
+def send_magic_link_email(to_email: str, magic_link_url: str, code: str) -> bool:
     """Send a magic link email via AWS SES.
 
     Returns True if email was sent successfully, False otherwise.
@@ -43,6 +43,12 @@ def send_magic_link_email(to_email: str, magic_link_url: str) -> bool:
             Sign In
         </a>
     </p>
+    <p style="color: #666; font-size: 16px; line-height: 1.5; margin-top: 30px;">
+        Or enter this code in the app:
+    </p>
+    <p style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #333; margin: 20px 0;">
+        {code}
+    </p>
     <p style="color: #999; font-size: 14px;">
         If you didn't request this email, you can safely ignore it.
     </p>
@@ -59,6 +65,8 @@ def send_magic_link_email(to_email: str, magic_link_url: str) -> bool:
 Click the link below to sign in. This link expires in {settings.magic_link_expire_minutes} minutes.
 
 {magic_link_url}
+
+Or enter this code in the app: {code}
 
 If you didn't request this email, you can safely ignore it.
 """

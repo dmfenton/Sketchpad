@@ -56,6 +56,7 @@ class MagicLinkToken(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    code: Mapped[str] = mapped_column(String(6), nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

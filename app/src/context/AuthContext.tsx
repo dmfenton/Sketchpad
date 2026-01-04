@@ -31,6 +31,7 @@ export interface AuthContextValue extends AuthState {
   refreshToken: () => Promise<boolean>;
   requestMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>;
   verifyMagicLink: (token: string) => Promise<{ success: boolean; error?: string }>;
+  verifyMagicLinkCode: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
   setTokensFromCallback: (accessToken: string, refreshToken: string) => Promise<{ success: boolean; error?: string }>;
 }
 
@@ -313,6 +314,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const verifyMagicLinkCode = useCallback(async (email: string, code: string) => {
+    try {
+      const response = await fetch(`${getApiUrl()}/auth/magic-link/verify-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+
+      if (!response.ok) {
+        const error = (await response.json()) as { detail: string };
+        return { success: false, error: error.detail || 'Invalid or expired code' };
+      }
+
+      const data = (await response.json()) as { access_token: string; refresh_token: string };
+      await storage.setItem(ACCESS_TOKEN_KEY, data.access_token);
+      await storage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+
+      const decoded = decodeToken(data.access_token);
+      if (decoded) {
+        setState({
+          isLoading: false,
+          isAuthenticated: true,
+          user: { id: parseInt(decoded.sub, 10), email: decoded.email },
+          accessToken: data.access_token,
+        });
+        return { success: true };
+      }
+
+      return { success: false, error: 'Invalid token received' };
+    } catch (error) {
+      console.error('[Auth] Magic link code verify error:', error);
+      return { success: false, error: 'Network error' };
+    }
+  }, []);
+
   // Set tokens directly from deep link callback (used when web page redirects to app)
   const setTokensFromCallback = useCallback(async (accessToken: string, refreshTokenValue: string) => {
     try {
@@ -346,9 +382,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshToken,
       requestMagicLink,
       verifyMagicLink,
+      verifyMagicLinkCode,
       setTokensFromCallback,
     }),
-    [state, signIn, signUp, signOut, refreshToken, requestMagicLink, verifyMagicLink, setTokensFromCallback]
+    [state, signIn, signUp, signOut, refreshToken, requestMagicLink, verifyMagicLink, verifyMagicLinkCode, setTokensFromCallback]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
