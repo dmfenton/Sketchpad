@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-01-04
+
+### Added
+- Rate limiting on magic link endpoint (3 req/15min per email, 10 req/min per IP)
+- Automatic cleanup of expired magic link tokens
+- `ses_configuration_set` to config.py for environment-specific SES settings
+
+## [1.2.1] - 2026-01-04
+
+### Fixed
+- Magic link verification errors now displayed to users in AuthScreen
+
+### Changed
+- Updated CLAUDE.md with magic link authentication documentation
+
+## [1.2.0] - 2026-01-04
+
+### Added
+- iOS Universal Links for magic link deep linking
+- Apple App Site Association (AASA) endpoint at `/.well-known/apple-app-site-association`
+- Deep link handler in React Native app for `/auth/verify` path
+- `associatedDomains` configuration for iOS
+
+### Changed
+- Magic link is now the default sign-in method in the app
+- AuthScreen supports magic link, password sign-in, and sign-up modes
+
+## [1.1.1] - 2026-01-04
+
+### Changed
+- Rebranded from "Drawing Agent" to "Code Monet"
+- Updated email templates, FastAPI title, and app name
+- Fixed magic link base URL to use monet.dmfenton.net
+
+## [1.1.0] - 2026-01-04
+
+### Added
+- Magic link (passwordless) authentication via email
+- AWS SES integration for sending authentication emails
+- SES infrastructure in Terraform (domain verification, DKIM, SPF, DMARC)
+- `magic_link_tokens` database table for secure token storage
+- `/auth/magic-link` endpoint to request magic links
+- `/auth/magic-link/verify` endpoint to exchange tokens for JWT
+
+### Security
+- Magic link tokens use 256-bit cryptographic randomness
+- Tokens expire after 15 minutes and are single-use
+- User enumeration prevented (same response for existing/non-existing emails)
+
 ## [1.0.2] - 2026-01-04
 
 ### Added
@@ -59,7 +108,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/dmfenton/sketchpad/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/dmfenton/sketchpad/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/dmfenton/sketchpad/compare/v1.1.1...v1.2.0
+[1.1.1]: https://github.com/dmfenton/sketchpad/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/dmfenton/sketchpad/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/dmfenton/sketchpad/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/dmfenton/sketchpad/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/dmfenton/sketchpad/releases/tag/v1.0.0
