@@ -24,7 +24,7 @@ def send_magic_link_email(to_email: str, magic_link_url: str) -> bool:
     """
     ses = get_ses_client()
 
-    subject = "Sign in to Drawing Agent"
+    subject = "Sign in to Code Monet"
     html_body = f"""
 <!DOCTYPE html>
 <html>
@@ -33,7 +33,7 @@ def send_magic_link_email(to_email: str, magic_link_url: str) -> bool:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-    <h1 style="color: #333; font-size: 24px;">Sign in to Drawing Agent</h1>
+    <h1 style="color: #333; font-size: 24px;">Sign in to Code Monet</h1>
     <p style="color: #666; font-size: 16px; line-height: 1.5;">
         Click the button below to sign in. This link expires in {settings.magic_link_expire_minutes} minutes.
     </p>
@@ -54,7 +54,7 @@ def send_magic_link_email(to_email: str, magic_link_url: str) -> bool:
 </html>
 """
 
-    text_body = f"""Sign in to Drawing Agent
+    text_body = f"""Sign in to Code Monet
 
 Click the link below to sign in. This link expires in {settings.magic_link_expire_minutes} minutes.
 

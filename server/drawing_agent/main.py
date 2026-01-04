@@ -79,8 +79,8 @@ async def lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
 
 
 app = FastAPI(
-    title="Drawing Agent",
-    description="Autonomous AI artist server",
+    title="Code Monet",
+    description="Autonomous AI artist",
     version="0.1.0",
     lifespan=lifespan,
 )
