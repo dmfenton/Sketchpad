@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     # Email (SES)
     ses_sender_email: str = "noreply@dmfenton.net"
     ses_region: str = "us-east-1"
+    ses_configuration_set: str = "drawing-agent-emails"
     magic_link_expire_minutes: int = 15
     magic_link_base_url: str = "https://monet.dmfenton.net"
 

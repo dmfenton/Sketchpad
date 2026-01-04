@@ -4,7 +4,7 @@ import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 
 from drawing_agent.auth.dependencies import CurrentUser
 from drawing_agent.auth.email import send_magic_link_email
@@ -15,6 +15,11 @@ from drawing_agent.auth.jwt import (
     get_user_id_from_token,
 )
 from drawing_agent.auth.password import hash_password, verify_password
+from drawing_agent.auth.rate_limit import (
+    MAGIC_LINK_BY_EMAIL,
+    MAGIC_LINK_BY_IP,
+    rate_limiter,
+)
 from drawing_agent.auth.schemas import (
     MagicLinkRequest,
     MagicLinkVerifyRequest,
@@ -166,13 +171,36 @@ async def logout(user: CurrentUser) -> MessageResponse:
 
 
 @router.post("/magic-link", response_model=MessageResponse)
-async def request_magic_link(request: MagicLinkRequest) -> MessageResponse:
+async def request_magic_link(
+    request: MagicLinkRequest, http_request: Request
+) -> MessageResponse:
     """Request a magic link for passwordless signin.
 
     Sends an email with a magic link if the user exists.
     Always returns success to prevent user enumeration.
+    Rate limited to prevent abuse.
     """
+    # Get client IP for rate limiting
+    client_ip = http_request.client.host if http_request.client else "unknown"
+
+    # Check rate limits (by IP and by email)
+    if not rate_limiter.is_allowed(f"ip:{client_ip}", MAGIC_LINK_BY_IP):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Please try again later.",
+        )
+    if not rate_limiter.is_allowed(f"email:{request.email}", MAGIC_LINK_BY_EMAIL):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests for this email. Please try again later.",
+        )
+
     async with get_session() as session:
+        # Cleanup expired tokens periodically
+        deleted = await repository.cleanup_expired_magic_links(session)
+        if deleted > 0:
+            logger.debug(f"Cleaned up {deleted} expired magic link tokens")
+
         user = await repository.get_user_by_email(session, request.email)
 
         # Only send email if user exists and is active

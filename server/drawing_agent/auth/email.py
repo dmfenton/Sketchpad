@@ -74,7 +74,7 @@ If you didn't request this email, you can safely ignore it.
                     "Html": {"Data": html_body, "Charset": "UTF-8"},
                 },
             },
-            ConfigurationSetName="drawing-agent-emails",
+            ConfigurationSetName=settings.ses_configuration_set,
         )
         logger.info(f"Magic link email sent to {to_email}, MessageId: {response['MessageId']}")
         return True
