@@ -32,3 +32,24 @@ output "ecr_login_command" {
   description = "Command to login to ECR"
   value       = "aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.main.repository_url}"
 }
+
+# SES outputs
+output "ses_domain_identity_arn" {
+  description = "ARN of the SES domain identity"
+  value       = aws_ses_domain_identity.main.arn
+}
+
+output "ses_sender_email" {
+  description = "Email address configured for sending"
+  value       = var.ses_sender_email
+}
+
+output "ses_smtp_endpoint" {
+  description = "SES SMTP endpoint for the region"
+  value       = "email-smtp.${var.aws_region}.amazonaws.com"
+}
+
+output "ses_verification_status" {
+  description = "SES domain verification status (run terraform refresh to update)"
+  value       = "Check AWS Console: https://console.aws.amazon.com/ses/home?region=${var.aws_region}#/verified-identities"
+}

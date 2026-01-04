@@ -176,6 +176,7 @@ infrastructure/
 ├── ec2.tf             # EC2 instance, security group, IAM role, EBS data volume
 ├── ecr.tf             # ECR repository + lifecycle policy
 ├── route53.tf         # DNS records
+├── ses.tf             # SES email sending (domain verification, DKIM, SPF, DMARC)
 ├── monitoring.tf      # CloudWatch alarms
 ├── backup.tf          # DLM backup policies (snapshots EBS volumes tagged Backup=true)
 ├── github_actions.tf  # IAM user for GitHub Actions ECR push
@@ -188,6 +189,7 @@ infrastructure/
 - **ECR** repository with 5-image retention
 - **Elastic IP** for stable addressing
 - **Route 53** DNS (monet.dmfenton.net)
+- **SES** email sending with domain verification, DKIM, SPF, DMARC
 - **CloudWatch** alerts to email
 
 **Terraform commands:**
@@ -205,6 +207,45 @@ terraform apply -var="ssh_key_name=your-key" -var="alert_email=you@example.com"
 
 # Get outputs (IP, URLs, SSH command)
 terraform output
+```
+
+### SES Email Sending
+
+SES is configured for sending magic link emails from `noreply@dmfenton.net`.
+
+**What Terraform creates:**
+- Domain identity verification (TXT record)
+- DKIM signing (3 CNAME records)
+- SPF record for domain authentication
+- DMARC record for email policy
+- Custom MAIL FROM domain (`mail.dmfenton.net`)
+- IAM policy for EC2 to send emails
+
+**After applying Terraform:**
+1. Wait ~5 minutes for DNS propagation
+2. Check verification status in AWS Console
+3. If in SES sandbox, request production access
+
+**SES Sandbox Limitations:**
+- New SES accounts start in "sandbox" mode
+- Can only send to verified email addresses
+- Request production access via AWS Console → SES → Account Dashboard → Request Production Access
+
+**Environment variables for the app:**
+```bash
+# Add to .env
+SES_SENDER_EMAIL=noreply@dmfenton.net
+AWS_REGION=us-east-1
+```
+
+**Testing email sending:**
+```bash
+# From EC2 instance (uses instance role)
+aws ses send-email \
+  --from noreply@dmfenton.net \
+  --to your@email.com \
+  --subject "Test" \
+  --text "Hello from SES"
 ```
 
 ### Remote Server Management (SSM)

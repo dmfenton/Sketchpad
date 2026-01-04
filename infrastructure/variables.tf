@@ -43,3 +43,9 @@ variable "allowed_ssh_cidr" {
   type        = string
   default     = "0.0.0.0/0"  # Restrict this to your IP in production
 }
+
+variable "ses_sender_email" {
+  description = "Email address for sending magic links (must be on domain_name)"
+  type        = string
+  default     = "noreply@dmfenton.net"
+}
