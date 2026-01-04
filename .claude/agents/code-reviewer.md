@@ -73,10 +73,17 @@ Look for:
 - [ ] Mocks are minimal (only external deps)
 - [ ] No flaky tests
 
-### Pass 8: Documentation
+### Pass 8: Documentation & Changelog
 - [ ] CLAUDE.md patterns followed
 - [ ] Complex algorithms explained
 - [ ] "Why" behind non-obvious decisions captured
+- [ ] **CHANGELOG.md updated** for user-facing changes (Required for approval)
+  - Added: New features
+  - Changed: Changes to existing functionality
+  - Deprecated: Features to be removed
+  - Removed: Removed features
+  - Fixed: Bug fixes
+  - Security: Security-related changes
 
 ### Pass 9: Final Synthesis
 1. Compile all findings

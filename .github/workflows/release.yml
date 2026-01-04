@@ -67,18 +67,23 @@ jobs:
 
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Generate changelog
+      - name: Extract changelog
         id: changelog
         run: |
-          # Get previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          VERSION="${{ steps.version.outputs.version }}"
 
-          if [ -n "$PREV_TAG" ]; then
-            echo "Generating changelog from $PREV_TAG to HEAD"
-            CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
-          else
-            echo "No previous tag found, using recent commits"
-            CHANGELOG=$(git log -20 --pretty=format:"- %s (%h)" --no-merges)
+          # Extract this version's section from CHANGELOG.md
+          # Matches from "## [X.Y.Z]" until the next "## [" or end of file
+          CHANGELOG=$(awk "/^## \\[$VERSION\\]/{flag=1; next} /^## \\[/{flag=0} flag" CHANGELOG.md)
+
+          if [ -z "$CHANGELOG" ]; then
+            echo "No changelog entry found for v$VERSION, using git log"
+            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+            if [ -n "$PREV_TAG" ]; then
+              CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            else
+              CHANGELOG=$(git log -20 --pretty=format:"- %s (%h)" --no-merges)
+            fi
           fi
 
           # Write to output using delimiter
@@ -104,7 +109,8 @@ jobs:
 
             ## Deployment
 
-            Watchtower will automatically deploy this release within 30 seconds.
+            - **Server**: Watchtower auto-deploys within 30 seconds
+            - **iOS**: TestFlight build triggered (see Actions tab)
           draft: false
           prerelease: ${{ contains(steps.version.outputs.version, '-') }}
 
@@ -116,5 +122,5 @@ jobs:
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: v$VERSION" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: \`$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Latest tag**: \`$ECR_REGISTRY/$ECR_REPOSITORY:latest\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Watchtower**: Will auto-deploy within 30 seconds" >> $GITHUB_STEP_SUMMARY
+          echo "- **Server**: Watchtower auto-deploys within 30 seconds" >> $GITHUB_STEP_SUMMARY
+          echo "- **iOS**: TestFlight build triggered" >> $GITHUB_STEP_SUMMARY

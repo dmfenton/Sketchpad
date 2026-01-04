@@ -12,8 +12,8 @@ on:
         type: string
 
 env:
-  # WebSocket URL for production - update this to your production server
-  EXPO_PUBLIC_WS_URL: 'wss://your-production-server.com/ws'
+  # WebSocket URL for production
+  EXPO_PUBLIC_WS_URL: 'wss://monet.dmfenton.net/ws'
 
 jobs:
   build-ios:
