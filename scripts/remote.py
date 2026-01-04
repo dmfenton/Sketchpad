@@ -11,7 +11,6 @@ Usage:
     python scripts/remote.py create-invite     # Create invite code
 """
 
-import subprocess
 import sys
 import time
 

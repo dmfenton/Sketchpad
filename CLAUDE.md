@@ -169,22 +169,25 @@ All infrastructure is managed via Terraform in `infrastructure/`:
 
 ```
 infrastructure/
-├── main.tf          # Provider config
-├── variables.tf     # Input variables
-├── outputs.tf       # Output values (URLs, IPs, commands)
-├── vpc.tf           # VPC, subnet, internet gateway
-├── ec2.tf           # EC2 instance, security group, IAM role
-├── ecr.tf           # ECR repository + lifecycle policy
-├── route53.tf       # DNS records
-├── monitoring.tf    # CloudWatch alarms
-└── backup.tf        # EBS backup policies
+├── main.tf            # Provider config
+├── variables.tf       # Input variables
+├── outputs.tf         # Output values (URLs, IPs, commands)
+├── vpc.tf             # VPC, subnet, internet gateway
+├── ec2.tf             # EC2 instance, security group, IAM role, EBS data volume
+├── ecr.tf             # ECR repository + lifecycle policy
+├── route53.tf         # DNS records
+├── monitoring.tf      # CloudWatch alarms
+├── backup.tf          # DLM backup policies (snapshots EBS volumes tagged Backup=true)
+├── github_actions.tf  # IAM user for GitHub Actions ECR push
+└── user_data.sh       # EC2 bootstrap script (Docker, CloudWatch agent, EBS mount)
 ```
 
 **Key resources:**
-- **EC2** (t3.micro) running Docker Compose
+- **EC2** (t3.small, 2GB RAM) running Docker Compose
+- **EBS** 10GB data volume at `/home/ec2-user/data` (persists across instance replacement)
 - **ECR** repository with 5-image retention
 - **Elastic IP** for stable addressing
-- **Route 53** DNS (drawing-agent.dmfenton.net)
+- **Route 53** DNS (monet.dmfenton.net)
 - **CloudWatch** alerts to email
 
 **Terraform commands:**
@@ -204,24 +207,43 @@ terraform apply -var="ssh_key_name=your-key" -var="alert_email=you@example.com"
 terraform output
 ```
 
-### Manual Server Access
+### Remote Server Management (SSM)
+
+Use `scripts/remote.py` to manage the server via AWS SSM (no SSH needed):
 
 ```bash
-# SSH to server (use output from terraform)
-ssh -i ~/.ssh/your-key.pem ec2-user@$(terraform -chdir=infrastructure output -raw public_ip)
+# View container logs
+uv run python scripts/remote.py logs
 
-# On server: view logs
-docker logs -f drawing-agent
+# Restart container
+uv run python scripts/remote.py restart
 
-# On server: restart manually
-cd /home/ec2-user/deploy
-docker-compose -f docker-compose.prod.yml restart drawing-agent
+# Run migrations
+uv run python scripts/remote.py migrate
 
-# On server: run migrations
-docker exec drawing-agent alembic upgrade head
+# Create invite code
+uv run python scripts/remote.py create-invite
 
-# On server: create invite code
-docker exec drawing-agent python -m drawing_agent.cli invite create
+# Create user directly
+uv run python scripts/remote.py create-user EMAIL [PASSWORD]
+
+# Run command in container
+uv run python scripts/remote.py exec "command"
+
+# Run command on host
+uv run python scripts/remote.py shell "command"
+```
+
+**Note:** Commands that start Python inside the container can be slow (~30s) due to `uv run` overhead. For direct database access, use sqlite3 on the host:
+
+```bash
+uv run python scripts/remote.py shell "sqlite3 /home/ec2-user/data/drawing_agent.db '.tables'"
+```
+
+### SSH Access (if needed)
+
+```bash
+ssh -i ~/.ssh/drawing-agent.pem ec2-user@$(terraform -chdir=infrastructure output -raw public_ip)
 ```
 
 ### GitHub Actions IAM User
@@ -260,7 +282,8 @@ Add at: https://github.com/dmfenton/Sketchpad/settings/secrets/actions
 ### Database Location
 
 - Dev: `server/data/drawing_agent.db`
-- Prod: `/app/data/drawing_agent.db` (Docker volume)
+- Prod (container): `/app/data/drawing_agent.db`
+- Prod (host): `/home/ec2-user/data/drawing_agent.db` (on EBS volume)
 
 ### Migrations
 
@@ -393,3 +416,41 @@ Build number is auto-generated from timestamp.
 ### Production WebSocket URL
 
 Update `EXPO_PUBLIC_WS_URL` in `.github/workflows/testflight.yml` to point to your production server.
+
+---
+
+## Troubleshooting
+
+### Docker container shows "unhealthy"
+
+The healthcheck uses `curl` but `python:3.11-slim` doesn't include it. The app is likely fine - verify with:
+
+```bash
+uv run python scripts/remote.py shell "docker exec drawing-agent python -c 'import urllib.request; print(urllib.request.urlopen(\"http://localhost:8000/health\").read())'"
+```
+
+### SQLite database locking
+
+SQLite doesn't handle concurrent writers. If you get "database is locked" errors:
+1. Don't run Python scripts that write to DB while the app is running
+2. Use `scripts/remote.py shell` with sqlite3 for direct DB access
+3. Or stop the container first: `uv run python scripts/remote.py shell "docker stop drawing-agent"`
+
+### SSM commands timing out
+
+If `scripts/remote.py` commands timeout:
+1. Check instance health: `aws ec2 describe-instance-status --instance-ids <id>`
+2. Instance may be undersized (t3.micro only has 1GB RAM)
+3. Current production uses t3.small (2GB RAM)
+
+### Container commands slow
+
+`uv run` inside the container is slow (~30s) because it syncs the venv. For quick DB operations, use sqlite3 directly:
+
+```bash
+uv run python scripts/remote.py shell "sqlite3 /home/ec2-user/data/drawing_agent.db 'SELECT * FROM users;'"
+```
+
+### Missing tools in slim image
+
+`python:3.11-slim` doesn't include: `curl`, `pkill`, `sqlite3`, etc. Use Python or install via apt if needed.
