@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Web fallback for magic link verification at `/auth/verify`
+- HTML page with app deep link redirect for desktop/web browsers
+- `setTokensFromCallback` auth method for deep link token handling
+- Support for `codemonet://auth/callback` custom URL scheme
+
+### Fixed
+- Magic link now works when clicked in desktop email clients
+
 ## [1.2.2] - 2026-01-04
 
 ### Added

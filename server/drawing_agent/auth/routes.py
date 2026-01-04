@@ -4,7 +4,8 @@ import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi.responses import HTMLResponse
 
 from drawing_agent.auth.dependencies import CurrentUser
 from drawing_agent.auth.email import send_magic_link_email
@@ -229,6 +230,117 @@ async def request_magic_link(
 
     # Always return success to prevent user enumeration
     return MessageResponse(message="If an account exists, a magic link has been sent to your email")
+
+
+@router.get("/verify", response_class=HTMLResponse)
+async def verify_magic_link_web(token: str = Query(...)) -> HTMLResponse:
+    """Web handler for magic link verification.
+
+    This endpoint is hit when the magic link is clicked in a browser
+    (when iOS Universal Links don't intercept). It verifies the token
+    and returns an HTML page that attempts to open the app.
+    """
+    async with get_session() as session:
+        magic_link = await repository.use_magic_link_token(session, token)
+
+        if magic_link is None:
+            return HTMLResponse(
+                content="""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Expired - Code Monet</title>
+    <style>
+        body { font-family: -apple-system, system-ui, sans-serif; padding: 40px 20px; text-align: center; background: #f5f5f5; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; font-size: 24px; margin-bottom: 16px; }
+        p { color: #666; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Link Expired</h1>
+        <p>This magic link has expired or has already been used.</p>
+        <p>Please request a new sign-in link from the app.</p>
+    </div>
+</body>
+</html>
+""",
+                status_code=401,
+            )
+
+        user = await repository.get_user_by_email(session, magic_link.email)
+
+        if user is None or not user.is_active:
+            return HTMLResponse(
+                content="""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error - Code Monet</title>
+    <style>
+        body { font-family: -apple-system, system-ui, sans-serif; padding: 40px 20px; text-align: center; background: #f5f5f5; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; font-size: 24px; margin-bottom: 16px; }
+        p { color: #666; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Account Error</h1>
+        <p>This account is not available.</p>
+    </div>
+</body>
+</html>
+""",
+                status_code=401,
+            )
+
+        logger.info(f"User signed in via magic link (web): {user.email} (id={user.id})")
+
+    # Generate tokens
+    access_token = create_access_token(user.id, user.email)
+    refresh_token = create_refresh_token(user.id)
+
+    # Return HTML that tries to open the app with the tokens
+    # Uses the custom URL scheme as a fallback for Universal Links
+    app_url = f"codemonet://auth/callback?access_token={access_token}&refresh_token={refresh_token}"
+
+    return HTMLResponse(
+        content=f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signed In - Code Monet</title>
+    <style>
+        body {{ font-family: -apple-system, system-ui, sans-serif; padding: 40px 20px; text-align: center; background: #f5f5f5; }}
+        .container {{ max-width: 400px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+        h1 {{ color: #333; font-size: 24px; margin-bottom: 16px; }}
+        p {{ color: #666; line-height: 1.5; margin-bottom: 24px; }}
+        .button {{ display: inline-block; background: #000; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; }}
+        .button:hover {{ background: #333; }}
+    </style>
+    <script>
+        // Try to open the app automatically
+        window.location.href = "{app_url}";
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>You're signed in!</h1>
+        <p>If the app doesn't open automatically, tap the button below.</p>
+        <a href="{app_url}" class="button">Open Code Monet</a>
+    </div>
+</body>
+</html>
+"""
+    )
 
 
 @router.post("/magic-link/verify", response_model=TokenResponse)

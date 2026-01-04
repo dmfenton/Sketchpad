@@ -242,7 +242,7 @@ function MainApp(): React.JSX.Element {
 
 function AppContent(): React.JSX.Element {
   const { colors } = useTheme();
-  const { isLoading, isAuthenticated, verifyMagicLink } = useAuth();
+  const { isLoading, isAuthenticated, verifyMagicLink, setTokensFromCallback } = useAuth();
   const [magicLinkError, setMagicLinkError] = useState<string | null>(null);
   const [verifyingMagicLink, setVerifyingMagicLink] = useState(false);
 
@@ -253,7 +253,24 @@ function AppContent(): React.JSX.Element {
 
       try {
         const parsed = Linking.parse(url);
-        // Handle magic link verification: /auth/verify?token=...
+
+        // Handle callback from web page: codemonet://auth/callback?access_token=...&refresh_token=...
+        if (parsed.path === 'auth/callback' && parsed.queryParams?.access_token && parsed.queryParams?.refresh_token) {
+          const accessToken = parsed.queryParams.access_token as string;
+          const refreshToken = parsed.queryParams.refresh_token as string;
+          console.log('[App] Setting tokens from web callback');
+          setVerifyingMagicLink(true);
+          setMagicLinkError(null);
+
+          const result = await setTokensFromCallback(accessToken, refreshToken);
+          if (!result.success) {
+            setMagicLinkError(result.error ?? 'Failed to authenticate');
+          }
+          setVerifyingMagicLink(false);
+          return;
+        }
+
+        // Handle magic link verification via Universal Links: /auth/verify?token=...
         if (parsed.path === 'auth/verify' && parsed.queryParams?.token) {
           const token = parsed.queryParams.token as string;
           console.log('[App] Verifying magic link token');
@@ -271,7 +288,7 @@ function AppContent(): React.JSX.Element {
         setVerifyingMagicLink(false);
       }
     },
-    [verifyMagicLink]
+    [verifyMagicLink, setTokensFromCallback]
   );
 
   // Listen for deep links when app is already running
