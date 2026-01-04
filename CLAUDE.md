@@ -48,14 +48,16 @@ Both servers have **live reload enabled by default** - they auto-restart on file
 
 ### Starting Dev Servers
 
+Claude runs `make dev` as a background task:
 ```bash
-# Start both (recommended)
-make dev
-
-# Or start individually:
-make server    # Python server (foreground, live reload)
-cd app && pnpm start  # React Native (Expo)
+make dev  # with run_in_background: true
 ```
+
+This starts both servers as a single Claude task visible via `/tasks`:
+- Python server: http://localhost:8000
+- Expo app: http://localhost:8081
+
+Use `TaskOutput` to check server logs. Both have live reload - no restarts needed for code changes.
 
 ### Background Server (for Claude debugging)
 
@@ -82,6 +84,13 @@ Only restart the server if:
 3. You're seeing stale behavior after 5+ seconds post-save
 
 **Never** use `pkill`, `kill`, or manual process management.
+
+### Expo Server
+
+Once Expo is running (`cd app && pnpm start`), it **never needs to be restarted** for code changes. Metro bundler hot-reloads automatically. Only restart if:
+1. You changed package.json dependencies
+2. You modified native code (requires `expo prebuild`)
+3. It crashed
 
 ### Debug API Endpoints
 
