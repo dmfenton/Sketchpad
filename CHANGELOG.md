@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.6] - 2026-01-04
+
+### Fixed
+- Add expo-router route for magic link Universal Links (fixes "unmatched route" error)
+- Remove TestFlight group assignment (use manual distribution to avoid internal group error)
+
 ## [1.3.5] - 2026-01-04
 
 ### Fixed
@@ -162,7 +168,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.3.5...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.3.6...HEAD
+[1.3.6]: https://github.com/dmfenton/sketchpad/compare/v1.3.5...v1.3.6
 [1.3.5]: https://github.com/dmfenton/sketchpad/compare/v1.3.4...v1.3.5
 [1.3.4]: https://github.com/dmfenton/sketchpad/compare/v1.3.3...v1.3.4
 [1.3.3]: https://github.com/dmfenton/sketchpad/compare/v1.3.2...v1.3.3
