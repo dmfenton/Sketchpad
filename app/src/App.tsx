@@ -297,9 +297,9 @@ function AppContent(): React.JSX.Element {
     );
   }
 
-  // Show auth screen if not authenticated
+  // Show auth screen if not authenticated (pass magic link error if any)
   if (!isAuthenticated) {
-    return <AuthScreen />;
+    return <AuthScreen magicLinkError={magicLinkError} onClearError={() => setMagicLinkError(null)} />;
   }
 
   // Show main app

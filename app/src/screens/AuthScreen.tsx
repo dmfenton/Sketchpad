@@ -20,7 +20,12 @@ import { borderRadius, spacing, useTheme } from '../theme';
 
 type AuthMode = 'signin' | 'signup' | 'magic-link';
 
-export function AuthScreen(): React.JSX.Element {
+interface AuthScreenProps {
+  magicLinkError?: string | null;
+  onClearError?: () => void;
+}
+
+export function AuthScreen({ magicLinkError, onClearError }: AuthScreenProps): React.JSX.Element {
   const { colors } = useTheme();
   const { signIn, signUp, requestMagicLink } = useAuth();
 
@@ -28,12 +33,18 @@ export function AuthScreen(): React.JSX.Element {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(magicLinkError ?? null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
+  // Clear parent error when user interacts
+  const clearError = () => {
     setError(null);
+    onClearError?.();
+  };
+
+  const handleSubmit = () => {
+    clearError();
     setSuccess(null);
     setLoading(true);
 
@@ -81,7 +92,7 @@ export function AuthScreen(): React.JSX.Element {
     } else {
       setMode('magic-link');
     }
-    setError(null);
+    clearError();
     setSuccess(null);
   };
 
