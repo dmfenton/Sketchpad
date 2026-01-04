@@ -3,7 +3,8 @@
  * An AI-powered drawing experience inspired by impressionist art.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import * as Linking from 'expo-linking';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StatusBar, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -241,10 +242,52 @@ function MainApp(): React.JSX.Element {
 
 function AppContent(): React.JSX.Element {
   const { colors } = useTheme();
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, verifyMagicLink } = useAuth();
+  const [magicLinkError, setMagicLinkError] = useState<string | null>(null);
+  const [verifyingMagicLink, setVerifyingMagicLink] = useState(false);
 
-  // Show loading screen while checking auth
-  if (isLoading) {
+  // Handle deep links for magic link authentication
+  const handleDeepLink = useCallback(
+    async (url: string | null) => {
+      if (!url) return;
+
+      try {
+        const parsed = Linking.parse(url);
+        // Handle magic link verification: /auth/verify?token=...
+        if (parsed.path === 'auth/verify' && parsed.queryParams?.token) {
+          const token = parsed.queryParams.token as string;
+          console.log('[App] Verifying magic link token');
+          setVerifyingMagicLink(true);
+          setMagicLinkError(null);
+
+          const result = await verifyMagicLink(token);
+          if (!result.success) {
+            setMagicLinkError(result.error ?? 'Magic link verification failed');
+          }
+          setVerifyingMagicLink(false);
+        }
+      } catch (error) {
+        console.error('[App] Deep link error:', error);
+        setVerifyingMagicLink(false);
+      }
+    },
+    [verifyMagicLink]
+  );
+
+  // Listen for deep links when app is already running
+  useEffect(() => {
+    const subscription = Linking.addEventListener('url', (event) => {
+      void handleDeepLink(event.url);
+    });
+
+    // Check for initial URL (app opened via deep link)
+    void Linking.getInitialURL().then(handleDeepLink);
+
+    return () => subscription.remove();
+  }, [handleDeepLink]);
+
+  // Show loading screen while checking auth or verifying magic link
+  if (isLoading || verifyingMagicLink) {
     return (
       <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>

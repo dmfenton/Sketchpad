@@ -18,27 +18,39 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context';
 import { borderRadius, spacing, useTheme } from '../theme';
 
-type AuthMode = 'signin' | 'signup';
+type AuthMode = 'signin' | 'signup' | 'magic-link';
 
 export function AuthScreen(): React.JSX.Element {
   const { colors } = useTheme();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, requestMagicLink } = useAuth();
 
-  const [mode, setMode] = useState<AuthMode>('signin');
+  const [mode, setMode] = useState<AuthMode>('magic-link');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = () => {
     setError(null);
+    setSuccess(null);
     setLoading(true);
 
     void (async () => {
       try {
         let result;
-        if (mode === 'signin') {
+        if (mode === 'magic-link') {
+          if (!email.trim()) {
+            setError('Email is required');
+            setLoading(false);
+            return;
+          }
+          result = await requestMagicLink(email);
+          if (result.success) {
+            setSuccess('Check your email for a sign-in link');
+          }
+        } else if (mode === 'signin') {
           result = await signIn(email, password);
         } else {
           if (!inviteCode.trim()) {
@@ -62,8 +74,15 @@ export function AuthScreen(): React.JSX.Element {
   };
 
   const toggleMode = () => {
-    setMode(mode === 'signin' ? 'signup' : 'signin');
+    if (mode === 'magic-link') {
+      setMode('signin');
+    } else if (mode === 'signin') {
+      setMode('signup');
+    } else {
+      setMode('magic-link');
+    }
     setError(null);
+    setSuccess(null);
   };
 
   return (
@@ -77,7 +96,11 @@ export function AuthScreen(): React.JSX.Element {
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.textPrimary }]}>Code Monet</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              {mode === 'signin' ? 'Welcome back' : 'Create your account'}
+              {mode === 'magic-link'
+                ? 'Sign in with email'
+                : mode === 'signin'
+                  ? 'Welcome back'
+                  : 'Create your account'}
             </Text>
           </View>
 
@@ -102,22 +125,24 @@ export function AuthScreen(): React.JSX.Element {
               editable={!loading}
             />
 
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.surface,
-                  color: colors.textPrimary,
-                  borderColor: colors.border,
-                },
-              ]}
-              placeholder="Password"
-              placeholderTextColor={colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              editable={!loading}
-            />
+            {mode !== 'magic-link' && (
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.surface,
+                    color: colors.textPrimary,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Password"
+                placeholderTextColor={colors.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                editable={!loading}
+              />
+            )}
 
             {mode === 'signup' && (
               <TextInput
@@ -145,6 +170,12 @@ export function AuthScreen(): React.JSX.Element {
               </View>
             )}
 
+            {success && (
+              <View style={[styles.successBox, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={[styles.successText, { color: colors.primary }]}>{success}</Text>
+              </View>
+            )}
+
             <Pressable
               style={[
                 styles.button,
@@ -158,7 +189,11 @@ export function AuthScreen(): React.JSX.Element {
                 <ActivityIndicator color={colors.background} />
               ) : (
                 <Text style={[styles.buttonText, { color: colors.background }]}>
-                  {mode === 'signin' ? 'Sign In' : 'Sign Up'}
+                  {mode === 'magic-link'
+                    ? 'Send Magic Link'
+                    : mode === 'signin'
+                      ? 'Sign In'
+                      : 'Sign Up'}
                 </Text>
               )}
             </Pressable>
@@ -167,9 +202,17 @@ export function AuthScreen(): React.JSX.Element {
           {/* Toggle */}
           <Pressable style={styles.toggle} onPress={toggleMode} disabled={loading}>
             <Text style={[styles.toggleText, { color: colors.textSecondary }]}>
-              {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
+              {mode === 'magic-link'
+                ? 'Use password instead? '
+                : mode === 'signin'
+                  ? "Don't have an account? "
+                  : 'Sign in with '}
               <Text style={{ color: colors.primary }}>
-                {mode === 'signin' ? 'Sign Up' : 'Sign In'}
+                {mode === 'magic-link'
+                  ? 'Sign In'
+                  : mode === 'signin'
+                    ? 'Sign Up'
+                    : 'Magic Link'}
               </Text>
             </Text>
           </Pressable>
@@ -218,6 +261,14 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   errorText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  successBox: {
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  successText: {
     fontSize: 14,
     textAlign: 'center',
   },

@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     magic_link_expire_minutes: int = 15
     magic_link_base_url: str = "https://monet.dmfenton.net"
 
+    # iOS Universal Links
+    apple_team_id: str = ""  # Set via APPLE_TEAM_ID env var
+    ios_bundle_id: str = "net.dmfenton.sketchpad"
+
     # Server
     host: str = "0.0.0.0"
     port: int = 8000

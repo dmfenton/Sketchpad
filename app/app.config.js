@@ -11,12 +11,12 @@ const buildNumber = process.env.APP_BUILD_NUMBER || '1';
 
 export default {
   expo: {
-    name: 'Drawing Agent',
-    slug: 'drawing-agent',
+    name: 'Code Monet',
+    slug: 'code-monet',
     version,
     orientation: 'portrait',
     icon: './assets/icon.png',
-    scheme: 'drawing-agent',
+    scheme: 'codemonet',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
     splash: {
@@ -28,6 +28,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: 'net.dmfenton.sketchpad',
       buildNumber,
+      associatedDomains: ['applinks:monet.dmfenton.net'],
     },
     android: {
       adaptiveIcon: {

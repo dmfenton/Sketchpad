@@ -29,6 +29,8 @@ export interface AuthContextValue extends AuthState {
   signUp: (email: string, password: string, inviteCode: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
+  requestMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>;
+  verifyMagicLink: (token: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -255,6 +257,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return refreshTokenInternal(refreshTokenValue);
   }, []);
 
+  const requestMagicLink = useCallback(async (email: string) => {
+    try {
+      const response = await fetch(`${getApiUrl()}/auth/magic-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const error = (await response.json()) as { detail: string };
+        return { success: false, error: error.detail || 'Failed to send magic link' };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('[Auth] Magic link request error:', error);
+      return { success: false, error: 'Network error' };
+    }
+  }, []);
+
+  const verifyMagicLink = useCallback(async (token: string) => {
+    try {
+      const response = await fetch(`${getApiUrl()}/auth/magic-link/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!response.ok) {
+        const error = (await response.json()) as { detail: string };
+        return { success: false, error: error.detail || 'Invalid or expired magic link' };
+      }
+
+      const data = (await response.json()) as { access_token: string; refresh_token: string };
+      await storage.setItem(ACCESS_TOKEN_KEY, data.access_token);
+      await storage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+
+      const decoded = decodeToken(data.access_token);
+      if (decoded) {
+        setState({
+          isLoading: false,
+          isAuthenticated: true,
+          user: { id: parseInt(decoded.sub, 10), email: decoded.email },
+          accessToken: data.access_token,
+        });
+        return { success: true };
+      }
+
+      return { success: false, error: 'Invalid token received' };
+    } catch (error) {
+      console.error('[Auth] Magic link verify error:', error);
+      return { success: false, error: 'Network error' };
+    }
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
@@ -262,8 +319,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signUp,
       signOut,
       refreshToken,
+      requestMagicLink,
+      verifyMagicLink,
     }),
-    [state, signIn, signUp, signOut, refreshToken]
+    [state, signIn, signUp, signOut, refreshToken, requestMagicLink, verifyMagicLink]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
