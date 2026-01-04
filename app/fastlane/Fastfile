@@ -1,4 +1,4 @@
-# Fastfile for Drawing Agent iOS builds
+# Fastfile for Code Monet iOS builds
 # https://docs.fastlane.tools
 
 default_platform(:ios)
@@ -18,7 +18,7 @@ platform :ios do
     # Update code signing settings
     update_code_signing_settings(
       use_automatic_signing: false,
-      path: "ios/DrawingAgent.xcodeproj",
+      path: "ios/CodeMonet.xcodeproj",
       team_id: ENV["TEAM_ID"],
       profile_name: ENV["PROVISIONING_PROFILE_NAME"],
       code_sign_identity: "iPhone Distribution"
@@ -26,11 +26,11 @@ platform :ios do
 
     # Build the app
     build_app(
-      workspace: "ios/DrawingAgent.xcworkspace",
-      scheme: "DrawingAgent",
+      workspace: "ios/CodeMonet.xcworkspace",
+      scheme: "CodeMonet",
       export_method: "app-store",
       output_directory: "./build",
-      output_name: "DrawingAgent.ipa",
+      output_name: "CodeMonet.ipa",
       clean: true,
       export_options: {
         provisioningProfiles: {
@@ -50,11 +50,11 @@ platform :ios do
   desc "Build only (no upload)"
   lane :build do
     build_app(
-      workspace: "ios/DrawingAgent.xcworkspace",
-      scheme: "DrawingAgent",
+      workspace: "ios/CodeMonet.xcworkspace",
+      scheme: "CodeMonet",
       export_method: "app-store",
       output_directory: "./build",
-      output_name: "DrawingAgent.ipa",
+      output_name: "CodeMonet.ipa",
       clean: true
     )
   end
