@@ -282,6 +282,21 @@ function AppContent(): React.JSX.Element {
             setMagicLinkError(result.error ?? 'Magic link verification failed');
           }
           setVerifyingMagicLink(false);
+          return;
+        }
+
+        // Handle magic_token from expo-router redirect (when Universal Link goes through /auth/verify route)
+        if (parsed.queryParams?.magic_token) {
+          const token = parsed.queryParams.magic_token as string;
+          console.log('[App] Verifying magic link token from redirect');
+          setVerifyingMagicLink(true);
+          setMagicLinkError(null);
+
+          const result = await verifyMagicLink(token);
+          if (!result.success) {
+            setMagicLinkError(result.error ?? 'Magic link verification failed');
+          }
+          setVerifyingMagicLink(false);
         }
       } catch (error) {
         console.error('[App] Deep link error:', error);
