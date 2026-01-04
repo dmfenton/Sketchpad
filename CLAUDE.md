@@ -59,6 +59,11 @@ This starts both servers as a single Claude task visible via `/tasks`:
 
 Use `TaskOutput` to check server logs. Both have live reload - no restarts needed for code changes.
 
+**Expo never needs restart** once running (hot reload built-in). Only restart if:
+- Changed package.json dependencies
+- Modified native code (requires `expo prebuild`)
+- It crashed
+
 ### Background Server (for Claude debugging)
 
 ```bash
@@ -84,13 +89,6 @@ Only restart the server if:
 3. You're seeing stale behavior after 5+ seconds post-save
 
 **Never** use `pkill`, `kill`, or manual process management.
-
-### Expo Server
-
-Once Expo is running (`cd app && pnpm start`), it **never needs to be restarted** for code changes. Metro bundler hot-reloads automatically. Only restart if:
-1. You changed package.json dependencies
-2. You modified native code (requires `expo prebuild`)
-3. It crashed
 
 ### Debug API Endpoints
 
