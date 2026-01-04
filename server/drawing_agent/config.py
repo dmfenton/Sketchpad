@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     jwt_secret: str = ""  # Must be set in production
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
-    jwt_refresh_token_expire_days: int = 7
+    jwt_refresh_token_expire_days: int = 90
 
     # Email (SES)
     ses_sender_email: str = "noreply@dmfenton.net"
