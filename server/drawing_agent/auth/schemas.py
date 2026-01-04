@@ -56,3 +56,15 @@ class MessageResponse(BaseModel):
     """Generic message response."""
 
     message: str
+
+
+class MagicLinkRequest(BaseModel):
+    """Request body for magic link signin."""
+
+    email: EmailStr
+
+
+class MagicLinkVerifyRequest(BaseModel):
+    """Request body for verifying a magic link token."""
+
+    token: str = Field(min_length=1, max_length=64)

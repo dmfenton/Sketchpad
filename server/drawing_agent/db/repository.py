@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from drawing_agent.db.models import InviteCode, User
+from drawing_agent.db.models import InviteCode, MagicLinkToken, User
 
 # =============================================================================
 # User Repository
@@ -93,3 +93,50 @@ async def revoke_invite_code(session: AsyncSession, code: str) -> bool:
         return False  # Don't revoke already-used codes
     await session.delete(invite)
     return True
+
+
+# =============================================================================
+# Magic Link Token Repository
+# =============================================================================
+
+
+async def create_magic_link_token(
+    session: AsyncSession,
+    token: str,
+    email: str,
+    expires_at: datetime,
+) -> MagicLinkToken:
+    """Create a new magic link token."""
+    magic_link = MagicLinkToken(token=token, email=email, expires_at=expires_at)
+    session.add(magic_link)
+    await session.flush()
+    return magic_link
+
+
+async def get_magic_link_token(session: AsyncSession, token: str) -> MagicLinkToken | None:
+    """Get magic link token by token string."""
+    result = await session.execute(select(MagicLinkToken).where(MagicLinkToken.token == token))
+    return result.scalar_one_or_none()
+
+
+async def use_magic_link_token(session: AsyncSession, token: str) -> MagicLinkToken | None:
+    """Mark a magic link token as used. Returns None if token doesn't exist, expired, or already used."""
+    magic_link = await get_magic_link_token(session, token)
+    if magic_link is None:
+        return None
+    if magic_link.used_at is not None:
+        return None  # Already used
+    if magic_link.expires_at < datetime.now(UTC):
+        return None  # Expired
+    magic_link.used_at = datetime.now(UTC)
+    return magic_link
+
+
+async def cleanup_expired_magic_links(session: AsyncSession) -> int:
+    """Delete expired magic link tokens. Returns count of deleted tokens."""
+    from sqlalchemy import delete
+
+    result = await session.execute(
+        delete(MagicLinkToken).where(MagicLinkToken.expires_at < datetime.now(UTC))
+    )
+    return result.rowcount
