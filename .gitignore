@@ -70,3 +70,4 @@ deploy/.env
 *.bak
 *.tmp
 data/
+.claude/settings.local.json
