@@ -66,8 +66,12 @@ async def lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
     # Register cleanup callback with shutdown manager
     shutdown_manager.add_cleanup_callback(shutdown_all_workspaces)
 
-    # Install signal handlers
-    shutdown_manager.install_signal_handlers()
+    # Install signal handlers only in production mode
+    # In dev mode, uvicorn's reloader handles signals for hot reload
+    if not settings.dev_mode:
+        shutdown_manager.install_signal_handlers()
+    else:
+        logger.info("Dev mode: skipping custom signal handlers (uvicorn handles reload)")
 
     logger.info("=== Server startup completed (multi-user mode) ===")
 

@@ -16,5 +16,8 @@ RUN uv sync --frozen --no-dev
 # Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["uv", "run", "python", "-m", "drawing_agent.main"]
+# Set production mode (disables hot reload, enables graceful shutdown handlers)
+ENV DEV_MODE=false
+
+# Run uvicorn directly (no reload in production)
+CMD ["uv", "run", "uvicorn", "drawing_agent.main:app", "--host", "0.0.0.0", "--port", "8000"]

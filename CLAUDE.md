@@ -36,7 +36,28 @@ Affected commands:
 - `make server-bg` / `make server-restart` (uv cache)
 - `pnpm start` in app/ (Expo cache)
 
-## Server Management (for Claude debugging)
+## Development Servers
+
+### Live Reload (IMPORTANT)
+
+Both servers have **live reload enabled by default** - they auto-restart on file changes:
+- **Python server**: Uvicorn with watchfiles (reload=True in dev mode)
+- **React Native app**: Expo with Metro bundler hot reload
+
+**DO NOT manually restart servers after code changes.** Just save the file and wait 1-2 seconds.
+
+### Starting Dev Servers
+
+```bash
+# Start both (recommended)
+make dev
+
+# Or start individually:
+make server    # Python server (foreground, live reload)
+cd app && pnpm start  # React Native (Expo)
+```
+
+### Background Server (for Claude debugging)
 
 ```bash
 # Start server in background with logging
@@ -49,9 +70,18 @@ make server-logs
 # Stop server
 make server-stop
 
-# Restart server
+# Restart server (only if truly needed)
 make server-restart
 ```
+
+### When to Actually Restart
+
+Only restart the server if:
+1. You changed dependencies (pyproject.toml)
+2. The server crashed (check logs)
+3. You're seeing stale behavior after 5+ seconds post-save
+
+**Never** use `pkill`, `kill`, or manual process management.
 
 ### Debug API Endpoints
 

@@ -39,6 +39,7 @@ services:
       - GOOGLE_CLIENT_ID_IOS=${GOOGLE_CLIENT_ID_IOS:-}
       - HOST=0.0.0.0
       - PORT=8000
+      - DEV_MODE=false
     volumes:
       - ./data:/app/data
     restart: unless-stopped

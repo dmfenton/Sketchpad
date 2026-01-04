@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     # Server
     host: str = "0.0.0.0"
     port: int = 8000
+    dev_mode: bool = True  # Set to False in production; enables live reload
 
     # Agent
     agent_interval: int = 10  # seconds between agent turns
