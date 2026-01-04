@@ -35,6 +35,11 @@ export function getApiUrl(): string {
   const envUrl = (process.env as Record<string, string | undefined>).EXPO_PUBLIC_API_URL;
   if (envUrl) return envUrl;
 
+  // Production fallback for TestFlight builds
+  if (__DEV__ === false) {
+    return 'https://monet.dmfenton.net';
+  }
+
   return `http://${getHost()}:8000`;
 }
 
@@ -46,7 +51,9 @@ export function getWebSocketUrl(token?: string): string {
   // Check for explicit env var first
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
   const envUrl = (process.env as Record<string, string | undefined>).EXPO_PUBLIC_WS_URL;
-  const baseUrl = envUrl || `ws://${getHost()}:8000/ws`;
+
+  // Production fallback for TestFlight builds
+  const baseUrl = envUrl || (__DEV__ === false ? 'wss://monet.dmfenton.net/ws' : `ws://${getHost()}:8000/ws`);
 
   // Append token if provided
   if (token) {

@@ -45,7 +45,8 @@ platform :ios do
       groups: ["Alpha"],
       distribute_external: true,
       changelog: "Bug fixes and improvements",
-      beta_app_description: "Code Monet is an autonomous AI artist that creates unique artwork in real-time.",
+      beta_app_description: "Code Monet is an autonomous AI artist that creates unique artwork in real-time. Watch as the AI draws directly on your screen, creating original pieces stroke by stroke.",
+      beta_app_feedback_email: ENV["APPLE_ID"],
       skip_waiting_for_build_processing: false
     )
   end
