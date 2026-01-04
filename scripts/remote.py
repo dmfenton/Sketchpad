@@ -2,12 +2,13 @@
 """Server management script using AWS SSM.
 
 Usage:
-    python scripts/server.py migrate           # Run database migrations
-    python scripts/server.py logs              # Tail container logs
-    python scripts/server.py restart           # Restart the container
-    python scripts/server.py exec "command"    # Run arbitrary command
-    python scripts/server.py create-user EMAIL # Create admin user
-    python scripts/server.py create-invite     # Create invite code
+    python scripts/remote.py migrate           # Run database migrations
+    python scripts/remote.py logs              # Tail container logs
+    python scripts/remote.py restart           # Restart the container
+    python scripts/remote.py exec "command"    # Run command in container
+    python scripts/remote.py shell "command"   # Run command on host
+    python scripts/remote.py create-user EMAIL # Create admin user
+    python scripts/remote.py create-invite     # Create invite code
 """
 
 import subprocess
@@ -112,7 +113,7 @@ async def create():
 asyncio.run(create())
 '''
     print(f"Creating user: {email}")
-    code, stdout, stderr = docker_exec(f"uv run python -c '{script}'", timeout=30)
+    code, stdout, stderr = docker_exec(f"uv run python -c '{script}'", timeout=120)
     print(stdout)
     if stderr:
         print(stderr, file=sys.stderr)
@@ -134,6 +135,15 @@ def create_invite():
 def exec_cmd(command: str):
     """Run arbitrary command in container."""
     code, stdout, stderr = docker_exec(command, timeout=60)
+    print(stdout)
+    if stderr:
+        print(stderr, file=sys.stderr)
+    return code
+
+
+def shell_cmd(command: str):
+    """Run arbitrary command on the host (not in container)."""
+    code, stdout, stderr = run_command(command, timeout=180)
     print(stdout)
     if stderr:
         print(stderr, file=sys.stderr)
@@ -165,9 +175,14 @@ def main():
         sys.exit(create_invite())
     elif cmd == "exec":
         if len(sys.argv) < 3:
-            print("Usage: server.py exec 'command'")
+            print("Usage: remote.py exec 'command'")
             sys.exit(1)
         sys.exit(exec_cmd(" ".join(sys.argv[2:])))
+    elif cmd == "shell":
+        if len(sys.argv) < 3:
+            print("Usage: remote.py shell 'command'")
+            sys.exit(1)
+        sys.exit(shell_cmd(" ".join(sys.argv[2:])))
     else:
         print(f"Unknown command: {cmd}")
         print(__doc__)

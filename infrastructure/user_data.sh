@@ -43,11 +43,36 @@ EOF
 # Start CloudWatch agent
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
-# Create app directory
-mkdir -p /home/ec2-user/app/data
-mkdir -p /home/ec2-user/app/certbot/conf
-mkdir -p /home/ec2-user/app/certbot/www
-chown -R ec2-user:ec2-user /home/ec2-user/app
+# Wait for EBS data volume to be attached
+DATA_DEVICE="/dev/xvdf"
+echo "Waiting for data volume to be attached..."
+while [ ! -e "$DATA_DEVICE" ]; do
+  sleep 5
+done
+echo "Data volume attached"
+
+# Format the volume if it's new (no filesystem)
+if ! blkid "$DATA_DEVICE" > /dev/null 2>&1; then
+  echo "Formatting new data volume..."
+  mkfs.xfs "$DATA_DEVICE"
+fi
+
+# Create mount point and mount
+mkdir -p /home/ec2-user/data
+mount "$DATA_DEVICE" /home/ec2-user/data
+
+# Add to fstab for persistence across reboots
+if ! grep -q "$DATA_DEVICE" /etc/fstab; then
+  echo "$DATA_DEVICE /home/ec2-user/data xfs defaults,nofail 0 2" >> /etc/fstab
+fi
+
+# Create app directories
+mkdir -p /home/ec2-user/data/db
+mkdir -p /home/ec2-user/data/gallery
+mkdir -p /home/ec2-user/certbot/conf
+mkdir -p /home/ec2-user/certbot/www
+chown -R ec2-user:ec2-user /home/ec2-user/data
+chown -R ec2-user:ec2-user /home/ec2-user/certbot
 
 # Signal completion
 echo "User data script completed successfully" > /home/ec2-user/user_data_complete.txt

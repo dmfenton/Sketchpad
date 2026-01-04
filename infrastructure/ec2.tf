@@ -134,3 +134,21 @@ resource "aws_eip" "main" {
     Name = "drawing-agent-eip"
   }
 }
+
+# EBS Data Volume (persistent storage for database and user data)
+resource "aws_ebs_volume" "data" {
+  availability_zone = aws_subnet.public.availability_zone
+  size              = 10
+  type              = "gp3"
+
+  tags = {
+    Name   = "drawing-agent-data"
+    Backup = "true"
+  }
+}
+
+resource "aws_volume_attachment" "data" {
+  device_name = "/dev/xvdf"
+  volume_id   = aws_ebs_volume.data.id
+  instance_id = aws_instance.main.id
+}
