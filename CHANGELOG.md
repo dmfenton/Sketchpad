@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-01-04
+
+### Fixed
+- Add changelog for TestFlight external distribution (required by App Store Connect)
+- Correct Alpha group name capitalization
+
 ## [1.3.2] - 2026-01-04
 
 ### Fixed
@@ -145,7 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.3.3...HEAD
+[1.3.3]: https://github.com/dmfenton/sketchpad/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/dmfenton/sketchpad/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/dmfenton/sketchpad/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/dmfenton/sketchpad/compare/v1.2.3...v1.3.0
