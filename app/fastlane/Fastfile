@@ -39,11 +39,12 @@ platform :ios do
       }
     )
 
-    # Upload to TestFlight
+    # Upload to TestFlight and distribute to alpha group
     upload_to_testflight(
       api_key: api_key,
-      skip_waiting_for_build_processing: true,
-      skip_submission: true
+      groups: ["alpha"],
+      distribute_external: true,
+      skip_waiting_for_build_processing: false
     )
   end
 
