@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 7
 
+    # Email (SES)
+    ses_sender_email: str = "noreply@dmfenton.net"
+    ses_region: str = "us-east-1"
+    magic_link_expire_minutes: int = 15
+    magic_link_base_url: str = "https://drawing-agent.dmfenton.net"
+
     # Server
     host: str = "0.0.0.0"
     port: int = 8000

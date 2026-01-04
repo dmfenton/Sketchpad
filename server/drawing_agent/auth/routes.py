@@ -1,10 +1,13 @@
 """Authentication API routes."""
 
 import logging
+import secrets
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status
 
 from drawing_agent.auth.dependencies import CurrentUser
+from drawing_agent.auth.email import send_magic_link_email
 from drawing_agent.auth.jwt import (
     TokenError,
     create_access_token,
@@ -13,6 +16,8 @@ from drawing_agent.auth.jwt import (
 )
 from drawing_agent.auth.password import hash_password, verify_password
 from drawing_agent.auth.schemas import (
+    MagicLinkRequest,
+    MagicLinkVerifyRequest,
     MessageResponse,
     RefreshRequest,
     SigninRequest,
@@ -20,6 +25,7 @@ from drawing_agent.auth.schemas import (
     TokenResponse,
     UserResponse,
 )
+from drawing_agent.config import settings
 from drawing_agent.db import get_session, repository
 
 logger = logging.getLogger(__name__)
@@ -157,3 +163,75 @@ async def logout(user: CurrentUser) -> MessageResponse:
     """
     logger.info(f"User logged out: {user.email} (id={user.id})")
     return MessageResponse(message="Logged out successfully")
+
+
+@router.post("/magic-link", response_model=MessageResponse)
+async def request_magic_link(request: MagicLinkRequest) -> MessageResponse:
+    """Request a magic link for passwordless signin.
+
+    Sends an email with a magic link if the user exists.
+    Always returns success to prevent user enumeration.
+    """
+    async with get_session() as session:
+        user = await repository.get_user_by_email(session, request.email)
+
+        # Only send email if user exists and is active
+        if user and user.is_active:
+            # Generate token
+            token = secrets.token_urlsafe(32)
+            expires_at = datetime.now(UTC) + timedelta(minutes=settings.magic_link_expire_minutes)
+
+            # Store token
+            await repository.create_magic_link_token(
+                session, token=token, email=request.email, expires_at=expires_at
+            )
+
+            # Build magic link URL
+            magic_link_url = f"{settings.magic_link_base_url}/auth/verify?token={token}"
+
+            # Send email (fire and forget - don't fail the request if email fails)
+            email_sent = send_magic_link_email(request.email, magic_link_url)
+            if email_sent:
+                logger.info(f"Magic link sent to {request.email}")
+            else:
+                logger.warning(f"Failed to send magic link email to {request.email}")
+        else:
+            # Log but don't reveal to client
+            logger.info(f"Magic link requested for non-existent/inactive user: {request.email}")
+
+    # Always return success to prevent user enumeration
+    return MessageResponse(message="If an account exists, a magic link has been sent to your email")
+
+
+@router.post("/magic-link/verify", response_model=TokenResponse)
+async def verify_magic_link(request: MagicLinkVerifyRequest) -> TokenResponse:
+    """Verify a magic link token and return JWT tokens.
+
+    The token must be valid, not expired, and not already used.
+    """
+    async with get_session() as session:
+        # Attempt to use the token (marks it as used if valid)
+        magic_link = await repository.use_magic_link_token(session, request.token)
+
+        if magic_link is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired magic link",
+            )
+
+        # Get the user
+        user = await repository.get_user_by_email(session, magic_link.email)
+
+        if user is None or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or inactive",
+            )
+
+        logger.info(f"User signed in via magic link: {user.email} (id={user.id})")
+
+    # Generate tokens
+    access_token = create_access_token(user.id, user.email)
+    refresh_token = create_refresh_token(user.id)
+
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)

@@ -134,9 +134,7 @@ def output_svg_paths(svg_d_strings: list):
         )
 
         try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=PYTHON_TIMEOUT
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=PYTHON_TIMEOUT)
         except TimeoutError:
             proc.kill()
             await proc.wait()
@@ -332,8 +330,10 @@ async def handle_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
         await _draw_callback(paths, done)
         response_parts.append(f"Successfully generated and drew {len(paths)} paths.")
     elif not paths:
-        response_parts.append("Code executed but no paths were generated. "
-                              "Make sure to call output_paths() or output_svg_paths() at the end.")
+        response_parts.append(
+            "Code executed but no paths were generated. "
+            "Make sure to call output_paths() or output_svg_paths() at the end."
+        )
 
     if done:
         response_parts.append("Piece marked as complete.")

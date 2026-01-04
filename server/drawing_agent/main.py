@@ -175,7 +175,8 @@ async def get_canvas_svg(user: CurrentUser) -> Response:
         d = render_path_to_svg_d(path)
         if d:
             ET.SubElement(
-                svg, "path",
+                svg,
+                "path",
                 {"d": d, "stroke": "#000000", "stroke-width": "2", "fill": "none"},
             )
 

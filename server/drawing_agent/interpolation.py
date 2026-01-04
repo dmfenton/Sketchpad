@@ -133,9 +133,7 @@ def svg_commands_to_points(
                 p1 = Point(x=x1, y=y1)
                 p2 = Point(x=x2, y=y2)
                 p3 = Point(x=x, y=y)
-                dist = (
-                    distance(p0, p1) + distance(p1, p2) + distance(p2, p3)
-                )  # Rough estimate
+                dist = distance(p0, p1) + distance(p1, p2) + distance(p2, p3)  # Rough estimate
                 steps = max(10, int(dist * steps_per_unit))
                 for j in range(1, steps + 1):
                     t = j / steps
@@ -217,9 +215,7 @@ def svg_commands_to_points(
 
         elif cmd_upper == "Z":  # Close Path
             if start_x != current_x or start_y != current_y:
-                dist = math.sqrt(
-                    (start_x - current_x) ** 2 + (start_y - current_y) ** 2
-                )
+                dist = math.sqrt((start_x - current_x) ** 2 + (start_y - current_y) ** 2)
                 steps = max(2, int(dist * steps_per_unit))
                 for j in range(1, steps + 1):
                     t = j / steps
@@ -306,9 +302,7 @@ def estimate_path_length(path: Path) -> float:
             return distance(points[0], points[1])
 
         case PathType.POLYLINE:
-            return sum(
-                distance(points[i], points[i + 1]) for i in range(len(points) - 1)
-            )
+            return sum(distance(points[i], points[i + 1]) for i in range(len(points) - 1))
 
         case PathType.QUADRATIC | PathType.CUBIC:
             # Approximate with linear segments
