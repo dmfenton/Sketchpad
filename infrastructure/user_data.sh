@@ -66,13 +66,26 @@ if ! grep -q "$DATA_DEVICE" /etc/fstab; then
   echo "$DATA_DEVICE /home/ec2-user/data xfs defaults,nofail 0 2" >> /etc/fstab
 fi
 
-# Create app directories
+# Install sqlite3 for DB management
+yum install -y sqlite
+
+# Create app directories with secure permissions
 mkdir -p /home/ec2-user/data/db
 mkdir -p /home/ec2-user/data/gallery
 mkdir -p /home/ec2-user/certbot/conf
 mkdir -p /home/ec2-user/certbot/www
+
+# Set ownership
 chown -R ec2-user:ec2-user /home/ec2-user/data
 chown -R ec2-user:ec2-user /home/ec2-user/certbot
+
+# Secure data directory (owner only)
+chmod 700 /home/ec2-user/data
+
+# If DB exists, secure it
+if [ -f /home/ec2-user/data/drawing_agent.db ]; then
+  chmod 600 /home/ec2-user/data/drawing_agent.db
+fi
 
 # Signal completion
 echo "User data script completed successfully" > /home/ec2-user/user_data_complete.txt

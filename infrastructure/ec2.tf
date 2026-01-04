@@ -140,6 +140,7 @@ resource "aws_ebs_volume" "data" {
   availability_zone = aws_subnet.public.availability_zone
   size              = 10
   type              = "gp3"
+  encrypted         = true
 
   tags = {
     Name   = "drawing-agent-data"
