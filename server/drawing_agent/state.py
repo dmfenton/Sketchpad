@@ -56,9 +56,7 @@ class StateManager:
         self._piece_count = current.get("piece_count", 0)
 
         self._loaded = True
-        logger.info(
-            f"State loaded: piece {self._piece_count}, {len(self._canvas.strokes)} strokes"
-        )
+        logger.info(f"State loaded: piece {self._piece_count}, {len(self._canvas.strokes)} strokes")
         return self
 
     def save(self) -> None:

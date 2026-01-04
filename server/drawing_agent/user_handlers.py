@@ -28,7 +28,9 @@ async def handle_stroke(workspace: ActiveWorkspace, message: dict[str, Any]) -> 
     if points:
         path = Path(type=PathType.POLYLINE, points=points, author="human")
         await workspace.state.add_stroke(path)
-        await workspace.connections.broadcast({"type": "stroke_complete", "path": path.model_dump()})
+        await workspace.connections.broadcast(
+            {"type": "stroke_complete", "path": path.model_dump()}
+        )
 
 
 async def handle_nudge(workspace: ActiveWorkspace, message: dict[str, Any]) -> None:
@@ -46,7 +48,9 @@ async def handle_clear(workspace: ActiveWorkspace) -> None:
     logger.info(f"User {workspace.user_id}: canvas cleared")
 
 
-async def handle_new_canvas(workspace: ActiveWorkspace, message: dict[str, Any] | None = None) -> None:
+async def handle_new_canvas(
+    workspace: ActiveWorkspace, message: dict[str, Any] | None = None
+) -> None:
     """Handle new canvas request (save current and start fresh)."""
     saved_id = await workspace.state.new_canvas()
     workspace.agent.reset_container()
@@ -71,9 +75,13 @@ async def handle_new_canvas(workspace: ActiveWorkspace, message: dict[str, Any] 
         for p in gallery_pieces
     ]
     await workspace.connections.broadcast(GalleryUpdateMessage(canvases=gallery_data))
-    await workspace.connections.broadcast({"type": "piece_count", "count": workspace.state.piece_count})
+    await workspace.connections.broadcast(
+        {"type": "piece_count", "count": workspace.state.piece_count}
+    )
 
-    logger.info(f"User {workspace.user_id}: new canvas (piece #{workspace.state.piece_count}), saved: {saved_id}")
+    logger.info(
+        f"User {workspace.user_id}: new canvas (piece #{workspace.state.piece_count}), saved: {saved_id}"
+    )
 
 
 async def handle_load_canvas(workspace: ActiveWorkspace, message: dict[str, Any]) -> None:

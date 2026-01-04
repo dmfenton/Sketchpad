@@ -169,6 +169,7 @@ class DrawingAgent:
             return self._state
         # Fallback to singleton for backwards compatibility
         from drawing_agent.state import state_manager
+
         return state_manager
 
     async def _save_state(self) -> None:
