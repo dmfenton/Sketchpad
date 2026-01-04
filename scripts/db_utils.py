@@ -3,7 +3,7 @@
 
 Usage:
     # Create a user locally
-    uv run python scripts/db_utils.py create-user EMAIL [PASSWORD]
+    uv run python scripts/db_utils.py create-user EMAIL PASSWORD
 
     # Generate password hash (for manual DB insert)
     uv run python scripts/db_utils.py hash-password PASSWORD
@@ -75,7 +75,10 @@ def main():
             print("Usage: db_utils.py create-user EMAIL [PASSWORD]")
             sys.exit(1)
         email = sys.argv[2]
-        password = sys.argv[3] if len(sys.argv) > 3 else "ChangeMe123!"
+        if len(sys.argv) < 4:
+            print("Usage: db_utils.py create-user EMAIL PASSWORD")
+            sys.exit(1)
+        password = sys.argv[3]
         asyncio.run(create_user_async(email, password))
 
     elif cmd == "hash-password":

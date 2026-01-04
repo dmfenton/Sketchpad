@@ -7,7 +7,7 @@ Usage:
     python scripts/remote.py restart           # Restart the container
     python scripts/remote.py exec "command"    # Run command in container
     python scripts/remote.py shell "command"   # Run command on host
-    python scripts/remote.py create-user EMAIL # Create admin user
+    python scripts/remote.py create-user EMAIL PASSWORD  # Create admin user
     python scripts/remote.py create-invite     # Create invite code
 """
 
@@ -93,7 +93,7 @@ def restart():
     return code
 
 
-def create_user(email: str, password: str = "ChangeMe123!"):
+def create_user(email: str, password: str):
     """Create a user directly in the database."""
     script = f'''
 import asyncio
@@ -164,11 +164,11 @@ def main():
     elif cmd == "restart":
         sys.exit(restart())
     elif cmd == "create-user":
-        if len(sys.argv) < 3:
-            print("Usage: server.py create-user EMAIL [PASSWORD]")
+        if len(sys.argv) < 4:
+            print("Usage: remote.py create-user EMAIL PASSWORD")
             sys.exit(1)
         email = sys.argv[2]
-        password = sys.argv[3] if len(sys.argv) > 3 else "ChangeMe123!"
+        password = sys.argv[3]
         sys.exit(create_user(email, password))
     elif cmd == "create-invite":
         sys.exit(create_invite())
