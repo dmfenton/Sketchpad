@@ -59,34 +59,15 @@ This starts both servers as a single Claude task visible via `/tasks`:
 
 Use `TaskOutput` to check server logs. Both have live reload - no restarts needed for code changes.
 
-**Expo never needs restart** once running (hot reload built-in). Only restart if:
-- Changed package.json dependencies
+**Python server never needs restart** once running (uvicorn live reload). Only restart if:
+- Changed dependencies (pyproject.toml)
+- Server crashed (check logs)
+- Stale behavior after 5+ seconds post-save
+
+**Expo never needs restart** once running (Metro hot reload). Only restart if:
+- Changed dependencies (package.json)
 - Modified native code (requires `expo prebuild`)
 - It crashed
-
-### Background Server (for Claude debugging)
-
-```bash
-# Start server in background with logging
-make server-bg
-
-# Tail server logs
-make server-logs
-# Or directly: tail -f server/logs/server.log
-
-# Stop server
-make server-stop
-
-# Restart server (only if truly needed)
-make server-restart
-```
-
-### When to Actually Restart
-
-Only restart the server if:
-1. You changed dependencies (pyproject.toml)
-2. The server crashed (check logs)
-3. You're seeing stale behavior after 5+ seconds post-save
 
 **Never** use `pkill`, `kill`, or manual process management.
 
