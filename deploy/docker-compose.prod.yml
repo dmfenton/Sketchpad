@@ -84,7 +84,11 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /home/ec2-user/.docker/config.json:/config.json:ro
+      - /usr/bin/docker-credential-ecr-login:/usr/bin/docker-credential-ecr-login:ro
     environment:
+      - HOME=/
+      - PATH=/usr/bin:/bin
+      - AWS_REGION=${AWS_REGION:-us-east-1}
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_POLL_INTERVAL=30
       - WATCHTOWER_INCLUDE_RESTARTING=true

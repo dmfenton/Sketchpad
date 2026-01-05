@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Release workflow verifies deployment by checking `/version` endpoint
 
+### Fixed
+- Watchtower ECR auth: use `credsStore` (not `credHelpers`) with ECR credential helper for IAM-based auth (no tokens, no expiry)
+
 ## [1.4.1] - 2026-01-05
 
 ### Added

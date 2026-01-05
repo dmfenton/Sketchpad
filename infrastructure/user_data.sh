@@ -14,18 +14,11 @@ usermod -aG docker ec2-user
 curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
-# Install ECR credential helper (eliminates token expiry issues)
+# Install ECR credential helper (uses IAM role for automatic ECR auth)
 yum install -y amazon-ecr-credential-helper
 
-# Configure Docker to use ECR credential helper
-mkdir -p /root/.docker
-cat > /root/.docker/config.json << 'EOF'
-{
-  "credsStore": "ecr-login"
-}
-EOF
-
-# Also configure for ec2-user
+# Configure Docker to use ECR credential helper for all registries
+# Using credsStore (not credHelpers) so Watchtower can pull from ECR via IAM role
 mkdir -p /home/ec2-user/.docker
 cat > /home/ec2-user/.docker/config.json << 'EOF'
 {
