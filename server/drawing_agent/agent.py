@@ -173,6 +173,8 @@ class DrawingAgent:
                     HookMatcher(hooks=[self._post_tool_use_hook])
                 ]
             },
+            # Pass API key to SDK subprocess
+            env={"ANTHROPIC_API_KEY": settings.anthropic_api_key},
         )
 
     def set_on_draw(self, callback: Callable[[list[Path]], Coroutine[Any, Any, None]]) -> None:
