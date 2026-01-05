@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `APPLE_TEAM_ID` env var in docker-compose for Universal Links AASA endpoint
+
+### TODO
+- Manage `.env` file via Terraform/user_data.sh (currently manual on server)
+
 ## [1.5.2] - 2026-01-05
 
 ### Fixed
