@@ -14,6 +14,26 @@ usermod -aG docker ec2-user
 curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
+# Install ECR credential helper (eliminates token expiry issues)
+yum install -y amazon-ecr-credential-helper
+
+# Configure Docker to use ECR credential helper
+mkdir -p /root/.docker
+cat > /root/.docker/config.json << 'EOF'
+{
+  "credsStore": "ecr-login"
+}
+EOF
+
+# Also configure for ec2-user
+mkdir -p /home/ec2-user/.docker
+cat > /home/ec2-user/.docker/config.json << 'EOF'
+{
+  "credsStore": "ecr-login"
+}
+EOF
+chown -R ec2-user:ec2-user /home/ec2-user/.docker
+
 # Install CloudWatch agent
 yum install -y amazon-cloudwatch-agent
 

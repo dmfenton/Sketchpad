@@ -1,5 +1,17 @@
 FROM python:3.11-slim
 
+# Build args for version info
+ARG APP_VERSION=dev
+ARG APP_COMMIT=unknown
+ARG APP_BUILD_TIME=unknown
+
+# Labels for container inspection
+LABEL org.opencontainers.image.version="${APP_VERSION}"
+LABEL org.opencontainers.image.revision="${APP_COMMIT}"
+LABEL org.opencontainers.image.created="${APP_BUILD_TIME}"
+LABEL org.opencontainers.image.title="drawing-agent"
+LABEL org.opencontainers.image.description="Code Monet - Autonomous AI artist"
+
 WORKDIR /app
 
 # Install uv
@@ -16,8 +28,11 @@ RUN uv sync --frozen --no-dev
 # Expose port
 EXPOSE 8000
 
-# Set production mode (disables hot reload, enables graceful shutdown handlers)
+# Set production mode and version info as env vars
 ENV DEV_MODE=false
+ENV APP_VERSION=${APP_VERSION}
+ENV APP_COMMIT=${APP_COMMIT}
+ENV APP_BUILD_TIME=${APP_BUILD_TIME}
 
 # Run uvicorn directly (no reload in production)
 CMD ["uv", "run", "uvicorn", "drawing_agent.main:app", "--host", "0.0.0.0", "--port", "8000"]

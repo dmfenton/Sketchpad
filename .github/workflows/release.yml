@@ -57,8 +57,17 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          # Build the image
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION ./server
+          # Get build metadata
+          COMMIT_SHA="${GITHUB_SHA:0:7}"
+          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Build the image with version info
+          docker build \
+            --build-arg APP_VERSION="$VERSION" \
+            --build-arg APP_COMMIT="$COMMIT_SHA" \
+            --build-arg APP_BUILD_TIME="$BUILD_TIME" \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION \
+            ./server
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
           # Push both tags

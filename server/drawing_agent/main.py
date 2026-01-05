@@ -132,6 +132,18 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/version")
+async def version() -> dict[str, str | None]:
+    """Version info endpoint - no auth required."""
+    import os
+
+    return {
+        "version": os.environ.get("APP_VERSION", "dev"),
+        "commit": os.environ.get("APP_COMMIT"),
+        "build_time": os.environ.get("APP_BUILD_TIME"),
+    }
+
+
 @app.get("/.well-known/apple-app-site-association")
 async def apple_app_site_association() -> JSONResponse:
     """Apple App Site Association file for Universal Links.
