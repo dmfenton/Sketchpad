@@ -8,10 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- `APPLE_TEAM_ID` env var in docker-compose for Universal Links AASA endpoint
+- SSM Parameter Store for secrets and config (no more `.env` files)
+- App fetches from SSM at startup using IAM role credentials
+- Same code path for local dev and prod (`DRAWING_AGENT_ENV=dev|prod`)
+- Terraform manages SSM parameters with placeholder values (secrets updated via CLI)
 
-### TODO
-- Manage `.env` file via Terraform/user_data.sh (currently manual on server)
+### Changed
+- Docker container uses instance IAM role for SSM access (IMDS hop limit increased)
+- Removed secrets from docker-compose.prod.yml
 
 ## [1.5.2] - 2026-01-05
 

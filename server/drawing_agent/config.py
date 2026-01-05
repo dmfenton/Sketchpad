@@ -1,24 +1,68 @@
 """Application configuration."""
 
+import logging
+import os
+from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
+
+
+@lru_cache
+def _get_ssm_params() -> dict[str, str]:
+    """Fetch all params from SSM for current environment.
+
+    Returns empty dict if SSM is unavailable (e.g., missing credentials).
+    """
+    env = os.getenv("DRAWING_AGENT_ENV", "dev")
+    region = os.getenv("AWS_REGION", "us-east-1")
+    path = f"/drawing-agent/{env}/"
+
+    try:
+        import boto3
+
+        ssm = boto3.client("ssm", region_name=region)
+        resp = ssm.get_parameters_by_path(Path=path, WithDecryption=True)
+        params = {
+            p["Name"].split("/")[-1].replace("-", "_"): p["Value"]
+            for p in resp["Parameters"]
+        }
+        logger.info(f"Loaded {len(params)} parameters from SSM ({path})")
+        return params
+    except Exception as e:
+        logger.warning(f"Failed to load SSM parameters from {path}: {e}")
+        return {}
+
+
+def _ssm(key: str, default: str = "") -> str:
+    """Get config value from SSM, with optional default.
+
+    Treats "NONE" as empty string (SSM doesn't allow empty values).
+    """
+    value = _get_ssm_params().get(key, default)
+    return "" if value == "NONE" else value
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
+    """Application settings loaded from SSM Parameter Store and environment variables.
+
+    Priority: SSM > environment variables > defaults
+    """
 
     model_config = SettingsConfigDict(
         env_file=("../.env", ".env"), env_file_encoding="utf-8", extra="ignore"
     )
 
-    # Required
-    anthropic_api_key: str
+    # Required (from SSM or env)
+    anthropic_api_key: str = _ssm("anthropic_api_key")
 
     # Database
-    database_url: str = "sqlite+aiosqlite:///./data/drawing_agent.db"
+    database_url: str = _ssm("database_url", "sqlite+aiosqlite:///./data/drawing_agent.db")
     database_echo: bool = False
 
     # Auth (required when auth is enabled)
-    jwt_secret: str = ""  # Must be set in production
+    jwt_secret: str = _ssm("jwt_secret")  # Must be set in production
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 90  # Long duration for mobile; access tokens still 30min
@@ -31,7 +75,7 @@ class Settings(BaseSettings):
     magic_link_base_url: str = "https://monet.dmfenton.net"
 
     # iOS Universal Links
-    apple_team_id: str = ""  # Set via APPLE_TEAM_ID env var
+    apple_team_id: str = _ssm("apple_team_id")  # From SSM or APPLE_TEAM_ID env var
     ios_bundle_id: str = "net.dmfenton.sketchpad"
 
     # Server

@@ -35,6 +35,39 @@ resource "aws_iam_user_policy" "local_dev_ses" {
   })
 }
 
+# Policy for SSM Parameter Store access (dev environment only)
+resource "aws_iam_user_policy" "local_dev_ssm" {
+  name = "ssm-read-dev"
+  user = aws_iam_user.local_dev.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadDevParameters"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath"
+        ]
+        Resource = "arn:aws:ssm:${var.aws_region}:*:parameter${local.ssm_prefix}/dev/*"
+      },
+      {
+        Sid    = "DecryptDevSecrets"
+        Effect = "Allow"
+        Action = ["kms:Decrypt"]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+}
+
 # Access key for local development
 resource "aws_iam_access_key" "local_dev" {
   user = aws_iam_user.local_dev.name
