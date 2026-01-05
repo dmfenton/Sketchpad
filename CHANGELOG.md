@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.2] - 2026-01-05
 
 ### Added
+- Shareable canvas URLs with Open Graph and Twitter Card meta tags for social media virality
+- Public share endpoints at `/s/{token}` with SSR HTML preview page
+- Preview image generation at `/s/{token}/preview.png` for social media cards
+- Share management endpoints (`POST /s/create`, `GET /s/my-shares`, `DELETE /s/{token}`)
+- Apple Smart App Banner on share pages for iOS install prompts
 - Release workflow verifies deployment by checking `/version` endpoint
 
 ### Fixed

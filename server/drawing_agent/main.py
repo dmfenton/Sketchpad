@@ -21,6 +21,7 @@ from drawing_agent.canvas import path_to_point_list
 from drawing_agent.config import settings
 from drawing_agent.db import User, get_session, repository
 from drawing_agent.registry import workspace_registry
+from drawing_agent.share import share_router
 from drawing_agent.shutdown import shutdown_manager
 from drawing_agent.tracing import get_current_trace_id, setup_tracing
 from drawing_agent.user_handlers import handle_user_message
@@ -107,6 +108,9 @@ app.add_middleware(
 
 # Add auth routes
 app.include_router(auth_router)
+
+# Add share routes (public + authenticated)
+app.include_router(share_router)
 
 
 # Global exception handler to log all unhandled errors
