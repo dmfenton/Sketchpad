@@ -4,11 +4,12 @@ import asyncio
 import io
 import json
 import logging
+import traceback
 from contextlib import asynccontextmanager
 from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from PIL import Image, ImageDraw
@@ -102,6 +103,21 @@ app.add_middleware(
 
 # Add auth routes
 app.include_router(auth_router)
+
+
+# Global exception handler to log all unhandled errors
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Catch all unhandled exceptions and log them with full traceback."""
+    tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+    logger.error(
+        f"Unhandled exception on {request.method} {request.url.path}: {exc}\n"
+        f"{''.join(tb)}"
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error"},
+    )
 
 
 @app.get("/health")
