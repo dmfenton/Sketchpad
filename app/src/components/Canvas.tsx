@@ -15,6 +15,7 @@ import { borderRadius, spacing, typography, useTheme } from '../theme';
 interface CanvasProps {
   strokes: Path[];
   currentStroke: Point[];
+  agentStroke: Point[];  // Agent's in-progress stroke
   penPosition: Point | null;
   penDown: boolean;
   drawingEnabled: boolean;
@@ -90,6 +91,7 @@ function pointsToSvgD(points: Point[]): string {
 export function Canvas({
   strokes,
   currentStroke,
+  agentStroke,
   penPosition,
   penDown,
   drawingEnabled,
@@ -173,6 +175,18 @@ export function Canvas({
               <SvgPath
                 d={pointsToSvgD(currentStroke)}
                 stroke={colors.secondary}
+                strokeWidth={2.5}
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            )}
+
+            {/* Agent's in-progress stroke */}
+            {agentStroke.length > 1 && (
+              <SvgPath
+                d={pointsToSvgD(agentStroke)}
+                stroke={colors.stroke}
                 strokeWidth={2.5}
                 fill="none"
                 strokeLinecap="round"

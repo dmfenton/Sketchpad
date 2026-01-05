@@ -207,6 +207,8 @@ class WorkspaceState:
             # Start fresh
             self._canvas.strokes = []
             self._piece_count += 1
+            self._monologue = ""  # Clear thinking for new piece
+            self._notes = ""  # Clear notes for new piece
 
         # Save outside the lock (save() has its own lock)
         await self.save()

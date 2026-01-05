@@ -22,8 +22,9 @@ function getHost(): string {
     return window.location.hostname;
   }
 
-  // For native devices, use the LAN IP of the dev machine
-  return '192.168.4.65';
+  // For iOS simulator, use localhost
+  // For physical devices, change to your LAN IP
+  return 'localhost';
 }
 
 /**

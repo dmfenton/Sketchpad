@@ -21,12 +21,10 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     # Add code column - default value for any existing rows
-    op.add_column(
-        "magic_link_tokens",
-        sa.Column("code", sa.String(length=6), nullable=False, server_default="000000"),
-    )
-    # Remove the default after adding column
-    op.alter_column("magic_link_tokens", "code", server_default=None)
+    # Note: SQLite doesn't support ALTER COLUMN, so we use batch mode
+    with op.batch_alter_table("magic_link_tokens") as batch_op:
+        batch_op.add_column(sa.Column("code", sa.String(length=6), nullable=False, server_default="000000"))
+    # Create index
     op.create_index("ix_magic_link_tokens_code", "magic_link_tokens", ["code"], unique=False)
 
 

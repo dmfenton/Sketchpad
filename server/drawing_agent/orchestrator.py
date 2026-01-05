@@ -8,14 +8,13 @@ from typing import TYPE_CHECKING, Any, Protocol
 from drawing_agent.agent import AgentCallbacks, CodeExecutionResult
 from drawing_agent.config import settings
 from drawing_agent.executor import execute_paths
-from drawing_agent.state import state_manager
 from drawing_agent.types import (
-    AgentPathsEvent,
     AgentStatus,
     AgentTurnComplete,
     CodeExecutionMessage,
     ErrorMessage,
     IterationMessage,
+    Path,
     PieceCompleteMessage,
     StatusMessage,
     ThinkingDeltaMessage,
@@ -43,10 +42,40 @@ class Broadcaster(Protocol):
 
 @dataclass
 class AgentOrchestrator:
-    """Orchestrates agent turns and manages the agent loop."""
+    """Orchestrates agent turns and manages the agent loop.
+
+    Drawing is handled by the agent's PostToolUse hook, which calls
+    the _draw_paths method on this orchestrator.
+    """
 
     agent: "DrawingAgent"
     broadcaster: Broadcaster
+
+    def __post_init__(self) -> None:
+        # Set up the agent's draw callback to use our _draw_paths method
+        self.agent.set_on_draw(self._draw_paths)
+
+    async def _draw_paths(self, paths: list[Path]) -> None:
+        """Draw paths - called by agent's PostToolUse hook.
+
+        This blocks until all paths are drawn, which pauses Claude
+        until drawing is complete.
+        """
+        if not paths:
+            return
+
+        logger.info(f"Drawing {len(paths)} paths (via hook)")
+        await self.broadcast_status(AgentStatus.DRAWING)
+
+        async def send_message(msg: Any) -> None:
+            await self.broadcaster.broadcast(msg)
+
+        state = self.agent.get_state()
+        async for _ in execute_paths(paths, send_message, state=state):
+            pass
+
+        # Back to thinking after drawing
+        await self.broadcast_status(AgentStatus.THINKING)
 
     async def broadcast_status(self, status: AgentStatus) -> None:
         """Broadcast a status update to all clients."""
@@ -112,25 +141,11 @@ class AgentOrchestrator:
         # Broadcast THINKING status at start of turn
         await self.broadcast_status(AgentStatus.THINKING)
 
-        async def send_message(msg: Any) -> None:
-            await self.broadcaster.broadcast(msg)
-
         done = False
 
-        # Consume streaming events from agent
+        # Consume events from agent - drawing happens in PostToolUse hook
         async for event in self.agent.run_turn(callbacks=callbacks):
-            if isinstance(event, AgentPathsEvent):
-                # Draw paths immediately as they're produced
-                logger.info(f"Received {len(event.paths)} paths - drawing now")
-                await self.broadcast_status(AgentStatus.DRAWING)
-
-                async for _ in execute_paths(event.paths, send_message):
-                    pass
-
-                # Back to thinking (agent may produce more paths)
-                await self.broadcast_status(AgentStatus.THINKING)
-
-            elif isinstance(event, AgentTurnComplete):
+            if isinstance(event, AgentTurnComplete):
                 done = event.done
                 logger.info(f"Turn complete. Piece done: {done}")
                 # Send complete thinking text as a final message
@@ -141,7 +156,7 @@ class AgentOrchestrator:
         await self.broadcast_status(AgentStatus.IDLE)
 
         if done:
-            piece_num = state_manager.piece_count
+            piece_num = self.agent.get_state().piece_count
             logger.info(f"Piece {piece_num} complete")
             await self.broadcaster.broadcast(PieceCompleteMessage(piece_number=piece_num))
 
