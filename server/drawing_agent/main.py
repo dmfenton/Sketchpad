@@ -16,12 +16,12 @@ from PIL import Image, ImageDraw
 
 from drawing_agent.auth import auth_router
 from drawing_agent.auth.dependencies import CurrentUser
-from drawing_agent.share import share_router
 from drawing_agent.auth.jwt import TokenError, get_user_id_from_token
 from drawing_agent.canvas import path_to_point_list
 from drawing_agent.config import settings
 from drawing_agent.db import User, get_session, repository
 from drawing_agent.registry import workspace_registry
+from drawing_agent.share import share_router
 from drawing_agent.shutdown import shutdown_manager
 from drawing_agent.tracing import get_current_trace_id, setup_tracing
 from drawing_agent.user_handlers import handle_user_message

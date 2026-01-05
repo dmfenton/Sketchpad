@@ -1,5 +1,6 @@
 """Share routes for public canvas sharing with social media support."""
 
+import html
 import io
 import secrets
 from typing import Any
@@ -10,9 +11,10 @@ from PIL import Image, ImageDraw
 from pydantic import BaseModel
 
 from drawing_agent.auth.dependencies import CurrentUser
-from drawing_agent.canvas import path_to_point_list
+from drawing_agent.canvas import path_to_point_list, render_path_to_svg_d
 from drawing_agent.config import settings
-from drawing_agent.db import get_session, repository
+from drawing_agent.db import CanvasShare, get_session, repository
+from drawing_agent.types import Path
 from drawing_agent.workspace_state import WorkspaceState
 
 router = APIRouter(prefix="/s", tags=["share"])
@@ -119,7 +121,7 @@ async def delete_share(token: str, user: CurrentUser) -> dict[str, str]:
 # =============================================================================
 
 
-async def load_shared_canvas(token: str) -> tuple[Any, list[Any]]:
+async def load_shared_canvas(token: str) -> tuple[CanvasShare, list[Path]]:
     """Load share info and canvas strokes. Returns (share, strokes)."""
     async with get_session() as session:
         share = await repository.get_canvas_share(session, token)
@@ -166,23 +168,23 @@ async def get_share_page(token: str) -> HTMLResponse:
     """Serve SSR HTML page with Open Graph meta tags for social sharing."""
     share, strokes = await load_shared_canvas(token)
 
-    # Build meta info
-    title = share.title or f"Artwork #{share.piece_number}"
+    # Build meta info - escape user-provided content to prevent XSS
+    raw_title = share.title or f"Artwork #{share.piece_number}"
+    title = html.escape(raw_title)
     description = "Created with Monet - AI-powered collaborative art"
     share_url = f"{settings.magic_link_base_url}/s/{token}"
     preview_url = f"{share_url}/preview.png"
     app_store_url = "https://apps.apple.com/app/monet-ai-art/id6740019844"
 
-    # Render SVG inline for the page
+    # Render SVG inline for the page - escape path data to prevent injection
     svg_paths = ""
-    from drawing_agent.canvas import render_path_to_svg_d
-
     for path in strokes:
         d = render_path_to_svg_d(path)
         if d:
-            svg_paths += f'<path d="{d}" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+            escaped_d = html.escape(d, quote=True)
+            svg_paths += f'<path d="{escaped_d}" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
 
-    html = f"""<!DOCTYPE html>
+    html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -343,7 +345,7 @@ async def get_share_page(token: str) -> HTMLResponse:
 </html>"""
 
     return HTMLResponse(
-        content=html,
+        content=html_content,
         headers={
             "Cache-Control": "public, max-age=300",  # Cache for 5 minutes
         },
