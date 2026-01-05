@@ -7,12 +7,10 @@ in the interpolation module.
 
 import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from drawing_agent.canvas import add_stroke
 from drawing_agent.config import settings
 from drawing_agent.interpolation import interpolate_path
-from drawing_agent.state import state_manager
 from drawing_agent.types import (
     AgentStatus,
     Path,
@@ -20,10 +18,14 @@ from drawing_agent.types import (
     StrokeCompleteMessage,
 )
 
+if TYPE_CHECKING:
+    from drawing_agent.workspace_state import WorkspaceState
+
 
 async def execute_paths(
     paths: list[Path],
     send_message: Callable[[Any], Awaitable[None]],
+    state: "WorkspaceState",
     fps: int | None = None,
     stroke_delay: float | None = None,
 ) -> AsyncGenerator[None, None]:
@@ -32,6 +34,7 @@ async def execute_paths(
     Args:
         paths: List of paths to draw
         send_message: Callback to send messages to clients
+        state: Workspace state for the user
         fps: Frames per second for updates (default: from settings)
         stroke_delay: Pause between strokes in seconds (default: from settings)
 
@@ -41,8 +44,8 @@ async def execute_paths(
     stroke_delay = stroke_delay if stroke_delay is not None else settings.stroke_delay
     frame_delay = 1.0 / fps
 
-    state_manager.status = AgentStatus.DRAWING
-    state_manager.save()
+    state.status = AgentStatus.DRAWING
+    await state.save()
 
     for path_idx, path in enumerate(paths):
         interpolated = interpolate_path(path, settings.path_steps_per_unit)
@@ -68,7 +71,7 @@ async def execute_paths(
         await send_message(PenMessage(x=last_point.x, y=last_point.y, down=False))
 
         # Mark path complete
-        add_stroke(path)
+        await state.add_stroke(path)
         await send_message(StrokeCompleteMessage(path=path))
 
         # Pause between strokes for deliberate pacing
@@ -78,5 +81,5 @@ async def execute_paths(
         yield  # Allow other tasks to run
 
     # Execution complete
-    state_manager.status = AgentStatus.IDLE
-    state_manager.save()
+    state.status = AgentStatus.IDLE
+    await state.save()

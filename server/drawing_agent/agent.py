@@ -14,6 +14,9 @@ from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
     ClaudeSDKClient,
+    HookContext,
+    HookMatcher,
+    PostToolUseHookInput,
     ResultMessage,
     SystemMessage,
     TextBlock,
@@ -27,7 +30,6 @@ from drawing_agent.config import settings
 from drawing_agent.tools import create_drawing_server, set_canvas_dimensions, set_draw_callback
 from drawing_agent.types import (
     AgentEvent,
-    AgentPathsEvent,
     AgentStatus,
     AgentTurnComplete,
     Path,
@@ -148,7 +150,12 @@ class DrawingAgent:
         self._client: ClaudeSDKClient | None = None
         self._drawing_server = create_drawing_server()
 
-        # Build options
+        # Drawing hook support - orchestrator sets this callback
+        self._on_draw: Callable[[list[Path]], Coroutine[Any, Any, None]] | None = None
+        self._collected_paths: list[Path] = []
+        self._piece_done = False
+
+        # Build options with PostToolUse hook
         self._options = ClaudeAgentOptions(
             system_prompt=SYSTEM_PROMPT,
             mcp_servers={"drawing": self._drawing_server},
@@ -161,9 +168,40 @@ class DrawingAgent:
             permission_mode="acceptEdits",
             model=settings.agent_model if hasattr(settings, "agent_model") else None,
             include_partial_messages=True,  # Enable streaming partial messages
+            hooks={
+                "PostToolUse": [
+                    HookMatcher(hooks=[self._post_tool_use_hook])
+                ]
+            },
         )
 
-    def _get_state(self) -> Any:
+    def set_on_draw(self, callback: Callable[[list[Path]], Coroutine[Any, Any, None]]) -> None:
+        """Set the callback for drawing paths. Called by orchestrator."""
+        self._on_draw = callback
+
+    async def _post_tool_use_hook(
+        self,
+        input_data: PostToolUseHookInput,
+        _tool_use_id: str | None,
+        _context: HookContext,
+    ) -> dict[str, Any]:
+        """PostToolUse hook - pause after draw_paths to let drawing complete."""
+        tool_name = input_data.tool_name
+
+        # After draw_paths, execute drawing and wait
+        if tool_name == "mcp__drawing__draw_paths" and self._collected_paths:
+            if self._on_draw:
+                logger.info(f"PostToolUse: drawing {len(self._collected_paths)} paths")
+                await self._on_draw(self._collected_paths.copy())
+            self._collected_paths.clear()
+
+        # After mark_piece_done, flag completion
+        elif tool_name == "mcp__drawing__mark_piece_done":
+            self._piece_done = True
+
+        return {}
+
+    def get_state(self) -> Any:
         """Get the workspace state (injected or singleton fallback)."""
         if self._state is not None:
             return self._state
@@ -174,7 +212,7 @@ class DrawingAgent:
 
     async def _save_state(self) -> None:
         """Save state (async for WorkspaceState, sync for StateManager)."""
-        state = self._get_state()
+        state = self.get_state()
         if hasattr(state, "save"):
             result = state.save()
             # If it's a coroutine (WorkspaceState), await it
@@ -229,7 +267,7 @@ class DrawingAgent:
 
     def _build_prompt(self) -> str:
         """Build the prompt with canvas context."""
-        state = self._get_state()
+        state = self.get_state()
         parts: list[str] = []
 
         # Canvas info
@@ -258,7 +296,7 @@ class DrawingAgent:
 
         from drawing_agent.canvas import path_to_point_list
 
-        state = self._get_state()
+        state = self.get_state()
         canvas = state.canvas
 
         img = Image.new("RGB", (canvas.width, canvas.height), "#FFFFFF")
@@ -272,18 +310,17 @@ class DrawingAgent:
 
         return img
 
-    def _build_multimodal_prompt(self) -> list[dict[str, Any]]:
+    async def _build_multimodal_prompt(self) -> AsyncGenerator[dict[str, Any], None]:
         """Build prompt with text context and canvas image.
 
-        Returns list of content blocks for the Claude SDK query:
-        - Text block with canvas metadata, notes, and nudges
-        - Image block with current canvas state (human strokes in blue)
+        Yields message dicts for the Claude SDK query:
+        - User message with text and image content blocks
         """
         # Canvas image
         img = self._get_canvas_image(highlight_human=True)
         image_b64 = self._image_to_base64(img)
 
-        return [
+        content = [
             {"type": "text", "text": self._build_prompt()},
             {
                 "type": "image",
@@ -295,44 +332,46 @@ class DrawingAgent:
             },
         ]
 
+        yield {
+            "type": "user",
+            "message": {"role": "user", "content": content},
+            "parent_tool_use_id": None,
+        }
+
     async def run_turn(
         self,
         callbacks: AgentCallbacks | None = None,
     ) -> AsyncGenerator[AgentEvent, None]:
-        """Run a single agent turn, yielding paths as they're produced.
+        """Run a single agent turn.
 
-        This is an async generator that yields:
-        - AgentPathsEvent: When paths are drawn via the tool
-        - AgentTurnComplete: When the turn is finished
+        Drawing now happens via PostToolUse hook - no need to yield AgentPathsEvent.
+        The hook calls _on_draw callback set by the orchestrator.
 
         Args:
             callbacks: Callbacks for various agent events
 
         Yields:
-            AgentEvent objects as the turn progresses
+            AgentTurnComplete when the turn is finished
         """
         if self.paused:
             yield AgentTurnComplete(thinking="", done=False)
             return
 
-        # Clear abort flag at start of turn
+        # Clear state at start of turn
         self._abort = False
-        state = self._get_state()
+        self._piece_done = False
+        self._collected_paths.clear()
+        state = self.get_state()
 
         cb = callbacks or AgentCallbacks()
         state.status = AgentStatus.THINKING
         await self._save_state()
 
-        # Track paths and completion
-        collected_paths: list[Path] = []
-        piece_done = False
-
-        # Set up draw callback to collect paths
+        # Set up draw callback to collect paths for the PostToolUse hook
         async def on_draw(paths: list[Path], done: bool) -> None:
-            nonlocal piece_done
-            collected_paths.extend(paths)
+            self._collected_paths.extend(paths)
             if done:
-                piece_done = True
+                self._piece_done = True
 
         set_draw_callback(on_draw)
         set_canvas_dimensions(settings.canvas_width, settings.canvas_height)
@@ -387,16 +426,10 @@ class DrawingAgent:
                                     await cb.on_thinking(text, iteration)
 
                         elif isinstance(block, ToolUseBlock):
-                            # Tool being called
+                            # Tool being called - drawing happens in PostToolUse hook
                             logger.info(f"Tool use: {block.name}")
                             if cb.on_code_start:
                                 await cb.on_code_start(iteration)
-
-                            # Check if paths were collected (tool was executed)
-                            if collected_paths:
-                                logger.info(f"Yielding {len(collected_paths)} paths")
-                                yield AgentPathsEvent(paths=collected_paths.copy())
-                                collected_paths.clear()
 
                         elif isinstance(block, ToolResultBlock):
                             # Tool result
@@ -420,22 +453,17 @@ class DrawingAgent:
                     if message.is_error and cb.on_error:
                         await cb.on_error(message.result or "Unknown error", None)
 
-            # Yield any remaining paths
-            if collected_paths:
-                yield AgentPathsEvent(paths=collected_paths.copy())
-                collected_paths.clear()
-
             # Update agent state
             state.monologue = all_thinking
             await self._save_state()
 
-            if piece_done:
+            if self._piece_done:
                 state.piece_count += 1
                 self.reset_container()  # Fresh session for new piece
                 await self._save_state()
 
             # Signal turn complete
-            yield AgentTurnComplete(thinking=all_thinking, done=piece_done)
+            yield AgentTurnComplete(thinking=all_thinking, done=self._piece_done)
 
         except Exception as e:
             logger.exception("Agent turn failed")

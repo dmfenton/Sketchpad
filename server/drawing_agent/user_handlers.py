@@ -79,8 +79,15 @@ async def handle_new_canvas(
         {"type": "piece_count", "count": workspace.state.piece_count}
     )
 
+    # Auto-start the agent on new canvas
+    await workspace.agent.resume()
+    workspace.state.status = AgentStatus.IDLE
+    await workspace.state.save()
+    await workspace.connections.broadcast(StatusMessage(status=AgentStatus.IDLE))
+    await workspace.connections.broadcast({"type": "paused", "paused": False})
+
     logger.info(
-        f"User {workspace.user_id}: new canvas (piece #{workspace.state.piece_count}), saved: {saved_id}"
+        f"User {workspace.user_id}: new canvas (piece #{workspace.state.piece_count}), saved: {saved_id}, auto-started"
     )
 
 

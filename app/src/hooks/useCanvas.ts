@@ -13,6 +13,7 @@ const MAX_MESSAGES = 50;
 export interface CanvasHookState {
   strokes: Path[];
   currentStroke: Point[];
+  agentStroke: Point[];  // Agent's in-progress stroke
   penPosition: Point | null;
   penDown: boolean;
   agentStatus: AgentStatus;
@@ -57,6 +58,7 @@ export type CanvasAction =
 const initialState: CanvasHookState = {
   strokes: [],
   currentStroke: [],
+  agentStroke: [],
   penPosition: null,
   penDown: false,
   agentStatus: 'paused',  // Start paused
@@ -74,13 +76,14 @@ const initialState: CanvasHookState = {
 function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHookState {
   switch (action.type) {
     case 'ADD_STROKE':
-      return { ...state, strokes: [...state.strokes, action.path] };
+      // Clear agentStroke when stroke is finalized
+      return { ...state, strokes: [...state.strokes, action.path], agentStroke: [] };
 
     case 'SET_STROKES':
       return { ...state, strokes: action.strokes };
 
     case 'CLEAR':
-      return { ...state, strokes: [], currentStroke: [], viewingPiece: null };
+      return { ...state, strokes: [], currentStroke: [], agentStroke: [], viewingPiece: null };
 
     case 'START_STROKE':
       return { ...state, currentStroke: [action.point] };
@@ -91,12 +94,20 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
     case 'END_STROKE':
       return { ...state, currentStroke: [] };
 
-    case 'SET_PEN':
+    case 'SET_PEN': {
+      const newPoint = { x: action.x, y: action.y };
+      // Accumulate points when pen is down for live stroke preview
+      // Don't clear on pen up - wait for ADD_STROKE to clear
+      const newAgentStroke = action.down
+        ? [...state.agentStroke, newPoint]
+        : state.agentStroke;
       return {
         ...state,
-        penPosition: { x: action.x, y: action.y },
+        penPosition: newPoint,
         penDown: action.down,
+        agentStroke: newAgentStroke,
       };
+    }
 
     case 'SET_STATUS':
       return { ...state, agentStatus: action.status };

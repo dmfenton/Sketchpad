@@ -184,6 +184,7 @@ function MainApp(): React.JSX.Element {
             <Canvas
               strokes={canvas.state.strokes}
               currentStroke={canvas.state.currentStroke}
+              agentStroke={canvas.state.agentStroke}
               penPosition={canvas.state.penPosition}
               penDown={canvas.state.penDown}
               drawingEnabled={canvas.state.drawingEnabled}

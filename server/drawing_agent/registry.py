@@ -46,6 +46,11 @@ class UserConnectionManager:
     def is_empty(self) -> bool:
         return len(self.connections) == 0
 
+    @property
+    def active_connections(self) -> list[WebSocket]:
+        """Alias for connections - required by Broadcaster protocol."""
+        return self.connections
+
     async def broadcast(self, message: Any) -> None:
         """Broadcast message to all user's connections."""
         if not self.connections:
