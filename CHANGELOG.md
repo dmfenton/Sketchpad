@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- S3-based config deployment: deploy/ files auto-sync on release, downloaded on EC2 boot
+- Terraform-managed S3 bucket for config files with versioning and public access block
+
 ## [1.4.2] - 2026-01-05
 
 ### Added

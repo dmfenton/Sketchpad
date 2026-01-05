@@ -100,5 +100,15 @@ if [ -f /home/ec2-user/data/drawing_agent.db ]; then
   chmod 600 /home/ec2-user/data/drawing_agent.db
 fi
 
+# Download deploy config files from S3
+# Get account ID from instance metadata
+TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+ACCOUNT_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | cut -d'"' -f4)
+CONFIG_BUCKET="drawing-agent-config-${ACCOUNT_ID}"
+
+echo "Downloading config files from s3://${CONFIG_BUCKET}/deploy/..."
+aws s3 sync "s3://${CONFIG_BUCKET}/deploy/" /home/ec2-user/ --region us-east-1
+chown -R ec2-user:ec2-user /home/ec2-user/*.yml /home/ec2-user/*.yaml /home/ec2-user/*.conf 2>/dev/null || true
+
 # Signal completion
 echo "User data script completed successfully" > /home/ec2-user/user_data_complete.txt

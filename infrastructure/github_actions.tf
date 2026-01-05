@@ -9,7 +9,7 @@ resource "aws_iam_user" "github_actions" {
   }
 }
 
-# Policy for ECR push access
+# Policy for ECR push and S3 config sync
 resource "aws_iam_user_policy" "github_actions_ecr" {
   name = "ecr-push-policy"
   user = aws_iam_user.github_actions.name
@@ -38,6 +38,28 @@ resource "aws_iam_user_policy" "github_actions_ecr" {
           "ecr:CompleteLayerUpload"
         ]
         Resource = aws_ecr_repository.main.arn
+      },
+      {
+        Sid    = "SyncConfigToS3"
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = [
+          aws_s3_bucket.config.arn,
+          "${aws_s3_bucket.config.arn}/*"
+        ]
+      },
+      {
+        Sid    = "GetCallerIdentity"
+        Effect = "Allow"
+        Action = [
+          "sts:GetCallerIdentity"
+        ]
+        Resource = "*"
       }
     ]
   })

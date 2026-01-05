@@ -76,6 +76,13 @@ jobs:
 
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Sync deploy configs to S3
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET="drawing-agent-config-${ACCOUNT_ID}"
+          echo "Syncing deploy/ to s3://${BUCKET}/deploy/"
+          aws s3 sync deploy/ "s3://${BUCKET}/deploy/" --delete
+
       - name: Extract changelog
         id: changelog
         run: |
