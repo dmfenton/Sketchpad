@@ -40,8 +40,13 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - DEV_MODE=false
+      - OTEL_ENABLED=true
+      - OTEL_EXPORTER_ENDPOINT=http://otel-collector:4318
+      - AWS_REGION=${AWS_REGION:-us-east-1}
     volumes:
       - ./data:/app/data
+    depends_on:
+      - otel-collector
     restart: unless-stopped
     networks:
       - app-network
@@ -50,6 +55,24 @@ services:
     stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  otel-collector:
+    image: amazon/aws-otel-collector:latest
+    container_name: otel-collector
+    command: ["--config=/etc/otel-config.yaml"]
+    volumes:
+      - ./otel-config.yaml:/etc/otel-config.yaml:ro
+    environment:
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "/healthcheck"]
       interval: 30s
       timeout: 10s
       retries: 3

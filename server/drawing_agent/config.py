@@ -60,5 +60,11 @@ class Settings(BaseSettings):
     max_stdout_chars: int = 2000  # truncate stdout in messages
     max_stderr_chars: int = 500  # truncate stderr in messages
 
+    # Tracing (OpenTelemetry + X-Ray via ADOT Collector)
+    otel_enabled: bool = False  # Enable in production via env var
+    otel_service_name: str = "drawing-agent"
+    otel_exporter_endpoint: str = "http://otel-collector:4318"  # ADOT Collector OTLP/HTTP
+    aws_region: str = "us-east-1"
+
 
 settings = Settings()  # type: ignore[call-arg]

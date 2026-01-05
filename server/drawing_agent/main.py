@@ -22,6 +22,7 @@ from drawing_agent.config import settings
 from drawing_agent.db import User, get_session, repository
 from drawing_agent.registry import workspace_registry
 from drawing_agent.shutdown import shutdown_manager
+from drawing_agent.tracing import get_current_trace_id, setup_tracing
 from drawing_agent.user_handlers import handle_user_message
 from drawing_agent.workspace_state import WorkspaceState
 
@@ -90,6 +91,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Initialize OpenTelemetry tracing
+setup_tracing(app)
+
 # CORS configuration
 # Since we use JWT tokens (not cookies), we don't need allow_credentials=True
 # This allows native apps and any web origin to connect
@@ -109,15 +113,17 @@ app.include_router(auth_router)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch all unhandled exceptions and log them with full traceback."""
+    trace_id = get_current_trace_id()
     tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
     logger.error(
         f"Unhandled exception on {request.method} {request.url.path}: {exc}\n"
+        f"trace_id={trace_id}\n"
         f"{''.join(tb)}"
     )
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal Server Error"},
-    )
+    content: dict[str, Any] = {"detail": "Internal Server Error"}
+    if trace_id:
+        content["trace_id"] = trace_id
+    return JSONResponse(status_code=500, content=content)
 
 
 @app.get("/health")

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-01-05
+
+### Added
+- OpenTelemetry tracing with AWS X-Ray integration
+- ADOT Collector sidecar in docker-compose for trace export
+- `/diagnose` skill for querying X-Ray traces from Claude Code
+- `scripts/diagnose.py` CLI for trace debugging (recent, errors, trace, path)
+- Trace ID included in 500 error responses for debugging
+
+### Changed
+- Global exception handler now logs trace IDs for correlation
+
 ## [1.3.6] - 2026-01-04
 
 ### Fixed
@@ -168,7 +180,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.3.6...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/dmfenton/sketchpad/compare/v1.3.6...v1.4.0
 [1.3.6]: https://github.com/dmfenton/sketchpad/compare/v1.3.5...v1.3.6
 [1.3.5]: https://github.com/dmfenton/sketchpad/compare/v1.3.4...v1.3.5
 [1.3.4]: https://github.com/dmfenton/sketchpad/compare/v1.3.3...v1.3.4

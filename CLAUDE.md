@@ -517,6 +517,67 @@ Update `EXPO_PUBLIC_WS_URL` in `.github/workflows/testflight.yml` to point to yo
 
 ---
 
+## Observability (Tracing)
+
+### Overview
+
+Production uses OpenTelemetry with AWS X-Ray for distributed tracing:
+- **App**: Instrumented with opentelemetry-python (FastAPI, SQLAlchemy, logging)
+- **Collector**: ADOT Collector sidecar receives OTLP, exports to X-Ray
+- **Console**: View traces in AWS X-Ray console
+
+### Diagnosing Errors
+
+Use the `/diagnose` skill or run the script directly:
+
+```bash
+# Show recent error traces (default)
+uv run python scripts/diagnose.py errors
+
+# Show all recent traces
+uv run python scripts/diagnose.py recent
+
+# Get full trace details (including stack traces)
+uv run python scripts/diagnose.py trace 1-67890abc-def123456789abcd
+
+# Show traces for specific endpoint
+uv run python scripts/diagnose.py path /auth/verify
+```
+
+### Trace IDs in Errors
+
+500 errors include trace_id in the response:
+```json
+{"detail": "Internal Server Error", "trace_id": "abc123..."}
+```
+
+Use this ID to look up the full trace with stack trace:
+```bash
+uv run python scripts/diagnose.py trace <trace_id>
+```
+
+### Environment Variables
+
+```bash
+# Enable tracing (production only, disabled in dev)
+OTEL_ENABLED=true
+
+# Collector endpoint (set automatically in docker-compose)
+OTEL_EXPORTER_ENDPOINT=http://otel-collector:4318
+
+# AWS region for X-Ray
+AWS_REGION=us-east-1
+```
+
+### Viewing in AWS Console
+
+1. Go to AWS Console → CloudWatch → X-Ray traces → Traces
+2. Filter by service name "drawing-agent"
+3. Click a trace to see segment timeline and details
+4. Error traces show exception stack traces
+
+---
+
 ## Troubleshooting
 
 ### Docker container shows "unhealthy"
