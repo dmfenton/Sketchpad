@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-01-05
+
 ### Fixed
 - Magic link verification: fix timezone-naive vs aware datetime comparison (SQLite stores naive)
 
@@ -209,7 +211,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/dmfenton/sketchpad/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/dmfenton/sketchpad/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/dmfenton/sketchpad/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/dmfenton/sketchpad/compare/v1.4.0...v1.4.1
