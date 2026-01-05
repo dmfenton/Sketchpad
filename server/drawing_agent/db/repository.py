@@ -7,6 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from drawing_agent.db.models import CanvasShare, InviteCode, MagicLinkToken, User
 
+
+def _ensure_utc(dt: datetime) -> datetime:
+    """Ensure datetime is UTC-aware (SQLite stores naive datetimes)."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
+
 # =============================================================================
 # User Repository
 # =============================================================================
@@ -127,7 +134,7 @@ async def use_magic_link_token(session: AsyncSession, token: str) -> MagicLinkTo
         return None
     if magic_link.used_at is not None:
         return None  # Already used
-    if magic_link.expires_at < datetime.now(UTC):
+    if _ensure_utc(magic_link.expires_at) < datetime.now(UTC):
         return None  # Expired
     magic_link.used_at = datetime.now(UTC)
     return magic_link
@@ -155,7 +162,7 @@ async def use_magic_link_code(
         return None
     if magic_link.used_at is not None:
         return None  # Already used
-    if magic_link.expires_at < datetime.now(UTC):
+    if _ensure_utc(magic_link.expires_at) < datetime.now(UTC):
         return None  # Expired
     magic_link.used_at = datetime.now(UTC)
     return magic_link
