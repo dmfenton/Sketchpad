@@ -374,11 +374,15 @@ async def verify_magic_link(request: MagicLinkVerifyRequest) -> TokenResponse:
                 detail="User not found or inactive",
             )
 
-        logger.info(f"User signed in via magic link: {user.email} (id={user.id})")
+        # Extract values before session closes
+        user_id = user.id
+        user_email = user.email
 
-    # Generate tokens
-    access_token = create_access_token(user.id, user.email)
-    refresh_token = create_refresh_token(user.id)
+        logger.info(f"User signed in via magic link: {user_email} (id={user_id})")
+
+    # Generate tokens (outside session - only using extracted values)
+    access_token = create_access_token(user_id, user_email)
+    refresh_token = create_refresh_token(user_id)
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
