@@ -297,6 +297,22 @@ function AppContent(): React.JSX.Element {
             setMagicLinkError(result.error ?? 'Magic link verification failed');
           }
           setVerifyingMagicLink(false);
+          return;
+        }
+
+        // Handle tokens from expo-router redirect (when deep link goes through /auth/callback route)
+        if (parsed.queryParams?.access_token && parsed.queryParams?.refresh_token) {
+          const accessToken = parsed.queryParams.access_token as string;
+          const refreshToken = parsed.queryParams.refresh_token as string;
+          console.log('[App] Setting tokens from expo-router redirect');
+          setVerifyingMagicLink(true);
+          setMagicLinkError(null);
+
+          const result = await setTokensFromCallback(accessToken, refreshToken);
+          if (!result.success) {
+            setMagicLinkError(result.error ?? 'Failed to authenticate');
+          }
+          setVerifyingMagicLink(false);
         }
       } catch (error) {
         console.error('[App] Deep link error:', error);
