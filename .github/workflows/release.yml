@@ -123,6 +123,34 @@ jobs:
           draft: false
           prerelease: ${{ contains(steps.version.outputs.version, '-') }}
 
+      - name: Wait for deployment
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          echo "Waiting for Watchtower to deploy v$VERSION..."
+
+          # Wait up to 2 minutes for deployment
+          for i in {1..24}; do
+            sleep 5
+
+            # Check /version endpoint
+            RESPONSE=$(curl -sf https://monet.dmfenton.net/version 2>/dev/null || echo '{}')
+            DEPLOYED_VERSION=$(echo "$RESPONSE" | jq -r '.version // empty')
+
+            if [ "$DEPLOYED_VERSION" = "$VERSION" ]; then
+              echo "✅ Deployment verified: v$VERSION is running"
+              echo "Response: $RESPONSE"
+              exit 0
+            fi
+
+            echo "Attempt $i/24: Current version is '${DEPLOYED_VERSION:-unknown}', waiting for '$VERSION'..."
+          done
+
+          echo "❌ Deployment verification failed after 2 minutes"
+          echo "Expected: $VERSION"
+          echo "Got: $DEPLOYED_VERSION"
+          exit 1
+
       - name: Summary
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -131,5 +159,5 @@ jobs:
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: v$VERSION" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: \`$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Server**: Watchtower auto-deploys within 30 seconds" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment**: ✅ Verified running at https://monet.dmfenton.net/version" >> $GITHUB_STEP_SUMMARY
           echo "- **iOS**: TestFlight build triggered" >> $GITHUB_STEP_SUMMARY
