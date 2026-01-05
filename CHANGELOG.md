@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Terraform manages SSM parameters with placeholder values (secrets updated via CLI)
 
 ### Changed
-- Docker container uses instance IAM role for SSM access (IMDS hop limit increased)
+- EC2 instance metadata_options in Terraform (hop limit 2 for container SSM access)
 - Removed secrets from docker-compose.prod.yml
 
 ## [1.5.2] - 2026-01-05

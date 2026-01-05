@@ -113,6 +113,13 @@ resource "aws_instance" "main" {
   vpc_security_group_ids = [aws_security_group.main.id]
   iam_instance_profile   = aws_iam_instance_profile.main.name
 
+  # Allow containers on bridge network to access instance metadata (for SSM)
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"  # IMDSv2
+    http_put_response_hop_limit = 2           # Allow containers to reach IMDS
+  }
+
   root_block_device {
     volume_size           = 30
     volume_type           = "gp3"

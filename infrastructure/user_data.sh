@@ -1,14 +1,6 @@
 #!/bin/bash
 set -e
 
-# Increase IMDS hop limit to allow containers to access instance metadata
-# Required for containers on bridge network to use IAM role for SSM
-INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-aws ec2 modify-instance-metadata-options \
-  --instance-id "$INSTANCE_ID" \
-  --http-put-response-hop-limit 2 \
-  --region us-east-1 || true
-
 # Update system
 yum update -y
 
