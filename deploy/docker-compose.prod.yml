@@ -37,6 +37,7 @@ services:
       - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///data/drawing_agent.db}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_ID_IOS=${GOOGLE_CLIENT_ID_IOS:-}
+      - APPLE_TEAM_ID=${APPLE_TEAM_ID:-}
       - HOST=0.0.0.0
       - PORT=8000
       - DEV_MODE=false
