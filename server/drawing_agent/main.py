@@ -16,6 +16,7 @@ from PIL import Image, ImageDraw
 
 from drawing_agent.auth import auth_router
 from drawing_agent.auth.dependencies import CurrentUser
+from drawing_agent.share import share_router
 from drawing_agent.auth.jwt import TokenError, get_user_id_from_token
 from drawing_agent.canvas import path_to_point_list
 from drawing_agent.config import settings
@@ -107,6 +108,9 @@ app.add_middleware(
 
 # Add auth routes
 app.include_router(auth_router)
+
+# Add share routes (public + authenticated)
+app.include_router(share_router)
 
 
 # Global exception handler to log all unhandled errors

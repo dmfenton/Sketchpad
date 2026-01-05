@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from drawing_agent.db.models import InviteCode, MagicLinkToken, User
+from drawing_agent.db.models import CanvasShare, InviteCode, MagicLinkToken, User
 
 # =============================================================================
 # User Repository
@@ -169,3 +169,65 @@ async def cleanup_expired_magic_links(session: AsyncSession) -> int:
         delete(MagicLinkToken).where(MagicLinkToken.expires_at < datetime.now(UTC))
     )
     return result.rowcount
+
+
+# =============================================================================
+# Canvas Share Repository
+# =============================================================================
+
+
+async def create_canvas_share(
+    session: AsyncSession,
+    token: str,
+    user_id: int,
+    piece_number: int,
+    title: str | None = None,
+) -> CanvasShare:
+    """Create a new canvas share."""
+    share = CanvasShare(
+        token=token,
+        user_id=user_id,
+        piece_number=piece_number,
+        title=title,
+    )
+    session.add(share)
+    await session.flush()
+    return share
+
+
+async def get_canvas_share(session: AsyncSession, token: str) -> CanvasShare | None:
+    """Get canvas share by token."""
+    result = await session.execute(select(CanvasShare).where(CanvasShare.token == token))
+    return result.scalar_one_or_none()
+
+
+async def get_canvas_share_by_user_piece(
+    session: AsyncSession, user_id: int, piece_number: int
+) -> CanvasShare | None:
+    """Get canvas share by user and piece number."""
+    result = await session.execute(
+        select(CanvasShare).where(
+            CanvasShare.user_id == user_id,
+            CanvasShare.piece_number == piece_number,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def list_user_shares(session: AsyncSession, user_id: int) -> list[CanvasShare]:
+    """List all shares for a user."""
+    result = await session.execute(
+        select(CanvasShare)
+        .where(CanvasShare.user_id == user_id)
+        .order_by(CanvasShare.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def delete_canvas_share(session: AsyncSession, token: str, user_id: int) -> bool:
+    """Delete a canvas share. Returns True if deleted, False if not found or not owned."""
+    share = await get_canvas_share(session, token)
+    if share is None or share.user_id != user_id:
+        return False
+    await session.delete(share)
+    return True
