@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-01-05
+
 ### Added
 - S3-based config deployment: deploy/ files auto-sync on release, downloaded on EC2 boot
 - Terraform-managed S3 bucket for config files with versioning and public access block
@@ -204,7 +206,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/dmfenton/sketchpad/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/dmfenton/sketchpad/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/dmfenton/sketchpad/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/dmfenton/sketchpad/compare/v1.3.6...v1.4.0
