@@ -2,14 +2,18 @@
  * Utility exports.
  */
 
-export { boundedConcat, boundedPush } from './array';
+// Re-export from shared library
+export {
+  boundedConcat,
+  boundedPush,
+  generateMessageId,
+  routeMessage,
+} from '@drawing-agent/shared';
+
+// Keep RN-specific canvas utilities
 export {
   canvasToScreen,
   pathToSvgD,
   pointsToPolylineD,
   screenToCanvas,
 } from './canvas';
-export {
-  generateMessageId,
-  routeMessage,
-} from './messageHandlers';

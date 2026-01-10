@@ -197,10 +197,15 @@ class DrawingAgent:
         _context: HookContext,
     ) -> dict[str, Any]:
         """PostToolUse hook - pause after draw_paths to let drawing complete."""
-        tool_name = input_data.tool_name
+        # input_data may be a dict or object depending on SDK version
+        if isinstance(input_data, dict):
+            tool_name = input_data.get("tool_name", "")
+        else:
+            tool_name = getattr(input_data, "tool_name", "")
+        logger.info(f"PostToolUse: tool={tool_name}, collected_paths={len(self._collected_paths)}")
 
-        # After draw_paths, execute drawing and wait
-        if tool_name == "mcp__drawing__draw_paths" and self._collected_paths:
+        # After draw_paths or generate_svg, execute drawing and wait
+        if tool_name in ("mcp__drawing__draw_paths", "mcp__drawing__generate_svg") and self._collected_paths:
             if self._on_draw:
                 logger.info(f"PostToolUse: drawing {len(self._collected_paths)} paths")
                 await self._on_draw(self._collected_paths.copy())

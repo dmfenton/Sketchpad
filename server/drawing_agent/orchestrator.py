@@ -64,9 +64,10 @@ class AgentOrchestrator:
         until drawing is complete.
         """
         if not paths:
+            logger.debug("_draw_paths called with empty paths list")
             return
 
-        logger.info(f"Drawing {len(paths)} paths (via hook)")
+        logger.info(f">>> Drawing {len(paths)} paths")
         if self.file_logger:
             await self.file_logger.log_drawing(len(paths))
         await self.broadcast_status(AgentStatus.DRAWING)
@@ -161,6 +162,7 @@ class AgentOrchestrator:
 
         Returns True if a piece was completed, False otherwise.
         """
+        logger.info("=== Starting agent turn ===")
         callbacks = self.create_callbacks()
         state = self.agent.get_state()
 

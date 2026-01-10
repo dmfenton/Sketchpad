@@ -1,5 +1,6 @@
 /**
- * Type definitions for the Drawing Agent app.
+ * Shared type definitions for the Drawing Agent.
+ * Platform-agnostic - used by both React Native and web.
  */
 
 // Path types
@@ -160,6 +161,11 @@ export interface IterationMessage {
   max: number;
 }
 
+export interface PausedMessage {
+  type: 'paused';
+  paused: boolean;
+}
+
 export type ServerMessage =
   | PenMessage
   | StrokeCompleteMessage
@@ -175,7 +181,8 @@ export type ServerMessage =
   | CodeExecutionMessage
   | ErrorMessage
   | PieceCompleteMessage
-  | IterationMessage;
+  | IterationMessage
+  | PausedMessage;
 
 // WebSocket messages - Client to Server
 export interface ClientStrokeMessage {

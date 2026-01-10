@@ -1,9 +1,11 @@
-.PHONY: install dev server server-bg server-logs server-stop server-restart app test lint format typecheck clean cli cli-turn cli-status
+.PHONY: install dev dev-web server server-bg server-logs server-stop server-restart app web test lint format typecheck clean cli cli-turn cli-status build-shared
 
 # Install all dependencies
 install:
 	cd server && uv sync
 	cd app && pnpm install
+	cd shared && npm install
+	cd web && npm install
 
 # Run both server and app
 dev:
@@ -65,6 +67,20 @@ cli-status:
 app:
 	cd app && pnpm start
 
+# Run web dev server only
+web:
+	cd web && npm run dev
+
+# Run server + web dev server (use two terminals instead - more reliable)
+# Terminal 1: make server
+# Terminal 2: make web
+dev-web:
+	@echo "Run in two terminals for reliability:"
+	@echo "  Terminal 1: make server"
+	@echo "  Terminal 2: make web"
+	@echo ""
+	@echo "Then open http://localhost:5173"
+
 # Run all tests
 test: test-server test-app
 
@@ -79,8 +95,12 @@ coverage:
 	cd server && uv run pytest --cov=drawing_agent --cov-report=html
 	cd app && pnpm test --coverage
 
+# Build shared library
+build-shared:
+	cd shared && npm run build
+
 # Lint all code
-lint: lint-server lint-app
+lint: lint-server lint-app lint-shared lint-web
 
 lint-server:
 	cd server && uv run ruff check .
@@ -88,8 +108,14 @@ lint-server:
 lint-app:
 	cd app && pnpm lint
 
+lint-shared:
+	cd shared && npm run lint
+
+lint-web:
+	cd web && npm run lint
+
 # Format all code
-format: format-server format-app
+format: format-server format-app format-shared format-web
 
 format-server:
 	cd server && uv run ruff format .
@@ -97,14 +123,26 @@ format-server:
 format-app:
 	cd app && pnpm format
 
+format-shared:
+	cd shared && npm run format
+
+format-web:
+	cd web && npm run format
+
 # Type checking
-typecheck: typecheck-server typecheck-app
+typecheck: typecheck-server typecheck-app typecheck-shared typecheck-web
 
 typecheck-server:
 	cd server && uv run mypy drawing_agent
 
 typecheck-app:
 	cd app && pnpm typecheck
+
+typecheck-shared:
+	cd shared && npm run typecheck
+
+typecheck-web:
+	cd web && npm run typecheck
 
 # Clean build artifacts
 clean:
@@ -114,3 +152,4 @@ clean:
 	find . -type d -name ".expo" -exec rm -rf {} + 2>/dev/null || true
 	rm -rf server/.ruff_cache 2>/dev/null || true
 	rm -rf app/coverage 2>/dev/null || true
+	rm -rf shared/dist 2>/dev/null || true

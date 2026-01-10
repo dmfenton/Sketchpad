@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { ClientMessage, ServerMessage } from '../types';
+import type { ClientMessage, ServerMessage } from '@drawing-agent/shared';
 
 export interface WebSocketState {
   connected: boolean;

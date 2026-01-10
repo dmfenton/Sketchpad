@@ -5,8 +5,6 @@
  * and dispatches the appropriate action(s).
  */
 
-import type { Dispatch } from 'react';
-
 import type {
   AgentMessage,
   ClearMessage,
@@ -17,6 +15,7 @@ import type {
   IterationMessage,
   LoadCanvasMessage,
   NewCanvasMessage,
+  PausedMessage,
   PenMessage,
   PieceCompleteMessage,
   PieceCountMessage,
@@ -27,55 +26,43 @@ import type {
   ThinkingMessage,
 } from '../types';
 
-import type { CanvasAction } from '../hooks/useCanvas';
+import type { CanvasAction } from '../canvas/reducer';
+import { generateMessageId } from '../utils';
 
-// Message ID generation
-let messageIdCounter = 0;
-export const generateMessageId = (): string =>
-  `msg_${++messageIdCounter}_${Date.now()}`;
+// Dispatch function type (compatible with React's Dispatch)
+export type DispatchFn = (action: CanvasAction) => void;
 
 // Handler type
-type MessageHandler<T extends ServerMessage> = (
-  message: T,
-  dispatch: Dispatch<CanvasAction>
-) => void;
+type MessageHandler<T extends ServerMessage> = (message: T, dispatch: DispatchFn) => void;
 
 // Individual handlers
 export const handlePen: MessageHandler<PenMessage> = (message, dispatch) => {
   dispatch({ type: 'SET_PEN', x: message.x, y: message.y, down: message.down });
 };
 
-export const handleStrokeComplete: MessageHandler<StrokeCompleteMessage> = (
-  message,
-  dispatch
-) => {
+export const handleStrokeComplete: MessageHandler<StrokeCompleteMessage> = (message, dispatch) => {
   dispatch({ type: 'ADD_STROKE', path: message.path });
 };
 
-export const handleThinking: MessageHandler<ThinkingMessage> = (
-  message,
-  dispatch
-) => {
+export const handleThinking: MessageHandler<ThinkingMessage> = (message, dispatch) => {
   // Finalize any live message (converts it to permanent, keeping streamed content)
   // Don't add a new message since content was already streamed via thinking_delta
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
   dispatch({ type: 'SET_THINKING', text: message.text });
 };
 
-export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (
-  message,
-  dispatch
-) => {
+export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (message, dispatch) => {
   // Update both the legacy thinking state and the live message
   dispatch({ type: 'APPEND_THINKING', text: message.text });
   dispatch({ type: 'APPEND_LIVE_MESSAGE', text: message.text });
 };
 
-export const handleStatus: MessageHandler<StatusMessage> = (
-  message,
-  dispatch
-) => {
+export const handleStatus: MessageHandler<StatusMessage> = (message, dispatch) => {
   dispatch({ type: 'SET_STATUS', status: message.status });
+
+  // Update paused state based on status
+  // Status 'paused' means agent is paused, any other status means it's running
+  dispatch({ type: 'SET_PAUSED', paused: message.status === 'paused' });
 
   // Reset thinking when starting a new turn
   if (message.status === 'thinking') {
@@ -85,10 +72,7 @@ export const handleStatus: MessageHandler<StatusMessage> = (
   // Status is shown by StatusPill - no need to add to message stream
 };
 
-export const handleIteration: MessageHandler<IterationMessage> = (
-  message,
-  dispatch
-) => {
+export const handleIteration: MessageHandler<IterationMessage> = (message, dispatch) => {
   // Finalize any streaming thinking before showing iteration
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
   dispatch({
@@ -96,20 +80,7 @@ export const handleIteration: MessageHandler<IterationMessage> = (
     current: message.current,
     max: message.max,
   });
-  dispatch({
-    type: 'ADD_MESSAGE',
-    message: {
-      id: generateMessageId(),
-      type: 'iteration',
-      text: `Iteration ${message.current}/${message.max}`,
-      timestamp: Date.now(),
-      iteration: message.current,
-      metadata: {
-        current_iteration: message.current,
-        max_iterations: message.max,
-      },
-    },
-  });
+  // Don't add iteration messages to the stream - they're noise
 };
 
 // Human-readable labels for tool names
@@ -126,16 +97,6 @@ const getPathCount = (toolInput: Record<string, unknown> | null | undefined): nu
   const paths = toolInput.paths;
   if (Array.isArray(paths)) {
     return paths.length;
-  }
-  return null;
-};
-
-// Get code preview from tool input for generate_svg
-const getCodePreview = (toolInput: Record<string, unknown> | null | undefined): string | null => {
-  if (!toolInput) return null;
-  const code = toolInput.code;
-  if (typeof code === 'string') {
-    return code;
   }
   return null;
 };
@@ -202,10 +163,7 @@ export const handleCodeExecution: MessageHandler<CodeExecutionMessage> = (
   }
 };
 
-export const handleError: MessageHandler<ErrorMessage> = (
-  message,
-  dispatch
-) => {
+export const handleError: MessageHandler<ErrorMessage> = (message, dispatch) => {
   // Finalize any streaming thinking before showing error
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
   dispatch({
@@ -222,10 +180,7 @@ export const handleError: MessageHandler<ErrorMessage> = (
   });
 };
 
-export const handlePieceComplete: MessageHandler<PieceCompleteMessage> = (
-  message,
-  dispatch
-) => {
+export const handlePieceComplete: MessageHandler<PieceCompleteMessage> = (message, dispatch) => {
   // Finalize any streaming thinking before showing piece complete
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
   dispatch({ type: 'SET_PIECE_COUNT', count: message.piece_number });
@@ -248,26 +203,16 @@ export const handleClear: MessageHandler<ClearMessage> = (_message, dispatch) =>
   dispatch({ type: 'CLEAR_MESSAGES' });
 };
 
-export const handleNewCanvas: MessageHandler<NewCanvasMessage> = (
-  _message,
-  dispatch
-) => {
-  console.log('[handleNewCanvas] Clearing canvas');
+export const handleNewCanvas: MessageHandler<NewCanvasMessage> = (_message, dispatch) => {
   dispatch({ type: 'CLEAR' });
   dispatch({ type: 'CLEAR_MESSAGES' });
 };
 
-export const handleGalleryUpdate: MessageHandler<GalleryUpdateMessage> = (
-  message,
-  dispatch
-) => {
+export const handleGalleryUpdate: MessageHandler<GalleryUpdateMessage> = (message, dispatch) => {
   dispatch({ type: 'SET_GALLERY', canvases: message.canvases });
 };
 
-export const handleLoadCanvas: MessageHandler<LoadCanvasMessage> = (
-  message,
-  dispatch
-) => {
+export const handleLoadCanvas: MessageHandler<LoadCanvasMessage> = (message, dispatch) => {
   dispatch({
     type: 'LOAD_CANVAS',
     strokes: message.strokes,
@@ -276,7 +221,6 @@ export const handleLoadCanvas: MessageHandler<LoadCanvasMessage> = (
 };
 
 export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
-  console.log(`[handleInit] Loading ${message.strokes.length} strokes, piece ${message.piece_count}`);
   dispatch({
     type: 'INIT',
     strokes: message.strokes,
@@ -300,17 +244,16 @@ export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
   }
 };
 
-export const handlePieceCount: MessageHandler<PieceCountMessage> = (
-  message,
-  dispatch
-) => {
+export const handlePieceCount: MessageHandler<PieceCountMessage> = (message, dispatch) => {
   dispatch({ type: 'SET_PIECE_COUNT', count: message.count });
 };
 
+export const handlePaused: MessageHandler<PausedMessage> = (message, dispatch) => {
+  dispatch({ type: 'SET_PAUSED', paused: message.paused });
+};
+
 // Handler registry
-const handlers: Partial<
-  Record<ServerMessage['type'], MessageHandler<ServerMessage>>
-> = {
+const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessage>>> = {
   pen: handlePen as MessageHandler<ServerMessage>,
   stroke_complete: handleStrokeComplete as MessageHandler<ServerMessage>,
   thinking: handleThinking as MessageHandler<ServerMessage>,
@@ -326,15 +269,13 @@ const handlers: Partial<
   load_canvas: handleLoadCanvas as MessageHandler<ServerMessage>,
   init: handleInit as MessageHandler<ServerMessage>,
   piece_count: handlePieceCount as MessageHandler<ServerMessage>,
+  paused: handlePaused as MessageHandler<ServerMessage>,
 };
 
 /**
  * Route a message to its handler.
  */
-export const routeMessage = (
-  message: ServerMessage,
-  dispatch: Dispatch<CanvasAction>
-): void => {
+export const routeMessage = (message: ServerMessage, dispatch: DispatchFn): void => {
   const handler = handlers[message.type];
   if (handler) {
     handler(message, dispatch);

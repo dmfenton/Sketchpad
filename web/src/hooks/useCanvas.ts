@@ -1,23 +1,20 @@
 /**
- * Canvas state and touch handling hook.
- * Uses shared reducer from @drawing-agent/shared.
+ * Canvas state hook for web.
  */
 
 import { useCallback, useReducer } from 'react';
-
 import type { Path, ServerMessage } from '@drawing-agent/shared';
 import {
   canvasReducer,
   initialState,
   routeMessage,
+  type CanvasAction,
   type CanvasHookState,
 } from '@drawing-agent/shared';
 
-// Re-export types and constants from shared for backwards compatibility
-export { LIVE_MESSAGE_ID, type CanvasAction, type CanvasHookState } from '@drawing-agent/shared';
-
 export interface UseCanvasReturn {
   state: CanvasHookState;
+  dispatch: React.Dispatch<CanvasAction>;
   handleMessage: (message: ServerMessage) => void;
   startStroke: (x: number, y: number) => void;
   addPoint: (x: number, y: number) => void;
@@ -32,6 +29,10 @@ export function useCanvas(): UseCanvasReturn {
   const [state, dispatch] = useReducer(canvasReducer, initialState);
 
   const handleMessage = useCallback((message: ServerMessage) => {
+    // Debug logging for stroke-related messages
+    if (message.type === 'stroke_complete' || message.type === 'init') {
+      console.log('[useCanvas] Received:', message.type, message);
+    }
     routeMessage(message, dispatch);
   }, []);
 
@@ -78,6 +79,7 @@ export function useCanvas(): UseCanvasReturn {
 
   return {
     state,
+    dispatch,
     handleMessage,
     startStroke,
     addPoint,
@@ -88,6 +90,3 @@ export function useCanvas(): UseCanvasReturn {
     setPaused,
   };
 }
-
-// Re-export screenToCanvas from utils for backwards compatibility
-export { screenToCanvas } from '../utils/canvas';

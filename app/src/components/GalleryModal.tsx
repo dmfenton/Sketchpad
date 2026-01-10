@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import type { SavedCanvas } from '../types';
+import type { SavedCanvas } from '@drawing-agent/shared';
 import { spacing, borderRadius, typography, useTheme, type ColorScheme, type ShadowScheme } from '../theme';
 
 interface GalleryModalProps {
