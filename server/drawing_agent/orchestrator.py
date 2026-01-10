@@ -5,7 +5,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
-from drawing_agent.agent import AgentCallbacks, CodeExecutionResult
+from drawing_agent.agent import AgentCallbacks, CodeExecutionResult, ToolCallInfo
 from drawing_agent.agent_logger import AgentFileLogger
 from drawing_agent.config import settings
 from drawing_agent.executor import execute_paths
@@ -111,14 +111,19 @@ class AgentOrchestrator:
             await self.file_logger.log_iteration_start(current, max_iter)
         await self.broadcaster.broadcast(IterationMessage(current=current, max=max_iter))
 
-    async def _handle_code_start(self, iteration: int) -> None:
+    async def _handle_code_start(self, tool_info: ToolCallInfo) -> None:
         """Handle when code execution starts."""
-        logger.info(f"Code execution started (iteration {iteration})")
+        logger.info(f"Tool call started: {tool_info.name} (iteration {tool_info.iteration})")
         if self.file_logger:
-            await self.file_logger.log_code_start(iteration)
+            await self.file_logger.log_code_start(tool_info.iteration)
         await self.broadcast_status(AgentStatus.EXECUTING)
         await self.broadcaster.broadcast(
-            CodeExecutionMessage(status="started", iteration=iteration)
+            CodeExecutionMessage(
+                status="started",
+                tool_name=tool_info.name,
+                tool_input=tool_info.input,
+                iteration=tool_info.iteration,
+            )
         )
 
     async def _handle_code_result(self, result: CodeExecutionResult) -> None:
