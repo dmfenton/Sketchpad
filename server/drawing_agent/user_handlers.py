@@ -124,12 +124,19 @@ async def handle_pause(workspace: ActiveWorkspace) -> None:
     logger.info(f"User {workspace.user_id}: agent paused")
 
 
-async def handle_resume(workspace: ActiveWorkspace) -> None:
-    """Handle resume request."""
+async def handle_resume(workspace: ActiveWorkspace, message: dict[str, Any] | None = None) -> None:
+    """Handle resume request with optional direction."""
+    # If direction provided, add it as a nudge before resuming
+    direction = message.get("direction") if message else None
+    if direction:
+        workspace.agent.add_nudge(direction)
+        logger.info(f"User {workspace.user_id}: resume with direction: {direction}")
+
     await workspace.agent.resume()
     workspace.state.status = AgentStatus.IDLE
     await workspace.state.save()
     await workspace.connections.broadcast(StatusMessage(status=AgentStatus.IDLE))
+    await workspace.connections.broadcast({"type": "paused", "paused": False})
     logger.info(f"User {workspace.user_id}: agent resumed")
 
 
@@ -152,7 +159,7 @@ async def handle_user_message(workspace: ActiveWorkspace, message: dict[str, Any
 
     if handler:
         # Handlers that need the message get it, others don't
-        if msg_type in ("stroke", "nudge", "load_canvas", "new_canvas"):
+        if msg_type in ("stroke", "nudge", "load_canvas", "new_canvas", "resume"):
             await handler(workspace, message)
         else:
             await handler(workspace)

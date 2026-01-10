@@ -1,8 +1,9 @@
 /**
  * Action bar with controls for the drawing agent.
+ * Redesigned for clarity: unified input field for start prompt or nudge.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ClientMessage } from '@drawing-agent/shared';
 
 interface ActionBarProps {
@@ -13,11 +14,50 @@ interface ActionBarProps {
 }
 
 export function ActionBar({ paused, drawingEnabled, onSend, onToggleDrawing }: ActionBarProps) {
-  const [nudgeText, setNudgeText] = useState('');
+  const [inputText, setInputText] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [modalDirection, setModalDirection] = useState('');
+  const modalInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePauseResume = useCallback(() => {
-    onSend({ type: paused ? 'resume' : 'pause' });
-  }, [paused, onSend]);
+  // Focus modal input when opened
+  useEffect(() => {
+    if (showModal && modalInputRef.current) {
+      modalInputRef.current.focus();
+    }
+  }, [showModal]);
+
+  const handleStartClick = useCallback(() => {
+    setShowModal(true);
+    setModalDirection('');
+  }, []);
+
+  const handleModalStart = useCallback(() => {
+    const direction = modalDirection.trim();
+    onSend({ type: 'resume', direction: direction || undefined });
+    setShowModal(false);
+    setModalDirection('');
+  }, [modalDirection, onSend]);
+
+  const handleModalCancel = useCallback(() => {
+    setShowModal(false);
+    setModalDirection('');
+  }, []);
+
+  const handleModalKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleModalStart();
+      } else if (e.key === 'Escape') {
+        handleModalCancel();
+      }
+    },
+    [handleModalStart, handleModalCancel]
+  );
+
+  const handlePause = useCallback(() => {
+    onSend({ type: 'pause' });
+  }, [onSend]);
 
   const handleClear = useCallback(() => {
     onSend({ type: 'clear' });
@@ -28,11 +68,11 @@ export function ActionBar({ paused, drawingEnabled, onSend, onToggleDrawing }: A
   }, [onSend]);
 
   const handleNudge = useCallback(() => {
-    if (nudgeText.trim()) {
-      onSend({ type: 'nudge', text: nudgeText.trim() });
-      setNudgeText('');
+    if (inputText.trim()) {
+      onSend({ type: 'nudge', text: inputText.trim() });
+      setInputText('');
     }
-  }, [nudgeText, onSend]);
+  }, [inputText, onSend]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -45,34 +85,80 @@ export function ActionBar({ paused, drawingEnabled, onSend, onToggleDrawing }: A
   );
 
   return (
-    <div className="action-bar">
-      <button className={paused ? 'primary' : 'secondary'} onClick={handlePauseResume}>
-        {paused ? '▶ Start' : '⏸ Pause'}
-      </button>
+    <>
+      <div className="action-bar">
+        <div className="action-bar-left">
+          <button
+            className={drawingEnabled ? 'icon-btn active' : 'icon-btn'}
+            onClick={onToggleDrawing}
+            title={drawingEnabled ? 'Drawing mode on' : 'Enable drawing'}
+          >
+            <span className="icon">✏️</span>
+          </button>
+        </div>
 
-      <button className="secondary" onClick={handleClear}>
-        Clear
-      </button>
+        <div className="action-bar-center">
+          {paused ? (
+            <button className="primary start-btn" onClick={handleStartClick}>
+              ▶ Start
+            </button>
+          ) : (
+            <>
+              <input
+                type="text"
+                placeholder="Nudge the artist..."
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+              <button
+                className="primary"
+                onClick={handleNudge}
+                disabled={!inputText.trim()}
+              >
+                Send
+              </button>
+              <button className="secondary pause-btn" onClick={handlePause}>
+                ⏸
+              </button>
+            </>
+          )}
+        </div>
 
-      <button className="secondary" onClick={handleNewCanvas}>
-        New Piece
-      </button>
+        <div className="action-bar-right">
+          <button className="text-btn" onClick={handleClear}>
+            Clear
+          </button>
+          <button className="text-btn" onClick={handleNewCanvas}>
+            New Piece
+          </button>
+        </div>
+      </div>
 
-      <button className={drawingEnabled ? 'primary' : 'secondary'} onClick={onToggleDrawing}>
-        {drawingEnabled ? '✏️ Drawing' : '✏️ Draw'}
-      </button>
-
-      <input
-        type="text"
-        placeholder="Nudge the artist..."
-        value={nudgeText}
-        onChange={(e) => setNudgeText(e.target.value)}
-        onKeyDown={handleKeyDown}
-      />
-
-      <button className="primary" onClick={handleNudge} disabled={!nudgeText.trim()}>
-        Send
-      </button>
-    </div>
+      {showModal && (
+        <div className="modal-overlay" onClick={handleModalCancel}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Start Drawing</h3>
+            <p>Give the agent a direction (optional):</p>
+            <input
+              ref={modalInputRef}
+              type="text"
+              placeholder="e.g., Draw a peaceful landscape..."
+              value={modalDirection}
+              onChange={(e) => setModalDirection(e.target.value)}
+              onKeyDown={handleModalKeyDown}
+            />
+            <div className="modal-actions">
+              <button className="secondary" onClick={handleModalCancel}>
+                Cancel
+              </button>
+              <button className="primary" onClick={handleModalStart}>
+                Start
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

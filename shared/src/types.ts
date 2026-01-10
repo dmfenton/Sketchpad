@@ -205,6 +205,7 @@ export interface ClientPauseMessage {
 
 export interface ClientResumeMessage {
   type: 'resume';
+  direction?: string; // Optional direction/prompt for the agent
 }
 
 export interface ClientNewCanvasMessage {

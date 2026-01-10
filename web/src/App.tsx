@@ -39,18 +39,28 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>Drawing Agent Dev</h1>
-        <div className="status">
+        <div className="header-left">
+          <h1>Drawing Agent</h1>
           <div className="connection-status">
             <div className={`connection-dot ${wsStatus}`} />
-            <span>{wsStatus}</span>
           </div>
+        </div>
+        <div className="header-center">
           <div className={`status-pill ${state.agentStatus}`}>
             {STATUS_LABELS[state.agentStatus]}
           </div>
-          <span>Piece #{state.pieceCount}</span>
+        </div>
+        <div className="header-right">
+          <span className="piece-count">Piece #{state.pieceCount}</span>
         </div>
       </header>
+
+      <ActionBar
+        paused={state.paused}
+        drawingEnabled={state.drawingEnabled}
+        onSend={send}
+        onToggleDrawing={toggleDrawing}
+      />
 
       <div className="canvas-container">
         <Canvas
@@ -77,12 +87,6 @@ function App() {
         />
       </div>
 
-      <ActionBar
-        paused={state.paused}
-        drawingEnabled={state.drawingEnabled}
-        onSend={send}
-        onToggleDrawing={toggleDrawing}
-      />
     </div>
   );
 }
