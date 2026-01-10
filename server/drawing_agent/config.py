@@ -91,6 +91,10 @@ class Settings(BaseSettings):
     agent_max_tokens: int = 8192  # max tokens for Claude response
     agent_model: str = "claude-sonnet-4-20250514"
 
+    # Agent file logging
+    agent_logs_enabled: bool = True  # Enable per-turn agent log files
+    agent_logs_max_files: int = 50  # Max log files to keep per user
+
     # Canvas
     canvas_width: int = 800
     canvas_height: int = 600
