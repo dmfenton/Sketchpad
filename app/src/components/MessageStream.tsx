@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { STATUS_LABELS, PULSE_DURATION_MS, type AgentMessage, type AgentStatus } from '../types';
+import { STATUS_LABELS, PULSE_DURATION_MS, type AgentMessage, type AgentStatus, type ToolName } from '../types';
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
 
 interface MessageStreamProps {
@@ -28,6 +28,25 @@ function formatTime(timestamp: number): string {
 
 // ID for the live streaming message (from useCanvas)
 const LIVE_MESSAGE_ID = 'live_thinking';
+
+// Tool-specific icons
+const TOOL_ICONS: Record<ToolName | 'unknown', { name: keyof typeof Ionicons.glyphMap; activeIcon?: keyof typeof Ionicons.glyphMap }> = {
+  draw_paths: { name: 'brush', activeIcon: 'brush-outline' },
+  generate_svg: { name: 'code-slash', activeIcon: 'code-working' },
+  view_canvas: { name: 'eye', activeIcon: 'eye-outline' },
+  mark_piece_done: { name: 'checkmark-done', activeIcon: 'checkmark-done-outline' },
+  unknown: { name: 'help-circle', activeIcon: 'help-circle-outline' },
+};
+
+// Get code from tool input for generate_svg
+const getCodeFromInput = (toolInput: Record<string, unknown> | null | undefined): string | null => {
+  if (!toolInput) return null;
+  const code = toolInput.code;
+  if (typeof code === 'string') {
+    return code;
+  }
+  return null;
+};
 
 interface MessageBubbleProps {
   message: AgentMessage;
@@ -123,16 +142,33 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
     );
   }
 
-  // Code execution (expandable with output)
+  // Code execution (expandable with output and code preview)
   if (message.type === 'code_execution') {
     const hasOutput = message.metadata?.stdout || message.metadata?.stderr;
     const isSuccess = message.metadata?.return_code === 0;
+    const toolName = (message.metadata?.tool_name ?? 'unknown') as ToolName | 'unknown';
+    const isInProgress = message.text.includes('...') && !message.text.includes('Drew') && !message.text.includes('generated');
+    const toolIcon = TOOL_ICONS[toolName] ?? TOOL_ICONS.unknown;
+    const iconName = isInProgress ? (toolIcon.activeIcon ?? toolIcon.name) : toolIcon.name;
+
+    // Get code preview for generate_svg
+    const codePreview = toolName === 'generate_svg'
+      ? getCodeFromInput(message.metadata?.tool_input)
+      : null;
+    const hasExpandableContent = hasOutput || codePreview;
+
+    // Determine border color based on tool type
+    const borderColor = toolName === 'draw_paths' ? colors.primary
+      : toolName === 'generate_svg' ? '#8B5CF6' // purple for code
+      : toolName === 'view_canvas' ? colors.textMuted
+      : toolName === 'mark_piece_done' ? colors.success
+      : colors.primary;
 
     return (
       <Animated.View
         style={[
           styles.messageBubble,
-          { backgroundColor: colors.surfaceElevated, borderLeftColor: colors.primary },
+          { backgroundColor: colors.surfaceElevated, borderLeftColor: isSuccess === false ? colors.error : borderColor },
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
@@ -141,15 +177,15 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
       >
         <Pressable
           style={styles.messageHeader}
-          onPress={() => hasOutput && setExpanded(!expanded)}
+          onPress={() => hasExpandableContent && setExpanded(!expanded)}
         >
           <Ionicons
-            name={message.text.includes('Executing') ? 'code-working' : (isSuccess ? 'code' : 'code-slash')}
+            name={iconName}
             size={16}
-            color={isSuccess !== false ? colors.primary : colors.error}
+            color={isSuccess === false ? colors.error : borderColor}
           />
-          <Text style={[styles.messageText, { color: colors.textPrimary }]}>{message.text}</Text>
-          {hasOutput && (
+          <Text style={[styles.messageText, { color: colors.textPrimary, flex: 1 }]}>{message.text}</Text>
+          {hasExpandableContent && (
             <Ionicons
               name={expanded ? 'chevron-up' : 'chevron-down'}
               size={14}
@@ -157,13 +193,30 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
             />
           )}
         </Pressable>
+        {expanded && codePreview && (
+          <View style={[styles.codeOutput, { backgroundColor: colors.background }]}>
+            <View style={styles.codePreviewHeader}>
+              <Ionicons name="code-slash" size={12} color={colors.textMuted} />
+              <Text style={[styles.codePreviewLabel, { color: colors.textMuted }]}>Python Code</Text>
+            </View>
+            <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{codePreview}</Text>
+          </View>
+        )}
         {expanded && message.metadata?.stdout && (
           <View style={[styles.codeOutput, { backgroundColor: colors.background }]}>
+            <View style={styles.codePreviewHeader}>
+              <Ionicons name="terminal" size={12} color={colors.textMuted} />
+              <Text style={[styles.codePreviewLabel, { color: colors.textMuted }]}>Output</Text>
+            </View>
             <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{message.metadata.stdout}</Text>
           </View>
         )}
         {expanded && message.metadata?.stderr && (
           <View style={[styles.codeOutput, styles.codeOutputError]}>
+            <View style={styles.codePreviewHeader}>
+              <Ionicons name="warning" size={12} color={colors.error} />
+              <Text style={[styles.codePreviewLabel, { color: colors.error }]}>Error</Text>
+            </View>
             <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{message.metadata.stderr}</Text>
           </View>
         )}
@@ -427,5 +480,15 @@ const styles = StyleSheet.create({
   codeOutputText: {
     ...typography.small,
     fontFamily: 'monospace',
+  },
+  codePreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  codePreviewLabel: {
+    ...typography.small,
+    fontWeight: '500',
   },
 });

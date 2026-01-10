@@ -130,9 +130,13 @@ export interface ThinkingDeltaMessage {
   iteration: number;
 }
 
+export type ToolName = 'draw_paths' | 'generate_svg' | 'view_canvas' | 'mark_piece_done';
+
 export interface CodeExecutionMessage {
   type: 'code_execution';
   status: 'started' | 'completed';
+  tool_name?: ToolName | null;
+  tool_input?: Record<string, unknown> | null;
   stdout?: string | null;
   stderr?: string | null;
   return_code?: number | null;
@@ -231,6 +235,8 @@ export interface AgentMessage {
   timestamp: number;
   iteration?: number; // For iteration-aware messages
   metadata?: {
+    tool_name?: ToolName | null;
+    tool_input?: Record<string, unknown> | null;
     stdout?: string | null;
     stderr?: string | null;
     return_code?: number | null;

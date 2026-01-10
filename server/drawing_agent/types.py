@@ -170,6 +170,8 @@ class CodeExecutionMessage(BaseModel):
 
     type: Literal["code_execution"] = "code_execution"
     status: Literal["started", "completed"]
+    tool_name: str | None = None  # e.g., "draw_paths", "generate_svg", "view_canvas"
+    tool_input: dict | None = None  # Tool input for context (e.g., path count, code)
     stdout: str | None = None
     stderr: str | None = None
     return_code: int | None = None
