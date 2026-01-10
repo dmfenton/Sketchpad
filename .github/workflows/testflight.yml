@@ -54,7 +54,17 @@ jobs:
         with:
           node-version: '22'
           cache: 'pnpm'
-          cache-dependency-path: app/pnpm-lock.yaml
+          cache-dependency-path: |
+            shared/pnpm-lock.yaml
+            app/pnpm-lock.yaml
+
+      - name: Install shared dependencies
+        working-directory: shared
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared library
+        working-directory: shared
+        run: pnpm run build
 
       - name: Install app dependencies
         working-directory: app
