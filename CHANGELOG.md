@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.4] - 2026-01-10
+
 ### Fixed
 - Pass ANTHROPIC_API_KEY to Claude Agent SDK subprocess (fixes "invalid api key" error)
 
@@ -231,7 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.7.4...HEAD
+[1.7.4]: https://github.com/dmfenton/sketchpad/compare/v1.7.3...v1.7.4
 [1.6.0]: https://github.com/dmfenton/sketchpad/compare/v1.5.2...v1.6.0
 [1.5.2]: https://github.com/dmfenton/sketchpad/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/dmfenton/sketchpad/compare/v1.5.0...v1.5.1
