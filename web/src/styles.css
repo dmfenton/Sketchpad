@@ -123,6 +123,15 @@ body {
   overflow: hidden;
 }
 
+/* Message stream container - takes remaining space above debug panel */
+.message-stream-container {
+  flex: 1;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* Message stream */
 .message-stream {
   flex: 1;
@@ -191,7 +200,9 @@ body {
 /* Debug panel */
 .debug-panel {
   border-top: 1px solid var(--border);
-  max-height: 300px;
+  height: 250px;
+  min-height: 250px;
+  flex-shrink: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;

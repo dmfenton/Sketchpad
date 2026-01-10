@@ -96,6 +96,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
 export function MessageStream({ messages, status }: MessageStreamProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [showRaw, setShowRaw] = useState(false);
 
   const isActive = status === 'thinking' || status === 'executing' || status === 'drawing';
 
@@ -121,11 +122,19 @@ export function MessageStream({ messages, status }: MessageStreamProps) {
           <span className="header-title">Artist&apos;s Mind</span>
           {isActive && <span className="header-status">{STATUS_LABELS[status]}</span>}
         </div>
+        <button
+          className={`view-toggle ${showRaw ? 'raw' : ''}`}
+          onClick={() => setShowRaw(!showRaw)}
+        >
+          {showRaw ? 'Styled' : 'Raw'}
+        </button>
       </div>
 
       <div ref={containerRef} className="message-stream" onScroll={handleScroll}>
         {messages.length === 0 ? (
           <div className="empty-state">Awaiting artistic inspiration...</div>
+        ) : showRaw ? (
+          <pre className="raw-messages">{JSON.stringify(messages, null, 2)}</pre>
         ) : (
           messages.map((message) => <MessageBubble key={message.id} message={message} />)
         )}
@@ -252,6 +261,32 @@ export function MessageStream({ messages, status }: MessageStreamProps) {
           display: flex;
           align-items: center;
           justify-content: center;
+        }
+
+        .view-toggle {
+          padding: 4px 10px;
+          font-size: 11px;
+          background: var(--bg-tertiary);
+          border: none;
+          border-radius: 4px;
+          color: var(--text-secondary);
+          cursor: pointer;
+        }
+
+        .view-toggle:hover {
+          background: var(--bg-primary);
+        }
+
+        .view-toggle.raw {
+          background: var(--accent);
+          color: white;
+        }
+
+        .raw-messages {
+          font-size: 11px;
+          color: var(--text-secondary);
+          white-space: pre-wrap;
+          word-break: break-all;
         }
       `}</style>
     </div>

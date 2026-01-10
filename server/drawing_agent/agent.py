@@ -27,7 +27,12 @@ from claude_agent_sdk.types import StreamEvent
 from PIL import Image
 
 from drawing_agent.config import settings
-from drawing_agent.tools import create_drawing_server, set_canvas_dimensions, set_draw_callback
+from drawing_agent.tools import (
+    create_drawing_server,
+    set_canvas_dimensions,
+    set_draw_callback,
+    set_get_canvas_callback,
+)
 from drawing_agent.types import (
     AgentEvent,
     AgentStatus,
@@ -389,7 +394,17 @@ class DrawingAgent:
             if done:
                 self._piece_done = True
 
+        # Set up canvas callback for view_canvas tool
+        def get_canvas_png() -> bytes:
+            img = self._get_canvas_image(highlight_human=True)
+            import io
+
+            buffer = io.BytesIO()
+            img.save(buffer, format="PNG")
+            return buffer.getvalue()
+
         set_draw_callback(on_draw)
+        set_get_canvas_callback(get_canvas_png)
         set_canvas_dimensions(settings.canvas_width, settings.canvas_height)
 
         try:

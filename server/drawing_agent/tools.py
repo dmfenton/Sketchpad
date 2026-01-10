@@ -10,7 +10,6 @@ from typing import Any
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
-from drawing_agent.canvas import render_png
 from drawing_agent.types import Path, PathType, Point
 
 logger = logging.getLogger(__name__)
@@ -190,14 +189,21 @@ def output_svg_paths(svg_d_strings: list):
         temp_path.unlink(missing_ok=True)
 
 
-# Global callback - will be set by the agent
+# Global callbacks - will be set by the agent
 _draw_callback: Any = None
+_get_canvas_callback: Any = None
 
 
 def set_draw_callback(callback: Any) -> None:
     """Set the callback function for drawing paths."""
     global _draw_callback
     _draw_callback = callback
+
+
+def set_get_canvas_callback(callback: Any) -> None:
+    """Set the callback function for getting canvas image."""
+    global _get_canvas_callback
+    _get_canvas_callback = callback
 
 
 async def handle_draw_paths(args: dict[str, Any]) -> dict[str, Any]:
@@ -471,7 +477,13 @@ async def handle_view_canvas() -> dict[str, Any]:
     Returns:
         Tool result with the current canvas image
     """
-    png_bytes = render_png(highlight_human=True)
+    if _get_canvas_callback is None:
+        return {
+            "content": [{"type": "text", "text": "Error: Canvas not available"}],
+            "is_error": True,
+        }
+
+    png_bytes = _get_canvas_callback()
     image_b64 = base64.standard_b64encode(png_bytes).decode("utf-8")
 
     return {
