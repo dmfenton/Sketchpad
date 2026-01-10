@@ -142,6 +142,8 @@ class AgentOrchestrator:
         await self.broadcaster.broadcast(
             CodeExecutionMessage(
                 status="completed",
+                tool_name=result.tool_name,
+                tool_input=result.tool_input,
                 stdout=result.stdout[:max_stdout] if result.stdout else None,
                 stderr=result.stderr[:max_stderr] if result.stderr else None,
                 return_code=result.return_code,

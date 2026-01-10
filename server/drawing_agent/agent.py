@@ -52,6 +52,8 @@ class CodeExecutionResult:
     stderr: str
     return_code: int
     iteration: int
+    tool_name: str | None = None
+    tool_input: dict | None = None
 
 
 @dataclass
@@ -422,6 +424,8 @@ class DrawingAgent:
 
             all_thinking = ""
             iteration = 1
+            last_tool_name: str | None = None
+            last_tool_input: dict | None = None
 
             # Process response messages
             async for message in self._client.receive_response():
@@ -445,14 +449,23 @@ class DrawingAgent:
                                 await cb.on_thinking(text, iteration)
 
                 elif isinstance(message, AssistantMessage):
-                    # Complete message - handle text and tool blocks
+                    # Complete message - handle tool blocks only
+                    # Text is already sent via streaming (content_block_delta), don't duplicate
                     for block in message.content:
                         if isinstance(block, TextBlock):
-                            # Send complete text block (may overlap with stream, but ensures nothing is missed)
+                            # Text was already streamed via content_block_delta events
+                            # Only update all_thinking if it wasn't captured during streaming
+                            # (e.g., if streaming was interrupted or incomplete)
                             text = block.text
-                            # Check if this text wasn't already sent via streaming
-                            if text and text not in all_thinking:
-                                all_thinking += text + "\n"
+                            if text and all_thinking and not all_thinking.endswith(text) and text not in all_thinking:
+                                # This is new text that wasn't streamed - rare edge case
+                                logger.debug(f"Non-streamed text block: {len(text)} chars")
+                                all_thinking += text
+                                if cb.on_thinking:
+                                    await cb.on_thinking(text, iteration)
+                            elif text and not all_thinking:
+                                # No streaming happened at all, use full text
+                                all_thinking = text
                                 if cb.on_thinking:
                                     await cb.on_thinking(text, iteration)
 
@@ -463,16 +476,19 @@ class DrawingAgent:
                             if tool_name.startswith("mcp__drawing__"):
                                 tool_name = tool_name[len("mcp__drawing__"):]
                             logger.info(f"Tool use: {tool_name}")
+                            # Track tool info for pairing with result
+                            last_tool_name = tool_name
+                            last_tool_input = block.input if hasattr(block, "input") else None
                             if cb.on_code_start:
                                 tool_info = ToolCallInfo(
                                     name=tool_name,
-                                    input=block.input if hasattr(block, "input") else None,
+                                    input=last_tool_input,
                                     iteration=iteration,
                                 )
                                 await cb.on_code_start(tool_info)
 
                         elif isinstance(block, ToolResultBlock):
-                            # Tool result
+                            # Tool result - pair with last tool call
                             content = block.content if block.content else ""
                             if cb.on_code_result:
                                 await cb.on_code_result(
@@ -481,8 +497,13 @@ class DrawingAgent:
                                         stderr="",
                                         return_code=1 if block.is_error else 0,
                                         iteration=iteration,
+                                        tool_name=last_tool_name,
+                                        tool_input=last_tool_input,
                                     )
                                 )
+                            # Clear tracked tool after result
+                            last_tool_name = None
+                            last_tool_input = None
 
                 elif isinstance(message, SystemMessage):
                     logger.debug(f"System message: {message.subtype}")
