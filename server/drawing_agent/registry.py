@@ -155,6 +155,8 @@ class WorkspaceRegistry:
         """Create and initialize a new active workspace."""
         # Lazy imports to avoid circular dependencies
         from drawing_agent.agent import DrawingAgent
+        from drawing_agent.agent_logger import AgentFileLogger
+        from drawing_agent.config import settings
         from drawing_agent.orchestrator import AgentOrchestrator
 
         logger.info(f"Activating workspace for user {user_id}")
@@ -162,10 +164,23 @@ class WorkspaceRegistry:
         # Load state from database
         state = await WorkspaceState.load_for_user(user_id)
 
+        # Create per-user file logger for agent activity
+        file_logger: AgentFileLogger | None = None
+        if settings.agent_logs_enabled:
+            file_logger = AgentFileLogger(
+                user_dir=state._user_dir,
+                max_log_files=settings.agent_logs_max_files,
+            )
+            logger.info(f"User {user_id}: agent file logging enabled")
+
         # Create per-user components
         connections = UserConnectionManager(user_id)
         agent = DrawingAgent(state)
-        orchestrator = AgentOrchestrator(agent=agent, broadcaster=connections)
+        orchestrator = AgentOrchestrator(
+            agent=agent,
+            broadcaster=connections,
+            file_logger=file_logger,
+        )
 
         workspace = ActiveWorkspace(
             user_id=user_id,

@@ -50,12 +50,21 @@ class CodeExecutionResult:
 
 
 @dataclass
+class ToolCallInfo:
+    """Information about a tool call."""
+
+    name: str  # Tool name (e.g., "draw_paths", "generate_svg")
+    input: dict | None  # Tool input parameters
+    iteration: int
+
+
+@dataclass
 class AgentCallbacks:
     """Callbacks for agent events."""
 
     on_thinking: Callable[[str, int], Coroutine[Any, Any, None]] | None = None
     on_iteration_start: Callable[[int, int], Coroutine[Any, Any, None]] | None = None
-    on_code_start: Callable[[int], Coroutine[Any, Any, None]] | None = None
+    on_code_start: Callable[[ToolCallInfo], Coroutine[Any, Any, None]] | None = None
     on_code_result: Callable[[CodeExecutionResult], Coroutine[Any, Any, None]] | None = None
     on_error: Callable[[str, str | None], Coroutine[Any, Any, None]] | None = None
 
@@ -434,9 +443,18 @@ class DrawingAgent:
 
                         elif isinstance(block, ToolUseBlock):
                             # Tool being called - drawing happens in PostToolUse hook
-                            logger.info(f"Tool use: {block.name}")
+                            # Extract friendly tool name (remove mcp__drawing__ prefix)
+                            tool_name = block.name
+                            if tool_name.startswith("mcp__drawing__"):
+                                tool_name = tool_name[len("mcp__drawing__"):]
+                            logger.info(f"Tool use: {tool_name}")
                             if cb.on_code_start:
-                                await cb.on_code_start(iteration)
+                                tool_info = ToolCallInfo(
+                                    name=tool_name,
+                                    input=block.input if hasattr(block, "input") else None,
+                                    iteration=iteration,
+                                )
+                                await cb.on_code_start(tool_info)
 
                         elif isinstance(block, ToolResultBlock):
                             # Tool result

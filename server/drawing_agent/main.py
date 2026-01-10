@@ -394,6 +394,49 @@ async def get_debug_logs(_user: CurrentUser, lines: int = 100) -> dict[str, Any]
         return {"error": str(e)}
 
 
+@app.get("/debug/agent-logs")
+async def get_agent_logs(
+    user: CurrentUser,
+    filename: str | None = Query(default=None),
+    count: int = Query(default=5, ge=1, le=50),
+) -> dict[str, Any]:
+    """Get agent activity logs for the authenticated user.
+
+    Each agent turn creates a separate timestamped log file containing:
+    - Turn start/end timestamps
+    - Agent thinking/monologue text
+    - Code execution results
+    - Drawing commands
+    - Errors
+
+    Args:
+        filename: Specific log file to read (e.g., "turn_20240115_143022.log")
+        count: Number of recent log files to return (default 5, max 50)
+
+    Returns:
+        If filename provided: Dict with single log file content
+        Otherwise: Dict with list of recent log files and their content
+    """
+    from drawing_agent.agent_logger import AgentFileLogger
+
+    state = await get_user_state(user)
+    file_logger = AgentFileLogger(user_dir=state._user_dir)
+
+    if filename:
+        # Read specific file
+        return await file_logger.read_log_file(filename)
+
+    # Return list of recent log files with content
+    files = await file_logger.list_log_files()
+    logs = await file_logger.read_latest_logs(count=count)
+
+    return {
+        "total_files": len(files),
+        "returned_files": len(logs),
+        "logs": logs,
+    }
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,

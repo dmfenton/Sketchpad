@@ -83,32 +83,77 @@ export const handleIteration: MessageHandler<IterationMessage> = (message, dispa
   // Don't add iteration messages to the stream - they're noise
 };
 
-export const handleCodeExecution: MessageHandler<CodeExecutionMessage> = (message, dispatch) => {
+// Human-readable labels for tool names
+const TOOL_LABELS: Record<string, { started: string; completed: string }> = {
+  draw_paths: { started: 'Drawing paths...', completed: 'Paths drawn' },
+  generate_svg: { started: 'Generating SVG...', completed: 'SVG generated' },
+  view_canvas: { started: 'Viewing canvas...', completed: 'Canvas viewed' },
+  mark_piece_done: { started: 'Marking piece done...', completed: 'Piece marked done' },
+};
+
+// Get path count from tool input for draw_paths
+const getPathCount = (toolInput: Record<string, unknown> | null | undefined): number | null => {
+  if (!toolInput) return null;
+  const paths = toolInput.paths;
+  if (Array.isArray(paths)) {
+    return paths.length;
+  }
+  return null;
+};
+
+export const handleCodeExecution: MessageHandler<CodeExecutionMessage> = (
+  message,
+  dispatch
+) => {
   // Finalize any streaming thinking before showing code execution
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
+
+  const toolName = message.tool_name ?? 'unknown';
+  const labels = TOOL_LABELS[toolName] ?? { started: 'Executing...', completed: 'Completed' };
 
   const baseMessage: Omit<AgentMessage, 'text'> = {
     id: generateMessageId(),
     type: 'code_execution',
     timestamp: Date.now(),
     iteration: message.iteration,
+    metadata: {
+      tool_name: message.tool_name,
+      tool_input: message.tool_input,
+    },
   };
 
   if (message.status === 'started') {
+    // Build a more informative message based on tool type
+    let text = labels.started;
+    if (toolName === 'draw_paths') {
+      const pathCount = getPathCount(message.tool_input);
+      if (pathCount !== null) {
+        text = `Drawing ${pathCount} path${pathCount !== 1 ? 's' : ''}...`;
+      }
+    }
+
     dispatch({
       type: 'ADD_MESSAGE',
-      message: { ...baseMessage, text: 'Executing code...' },
+      message: { ...baseMessage, text },
     });
   } else if (message.status === 'completed') {
+    let text = labels.completed;
+    if (message.return_code !== 0) {
+      text = `${toolName} failed (exit ${message.return_code})`;
+    } else if (toolName === 'draw_paths') {
+      const pathCount = getPathCount(message.tool_input);
+      if (pathCount !== null) {
+        text = `Drew ${pathCount} path${pathCount !== 1 ? 's' : ''}`;
+      }
+    }
+
     dispatch({
       type: 'ADD_MESSAGE',
       message: {
         ...baseMessage,
-        text:
-          message.return_code === 0
-            ? 'Code completed'
-            : `Code failed (exit ${message.return_code})`,
+        text,
         metadata: {
+          ...baseMessage.metadata,
           stdout: message.stdout,
           stderr: message.stderr,
           return_code: message.return_code,
