@@ -1,5 +1,6 @@
 /**
- * Type definitions for the Drawing Agent app.
+ * Shared type definitions for the Drawing Agent.
+ * Platform-agnostic - used by both React Native and web.
  */
 
 // Path types

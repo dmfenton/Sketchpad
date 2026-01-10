@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from PIL import Image, ImageDraw
@@ -286,25 +286,77 @@ async def set_piece_count(count: int, user: CurrentUser) -> dict[str, int]:
     return {"piece_count": count}
 
 
+@app.get("/auth/dev-token")
+async def get_dev_token() -> dict[str, str]:
+    """Generate a dev token for testing (dev mode only)."""
+    if not settings.dev_mode:
+        raise HTTPException(status_code=403, detail="Dev tokens only available in dev mode")
+
+    from drawing_agent.auth.jwt import create_access_token
+
+    # Get or create a dev user
+    async with get_session() as session:
+        dev_email = "dev@local.test"
+        dev_user = await repository.get_user_by_email(session, dev_email)
+        if not dev_user:
+            from drawing_agent.auth.password import hash_password
+            dev_user = await repository.create_user(
+                session, dev_email, hash_password("devpassword")
+            )
+
+    token = create_access_token(dev_user.id)
+    return {"access_token": token, "user_id": str(dev_user.id)}
+
+
 @app.get("/debug/agent")
 async def get_agent_debug(user: CurrentUser) -> dict[str, Any]:
     """Get agent debug info for user's workspace."""
     workspace = workspace_registry.get(user.id)
     if not workspace:
-        return {"error": "No active workspace. Connect via WebSocket first."}
+        # Return state from file if no active workspace
+        state = await get_user_state(user)
+        return {
+            "paused": True,
+            "status": state.status.value,
+            "piece_count": state.piece_count,
+            "notes": state.notes[:500] if state.notes else None,
+            "monologue": state.monologue[:500] if state.monologue else None,
+            "stroke_count": len(state.canvas.strokes),
+            "connected_clients": 0,
+        }
 
     state = workspace.state
     return {
         "paused": workspace.agent.paused,
-        "container_id": workspace.agent.container_id,
-        "pending_nudges": workspace.agent.pending_nudges,
         "status": state.status.value,
         "piece_count": state.piece_count,
         "notes": state.notes[:500] if state.notes else None,
-        "monologue_preview": state.monologue[:500] if state.monologue else None,
+        "monologue": state.monologue[:500] if state.monologue else None,
         "stroke_count": len(state.canvas.strokes),
         "connected_clients": workspace.connections.connection_count,
     }
+
+
+@app.get("/debug/workspace")
+async def get_workspace_debug(user: CurrentUser) -> dict[str, Any]:
+    """Get workspace files and state for debugging."""
+    from pathlib import Path
+
+    workspace_dir = Path("agent_workspace") / "users" / str(user.id)
+
+    files = []
+    if workspace_dir.exists():
+        for file_path in workspace_dir.rglob("*"):
+            if file_path.is_file():
+                stat = file_path.stat()
+                files.append({
+                    "name": file_path.name,
+                    "path": str(file_path.relative_to(workspace_dir)),
+                    "size": stat.st_size,
+                    "modified": stat.st_mtime,
+                })
+
+    return {"files": files}
 
 
 @app.get("/debug/logs")

@@ -2,8 +2,8 @@
  * Pure canvas utility functions.
  */
 
-import type { Path, Point } from '../types';
-import { CANVAS_HEIGHT, CANVAS_WIDTH } from '../types';
+import type { Path, Point } from '@drawing-agent/shared';
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@drawing-agent/shared';
 
 /**
  * Convert screen coordinates to canvas coordinates.

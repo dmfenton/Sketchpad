@@ -5,7 +5,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
-import { STATUS_LABELS, PULSE_DURATION_MS, type AgentStatus } from '../types';
+import { PULSE_DURATION_MS, STATUS_LABELS, type AgentStatus } from '@drawing-agent/shared';
 import { spacing, borderRadius, typography, useTheme } from '../theme';
 
 interface StatusPillProps {

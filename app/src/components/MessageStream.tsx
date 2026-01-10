@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { STATUS_LABELS, PULSE_DURATION_MS, type AgentMessage, type AgentStatus } from '../types';
+import { LIVE_MESSAGE_ID, PULSE_DURATION_MS, STATUS_LABELS, type AgentMessage, type AgentStatus } from '@drawing-agent/shared';
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
 
 interface MessageStreamProps {
@@ -25,9 +25,6 @@ function formatTime(timestamp: number): string {
   const date = new Date(timestamp);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-
-// ID for the live streaming message (from useCanvas)
-const LIVE_MESSAGE_ID = 'live_thinking';
 
 interface MessageBubbleProps {
   message: AgentMessage;

@@ -128,8 +128,9 @@ The `/debug/agent` endpoint returns:
 1. Add type to `server/drawing_agent/types.py`
 2. Add handler function in `server/drawing_agent/handlers.py`
 3. Add to `HANDLERS` dict in `handlers.py`
-4. Add type to `app/src/types.ts`
-5. Add handler in `app/src/utils/messageHandlers.ts`
+4. Add type to `shared/src/types.ts`
+5. Add handler in `shared/src/websocket/handlers.ts`
+6. Rebuild shared: `cd shared && npm run build`
 
 ### Modifying the agent prompt
 
@@ -160,9 +161,68 @@ Edit `server/drawing_agent/agent.py` - the `SYSTEM_PROMPT` constant
 - `components/Canvas.tsx` - SVG canvas with touch handling
 - `hooks/useCanvas.ts` - Canvas state management
 - `hooks/useWebSocket.ts` - WebSocket connection
-- `utils/messageHandlers.ts` - Message routing
 - `utils/canvas.ts` - Coordinate utilities
-- `types.ts` - TypeScript type definitions
+
+### Shared Library (shared/)
+
+Platform-agnostic TypeScript code used by both app/ and web/:
+
+```
+shared/src/
+├── index.ts              # Main exports
+├── types.ts              # All type definitions (Path, Point, ServerMessage, etc.)
+├── utils.ts              # Utility functions (boundedPush, generateMessageId)
+├── canvas/
+│   └── reducer.ts        # Canvas state machine (canvasReducer, CanvasHookState)
+└── websocket/
+    └── handlers.ts       # Message routing (routeMessage)
+```
+
+**Development:**
+```bash
+cd shared && npm run build    # Build TypeScript to dist/
+cd shared && npm run dev      # Watch mode
+cd shared && npm run lint     # ESLint
+cd shared && npm run format   # Prettier
+```
+
+**Must build shared/ before app/web changes take effect.**
+
+### Web Dev Server (web/)
+
+React + Vite dev server for accelerated development at http://localhost:5173:
+
+```
+web/src/
+├── App.tsx               # Main layout
+├── components/
+│   ├── Canvas.tsx        # SVG canvas with mouse handling
+│   ├── MessageStream.tsx # Agent thoughts display
+│   ├── DebugPanel.tsx    # Tabbed debug (Agent/Files/Messages)
+│   └── ActionBar.tsx     # Pause/Resume/Clear/Nudge
+└── hooks/
+    ├── useCanvas.ts      # Shared reducer wrapper
+    ├── useWebSocket.ts   # WebSocket with auto dev token
+    └── useDebug.ts       # Debug data fetching
+```
+
+**Start web dev server:**
+```bash
+make dev-web    # Starts both Python server + Vite dev server
+make web        # Starts Vite dev server only
+```
+
+**Features:**
+- Canvas rendering (SVG-based, same as app/)
+- Agent message stream with live streaming indicator
+- Debug panel with agent state, workspace files, WebSocket log
+- Action bar: pause/resume, clear canvas, send nudge
+- Auto dev token authentication (no login needed in dev mode)
+
+**Debug API endpoints used by web:**
+- `GET /auth/dev-token` - Get dev JWT token (dev mode only)
+- `GET /debug/agent` - Agent state (status, notes, piece count)
+- `GET /debug/workspace` - Workspace files list
 
 ## Server Deployment (AWS)
 
