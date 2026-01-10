@@ -29,6 +29,10 @@ export function useCanvas(): UseCanvasReturn {
   const [state, dispatch] = useReducer(canvasReducer, initialState);
 
   const handleMessage = useCallback((message: ServerMessage) => {
+    // Debug logging for stroke-related messages
+    if (message.type === 'stroke_complete' || message.type === 'init') {
+      console.log('[useCanvas] Received:', message.type, message);
+    }
     routeMessage(message, dispatch);
   }, []);
 

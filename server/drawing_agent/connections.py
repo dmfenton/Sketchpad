@@ -35,12 +35,13 @@ class ConnectionManager:
         else:
             data = json.dumps(message)
 
-        # Log pen messages periodically for debugging
+        # Log important message types
         msg_type = message.type if hasattr(message, "type") else "unknown"
         if msg_type == "stroke_complete":
-            logger.debug(f"Broadcasting stroke_complete to {len(self.active_connections)} clients")
-        elif msg_type == "pen" and hasattr(message, "down") and message.down:
-            logger.debug(f"Broadcasting pen (down=True) to {len(self.active_connections)} clients")
+            logger.info(f">>> stroke_complete to {len(self.active_connections)} clients")
+        elif msg_type == "status":
+            status = message.status if hasattr(message, "status") else "?"
+            logger.info(f">>> status={status} to {len(self.active_connections)} clients")
 
         failed: list[WebSocket] = []
         for conn in self.active_connections:

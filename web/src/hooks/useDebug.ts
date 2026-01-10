@@ -6,6 +6,18 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ServerMessage } from '@drawing-agent/shared';
 import { getApiUrl } from '../config';
 
+// Cache the dev token
+let cachedToken: string | null = null;
+
+async function getDevToken(): Promise<string> {
+  if (cachedToken) return cachedToken;
+  const response = await fetch(`${getApiUrl()}/auth/dev-token`);
+  if (!response.ok) throw new Error('Failed to get dev token');
+  const data = await response.json();
+  cachedToken = data.access_token;
+  return data.access_token;
+}
+
 export interface WorkspaceFile {
   name: string;
   path: string;
@@ -50,9 +62,12 @@ export function useDebug(): UseDebugReturn {
     setState((s) => ({ ...s, loading: true, error: null }));
 
     try {
+      const token = await getDevToken();
+      const headers = { Authorization: `Bearer ${token}` };
+
       const [agentRes, workspaceRes] = await Promise.all([
-        fetch(`${getApiUrl()}/debug/agent`),
-        fetch(`${getApiUrl()}/debug/workspace`),
+        fetch(`${getApiUrl()}/debug/agent`, { headers }),
+        fetch(`${getApiUrl()}/debug/workspace`, { headers }),
       ]);
 
       if (!agentRes.ok || !workspaceRes.ok) {

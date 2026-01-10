@@ -27,7 +27,20 @@ from drawing_agent.tracing import get_current_trace_id, setup_tracing
 from drawing_agent.user_handlers import handle_user_message
 from drawing_agent.workspace_state import WorkspaceState
 
-logging.basicConfig(level=logging.DEBUG)
+# Configure logging with clean format
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)5s [%(name)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+
+# Silence noisy loggers
+logging.getLogger("watchfiles").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("anthropic").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 

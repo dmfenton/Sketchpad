@@ -157,6 +157,11 @@ export interface IterationMessage {
   max: number;
 }
 
+export interface PausedMessage {
+  type: 'paused';
+  paused: boolean;
+}
+
 export type ServerMessage =
   | PenMessage
   | StrokeCompleteMessage
@@ -172,7 +177,8 @@ export type ServerMessage =
   | CodeExecutionMessage
   | ErrorMessage
   | PieceCompleteMessage
-  | IterationMessage;
+  | IterationMessage
+  | PausedMessage;
 
 // WebSocket messages - Client to Server
 export interface ClientStrokeMessage {

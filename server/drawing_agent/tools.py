@@ -234,6 +234,7 @@ async def handle_draw_paths(args: dict[str, Any]) -> dict[str, Any]:
             parsed_paths.append(path)
 
     # Call the draw callback with valid paths (even if there were some errors)
+    logger.info(f"draw_paths: {len(parsed_paths)} paths, callback={'set' if _draw_callback else 'None'}")
     if parsed_paths and _draw_callback is not None:
         await _draw_callback(parsed_paths, done)
 
@@ -326,6 +327,7 @@ async def handle_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
         }
 
     # Call the draw callback with generated paths
+    logger.info(f"generate_svg: {len(paths)} paths, callback={'set' if _draw_callback else 'None'}")
     if paths and _draw_callback is not None:
         await _draw_callback(paths, done)
         response_parts.append(f"Successfully generated and drew {len(paths)} paths.")

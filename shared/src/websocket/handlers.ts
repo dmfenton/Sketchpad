@@ -15,6 +15,7 @@ import type {
   IterationMessage,
   LoadCanvasMessage,
   NewCanvasMessage,
+  PausedMessage,
   PenMessage,
   PieceCompleteMessage,
   PieceCountMessage,
@@ -59,6 +60,10 @@ export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (messag
 export const handleStatus: MessageHandler<StatusMessage> = (message, dispatch) => {
   dispatch({ type: 'SET_STATUS', status: message.status });
 
+  // Update paused state based on status
+  // Status 'paused' means agent is paused, any other status means it's running
+  dispatch({ type: 'SET_PAUSED', paused: message.status === 'paused' });
+
   // Reset thinking when starting a new turn
   if (message.status === 'thinking') {
     dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
@@ -75,20 +80,7 @@ export const handleIteration: MessageHandler<IterationMessage> = (message, dispa
     current: message.current,
     max: message.max,
   });
-  dispatch({
-    type: 'ADD_MESSAGE',
-    message: {
-      id: generateMessageId(),
-      type: 'iteration',
-      text: `Iteration ${message.current}/${message.max}`,
-      timestamp: Date.now(),
-      iteration: message.current,
-      metadata: {
-        current_iteration: message.current,
-        max_iterations: message.max,
-      },
-    },
-  });
+  // Don't add iteration messages to the stream - they're noise
 };
 
 export const handleCodeExecution: MessageHandler<CodeExecutionMessage> = (message, dispatch) => {
@@ -211,6 +203,10 @@ export const handlePieceCount: MessageHandler<PieceCountMessage> = (message, dis
   dispatch({ type: 'SET_PIECE_COUNT', count: message.count });
 };
 
+export const handlePaused: MessageHandler<PausedMessage> = (message, dispatch) => {
+  dispatch({ type: 'SET_PAUSED', paused: message.paused });
+};
+
 // Handler registry
 const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessage>>> = {
   pen: handlePen as MessageHandler<ServerMessage>,
@@ -228,6 +224,7 @@ const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessa
   load_canvas: handleLoadCanvas as MessageHandler<ServerMessage>,
   init: handleInit as MessageHandler<ServerMessage>,
   piece_count: handlePieceCount as MessageHandler<ServerMessage>,
+  paused: handlePaused as MessageHandler<ServerMessage>,
 };
 
 /**
