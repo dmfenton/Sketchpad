@@ -10,7 +10,6 @@ from drawing_agent.registry import ActiveWorkspace
 from drawing_agent.types import (
     AgentStatus,
     ClearMessage,
-    GalleryUpdateMessage,
     LoadCanvasMessage,
     NewCanvasMessage,
     Path,
@@ -74,7 +73,8 @@ async def handle_new_canvas(
         }
         for p in gallery_pieces
     ]
-    await workspace.connections.broadcast(GalleryUpdateMessage(canvases=gallery_data))
+    # Send as raw dict - app expects stroke_count metadata, not full strokes
+    await workspace.connections.broadcast({"type": "gallery_update", "canvases": gallery_data})
     await workspace.connections.broadcast(
         {"type": "piece_count", "count": workspace.state.piece_count}
     )
