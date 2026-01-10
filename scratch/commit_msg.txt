@@ -1,0 +1,12 @@
+feat: Pen plotter motion mechanics
+
+- Add travel paths between strokes (pen up, smooth diagonal movement)
+- Add smoothstep easing for acceleration/deceleration curves
+- Add pen settling delay after lowering (servo stabilization)
+- Track pen position across strokes for continuous motion
+
+Config: travel_speed_multiplier (2.0x), pen_settle_delay (50ms)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>

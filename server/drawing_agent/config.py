@@ -99,10 +99,12 @@ class Settings(BaseSettings):
     canvas_width: int = 800
     canvas_height: int = 600
 
-    # Drawing
+    # Drawing (pen plotter motion)
     drawing_fps: int = 30  # frames per second for pen updates
     stroke_delay: float = 0.2  # pause between strokes in seconds
     path_steps_per_unit: float = 0.5  # interpolation density
+    travel_speed_multiplier: float = 2.0  # travel faster than drawing (pen up movement)
+    pen_settle_delay: float = 0.05  # pause after pen down before moving (servo settling)
 
     # Limits
     max_stdout_chars: int = 2000  # truncate stdout in messages
