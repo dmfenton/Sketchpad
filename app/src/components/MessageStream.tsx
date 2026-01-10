@@ -15,9 +15,13 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { STATUS_LABELS, PULSE_DURATION_MS, type AgentMessage, type AgentStatus } from '../types';
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
+import type { RawMessage } from '../hooks/useCanvas';
+
+type ViewMode = 'styled' | 'raw';
 
 interface MessageStreamProps {
   messages: AgentMessage[];
+  rawMessages: RawMessage[];
   status: AgentStatus;
 }
 
@@ -195,9 +199,49 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
   );
 }
 
-export function MessageStream({ messages, status }: MessageStreamProps): React.JSX.Element {
+interface RawMessageItemProps {
+  message: RawMessage;
+  colors: ColorScheme;
+}
+
+function RawMessageItem({ message, colors }: RawMessageItemProps): React.JSX.Element {
+  const [expanded, setExpanded] = useState(false);
+  const jsonString = JSON.stringify(message.data, null, 2);
+  const previewLength = 100;
+  const isLong = jsonString.length > previewLength;
+  const displayText = expanded || !isLong
+    ? jsonString
+    : jsonString.slice(0, previewLength) + '...';
+
+  return (
+    <Pressable
+      style={[styles.rawMessage, { backgroundColor: colors.surfaceElevated }]}
+      onPress={() => isLong && setExpanded(!expanded)}
+    >
+      <View style={styles.rawMessageHeader}>
+        <Text style={[styles.rawMessageType, { color: colors.primary }]}>
+          {message.data.type}
+        </Text>
+        <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+          {formatTime(message.timestamp)}
+        </Text>
+      </View>
+      <Text style={[styles.rawMessageText, { color: colors.textSecondary }]}>
+        {displayText}
+      </Text>
+      {isLong && (
+        <Text style={[styles.expandHint, { color: colors.textMuted }]}>
+          {expanded ? 'Tap to collapse' : 'Tap to expand'}
+        </Text>
+      )}
+    </Pressable>
+  );
+}
+
+export function MessageStream({ messages, rawMessages, status }: MessageStreamProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const [autoScroll, setAutoScroll] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('styled');
   const scrollViewRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const lastMessageCount = useRef(messages.length);
@@ -278,6 +322,40 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
             <Text style={[styles.headerStatus, { color: colors.primary }]}>{STATUS_LABELS[status]}</Text>
           )}
         </View>
+        <View style={styles.viewToggle}>
+          <Pressable
+            style={[
+              styles.toggleTab,
+              viewMode === 'styled' && { backgroundColor: colors.primary },
+            ]}
+            onPress={() => setViewMode('styled')}
+          >
+            <Text
+              style={[
+                styles.toggleTabText,
+                { color: viewMode === 'styled' ? colors.textOnPrimary : colors.textMuted },
+              ]}
+            >
+              Styled
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.toggleTab,
+              viewMode === 'raw' && { backgroundColor: colors.primary },
+            ]}
+            onPress={() => setViewMode('raw')}
+          >
+            <Text
+              style={[
+                styles.toggleTabText,
+                { color: viewMode === 'raw' ? colors.textOnPrimary : colors.textMuted },
+              ]}
+            >
+              Raw
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.content}>
@@ -289,20 +367,37 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
         >
-          {messages.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="color-palette-outline" size={32} color={colors.textMuted} />
-              <Text style={[styles.emptyText, { color: colors.textMuted }]}>Awaiting artistic inspiration...</Text>
-            </View>
+          {viewMode === 'styled' ? (
+            messages.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="color-palette-outline" size={32} color={colors.textMuted} />
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>Awaiting artistic inspiration...</Text>
+              </View>
+            ) : (
+              messages.map((message) => (
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  isNew={newMessageIds.current.has(message.id) || message.id === LIVE_MESSAGE_ID}
+                  colors={colors}
+                />
+              ))
+            )
           ) : (
-            messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                isNew={newMessageIds.current.has(message.id) || message.id === LIVE_MESSAGE_ID}
-                colors={colors}
-              />
-            ))
+            rawMessages.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="code-outline" size={32} color={colors.textMuted} />
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>No raw messages yet...</Text>
+              </View>
+            ) : (
+              rawMessages.map((message, index) => (
+                <RawMessageItem
+                  key={`${message.timestamp}-${index}`}
+                  message={message}
+                  colors={colors}
+                />
+              ))
+            )
           )}
         </ScrollView>
 
@@ -427,5 +522,45 @@ const styles = StyleSheet.create({
   codeOutputText: {
     ...typography.small,
     fontFamily: 'monospace',
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    borderRadius: borderRadius.sm,
+    overflow: 'hidden',
+  },
+  toggleTab: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  toggleTabText: {
+    ...typography.small,
+    fontWeight: '500',
+  },
+  rawMessage: {
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  rawMessageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  rawMessageType: {
+    ...typography.small,
+    fontWeight: '600',
+    fontFamily: 'monospace',
+  },
+  rawMessageText: {
+    ...typography.small,
+    fontFamily: 'monospace',
+    lineHeight: 18,
+  },
+  expandHint: {
+    ...typography.small,
+    marginTop: spacing.xs,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 });

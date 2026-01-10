@@ -10,6 +10,12 @@ import { boundedPush, routeMessage } from '../utils';
 // Max messages to keep in state to prevent memory issues
 const MAX_MESSAGES = 50;
 
+// Raw message wrapper to include timestamp
+export interface RawMessage {
+  timestamp: number;
+  data: ServerMessage;
+}
+
 export interface CanvasHookState {
   strokes: Path[];
   currentStroke: Point[];
@@ -19,6 +25,7 @@ export interface CanvasHookState {
   agentStatus: AgentStatus;
   thinking: string;
   messages: AgentMessage[];
+  rawMessages: RawMessage[];  // Raw messages from Claude Agent SDK
   pieceCount: number;
   viewingPiece: number | null;  // Which gallery piece is being viewed (null = current)
   drawingEnabled: boolean;
@@ -45,6 +52,7 @@ export type CanvasAction =
   | { type: 'APPEND_LIVE_MESSAGE'; text: string }
   | { type: 'FINALIZE_LIVE_MESSAGE' }
   | { type: 'ADD_MESSAGE'; message: AgentMessage }
+  | { type: 'ADD_RAW_MESSAGE'; message: ServerMessage }
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'TOGGLE_DRAWING' }
   | { type: 'SET_PIECE_COUNT'; count: number }
@@ -64,6 +72,7 @@ const initialState: CanvasHookState = {
   agentStatus: 'paused',  // Start paused
   thinking: '',
   messages: [],
+  rawMessages: [],
   pieceCount: 0,
   viewingPiece: null,
   drawingEnabled: false,
@@ -173,8 +182,18 @@ function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHook
         messages: boundedPush(state.messages, action.message, MAX_MESSAGES),
       };
 
+    case 'ADD_RAW_MESSAGE':
+      return {
+        ...state,
+        rawMessages: boundedPush(
+          state.rawMessages,
+          { timestamp: Date.now(), data: action.message },
+          MAX_MESSAGES
+        ),
+      };
+
     case 'CLEAR_MESSAGES':
-      return { ...state, messages: [] };
+      return { ...state, messages: [], rawMessages: [] };
 
     case 'TOGGLE_DRAWING':
       return { ...state, drawingEnabled: !state.drawingEnabled };
@@ -229,6 +248,9 @@ export function useCanvas(): UseCanvasReturn {
   const [state, dispatch] = useReducer(canvasReducer, initialState);
 
   const handleMessage = useCallback((message: ServerMessage) => {
+    // Store raw message for debug view
+    dispatch({ type: 'ADD_RAW_MESSAGE', message });
+    // Process message through handlers
     routeMessage(message, dispatch);
   }, []);
 

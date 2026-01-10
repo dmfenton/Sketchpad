@@ -197,6 +197,7 @@ function MainApp(): React.JSX.Element {
           {/* Message Stream */}
           <MessageStream
             messages={canvas.state.messages}
+            rawMessages={canvas.state.rawMessages}
             status={canvas.state.agentStatus}
           />
 
