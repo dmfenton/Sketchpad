@@ -2,6 +2,7 @@
 
 import pytest
 
+from drawing_agent.executor import apply_easing, ease_in_out, interpolate_travel
 from drawing_agent.interpolation import (
     cubic_bezier,
     estimate_path_length,
@@ -116,3 +117,75 @@ class TestInterpolatePath:
         assert result[0].y == pytest.approx(0)
         assert result[-1].x == pytest.approx(100)
         assert result[-1].y == pytest.approx(0)
+
+
+class TestEasing:
+    """Tests for pen plotter motion easing."""
+
+    def test_ease_in_out_endpoints(self) -> None:
+        """Easing function preserves 0 and 1."""
+        assert ease_in_out(0.0) == pytest.approx(0.0)
+        assert ease_in_out(1.0) == pytest.approx(1.0)
+
+    def test_ease_in_out_midpoint(self) -> None:
+        """Midpoint is unchanged by smoothstep."""
+        assert ease_in_out(0.5) == pytest.approx(0.5)
+
+    def test_ease_in_out_slow_start(self) -> None:
+        """Early values are compressed (slower start)."""
+        assert ease_in_out(0.25) < 0.25
+
+    def test_ease_in_out_slow_end(self) -> None:
+        """Late values are compressed (slower end)."""
+        assert ease_in_out(0.75) > 0.75
+
+    def test_apply_easing_preserves_endpoints(self) -> None:
+        """First and last points are unchanged."""
+        points = [Point(x=0, y=0), Point(x=50, y=50), Point(x=100, y=100)]
+        result = apply_easing(points)
+        assert result[0].x == pytest.approx(0)
+        assert result[0].y == pytest.approx(0)
+        assert result[-1].x == pytest.approx(100)
+        assert result[-1].y == pytest.approx(100)
+
+    def test_apply_easing_same_length(self) -> None:
+        """Output has same number of points as input."""
+        points = [Point(x=i * 10, y=0) for i in range(10)]
+        result = apply_easing(points)
+        assert len(result) == len(points)
+
+    def test_apply_easing_short_path(self) -> None:
+        """Very short paths returned unchanged."""
+        points = [Point(x=0, y=0), Point(x=100, y=0)]
+        result = apply_easing(points)
+        assert len(result) == 2
+
+
+class TestInterpolateTravel:
+    """Tests for pen plotter travel path interpolation."""
+
+    def test_travel_creates_points(self) -> None:
+        """Travel between distant points creates interpolated path."""
+        start = Point(x=0, y=0)
+        end = Point(x=100, y=100)
+        result = interpolate_travel(start, end, steps_per_unit=0.5)
+        assert len(result) > 2
+        assert result[-1].x == pytest.approx(100)
+        assert result[-1].y == pytest.approx(100)
+
+    def test_travel_short_distance_minimal(self) -> None:
+        """Very short travel returns just the endpoint."""
+        start = Point(x=0, y=0)
+        end = Point(x=0.5, y=0.5)
+        result = interpolate_travel(start, end, steps_per_unit=0.5)
+        assert len(result) == 1
+        assert result[0].x == pytest.approx(0.5)
+        assert result[0].y == pytest.approx(0.5)
+
+    def test_travel_points_monotonic(self) -> None:
+        """Travel points move steadily toward destination."""
+        start = Point(x=0, y=0)
+        end = Point(x=100, y=0)
+        result = interpolate_travel(start, end, steps_per_unit=0.5)
+        for i in range(1, len(result)):
+            assert result[i].x >= result[i - 1].x
