@@ -304,7 +304,7 @@ async def get_dev_token() -> dict[str, str]:
                 session, dev_email, hash_password("devpassword")
             )
 
-    token = create_access_token(dev_user.id)
+    token = create_access_token(dev_user.id, dev_user.email)
     return {"access_token": token, "user_id": str(dev_user.id)}
 
 

@@ -17,14 +17,14 @@ import { useDebug } from './hooks/useDebug';
 function App() {
   const { state, handleMessage, startStroke, addPoint, endStroke, toggleDrawing } = useCanvas();
 
-  const debug = useDebug();
+  const { logMessage, ...debug } = useDebug();
 
   const onMessage = useCallback(
     (message: ServerMessage) => {
       handleMessage(message);
-      debug.logMessage(message);
+      logMessage(message);
     },
-    [handleMessage, debug]
+    [handleMessage, logMessage]
   );
 
   const { status: wsStatus, send } = useWebSocket({ onMessage });

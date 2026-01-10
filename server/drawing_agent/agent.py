@@ -188,7 +188,7 @@ class DrawingAgent:
         _context: HookContext,
     ) -> dict[str, Any]:
         """PostToolUse hook - pause after draw_paths to let drawing complete."""
-        tool_name = input_data.tool_name
+        tool_name = input_data.tool_name  # type: ignore[attr-defined]
 
         # After draw_paths, execute drawing and wait
         if tool_name == "mcp__drawing__draw_paths" and self._collected_paths:
