@@ -2,10 +2,11 @@
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
 from drawing_agent.agent import AgentCallbacks, CodeExecutionResult
+from drawing_agent.agent_logger import AgentFileLogger
 from drawing_agent.config import settings
 from drawing_agent.executor import execute_paths
 from drawing_agent.types import (
@@ -50,6 +51,7 @@ class AgentOrchestrator:
 
     agent: "DrawingAgent"
     broadcaster: Broadcaster
+    file_logger: AgentFileLogger | None = field(default=None)
 
     def __post_init__(self) -> None:
         # Set up the agent's draw callback to use our _draw_paths method
@@ -65,6 +67,8 @@ class AgentOrchestrator:
             return
 
         logger.info(f"Drawing {len(paths)} paths (via hook)")
+        if self.file_logger:
+            await self.file_logger.log_drawing(len(paths))
         await self.broadcast_status(AgentStatus.DRAWING)
 
         async def send_message(msg: Any) -> None:
@@ -79,6 +83,8 @@ class AgentOrchestrator:
 
     async def broadcast_status(self, status: AgentStatus) -> None:
         """Broadcast a status update to all clients."""
+        if self.file_logger:
+            await self.file_logger.log_status_change(status.value)
         await self.broadcaster.broadcast(StatusMessage(status=status))
 
     def create_callbacks(self) -> AgentCallbacks:
@@ -95,16 +101,21 @@ class AgentOrchestrator:
         """Handle streaming thinking updates (delta only)."""
         if text:
             logger.debug(f"Streaming thinking delta: {len(text)} chars")
+            # Note: We log complete thinking in run_turn, not deltas
             await self.broadcaster.broadcast(ThinkingDeltaMessage(text=text, iteration=iteration))
 
     async def _handle_iteration_start(self, current: int, max_iter: int) -> None:
         """Handle when a new iteration starts."""
         logger.info(f"Iteration {current}/{max_iter}")
+        if self.file_logger:
+            await self.file_logger.log_iteration_start(current, max_iter)
         await self.broadcaster.broadcast(IterationMessage(current=current, max=max_iter))
 
     async def _handle_code_start(self, iteration: int) -> None:
         """Handle when code execution starts."""
         logger.info(f"Code execution started (iteration {iteration})")
+        if self.file_logger:
+            await self.file_logger.log_code_start(iteration)
         await self.broadcast_status(AgentStatus.EXECUTING)
         await self.broadcaster.broadcast(
             CodeExecutionMessage(status="started", iteration=iteration)
@@ -113,6 +124,13 @@ class AgentOrchestrator:
     async def _handle_code_result(self, result: CodeExecutionResult) -> None:
         """Handle when code execution completes."""
         logger.info(f"Code execution completed (iteration {result.iteration})")
+        if self.file_logger:
+            await self.file_logger.log_code_result(
+                iteration=result.iteration,
+                stdout=result.stdout,
+                stderr=result.stderr,
+                return_code=result.return_code,
+            )
         max_stdout = settings.max_stdout_chars
         max_stderr = settings.max_stderr_chars
         await self.broadcaster.broadcast(
@@ -128,6 +146,8 @@ class AgentOrchestrator:
     async def _handle_error(self, message: str, details: str | None) -> None:
         """Handle agent errors."""
         logger.error(f"Agent error: {message}")
+        if self.file_logger:
+            await self.file_logger.log_error(message, details)
         await self.broadcast_status(AgentStatus.ERROR)
         await self.broadcaster.broadcast(ErrorMessage(message=message, details=details))
 
@@ -137,20 +157,42 @@ class AgentOrchestrator:
         Returns True if a piece was completed, False otherwise.
         """
         callbacks = self.create_callbacks()
+        state = self.agent.get_state()
+
+        # Log turn start
+        if self.file_logger:
+            await self.file_logger.log_turn_start(
+                piece_number=state.piece_count + 1,
+                stroke_count=len(state.canvas.strokes),
+            )
+            # Log any pending nudges
+            if self.agent.pending_nudges:
+                await self.file_logger.log_nudge(self.agent.pending_nudges.copy())
 
         # Broadcast THINKING status at start of turn
         await self.broadcast_status(AgentStatus.THINKING)
 
         done = False
+        thinking_text = ""
 
         # Consume events from agent - drawing happens in PostToolUse hook
         async for event in self.agent.run_turn(callbacks=callbacks):
             if isinstance(event, AgentTurnComplete):
                 done = event.done
+                thinking_text = event.thinking or ""
                 logger.info(f"Turn complete. Piece done: {done}")
                 # Send complete thinking text as a final message
                 if event.thinking:
                     await self.broadcaster.broadcast(ThinkingMessage(text=event.thinking))
+
+        # Log turn end with thinking
+        if self.file_logger:
+            if thinking_text:
+                await self.file_logger.log_thinking(thinking_text, iteration=1)
+            await self.file_logger.log_turn_end(
+                piece_done=done,
+                thinking_chars=len(thinking_text),
+            )
 
         # Always broadcast IDLE after turn completes
         await self.broadcast_status(AgentStatus.IDLE)
@@ -180,6 +222,8 @@ class AgentOrchestrator:
 
             except Exception as e:
                 logger.error(f"Agent loop error: {e}")
+                if self.file_logger:
+                    await self.file_logger.log_error(f"Agent loop error: {e}")
                 await self.broadcaster.broadcast(ErrorMessage(message=str(e)))
                 await self.broadcast_status(AgentStatus.IDLE)
                 await asyncio.sleep(settings.agent_interval)
