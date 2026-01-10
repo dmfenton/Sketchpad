@@ -24,7 +24,7 @@ body {
 .app {
   display: grid;
   grid-template-columns: 1fr 400px;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr;
   height: 100vh;
   gap: 1px;
   background: var(--border);
@@ -33,21 +33,39 @@ body {
 .header {
   grid-column: 1 / -1;
   background: var(--bg-secondary);
-  padding: 12px 20px;
+  padding: 8px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.header h1 {
-  font-size: 18px;
-  font-weight: 600;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.header .status {
+.header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.header-right {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.piece-count {
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .status-pill {
@@ -242,7 +260,7 @@ body {
   word-break: break-all;
 }
 
-/* Action bar */
+/* Action bar - redesigned with left/center/right sections */
 .action-bar {
   grid-column: 1 / -1;
   background: var(--bg-secondary);
@@ -250,6 +268,28 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.action-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-bar-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.action-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .action-bar button {
@@ -271,6 +311,11 @@ body {
   background: var(--accent-dim);
 }
 
+.action-bar button.primary:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+}
+
 .action-bar button.secondary {
   background: var(--bg-tertiary);
   color: var(--text-primary);
@@ -278,6 +323,46 @@ body {
 
 .action-bar button.secondary:hover {
   background: #1a4a80;
+}
+
+.action-bar button.start-btn {
+  padding: 10px 32px;
+  font-size: 16px;
+}
+
+.action-bar button.pause-btn {
+  padding: 8px 12px;
+}
+
+.action-bar button.icon-btn {
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.action-bar button.icon-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+.action-bar button.icon-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.action-bar button.icon-btn .icon {
+  font-size: 16px;
+}
+
+.action-bar button.text-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+}
+
+.action-bar button.text-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
 }
 
 .action-bar input {
@@ -288,10 +373,100 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 14px;
+  min-width: 200px;
 }
 
 .action-bar input::placeholder {
   color: var(--text-muted);
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 450px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.modal h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal p {
+  margin: 0 0 16px 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.modal input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.modal input::placeholder {
+  color: var(--text-muted);
+}
+
+.modal input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.modal-actions button {
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.modal-actions button.primary {
+  background: var(--accent);
+  color: white;
+}
+
+.modal-actions button.primary:hover {
+  background: var(--accent-dim);
+}
+
+.modal-actions button.secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.modal-actions button.secondary:hover {
+  background: #1a4a80;
 }
 
 /* Connection status */
