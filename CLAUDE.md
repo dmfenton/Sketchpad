@@ -48,28 +48,25 @@ Both servers have **live reload enabled by default** - they auto-restart on file
 
 ### Starting Dev Servers
 
-Claude runs `make dev` as a background task:
 ```bash
-make dev  # with run_in_background: true
+make dev       # Server + Expo app (foreground, Ctrl+C to stop)
+make dev-web   # Server + Vite web app (foreground, Ctrl+C to stop)
+make dev-stop  # Force-kill any stuck servers by port
 ```
 
-This starts both servers as a single Claude task visible via `/tasks`:
+**Ports:**
 - Python server: http://localhost:8000
 - Expo app: http://localhost:8081
+- Vite web: http://localhost:5173
 
-Use `TaskOutput` to check server logs. Both have live reload - no restarts needed for code changes.
+Both have live reload - no restarts needed for code changes.
 
-**Python server never needs restart** once running (uvicorn live reload). Only restart if:
-- Changed dependencies (pyproject.toml)
-- Server crashed (check logs)
+**Only restart if:**
+- Changed dependencies (pyproject.toml, package.json)
+- Server crashed
 - Stale behavior after 5+ seconds post-save
 
-**Expo never needs restart** once running (Metro hot reload). Only restart if:
-- Changed dependencies (package.json)
-- Modified native code (requires `expo prebuild`)
-- It crashed
-
-**Never** use `pkill`, `kill`, or manual process management.
+**Stuck ports?** Run `make dev-stop` to force-kill by port, then start again.
 
 ### Debug API Endpoints
 

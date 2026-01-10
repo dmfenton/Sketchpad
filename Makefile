@@ -1,4 +1,4 @@
-.PHONY: install dev dev-web server server-bg server-logs server-stop server-restart app web test lint format typecheck clean cli cli-turn cli-status build-shared
+.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test lint format typecheck clean cli cli-turn cli-status build-shared
 
 # Install all dependencies
 install:
@@ -7,10 +7,9 @@ install:
 	cd shared && npm install
 	cd web && npm install
 
-# Run both server and app
+# Run server + Expo app (foreground, Ctrl+C to stop)
 dev:
-	@echo "Starting server and app..."
-	@make -j2 server app
+	@./scripts/dev.sh
 
 # Run server only (foreground)
 server:
@@ -71,15 +70,13 @@ app:
 web:
 	cd web && npm run dev
 
-# Run server + web dev server (use two terminals instead - more reliable)
-# Terminal 1: make server
-# Terminal 2: make web
+# Run server + Vite web app (foreground, Ctrl+C to stop)
 dev-web:
-	@echo "Run in two terminals for reliability:"
-	@echo "  Terminal 1: make server"
-	@echo "  Terminal 2: make web"
-	@echo ""
-	@echo "Then open http://localhost:5173"
+	@./scripts/dev-web.sh
+
+# Kill any stuck dev servers by port
+dev-stop:
+	@./scripts/kill-dev.sh
 
 # Run all tests
 test: test-server test-app
