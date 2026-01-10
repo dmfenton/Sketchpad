@@ -196,7 +196,9 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
               <Ionicons name="code-slash" size={12} color={colors.textMuted} />
               <Text style={[styles.codePreviewLabel, { color: colors.textMuted }]}>Python Code</Text>
             </View>
-            <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{codePreview}</Text>
+            <ScrollView style={styles.codeScrollView} nestedScrollEnabled>
+              <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{codePreview}</Text>
+            </ScrollView>
           </View>
         )}
         {expanded && message.metadata?.stdout && (
@@ -205,7 +207,9 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
               <Ionicons name="terminal" size={12} color={colors.textMuted} />
               <Text style={[styles.codePreviewLabel, { color: colors.textMuted }]}>Output</Text>
             </View>
-            <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{message.metadata.stdout}</Text>
+            <ScrollView style={styles.codeScrollView} nestedScrollEnabled>
+              <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{message.metadata.stdout}</Text>
+            </ScrollView>
           </View>
         )}
         {expanded && message.metadata?.stderr && (
@@ -214,7 +218,9 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
               <Ionicons name="warning" size={12} color={colors.error} />
               <Text style={[styles.codePreviewLabel, { color: colors.error }]}>Error</Text>
             </View>
-            <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{message.metadata.stderr}</Text>
+            <ScrollView style={styles.codeScrollView} nestedScrollEnabled>
+              <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{message.metadata.stderr}</Text>
+            </ScrollView>
           </View>
         )}
         <Text style={[styles.timestamp, { color: colors.textMuted }]}>{formatTime(message.timestamp)}</Text>
@@ -468,8 +474,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     padding: spacing.sm,
     borderRadius: borderRadius.sm,
+    maxHeight: 200,
+  },
+  codeScrollView: {
     maxHeight: 150,
-    overflow: 'hidden',
   },
   codeOutputError: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
