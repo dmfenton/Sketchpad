@@ -15,7 +15,7 @@ import { borderRadius, spacing, typography, useTheme } from '../theme';
 interface CanvasProps {
   strokes: Path[];
   currentStroke: Point[];
-  agentStroke: Point[];  // Agent's in-progress stroke
+  agentStroke: Point[]; // Agent's in-progress stroke
   penPosition: Point | null;
   penDown: boolean;
   drawingEnabled: boolean;
@@ -134,7 +134,10 @@ export function Canvas({
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.canvasBackground }, shadows.md]} onLayout={handleLayout}>
+    <View
+      style={[styles.container, { backgroundColor: colors.canvasBackground }, shadows.md]}
+      onLayout={handleLayout}
+    >
       <GestureDetector gesture={panGesture}>
         <View style={styles.canvasWrapper}>
           <Svg
@@ -145,12 +148,7 @@ export function Canvas({
           >
             {/* Grid pattern */}
             <Defs>
-              <Pattern
-                id="grid"
-                width="40"
-                height="40"
-                patternUnits="userSpaceOnUse"
-              >
+              <Pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
                 <Line x1="40" y1="0" x2="40" y2="40" stroke={colors.border} strokeWidth="0.5" />
                 <Line x1="0" y1="40" x2="40" y2="40" stroke={colors.border} strokeWidth="0.5" />
               </Pattern>
@@ -223,7 +221,9 @@ export function Canvas({
           {/* Drawing mode indicator */}
           {drawingEnabled && (
             <View style={[styles.drawingIndicator, { backgroundColor: colors.secondary }]}>
-              <Text style={[styles.drawingIndicatorText, { color: colors.textOnPrimary }]}>Drawing Mode</Text>
+              <Text style={[styles.drawingIndicatorText, { color: colors.textOnPrimary }]}>
+                Drawing Mode
+              </Text>
             </View>
           )}
         </View>

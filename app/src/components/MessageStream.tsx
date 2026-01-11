@@ -3,17 +3,17 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { LIVE_MESSAGE_ID, PULSE_DURATION_MS, STATUS_LABELS, type AgentMessage, type AgentStatus, type ToolName } from '@drawing-agent/shared';
+import {
+  LIVE_MESSAGE_ID,
+  PULSE_DURATION_MS,
+  STATUS_LABELS,
+  type AgentMessage,
+  type AgentStatus,
+  type ToolName,
+} from '@drawing-agent/shared';
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
 
 interface MessageStreamProps {
@@ -27,7 +27,10 @@ function formatTime(timestamp: number): string {
 }
 
 // Tool-specific icons
-const TOOL_ICONS: Record<ToolName | 'unknown', { name: keyof typeof Ionicons.glyphMap; activeIcon?: keyof typeof Ionicons.glyphMap }> = {
+const TOOL_ICONS: Record<
+  ToolName | 'unknown',
+  { name: keyof typeof Ionicons.glyphMap; activeIcon?: keyof typeof Ionicons.glyphMap }
+> = {
   draw_paths: { name: 'brush', activeIcon: 'brush-outline' },
   generate_svg: { name: 'code-slash', activeIcon: 'code-working' },
   view_canvas: { name: 'eye', activeIcon: 'eye-outline' },
@@ -110,9 +113,13 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
           <Text style={[styles.messageText, { color: colors.error }]}>{message.text}</Text>
         </View>
         {message.metadata?.stderr && (
-          <Text style={[styles.errorDetails, { color: colors.textMuted }]}>{message.metadata.stderr}</Text>
+          <Text style={[styles.errorDetails, { color: colors.textMuted }]}>
+            {message.metadata.stderr}
+          </Text>
         )}
-        <Text style={[styles.timestamp, { color: colors.textMuted }]}>{formatTime(message.timestamp)}</Text>
+        <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+          {formatTime(message.timestamp)}
+        </Text>
       </Animated.View>
     );
   }
@@ -134,7 +141,9 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
           <Ionicons name="checkmark-circle" size={16} color={colors.success} />
           <Text style={[styles.messageText, { color: colors.success }]}>{message.text}</Text>
         </View>
-        <Text style={[styles.timestamp, { color: colors.textMuted }]}>{formatTime(message.timestamp)}</Text>
+        <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+          {formatTime(message.timestamp)}
+        </Text>
       </Animated.View>
     );
   }
@@ -144,28 +153,38 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
     const hasOutput = message.metadata?.stdout || message.metadata?.stderr;
     const isSuccess = message.metadata?.return_code === 0;
     const toolName = message.metadata?.tool_name ?? 'unknown';
-    const isInProgress = message.text.includes('...') && !message.text.includes('Drew') && !message.text.includes('generated');
+    const isInProgress =
+      message.text.includes('...') &&
+      !message.text.includes('Drew') &&
+      !message.text.includes('generated');
     const toolIcon = TOOL_ICONS[toolName] ?? TOOL_ICONS.unknown;
     const iconName = isInProgress ? (toolIcon.activeIcon ?? toolIcon.name) : toolIcon.name;
 
     // Get code preview for generate_svg
-    const codePreview = toolName === 'generate_svg'
-      ? getCodeFromInput(message.metadata?.tool_input)
-      : null;
+    const codePreview =
+      toolName === 'generate_svg' ? getCodeFromInput(message.metadata?.tool_input) : null;
     const hasExpandableContent = hasOutput || codePreview;
 
     // Determine border color based on tool type
-    const borderColor = toolName === 'draw_paths' ? colors.primary
-      : toolName === 'generate_svg' ? '#8B5CF6' // purple for code
-      : toolName === 'view_canvas' ? colors.textMuted
-      : toolName === 'mark_piece_done' ? colors.success
-      : colors.primary;
+    const borderColor =
+      toolName === 'draw_paths'
+        ? colors.primary
+        : toolName === 'generate_svg'
+          ? '#8B5CF6' // purple for code
+          : toolName === 'view_canvas'
+            ? colors.textMuted
+            : toolName === 'mark_piece_done'
+              ? colors.success
+              : colors.primary;
 
     return (
       <Animated.View
         style={[
           styles.messageBubble,
-          { backgroundColor: colors.surfaceElevated, borderLeftColor: isSuccess === false ? colors.error : borderColor },
+          {
+            backgroundColor: colors.surfaceElevated,
+            borderLeftColor: isSuccess === false ? colors.error : borderColor,
+          },
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
@@ -181,7 +200,9 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
             size={16}
             color={isSuccess === false ? colors.error : borderColor}
           />
-          <Text style={[styles.messageText, { color: colors.textPrimary, flex: 1 }]}>{message.text}</Text>
+          <Text style={[styles.messageText, { color: colors.textPrimary, flex: 1 }]}>
+            {message.text}
+          </Text>
           {hasExpandableContent && (
             <Ionicons
               name={expanded ? 'chevron-up' : 'chevron-down'}
@@ -194,10 +215,14 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
           <View style={[styles.codeOutput, { backgroundColor: colors.background }]}>
             <View style={styles.codePreviewHeader}>
               <Ionicons name="code-slash" size={12} color={colors.textMuted} />
-              <Text style={[styles.codePreviewLabel, { color: colors.textMuted }]}>Python Code</Text>
+              <Text style={[styles.codePreviewLabel, { color: colors.textMuted }]}>
+                Python Code
+              </Text>
             </View>
             <ScrollView style={styles.codeScrollView} nestedScrollEnabled>
-              <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{codePreview}</Text>
+              <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>
+                {codePreview}
+              </Text>
             </ScrollView>
           </View>
         )}
@@ -208,7 +233,9 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
               <Text style={[styles.codePreviewLabel, { color: colors.textMuted }]}>Output</Text>
             </View>
             <ScrollView style={styles.codeScrollView} nestedScrollEnabled>
-              <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{message.metadata.stdout}</Text>
+              <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>
+                {message.metadata.stdout}
+              </Text>
             </ScrollView>
           </View>
         )}
@@ -219,11 +246,15 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
               <Text style={[styles.codePreviewLabel, { color: colors.error }]}>Error</Text>
             </View>
             <ScrollView style={styles.codeScrollView} nestedScrollEnabled>
-              <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>{message.metadata.stderr}</Text>
+              <Text style={[styles.codeOutputText, { color: colors.textSecondary }]}>
+                {message.metadata.stderr}
+              </Text>
             </ScrollView>
           </View>
         )}
-        <Text style={[styles.timestamp, { color: colors.textMuted }]}>{formatTime(message.timestamp)}</Text>
+        <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+          {formatTime(message.timestamp)}
+        </Text>
       </Animated.View>
     );
   }
@@ -243,9 +274,13 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
     >
       <Text style={[styles.messageText, { color: colors.textPrimary }]}>{message.text}</Text>
       {isLive ? (
-        <Text style={[styles.timestamp, { color: colors.primary, fontStyle: 'italic' }]}>streaming...</Text>
+        <Text style={[styles.timestamp, { color: colors.primary, fontStyle: 'italic' }]}>
+          streaming...
+        </Text>
       ) : (
-        <Text style={[styles.timestamp, { color: colors.textMuted }]}>{formatTime(message.timestamp)}</Text>
+        <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+          {formatTime(message.timestamp)}
+        </Text>
       )}
     </Animated.View>
   );
@@ -307,11 +342,20 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
     }
   }, [messages, autoScroll]);
 
-  const handleScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number }; contentSize: { height: number }; layoutMeasurement: { height: number } } }) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const isAtBottom = contentOffset.y >= contentSize.height - layoutMeasurement.height - 50;
-    setAutoScroll(isAtBottom);
-  }, []);
+  const handleScroll = useCallback(
+    (event: {
+      nativeEvent: {
+        contentOffset: { y: number };
+        contentSize: { height: number };
+        layoutMeasurement: { height: number };
+      };
+    }) => {
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      const isAtBottom = contentOffset.y >= contentSize.height - layoutMeasurement.height - 50;
+      setAutoScroll(isAtBottom);
+    },
+    []
+  );
 
   const scrollToBottom = useCallback(() => {
     scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -329,9 +373,13 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
               { opacity: isActive ? pulseAnim : 1 },
             ]}
           />
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Artist&apos;s Mind</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+            Artist&apos;s Mind
+          </Text>
           {isActive && (
-            <Text style={[styles.headerStatus, { color: colors.primary }]}>{STATUS_LABELS[status]}</Text>
+            <Text style={[styles.headerStatus, { color: colors.primary }]}>
+              {STATUS_LABELS[status]}
+            </Text>
           )}
         </View>
       </View>
@@ -348,7 +396,9 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
           {messages.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="color-palette-outline" size={32} color={colors.textMuted} />
-              <Text style={[styles.emptyText, { color: colors.textMuted }]}>Awaiting artistic inspiration...</Text>
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                Awaiting artistic inspiration...
+              </Text>
             </View>
           ) : (
             messages.map((message) => (
@@ -363,7 +413,10 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
         </ScrollView>
 
         {!autoScroll && messages.length > 0 && (
-          <Pressable style={[styles.scrollButton, { backgroundColor: colors.primary }, shadows.sm]} onPress={scrollToBottom}>
+          <Pressable
+            style={[styles.scrollButton, { backgroundColor: colors.primary }, shadows.sm]}
+            onPress={scrollToBottom}
+          >
             <Ionicons name="arrow-down" size={16} color={colors.textOnPrimary} />
           </Pressable>
         )}

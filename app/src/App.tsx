@@ -5,9 +5,20 @@
 
 import * as Linking from 'expo-linking';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StatusBar, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  AppState,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { tracer } from './utils/tracing';
 
 import {
   ActionBar,
@@ -70,27 +81,25 @@ function MainApp(): React.JSX.Element {
 
   const handleNudgeSend = useCallback(
     (text: string) => {
+      tracer.recordEvent('action.nudge', { hasText: text.length > 0 });
       send({ type: 'nudge', text });
     },
     [send]
   );
 
   const handleClear = useCallback(() => {
-    Alert.alert(
-      'Clear Canvas',
-      'Clear the canvas and start fresh?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: () => {
-            send({ type: 'clear' });
-            canvas.clear();
-          },
+    Alert.alert('Clear Canvas', 'Clear the canvas and start fresh?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: () => {
+          tracer.recordEvent('action.clear');
+          send({ type: 'clear' });
+          canvas.clear();
         },
-      ]
-    );
+      },
+    ]);
   }, [send, canvas]);
 
   const handleNewCanvas = useCallback(() => {
@@ -99,6 +108,8 @@ function MainApp(): React.JSX.Element {
 
   const handleNewCanvasStart = useCallback(
     (direction?: string) => {
+      tracer.recordEvent('action.new_canvas', { hasDirection: !!direction });
+      tracer.newSession(); // Start fresh trace for new piece
       send({ type: 'new_canvas', direction });
     },
     [send]
@@ -107,6 +118,8 @@ function MainApp(): React.JSX.Element {
   // Handle start from the StartPanel (sends new_canvas and resumes)
   const handleStartFromPanel = useCallback(
     (direction?: string) => {
+      tracer.recordEvent('session.start', { hasDirection: !!direction });
+      tracer.newSession(); // Start fresh trace for new piece
       send({ type: 'new_canvas', direction });
       send({ type: 'resume' });
       canvas.setPaused(false);
@@ -117,9 +130,7 @@ function MainApp(): React.JSX.Element {
   // Determine if we should show the start panel
   // Show when: canvas is empty, paused, and no messages (fresh start)
   const showStartPanel =
-    canvas.state.strokes.length === 0 &&
-    canvas.state.paused &&
-    canvas.state.messages.length === 0;
+    canvas.state.strokes.length === 0 && canvas.state.paused && canvas.state.messages.length === 0;
 
   const handleGalleryPress = useCallback(() => {
     setGalleryModalVisible(true);
@@ -135,9 +146,11 @@ function MainApp(): React.JSX.Element {
 
   const handlePauseToggle = useCallback(() => {
     if (paused) {
+      tracer.recordEvent('action.resume');
       send({ type: 'resume' });
       canvas.setPaused(false);
     } else {
+      tracer.recordEvent('action.pause');
       send({ type: 'pause' });
       canvas.setPaused(true);
     }
@@ -178,7 +191,10 @@ function MainApp(): React.JSX.Element {
       {/* Splash Screen */}
       {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
 
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        edges={['top', 'left', 'right']}
+      >
         <View style={styles.content}>
           {/* Status Pill - Top */}
           <View style={styles.statusRow}>
@@ -212,18 +228,12 @@ function MainApp(): React.JSX.Element {
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
               keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
             >
-              <StartPanel
-                connected={wsState.connected}
-                onStart={handleStartFromPanel}
-              />
+              <StartPanel connected={wsState.connected} onStart={handleStartFromPanel} />
             </KeyboardAvoidingView>
           ) : (
             <>
               {/* Message Stream */}
-              <MessageStream
-                messages={canvas.state.messages}
-                status={canvas.state.agentStatus}
-              />
+              <MessageStream messages={canvas.state.messages} status={canvas.state.agentStatus} />
 
               {/* Action Bar - Bottom */}
               <ActionBar
@@ -283,7 +293,11 @@ function AppContent(): React.JSX.Element {
         const parsed = Linking.parse(url);
 
         // Handle callback from web page: codemonet://auth/callback?access_token=...&refresh_token=...
-        if (parsed.path === 'auth/callback' && parsed.queryParams?.access_token && parsed.queryParams?.refresh_token) {
+        if (
+          parsed.path === 'auth/callback' &&
+          parsed.queryParams?.access_token &&
+          parsed.queryParams?.refresh_token
+        ) {
           const accessToken = parsed.queryParams.access_token as string;
           const refreshToken = parsed.queryParams.refresh_token as string;
           console.log('[App] Setting tokens from web callback');
@@ -375,7 +389,9 @@ function AppContent(): React.JSX.Element {
 
   // Show auth screen if not authenticated (pass magic link error if any)
   if (!isAuthenticated) {
-    return <AuthScreen magicLinkError={magicLinkError} onClearError={() => setMagicLinkError(null)} />;
+    return (
+      <AuthScreen magicLinkError={magicLinkError} onClearError={() => setMagicLinkError(null)} />
+    );
   }
 
   // Show main app
@@ -383,6 +399,33 @@ function AppContent(): React.JSX.Element {
 }
 
 export default function App(): React.JSX.Element {
+  // Initialize tracing on app mount
+  useEffect(() => {
+    // Record app launch
+    tracer.recordEvent('app.launch');
+
+    // Start auto-flushing traces every 10 seconds
+    tracer.startAutoFlush(10000);
+
+    // Track app state changes (foreground/background)
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        tracer.recordEvent('app.foreground');
+      } else if (nextAppState === 'background') {
+        tracer.recordEvent('app.background');
+        // Flush traces when going to background
+        tracer.flush().catch(() => {});
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      tracer.stopAutoFlush();
+      // Final flush on unmount
+      tracer.flush().catch(() => {});
+    };
+  }, []);
+
   return (
     <ThemeProvider>
       <AuthProvider>

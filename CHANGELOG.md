@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Distributed tracing from React Native app to AWS X-Ray
+- `POST /traces` endpoint for receiving client spans
+- WebSocket connection trace ID propagation
+- App lifecycle tracing (launch, foreground, background)
+- User action tracing (pause, resume, clear, nudge)
+
 ## [1.8.1] - 2026-01-11
 
 ### Fixed

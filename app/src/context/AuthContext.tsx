@@ -26,13 +26,23 @@ export interface AuthState {
 
 export interface AuthContextValue extends AuthState {
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (email: string, password: string, inviteCode: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (
+    email: string,
+    password: string,
+    inviteCode: string
+  ) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
   requestMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>;
   verifyMagicLink: (token: string) => Promise<{ success: boolean; error?: string }>;
-  verifyMagicLinkCode: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
-  setTokensFromCallback: (accessToken: string, refreshToken: string) => Promise<{ success: boolean; error?: string }>;
+  verifyMagicLinkCode: (
+    email: string,
+    code: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  setTokensFromCallback: (
+    accessToken: string,
+    refreshToken: string
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -350,28 +360,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Set tokens directly from deep link callback (used when web page redirects to app)
-  const setTokensFromCallback = useCallback(async (accessToken: string, refreshTokenValue: string) => {
-    try {
-      await storage.setItem(ACCESS_TOKEN_KEY, accessToken);
-      await storage.setItem(REFRESH_TOKEN_KEY, refreshTokenValue);
+  const setTokensFromCallback = useCallback(
+    async (accessToken: string, refreshTokenValue: string) => {
+      try {
+        await storage.setItem(ACCESS_TOKEN_KEY, accessToken);
+        await storage.setItem(REFRESH_TOKEN_KEY, refreshTokenValue);
 
-      const decoded = decodeToken(accessToken);
-      if (decoded) {
-        setState({
-          isLoading: false,
-          isAuthenticated: true,
-          user: { id: parseInt(decoded.sub, 10), email: decoded.email },
-          accessToken,
-        });
-        return { success: true };
+        const decoded = decodeToken(accessToken);
+        if (decoded) {
+          setState({
+            isLoading: false,
+            isAuthenticated: true,
+            user: { id: parseInt(decoded.sub, 10), email: decoded.email },
+            accessToken,
+          });
+          return { success: true };
+        }
+
+        return { success: false, error: 'Invalid token received' };
+      } catch (error) {
+        console.error('[Auth] Set tokens error:', error);
+        return { success: false, error: 'Failed to store tokens' };
       }
-
-      return { success: false, error: 'Invalid token received' };
-    } catch (error) {
-      console.error('[Auth] Set tokens error:', error);
-      return { success: false, error: 'Failed to store tokens' };
-    }
-  }, []);
+    },
+    []
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -385,7 +398,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       verifyMagicLinkCode,
       setTokensFromCallback,
     }),
-    [state, signIn, signUp, signOut, refreshToken, requestMagicLink, verifyMagicLink, verifyMagicLinkCode, setTokensFromCallback]
+    [
+      state,
+      signIn,
+      signUp,
+      signOut,
+      refreshToken,
+      requestMagicLink,
+      verifyMagicLink,
+      verifyMagicLinkCode,
+      setTokensFromCallback,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -174,13 +174,39 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
   });
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: colors.background, opacity: fadeOut }]}>
+    <Animated.View
+      style={[styles.container, { backgroundColor: colors.background, opacity: fadeOut }]}
+    >
       {/* Gradient-like background with overlapping circles */}
       <View style={styles.gradientBackground}>
-        <View style={[styles.gradientCircle, styles.gradientCircle1, { backgroundColor: gradients.mist[0] }]} />
-        <View style={[styles.gradientCircle, styles.gradientCircle2, { backgroundColor: gradients.waterLilies[1] }]} />
-        <View style={[styles.gradientCircle, styles.gradientCircle3, { backgroundColor: gradients.garden[0] }]} />
-        <View style={[styles.gradientCircle, styles.gradientCircle4, { backgroundColor: gradients.sunrise[0] }]} />
+        <View
+          style={[
+            styles.gradientCircle,
+            styles.gradientCircle1,
+            { backgroundColor: gradients.mist[0] },
+          ]}
+        />
+        <View
+          style={[
+            styles.gradientCircle,
+            styles.gradientCircle2,
+            { backgroundColor: gradients.waterLilies[1] },
+          ]}
+        />
+        <View
+          style={[
+            styles.gradientCircle,
+            styles.gradientCircle3,
+            { backgroundColor: gradients.garden[0] },
+          ]}
+        />
+        <View
+          style={[
+            styles.gradientCircle,
+            styles.gradientCircle4,
+            { backgroundColor: gradients.sunrise[0] },
+          ]}
+        />
       </View>
 
       {/* SVG decorations */}
@@ -195,10 +221,34 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
       >
         <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={styles.svg}>
           {/* Background brush strokes */}
-          <BrushStroke x={20} y={SCREEN_HEIGHT * 0.15} width={120} color={gradients.waterLilies[0]} rotation={-5} />
-          <BrushStroke x={SCREEN_WIDTH - 140} y={SCREEN_HEIGHT * 0.2} width={100} color={gradients.waterLilies[1]} rotation={8} />
-          <BrushStroke x={40} y={SCREEN_HEIGHT * 0.75} width={80} color={gradients.garden[0]} rotation={-3} />
-          <BrushStroke x={SCREEN_WIDTH - 100} y={SCREEN_HEIGHT * 0.8} width={70} color={gradients.sunset[0]} rotation={5} />
+          <BrushStroke
+            x={20}
+            y={SCREEN_HEIGHT * 0.15}
+            width={120}
+            color={gradients.waterLilies[0]}
+            rotation={-5}
+          />
+          <BrushStroke
+            x={SCREEN_WIDTH - 140}
+            y={SCREEN_HEIGHT * 0.2}
+            width={100}
+            color={gradients.waterLilies[1]}
+            rotation={8}
+          />
+          <BrushStroke
+            x={40}
+            y={SCREEN_HEIGHT * 0.75}
+            width={80}
+            color={gradients.garden[0]}
+            rotation={-3}
+          />
+          <BrushStroke
+            x={SCREEN_WIDTH - 100}
+            y={SCREEN_HEIGHT * 0.8}
+            width={70}
+            color={gradients.sunset[0]}
+            rotation={5}
+          />
 
           {/* Water lilies */}
           <WaterLily
@@ -280,11 +330,15 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
             },
           ]}
         >
-          <Animated.Text style={[styles.title, { color: colors.textPrimary }]}>Code Monet</Animated.Text>
+          <Animated.Text style={[styles.title, { color: colors.textPrimary }]}>
+            Code Monet
+          </Animated.Text>
           <View style={[styles.titleUnderline, { backgroundColor: colors.secondary }]} />
         </Animated.View>
 
-        <Animated.Text style={[styles.subtitle, { color: colors.textSecondary, opacity: subtitleFade }]}>
+        <Animated.Text
+          style={[styles.subtitle, { color: colors.textSecondary, opacity: subtitleFade }]}
+        >
           Where AI Meets Impressionism
         </Animated.Text>
 
@@ -303,7 +357,9 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
       </View>
 
       {/* Bottom attribution */}
-      <Animated.Text style={[styles.attribution, { color: colors.textMuted, opacity: subtitleFade }]}>
+      <Animated.Text
+        style={[styles.attribution, { color: colors.textMuted, opacity: subtitleFade }]}
+      >
         An AI Drawing Experience
       </Animated.Text>
     </Animated.View>

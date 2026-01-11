@@ -66,174 +66,176 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
       <View style={[styles.container, { backgroundColor: colors.surface }, shadows.md]}>
         {/* Header */}
         <View style={styles.header}>
-        <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
-          <Ionicons name="brush" size={28} color={colors.primary} />
+          <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
+            <Ionicons name="brush" size={28} color={colors.primary} />
+          </View>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Start Creating</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Choose an idea or describe your vision
+          </Text>
         </View>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Start Creating</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Choose an idea or describe your vision
-        </Text>
-      </View>
 
-      {/* Quick Ideas Grid */}
-      <View style={styles.ideasSection}>
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Quick ideas</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.ideasRow}
-        >
-          {QUICK_IDEAS.map((idea) => (
+        {/* Quick Ideas Grid */}
+        <View style={styles.ideasSection}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Quick ideas</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.ideasRow}
+          >
+            {QUICK_IDEAS.map((idea) => (
+              <Pressable
+                key={idea.label}
+                style={({ pressed }) => [
+                  styles.ideaChip,
+                  { backgroundColor: colors.surfaceElevated },
+                  pressed && { transform: [{ scale: 0.96 }], opacity: 0.8 },
+                  !connected && styles.disabled,
+                ]}
+                onPress={() => handleQuickStart(idea.label.toLowerCase())}
+                disabled={!connected}
+              >
+                <Ionicons
+                  name={idea.icon}
+                  size={18}
+                  color={connected ? colors.primary : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.ideaLabel,
+                    { color: connected ? colors.textPrimary : colors.textMuted },
+                  ]}
+                >
+                  {idea.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Divider */}
+        <View style={styles.dividerContainer}>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          <Text style={[styles.dividerText, { color: colors.textMuted }]}>or</Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+        </View>
+
+        {/* Custom Input Section */}
+        {showCustomInput ? (
+          <View style={styles.customInputSection}>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  { backgroundColor: colors.surfaceElevated, color: colors.textPrimary },
+                ]}
+                value={customText}
+                onChangeText={(t) => setCustomText(t.slice(0, MAX_LENGTH))}
+                placeholder="Describe what you'd like to see..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+                maxLength={MAX_LENGTH}
+                autoFocus
+              />
+              <Text
+                style={[
+                  styles.charCount,
+                  { color: colors.textMuted },
+                  remainingChars < 20 && { color: colors.warning },
+                ]}
+              >
+                {remainingChars}
+              </Text>
+            </View>
+            <View style={styles.customInputActions}>
+              <Pressable
+                style={[styles.cancelButton, { backgroundColor: colors.surfaceElevated }]}
+                onPress={() => {
+                  setShowCustomInput(false);
+                  setCustomText('');
+                }}
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>
+                  Cancel
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.startButton,
+                  { backgroundColor: customText.trim() ? colors.primary : colors.surfaceElevated },
+                ]}
+                onPress={handleCustomStart}
+                disabled={!customText.trim()}
+              >
+                <Ionicons
+                  name="arrow-forward"
+                  size={18}
+                  color={customText.trim() ? colors.textOnPrimary : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.startButtonText,
+                    { color: customText.trim() ? colors.textOnPrimary : colors.textMuted },
+                  ]}
+                >
+                  Start
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.actionButtons}>
             <Pressable
-              key={idea.label}
               style={({ pressed }) => [
-                styles.ideaChip,
+                styles.customButton,
                 { backgroundColor: colors.surfaceElevated },
-                pressed && { transform: [{ scale: 0.96 }], opacity: 0.8 },
+                pressed && { transform: [{ scale: 0.98 }], opacity: 0.8 },
                 !connected && styles.disabled,
               ]}
-              onPress={() => handleQuickStart(idea.label.toLowerCase())}
+              onPress={() => setShowCustomInput(true)}
               disabled={!connected}
             >
               <Ionicons
-                name={idea.icon}
-                size={18}
-                color={connected ? colors.primary : colors.textMuted}
+                name="create-outline"
+                size={20}
+                color={connected ? colors.textSecondary : colors.textMuted}
               />
               <Text
                 style={[
-                  styles.ideaLabel,
-                  { color: connected ? colors.textPrimary : colors.textMuted },
+                  styles.customButtonText,
+                  { color: connected ? colors.textSecondary : colors.textMuted },
                 ]}
               >
-                {idea.label}
+                Describe your vision
               </Text>
             </Pressable>
-          ))}
-        </ScrollView>
-      </View>
 
-      {/* Divider */}
-      <View style={styles.dividerContainer}>
-        <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-        <Text style={[styles.dividerText, { color: colors.textMuted }]}>or</Text>
-        <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-      </View>
-
-      {/* Custom Input Section */}
-      {showCustomInput ? (
-        <View style={styles.customInputSection}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={[
-                styles.textInput,
-                { backgroundColor: colors.surfaceElevated, color: colors.textPrimary },
-              ]}
-              value={customText}
-              onChangeText={(t) => setCustomText(t.slice(0, MAX_LENGTH))}
-              placeholder="Describe what you'd like to see..."
-              placeholderTextColor={colors.textMuted}
-              multiline
-              maxLength={MAX_LENGTH}
-              autoFocus
-            />
-            <Text
-              style={[
-                styles.charCount,
-                { color: colors.textMuted },
-                remainingChars < 20 && { color: colors.warning },
-              ]}
-            >
-              {remainingChars}
-            </Text>
-          </View>
-          <View style={styles.customInputActions}>
             <Pressable
-              style={[styles.cancelButton, { backgroundColor: colors.surfaceElevated }]}
-              onPress={() => {
-                setShowCustomInput(false);
-                setCustomText('');
-              }}
-            >
-              <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.startButton,
-                { backgroundColor: customText.trim() ? colors.primary : colors.surfaceElevated },
+              style={({ pressed }) => [
+                styles.surpriseButton,
+                { backgroundColor: colors.primary },
+                pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 },
+                !connected && { backgroundColor: colors.surfaceElevated },
               ]}
-              onPress={handleCustomStart}
-              disabled={!customText.trim()}
+              onPress={handleSurpriseMe}
+              disabled={!connected}
             >
               <Ionicons
-                name="arrow-forward"
-                size={18}
-                color={customText.trim() ? colors.textOnPrimary : colors.textMuted}
+                name="sparkles"
+                size={20}
+                color={connected ? colors.textOnPrimary : colors.textMuted}
               />
               <Text
                 style={[
-                  styles.startButtonText,
-                  { color: customText.trim() ? colors.textOnPrimary : colors.textMuted },
+                  styles.surpriseButtonText,
+                  { color: connected ? colors.textOnPrimary : colors.textMuted },
                 ]}
               >
-                Start
+                Surprise Me
               </Text>
             </Pressable>
           </View>
-        </View>
-      ) : (
-        <View style={styles.actionButtons}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.customButton,
-              { backgroundColor: colors.surfaceElevated },
-              pressed && { transform: [{ scale: 0.98 }], opacity: 0.8 },
-              !connected && styles.disabled,
-            ]}
-            onPress={() => setShowCustomInput(true)}
-            disabled={!connected}
-          >
-            <Ionicons
-              name="create-outline"
-              size={20}
-              color={connected ? colors.textSecondary : colors.textMuted}
-            />
-            <Text
-              style={[
-                styles.customButtonText,
-                { color: connected ? colors.textSecondary : colors.textMuted },
-              ]}
-            >
-              Describe your vision
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.surpriseButton,
-              { backgroundColor: colors.primary },
-              pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 },
-              !connected && { backgroundColor: colors.surfaceElevated },
-            ]}
-            onPress={handleSurpriseMe}
-            disabled={!connected}
-          >
-            <Ionicons
-              name="sparkles"
-              size={20}
-              color={connected ? colors.textOnPrimary : colors.textMuted}
-            />
-            <Text
-              style={[
-                styles.surpriseButtonText,
-                { color: connected ? colors.textOnPrimary : colors.textMuted },
-              ]}
-            >
-              Surprise Me
-            </Text>
-          </Pressable>
-        </View>
-      )}
+        )}
 
         {/* Connection status hint */}
         {!connected && (

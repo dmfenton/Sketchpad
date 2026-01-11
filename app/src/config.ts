@@ -48,7 +48,8 @@ export function getWebSocketUrl(token?: string): string {
   const envUrl = process.env.EXPO_PUBLIC_WS_URL;
 
   // Production fallback for TestFlight builds
-  const baseUrl = envUrl || (__DEV__ === false ? 'wss://monet.dmfenton.net/ws' : `ws://${getHost()}:8000/ws`);
+  const baseUrl =
+    envUrl || (__DEV__ === false ? 'wss://monet.dmfenton.net/ws' : `ws://${getHost()}:8000/ws`);
 
   // Append token if provided
   if (token) {
