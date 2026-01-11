@@ -3,7 +3,7 @@
  * Redesigned for clarity: unified input field for start prompt or nudge.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { ClientMessage } from '@drawing-agent/shared';
 
 interface ActionBarProps {
@@ -13,7 +13,7 @@ interface ActionBarProps {
   onToggleDrawing: () => void;
 }
 
-export function ActionBar({ paused, drawingEnabled, onSend, onToggleDrawing }: ActionBarProps) {
+export function ActionBar({ paused, drawingEnabled, onSend, onToggleDrawing }: ActionBarProps): React.ReactElement {
   const [inputText, setInputText] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [modalDirection, setModalDirection] = useState('');

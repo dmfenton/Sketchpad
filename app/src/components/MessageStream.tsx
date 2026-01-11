@@ -143,7 +143,7 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
   if (message.type === 'code_execution') {
     const hasOutput = message.metadata?.stdout || message.metadata?.stderr;
     const isSuccess = message.metadata?.return_code === 0;
-    const toolName = (message.metadata?.tool_name ?? 'unknown') as ToolName | 'unknown';
+    const toolName = message.metadata?.tool_name ?? 'unknown';
     const isInProgress = message.text.includes('...') && !message.text.includes('Drew') && !message.text.includes('generated');
     const toolIcon = TOOL_ICONS[toolName] ?? TOOL_ICONS.unknown;
     const iconName = isInProgress ? (toolIcon.activeIcon ?? toolIcon.name) : toolIcon.name;

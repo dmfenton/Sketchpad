@@ -2,7 +2,7 @@
  * Drawing Agent Web Dev Server
  */
 
-import { useCallback } from 'react';
+import React, { useCallback } from 'react';
 import type { ServerMessage } from '@drawing-agent/shared';
 import { STATUS_LABELS } from '@drawing-agent/shared';
 
@@ -14,7 +14,7 @@ import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useDebug } from './hooks/useDebug';
 
-function App() {
+function App(): React.ReactElement {
   const { state, handleMessage, startStroke, addPoint, endStroke, toggleDrawing } = useCanvas();
 
   const { logMessage, ...debug } = useDebug();

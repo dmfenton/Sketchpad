@@ -2,7 +2,7 @@
  * Debug panel with tabs for agent state, filesystem, and message log.
  */
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import type { ServerMessage } from '@drawing-agent/shared';
 
 interface DebugPanelProps {
@@ -36,7 +36,7 @@ function formatTime(timestamp: number): string {
   } as Intl.DateTimeFormatOptions);
 }
 
-export function DebugPanel({ agent, files, messageLog, onRefresh, onClearLog }: DebugPanelProps) {
+export function DebugPanel({ agent, files, messageLog, onRefresh, onClearLog }: DebugPanelProps): React.ReactElement {
   const [activeTab, setActiveTab] = useState<TabId>('agent');
 
   return (

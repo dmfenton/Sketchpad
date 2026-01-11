@@ -4,7 +4,7 @@
  */
 
 import * as Linking from 'expo-linking';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StatusBar, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -37,14 +37,8 @@ function MainApp(): React.JSX.Element {
   const canvas = useCanvas();
   const paused = canvas.state.paused;
 
-  // Use ref to avoid recreating callback and causing WebSocket reconnects
-  const canvasRef = useRef(canvas);
-  canvasRef.current = canvas;
-
-  // Stable callback that doesn't change between renders
-  const handleMessage = useCallback((message: Parameters<typeof canvas.handleMessage>[0]) => {
-    canvasRef.current.handleMessage(message);
-  }, []); // Empty deps - stable callback
+  // canvas.handleMessage is already stable (useCallback with [])
+  const { handleMessage } = canvas;
 
   // Handle auth errors from WebSocket by trying to refresh, then sign out
   const handleAuthError = useCallback(() => {

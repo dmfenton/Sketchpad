@@ -217,6 +217,25 @@ def set_add_strokes_callback(callback: Any) -> None:
     _add_strokes_callback = callback
 
 
+def _inject_canvas_image(content: list[dict[str, Any]]) -> None:
+    """Inject current canvas image into response content if callback is set."""
+    if _get_canvas_callback is None:
+        return
+    try:
+        png_bytes = _get_canvas_callback()
+        image_b64 = base64.standard_b64encode(png_bytes).decode("utf-8")
+        content.append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": "image/png",
+                "data": image_b64,
+            },
+        })
+    except Exception as e:
+        logger.warning(f"Failed to get canvas image: {e}")
+
+
 async def handle_draw_paths(args: dict[str, Any]) -> dict[str, Any]:
     """Handle draw_paths tool call (testable without decorator).
 
@@ -279,21 +298,9 @@ async def handle_draw_paths(args: dict[str, Any]) -> dict[str, Any]:
             + (" Piece marked as complete." if done else ""),
         })
 
-    # Inject canvas image if we drew paths (mechanistic canvas update)
-    if parsed_paths and _get_canvas_callback is not None:
-        try:
-            png_bytes = _get_canvas_callback()
-            image_b64 = base64.standard_b64encode(png_bytes).decode("utf-8")
-            content.append({
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": image_b64,
-                },
-            })
-        except Exception as e:
-            logger.warning(f"Failed to get canvas image: {e}")
+    # Inject canvas image if we drew paths
+    if parsed_paths:
+        _inject_canvas_image(content)
 
     return {"content": content}
 
@@ -388,21 +395,9 @@ async def handle_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
     # Build response content
     content: list[dict[str, Any]] = [{"type": "text", "text": "\n".join(response_parts)}]
 
-    # Inject canvas image if we drew paths (mechanistic canvas update)
-    if paths and _get_canvas_callback is not None:
-        try:
-            png_bytes = _get_canvas_callback()
-            image_b64 = base64.standard_b64encode(png_bytes).decode("utf-8")
-            content.append({
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": image_b64,
-                },
-            })
-        except Exception as e:
-            logger.warning(f"Failed to get canvas image: {e}")
+    # Inject canvas image if we drew paths
+    if paths:
+        _inject_canvas_image(content)
 
     return {"content": content}
 

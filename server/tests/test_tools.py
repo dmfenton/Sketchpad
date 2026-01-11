@@ -3,10 +3,13 @@
 import pytest
 
 from drawing_agent.tools import (
+    _inject_canvas_image,
     handle_draw_paths,
     handle_mark_piece_done,
     parse_path_data,
+    set_add_strokes_callback,
     set_draw_callback,
+    set_get_canvas_callback,
 )
 from drawing_agent.types import Path, PathType
 
@@ -215,3 +218,102 @@ class TestHandleMarkPieceDone:
         result = await handle_mark_piece_done()
 
         assert "Piece marked as complete" in result["content"][0]["text"]
+
+
+class TestInjectCanvasImage:
+    """Tests for _inject_canvas_image helper function."""
+
+    def test_inject_canvas_image_adds_image_to_content(self) -> None:
+        # Create a simple PNG image (minimal valid PNG bytes)
+        png_bytes = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82'
+
+        def get_canvas() -> bytes:
+            return png_bytes
+
+        set_get_canvas_callback(get_canvas)
+
+        content: list[dict] = []
+        _inject_canvas_image(content)
+
+        assert len(content) == 1
+        assert content[0]["type"] == "image"
+        assert content[0]["source"]["type"] == "base64"
+        assert content[0]["source"]["media_type"] == "image/png"
+        # Verify it's valid base64
+        import base64
+        decoded = base64.standard_b64decode(content[0]["source"]["data"])
+        assert decoded == png_bytes
+
+    def test_inject_canvas_image_no_callback(self) -> None:
+        set_get_canvas_callback(None)
+
+        content: list[dict] = []
+        _inject_canvas_image(content)
+
+        # Should not add anything if callback is not set
+        assert len(content) == 0
+
+    def test_inject_canvas_image_handles_exception(self) -> None:
+        def failing_callback() -> bytes:
+            raise RuntimeError("Canvas render failed")
+
+        set_get_canvas_callback(failing_callback)
+
+        content: list[dict] = []
+        # Should not raise, just log warning
+        _inject_canvas_image(content)
+
+        # Should not add anything on error
+        assert len(content) == 0
+
+
+class TestAddStrokesCallback:
+    """Tests for set_add_strokes_callback functionality."""
+
+    @pytest.mark.asyncio
+    async def test_add_strokes_callback_called_before_draw(self) -> None:
+        call_order: list[str] = []
+        collected_strokes: list[Path] = []
+
+        async def add_strokes(paths: list[Path]) -> None:
+            call_order.append("add_strokes")
+            collected_strokes.extend(paths)
+
+        async def draw_callback(_paths: list[Path], _done: bool) -> None:
+            call_order.append("draw")
+
+        set_add_strokes_callback(add_strokes)
+        set_draw_callback(draw_callback)
+        set_get_canvas_callback(None)  # Disable image injection for this test
+
+        args = {
+            "paths": [{"type": "line", "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}]}],
+        }
+
+        await handle_draw_paths(args)
+
+        # add_strokes should be called before draw
+        assert call_order == ["add_strokes", "draw"]
+        assert len(collected_strokes) == 1
+
+    @pytest.mark.asyncio
+    async def test_add_strokes_not_called_when_no_paths(self) -> None:
+        strokes_called = False
+
+        async def add_strokes(_paths: list[Path]) -> None:
+            nonlocal strokes_called
+            strokes_called = True
+
+        set_add_strokes_callback(add_strokes)
+        set_draw_callback(None)
+        set_get_canvas_callback(None)
+
+        # All paths invalid
+        args = {
+            "paths": [{"type": "invalid", "points": []}],
+        }
+
+        await handle_draw_paths(args)
+
+        # Should not call add_strokes when no valid paths
+        assert strokes_called is False
