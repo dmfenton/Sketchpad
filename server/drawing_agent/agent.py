@@ -385,7 +385,11 @@ class DrawingAgent:
         return "\n\n".join(parts)
 
     def _get_canvas_image(self, highlight_human: bool = True) -> Image.Image:
-        """Get canvas as PIL Image from current state."""
+        """Get canvas as PIL Image from current state.
+
+        Note: This is a synchronous CPU-bound operation. Use _get_canvas_image_async
+        when calling from async code to avoid blocking the event loop.
+        """
         from PIL import ImageDraw
 
         from drawing_agent.canvas import path_to_point_list
@@ -404,15 +408,22 @@ class DrawingAgent:
 
         return img
 
+    async def _get_canvas_image_async(self, highlight_human: bool = True) -> Image.Image:
+        """Get canvas as PIL Image from current state (async, non-blocking).
+
+        Offloads image rendering to thread pool to avoid blocking the event loop.
+        """
+        return await asyncio.to_thread(self._get_canvas_image, highlight_human)
+
     async def _build_multimodal_prompt(self) -> AsyncGenerator[dict[str, Any], None]:
         """Build prompt with text context and canvas image.
 
         Yields message dicts for the Claude SDK query:
         - User message with text and image content blocks
         """
-        # Canvas image
-        img = self._get_canvas_image(highlight_human=True)
-        image_b64 = self._image_to_base64(img)
+        # Canvas image (non-blocking)
+        img = await self._get_canvas_image_async(highlight_human=True)
+        image_b64 = await asyncio.to_thread(self._image_to_base64, img)
 
         content = [
             {"type": "text", "text": self._build_prompt()},

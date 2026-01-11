@@ -23,9 +23,9 @@ variable "subdomain" {
 }
 
 variable "instance_type" {
-  description = "EC2 instance type"
+  description = "EC2 instance type (t3.medium recommended for production)"
   type        = string
-  default     = "t3.small"
+  default     = "t3.medium"  # 4GB RAM - sufficient headroom for Python + Docker + agents
 }
 
 variable "ssh_key_name" {
@@ -39,9 +39,15 @@ variable "alert_email" {
 }
 
 variable "allowed_ssh_cidr" {
-  description = "CIDR block allowed for SSH access (your IP)"
+  description = "CIDR block allowed for SSH access (your IP, e.g., '203.0.113.0/32')"
   type        = string
-  default     = "0.0.0.0/0"  # Restrict this to your IP in production
+  # No default - must be explicitly set to prevent accidental exposure
+  # Use 'terraform plan -var="allowed_ssh_cidr=YOUR_IP/32"'
+
+  validation {
+    condition     = can(cidrhost(var.allowed_ssh_cidr, 0)) && var.allowed_ssh_cidr != "0.0.0.0/0"
+    error_message = "allowed_ssh_cidr must be a valid CIDR block and cannot be 0.0.0.0/0 (open to world)"
+  }
 }
 
 variable "ses_sender_email" {

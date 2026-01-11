@@ -76,9 +76,17 @@ class SavedCanvas(BaseModel):
     """A saved canvas in the gallery."""
 
     id: str
-    strokes: list[Path]
+    strokes: list[Path] = []  # May be empty if loaded from index
     created_at: str  # ISO timestamp
     piece_number: int
+    stroke_count: int | None = None  # Cached count, avoids loading all strokes
+
+    @property
+    def num_strokes(self) -> int:
+        """Get stroke count (uses cached value if available)."""
+        if self.stroke_count is not None:
+            return self.stroke_count
+        return len(self.strokes)
 
 
 class GalleryState(BaseModel):

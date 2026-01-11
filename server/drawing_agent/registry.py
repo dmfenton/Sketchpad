@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 # Grace period before deactivating idle workspace (seconds)
 IDLE_GRACE_PERIOD = 300  # 5 minutes
 
+# Maximum WebSocket connections per user (prevents resource exhaustion)
+MAX_CONNECTIONS_PER_USER = 5
+
 
 class UserConnectionManager:
     """WebSocket connection manager scoped to a single user.
@@ -27,10 +30,20 @@ class UserConnectionManager:
         self.user_id = user_id
         self.connections: list[WebSocket] = []
 
-    def add(self, websocket: WebSocket) -> None:
-        """Add a WebSocket connection."""
+    def add(self, websocket: WebSocket) -> bool:
+        """Add a WebSocket connection.
+
+        Returns True if connection was added, False if limit reached.
+        """
+        if len(self.connections) >= MAX_CONNECTIONS_PER_USER:
+            logger.warning(
+                f"User {self.user_id}: connection limit reached "
+                f"({MAX_CONNECTIONS_PER_USER}), rejecting new connection"
+            )
+            return False
         self.connections.append(websocket)
         logger.info(f"User {self.user_id}: connection added. Total: {len(self.connections)}")
+        return True
 
     def remove(self, websocket: WebSocket) -> None:
         """Remove a WebSocket connection."""
@@ -134,22 +147,65 @@ class WorkspaceRegistry:
     def __init__(self) -> None:
         self._workspaces: dict[int, ActiveWorkspace] = {}
         self._lock = asyncio.Lock()
+        self._loading: set[int] = set()  # Users currently being loaded
 
     async def get_or_activate(self, user_id: int) -> ActiveWorkspace:
-        """Get existing workspace or activate a new one."""
+        """Get existing workspace or activate a new one.
+
+        Uses double-check pattern to avoid holding lock during I/O.
+        """
+        # Fast path: check if already exists (no lock needed for read)
+        if user_id in self._workspaces:
+            ws = self._workspaces[user_id]
+            # Cancel any pending deactivation
+            async with self._lock:
+                if ws._idle_task and not ws._idle_task.done():
+                    ws._idle_task.cancel()
+                    ws._idle_task = None
+            return ws
+
+        # Slow path: need to activate
         async with self._lock:
+            # Double-check after acquiring lock
             if user_id in self._workspaces:
                 ws = self._workspaces[user_id]
-                # Cancel any pending deactivation
                 if ws._idle_task and not ws._idle_task.done():
                     ws._idle_task.cancel()
                     ws._idle_task = None
                 return ws
 
-            # Create new active workspace
-            workspace = await self._activate_workspace(user_id)
-            self._workspaces[user_id] = workspace
-            return workspace
+            # Check if another task is already loading this workspace
+            if user_id in self._loading:
+                # Wait for the other task to finish loading
+                pass
+            else:
+                # Mark as loading and release lock during I/O
+                self._loading.add(user_id)
+
+        # If we marked it as loading, do the activation outside the lock
+        if user_id in self._loading:
+            try:
+                workspace = await self._activate_workspace(user_id)
+                async with self._lock:
+                    self._workspaces[user_id] = workspace
+                    self._loading.discard(user_id)
+                return workspace
+            except Exception:
+                async with self._lock:
+                    self._loading.discard(user_id)
+                raise
+
+        # Another task was loading - wait and retry
+        while user_id in self._loading:
+            await asyncio.sleep(0.05)
+
+        # Should now be available
+        async with self._lock:
+            if user_id in self._workspaces:
+                return self._workspaces[user_id]
+
+        # Fallback: load ourselves (shouldn't normally reach here)
+        return await self.get_or_activate(user_id)
 
     async def _activate_workspace(self, user_id: int) -> ActiveWorkspace:
         """Create and initialize a new active workspace."""

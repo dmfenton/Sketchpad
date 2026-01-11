@@ -39,7 +39,9 @@ class WorkspaceState:
         self._user_dir = user_dir
         self._workspace_file = user_dir / "workspace.json"
         self._gallery_dir = user_dir / "gallery"
+        self._gallery_index_file = user_dir / "gallery" / "_index.json"
         self._write_lock = asyncio.Lock()
+        self._stroke_lock = asyncio.Lock()  # Protects stroke/canvas modifications
 
         # In-memory state
         self._canvas: CanvasState = CanvasState()
@@ -48,6 +50,9 @@ class WorkspaceState:
         self._notes: str = ""
         self._monologue: str = ""
         self._loaded = False
+
+        # Gallery index cache (loaded on demand)
+        self._gallery_index: list[dict[str, Any]] | None = None
 
         # Pending strokes for client-side rendering
         self._pending_strokes: list[dict[str, Any]] = []
@@ -199,57 +204,73 @@ class WorkspaceState:
         """Interpolate paths and queue for client-side rendering.
 
         Returns the batch_id for this set of strokes.
+        Thread-safe: uses stroke lock to prevent race conditions.
         """
         from drawing_agent.config import settings
         from drawing_agent.interpolation import interpolate_path
 
-        self._stroke_batch_id += 1
-        batch_id = self._stroke_batch_id
+        async with self._stroke_lock:
+            self._stroke_batch_id += 1
+            batch_id = self._stroke_batch_id
 
-        for path in paths:
-            points = interpolate_path(path, settings.path_steps_per_unit)
-            self._pending_strokes.append(
-                {
-                    "batch_id": batch_id,
-                    "path": path.model_dump(),
-                    "points": [{"x": p.x, "y": p.y} for p in points],
-                }
-            )
+            for path in paths:
+                points = interpolate_path(path, settings.path_steps_per_unit)
+                self._pending_strokes.append(
+                    {
+                        "batch_id": batch_id,
+                        "path": path.model_dump(),
+                        "points": [{"x": p.x, "y": p.y} for p in points],
+                    }
+                )
 
         await self.save()
         return batch_id
 
     async def pop_strokes(self) -> list[dict[str, Any]]:
-        """Get and clear pending strokes."""
-        strokes = self._pending_strokes.copy()
-        self._pending_strokes.clear()
+        """Get and clear pending strokes.
+
+        Thread-safe: uses stroke lock to prevent race conditions.
+        """
+        async with self._stroke_lock:
+            strokes = self._pending_strokes.copy()
+            self._pending_strokes.clear()
         await self.save()
         return strokes
 
     # --- Canvas Operations ---
 
     async def add_stroke(self, path: Path) -> None:
-        """Add a stroke to the canvas."""
-        self._canvas.strokes.append(path)
+        """Add a stroke to the canvas.
+
+        Thread-safe: uses stroke lock to prevent race conditions.
+        """
+        async with self._stroke_lock:
+            self._canvas.strokes.append(path)
         await self.save()
 
     async def clear_canvas(self) -> None:
-        """Clear the canvas."""
-        self._canvas.strokes = []
+        """Clear the canvas.
+
+        Thread-safe: uses stroke lock to prevent race conditions.
+        """
+        async with self._stroke_lock:
+            self._canvas.strokes = []
         await self.save()
 
     async def new_canvas(self) -> str | None:
         """Save current canvas to gallery and start fresh. Returns saved ID."""
         async with self._write_lock:
             saved_id = None
+            index_entry = None
 
             if self._canvas.strokes:
                 # Save to gallery as JSON file (use 6 digits for scalability)
                 piece_file = self._gallery_dir / f"piece_{self._piece_count:06d}.json"
+                created_at = datetime.now(UTC).isoformat()
                 piece_data = {
                     "piece_number": self._piece_count,
                     "strokes": [s.model_dump() for s in self._canvas.strokes],
-                    "created_at": datetime.now(UTC).isoformat(),
+                    "created_at": created_at,
                 }
 
                 # Atomic write for gallery piece
@@ -261,21 +282,132 @@ class WorkspaceState:
                 saved_id = f"piece_{self._piece_count:06d}"
                 logger.info(f"Saved piece {self._piece_count} to gallery as {saved_id}")
 
+                # Prepare index entry
+                index_entry = {
+                    "id": saved_id,
+                    "piece_number": self._piece_count,
+                    "stroke_count": len(self._canvas.strokes),
+                    "created_at": created_at,
+                }
+
             # Start fresh
             self._canvas.strokes = []
             self._piece_count += 1
             self._monologue = ""  # Clear thinking for new piece
             self._notes = ""  # Clear notes for new piece
 
+        # Update gallery index if we saved a piece
+        if index_entry:
+            await self._update_gallery_index(index_entry)
+
         # Save outside the lock (save() has its own lock)
         await self.save()
 
         return saved_id
 
+    async def _update_gallery_index(self, new_entry: dict[str, Any]) -> None:
+        """Add a new entry to the gallery index."""
+        # Load current index if not cached
+        if self._gallery_index is None:
+            await self._load_gallery_index()
+
+        # Add new entry
+        if self._gallery_index is not None:
+            self._gallery_index.append(new_entry)
+            self._gallery_index.sort(key=lambda p: p["piece_number"])
+
+            # Write index atomically
+            temp_file = self._gallery_index_file.with_suffix(".json.tmp")
+            async with aiofiles.open(temp_file, "w") as f:
+                await f.write(json.dumps(self._gallery_index, indent=2))
+            await aiofiles.os.replace(temp_file, self._gallery_index_file)
+
+    async def _load_gallery_index(self) -> None:
+        """Load gallery index from file, or rebuild from gallery files."""
+        if await aiofiles.os.path.exists(self._gallery_index_file):
+            try:
+                async with aiofiles.open(self._gallery_index_file) as f:
+                    self._gallery_index = json.loads(await f.read())
+                return
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning(f"Failed to load gallery index: {e}, rebuilding")
+
+        # Rebuild index from gallery files
+        await self._rebuild_gallery_index()
+
+    async def _rebuild_gallery_index(self) -> None:
+        """Rebuild gallery index by scanning gallery files."""
+        self._gallery_index = []
+
+        if not await aiofiles.os.path.exists(self._gallery_dir):
+            return
+
+        for entry in await aiofiles.os.listdir(self._gallery_dir):
+            if entry.startswith("piece_") and entry.endswith(".json"):
+                piece_file = self._gallery_dir / entry
+                try:
+                    async with aiofiles.open(piece_file) as f:
+                        data = json.loads(await f.read())
+
+                    piece_number = data.get("piece_number")
+                    if piece_number is None:
+                        continue
+
+                    self._gallery_index.append(
+                        {
+                            "id": f"piece_{piece_number:06d}",
+                            "piece_number": piece_number,
+                            "stroke_count": len(data.get("strokes", [])),
+                            "created_at": data.get("created_at", ""),
+                        }
+                    )
+                except (json.JSONDecodeError, OSError) as e:
+                    logger.warning(f"Skipping corrupted gallery file {entry}: {e}")
+                    continue
+
+        # Sort and save
+        self._gallery_index.sort(key=lambda p: p["piece_number"])
+
+        # Write index atomically
+        temp_file = self._gallery_index_file.with_suffix(".json.tmp")
+        async with aiofiles.open(temp_file, "w") as f:
+            await f.write(json.dumps(self._gallery_index, indent=2))
+        await aiofiles.os.replace(temp_file, self._gallery_index_file)
+
     # --- Gallery Operations ---
 
     async def list_gallery(self) -> list[SavedCanvas]:
-        """List gallery pieces for this workspace."""
+        """List gallery pieces for this workspace.
+
+        Uses gallery index for O(1) lookup instead of scanning all files.
+        The index is lazily loaded and cached in memory.
+        """
+        # Load index if not cached
+        if self._gallery_index is None:
+            await self._load_gallery_index()
+
+        if not self._gallery_index:
+            return []
+
+        # Convert index entries to SavedCanvas (without loading full stroke data)
+        # Note: strokes are empty here - load_from_gallery should be used for full data
+        return [
+            SavedCanvas(
+                id=entry["id"],
+                strokes=[],  # Don't load strokes for listing
+                created_at=entry.get("created_at", ""),
+                piece_number=entry["piece_number"],
+                stroke_count=entry.get("stroke_count", 0),  # Use cached count from index
+            )
+            for entry in self._gallery_index
+        ]
+
+    async def list_gallery_with_strokes(self) -> list[SavedCanvas]:
+        """List gallery pieces with full stroke data.
+
+        This loads all strokes for each piece - use sparingly.
+        For listings, prefer list_gallery() which uses the index.
+        """
         pieces: list[SavedCanvas] = []
 
         if not await aiofiles.os.path.exists(self._gallery_dir):

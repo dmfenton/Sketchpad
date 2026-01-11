@@ -254,8 +254,8 @@ async def get_user_state(user: User) -> WorkspaceState:
     return await WorkspaceState.load_for_user(user.id)
 
 
-def render_user_png(state: WorkspaceState, highlight_human: bool = True) -> bytes:
-    """Render user's canvas to PNG."""
+def _render_user_png_sync(state: WorkspaceState, highlight_human: bool = True) -> bytes:
+    """Render user's canvas to PNG (synchronous, CPU-bound)."""
     canvas = state.canvas
     img = Image.new("RGB", (canvas.width, canvas.height), "#FFFFFF")
     draw = ImageDraw.Draw(img)
@@ -269,6 +269,14 @@ def render_user_png(state: WorkspaceState, highlight_human: bool = True) -> byte
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+async def render_user_png(state: WorkspaceState, highlight_human: bool = True) -> bytes:
+    """Render user's canvas to PNG (async, non-blocking).
+
+    Offloads rendering to thread pool to avoid blocking the event loop.
+    """
+    return await asyncio.to_thread(_render_user_png_sync, state, highlight_human)
 
 
 @app.get("/state")
@@ -286,7 +294,7 @@ async def get_state(user: CurrentUser) -> dict[str, Any]:
 async def get_canvas_png(user: CurrentUser) -> Response:
     """Get user's canvas as PNG image."""
     state = await get_user_state(user)
-    return Response(content=render_user_png(state), media_type="image/png")
+    return Response(content=await render_user_png(state), media_type="image/png")
 
 
 @app.get("/canvas.svg")
@@ -332,7 +340,7 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
             "id": p.id,
             "created_at": p.created_at,
             "piece_number": p.piece_number,
-            "stroke_count": len(p.strokes),
+            "stroke_count": p.num_strokes,
         }
         for p in pieces
     ]
@@ -566,7 +574,9 @@ async def websocket_endpoint(
 
     # Get or create user's workspace
     workspace = await workspace_registry.get_or_activate(user_id)
-    workspace.connections.add(websocket)
+    if not workspace.connections.add(websocket):
+        await websocket.close(code=4003, reason="Too many connections")
+        return
     await shutdown_manager.register_connection(websocket)
 
     try:
@@ -577,7 +587,7 @@ async def websocket_endpoint(
                 "id": p.id,
                 "created_at": p.created_at,
                 "piece_number": p.piece_number,
-                "stroke_count": len(p.strokes),
+                "stroke_count": p.num_strokes,
             }
             for p in gallery_pieces
         ]
@@ -619,7 +629,24 @@ async def websocket_endpoint(
                 break
 
             data = await websocket.receive_text()
-            await handle_user_message(workspace, json.loads(data))
+            try:
+                message = json.loads(data)
+            except json.JSONDecodeError as e:
+                logger.warning(f"Invalid JSON from user {user_id}: {e}")
+                await workspace.connections.send_to(
+                    websocket,
+                    {"type": "error", "message": "Invalid JSON format"},
+                )
+                continue
+
+            try:
+                await handle_user_message(workspace, message)
+            except Exception as e:
+                logger.exception(f"Handler error for user {user_id}")
+                await workspace.connections.send_to(
+                    websocket,
+                    {"type": "error", "message": f"Error processing message: {e}"},
+                )
 
     except WebSocketDisconnect:
         await workspace_registry.on_disconnect(user_id, websocket)

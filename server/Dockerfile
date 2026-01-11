@@ -25,6 +25,11 @@ COPY alembic/ alembic/
 # Install dependencies
 RUN uv sync --frozen --no-dev
 
+# Create non-root user for security (reduces blast radius of container escape)
+RUN useradd --create-home --uid 1000 appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 # Expose port
 EXPOSE 8000
 
