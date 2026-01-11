@@ -601,10 +601,8 @@ class DrawingAgent:
             state.monologue = all_thinking
             await self._save_state()
 
-            if self._piece_done:
-                state.piece_count += 1
-                self.reset_container()  # Fresh session for new piece
-                await self._save_state()
+            # Note: piece_count increment and container reset are handled by
+            # orchestrator.run_turn() which calls state.new_canvas() on piece completion
 
             # Signal turn complete
             yield AgentTurnComplete(thinking=all_thinking, done=self._piece_done)
