@@ -427,14 +427,19 @@ agent_workspace/users/{user_id}/
 ### CLI Commands
 
 ```bash
-# Create invite code
-uv run python -m drawing_agent.cli invite create
+# Invite code management
+uv run python -m drawing_agent.cli invite create      # Create invite code
+uv run python -m drawing_agent.cli invite create -c 5 # Create 5 codes
+uv run python -m drawing_agent.cli invite list        # List all invite codes
+uv run python -m drawing_agent.cli invite revoke CODE # Revoke unused code
 
-# List invite codes
-uv run python -m drawing_agent.cli invite list
+# User management
+uv run python -m drawing_agent.cli user list          # List users with workspace summary
+uv run python -m drawing_agent.cli user list --all    # Include inactive users
+uv run python -m drawing_agent.cli user workspace 1   # Show workspace details for user ID 1
 
-# Revoke unused invite code
-uv run python -m drawing_agent.cli invite revoke CODE
+# Workspace filesystem
+uv run python -m drawing_agent.cli workspace list     # List all workspace directories
 ```
 
 ### Creating Users Directly
