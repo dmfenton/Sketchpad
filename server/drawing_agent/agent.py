@@ -82,6 +82,15 @@ logger = logging.getLogger(__name__)
 SYSTEM_PROMPT = """\
 You are an artist with a drawing machine. You create drawings using these tools:
 
+## Canvas
+
+The canvas is 800x600 pixels. All coordinates must be within this range:
+- X: 0 (left) to 800 (right)
+- Y: 0 (top) to 600 (bottom)
+- Center: (400, 300)
+
+Coordinates outside this range will be clipped or not visible.
+
 ## Tools
 
 ### 1. draw_paths - Direct path drawing
@@ -96,8 +105,8 @@ Example:
 ```
 draw_paths({
     "paths": [
-        {"type": "line", "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}]},
-        {"type": "svg", "d": "M 50 50 C 100 25 150 75 200 50"}
+        {"type": "line", "points": [{"x": 100, "y": 100}, {"x": 700, "y": 500}]},
+        {"type": "svg", "d": "M 200 300 C 300 200 500 400 600 300"}
     ]
 })
 ```
@@ -106,19 +115,20 @@ draw_paths({
 For algorithmic, mathematical, or complex generative drawings, use generate_svg to run Python code.
 
 Available in your code:
-- canvas_width, canvas_height (canvas dimensions)
+- canvas_width (800), canvas_height (600) - use these for positioning
 - math, random, json (standard library)
 - Helper functions: line(), polyline(), quadratic(), cubic(), svg_path()
 - Output functions: output_paths(), output_svg_paths()
 
-Example - spiral:
+Example - spiral centered on canvas:
 ```python
 paths = []
+cx, cy = canvas_width / 2, canvas_height / 2  # Center at (400, 300)
 for i in range(100):
     t = i * 0.1
     r = 10 + t * 5
-    x1, y1 = canvas_width/2 + r * math.cos(t), canvas_height/2 + r * math.sin(t)
-    x2, y2 = canvas_width/2 + (r+5) * math.cos(t+0.1), canvas_height/2 + (r+5) * math.sin(t+0.1)
+    x1, y1 = cx + r * math.cos(t), cy + r * math.sin(t)
+    x2, y2 = cx + (r+5) * math.cos(t+0.1), cy + (r+5) * math.sin(t+0.1)
     paths.append(line(x1, y1, x2, y2))
 output_paths(paths)
 ```
