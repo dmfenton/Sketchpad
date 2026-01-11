@@ -29,6 +29,7 @@ from PIL import Image
 from drawing_agent.config import settings
 from drawing_agent.tools import (
     create_drawing_server,
+    set_add_strokes_callback,
     set_canvas_dimensions,
     set_draw_callback,
     set_get_canvas_callback,
@@ -390,7 +391,7 @@ class DrawingAgent:
         state.status = AgentStatus.THINKING
         await self._save_state()
 
-        # Set up draw callback to collect paths for the PostToolUse hook
+        # Set up draw callback to collect paths for the PostToolUse hook (animation)
         async def on_draw(paths: list[Path], done: bool) -> None:
             self._collected_paths.extend(paths)
             if done:
@@ -405,8 +406,15 @@ class DrawingAgent:
             img.save(buffer, format="PNG")
             return buffer.getvalue()
 
+        # Set up add_strokes callback to update state immediately (before tool returns)
+        # This allows the canvas image to include new strokes in the tool result
+        async def add_strokes_to_state(paths: list[Path]) -> None:
+            for path in paths:
+                await state.add_stroke(path)
+
         set_draw_callback(on_draw)
         set_get_canvas_callback(get_canvas_png)
+        set_add_strokes_callback(add_strokes_to_state)
         set_canvas_dimensions(settings.canvas_width, settings.canvas_height)
 
         try:

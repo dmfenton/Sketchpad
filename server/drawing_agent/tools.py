@@ -192,6 +192,7 @@ def output_svg_paths(svg_d_strings: list):
 # Global callbacks - will be set by the agent
 _draw_callback: Any = None
 _get_canvas_callback: Any = None
+_add_strokes_callback: Any = None
 
 
 def set_draw_callback(callback: Any) -> None:
@@ -204,6 +205,16 @@ def set_get_canvas_callback(callback: Any) -> None:
     """Set the callback function for getting canvas image."""
     global _get_canvas_callback
     _get_canvas_callback = callback
+
+
+def set_add_strokes_callback(callback: Any) -> None:
+    """Set the callback function for adding strokes to state.
+
+    This callback adds strokes to state synchronously (before the tool returns)
+    so the canvas image can include the new strokes.
+    """
+    global _add_strokes_callback
+    _add_strokes_callback = callback
 
 
 async def handle_draw_paths(args: dict[str, Any]) -> dict[str, Any]:
@@ -239,33 +250,52 @@ async def handle_draw_paths(args: dict[str, Any]) -> dict[str, Any]:
         else:
             parsed_paths.append(path)
 
-    # Call the draw callback with valid paths (even if there were some errors)
-    logger.info(f"draw_paths: {len(parsed_paths)} paths, callback={'set' if _draw_callback else 'None'}")
+    # Add strokes to state immediately (so canvas image includes them)
+    logger.info(f"draw_paths: {len(parsed_paths)} paths, add_strokes={'set' if _add_strokes_callback else 'None'}")
+    if parsed_paths and _add_strokes_callback is not None:
+        await _add_strokes_callback(parsed_paths)
+
+    # Call the draw callback for animation (strokes already in state)
+    logger.info(f"draw_paths: triggering animation, callback={'set' if _draw_callback else 'None'}")
     if parsed_paths and _draw_callback is not None:
         await _draw_callback(parsed_paths, done)
 
+    # Build response content
+    content: list[dict[str, Any]] = []
+
     # Report errors if any
     if errors:
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": f"Parsed {len(parsed_paths)} paths with {len(errors)} errors:\n"
-                    + "\n".join(errors),
-                }
-            ],
-            "is_error": len(parsed_paths) == 0,
-        }
+        content.append({
+            "type": "text",
+            "text": f"Parsed {len(parsed_paths)} paths with {len(errors)} errors:\n"
+            + "\n".join(errors),
+        })
+        if len(parsed_paths) == 0:
+            return {"content": content, "is_error": True}
+    else:
+        content.append({
+            "type": "text",
+            "text": f"Successfully drew {len(parsed_paths)} paths."
+            + (" Piece marked as complete." if done else ""),
+        })
 
-    return {
-        "content": [
-            {
-                "type": "text",
-                "text": f"Successfully drew {len(parsed_paths)} paths."
-                + (" Piece marked as complete." if done else ""),
-            }
-        ],
-    }
+    # Inject canvas image if we drew paths (mechanistic canvas update)
+    if parsed_paths and _get_canvas_callback is not None:
+        try:
+            png_bytes = _get_canvas_callback()
+            image_b64 = base64.standard_b64encode(png_bytes).decode("utf-8")
+            content.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": image_b64,
+                },
+            })
+        except Exception as e:
+            logger.warning(f"Failed to get canvas image: {e}")
+
+    return {"content": content}
 
 
 async def handle_mark_piece_done() -> dict[str, Any]:
@@ -332,16 +362,21 @@ async def handle_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
             "is_error": True,
         }
 
-    # Call the draw callback with generated paths
-    logger.info(f"generate_svg: {len(paths)} paths, callback={'set' if _draw_callback else 'None'}")
-    if paths and _draw_callback is not None:
-        await _draw_callback(paths, done)
+    # Add strokes to state immediately (so canvas image includes them)
+    logger.info(f"generate_svg: {len(paths)} paths, add_strokes={'set' if _add_strokes_callback else 'None'}")
+    if paths and _add_strokes_callback is not None:
+        await _add_strokes_callback(paths)
         response_parts.append(f"Successfully generated and drew {len(paths)} paths.")
     elif not paths:
         response_parts.append(
             "Code executed but no paths were generated. "
             "Make sure to call output_paths() or output_svg_paths() at the end."
         )
+
+    # Call the draw callback for animation (strokes already in state)
+    logger.info(f"generate_svg: triggering animation, callback={'set' if _draw_callback else 'None'}")
+    if paths and _draw_callback is not None:
+        await _draw_callback(paths, done)
 
     if done:
         response_parts.append("Piece marked as complete.")
@@ -350,9 +385,26 @@ async def handle_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
     if stdout and not stdout.strip().startswith("{"):
         response_parts.append(f"Output:\n{stdout[:500]}")
 
-    return {
-        "content": [{"type": "text", "text": "\n".join(response_parts)}],
-    }
+    # Build response content
+    content: list[dict[str, Any]] = [{"type": "text", "text": "\n".join(response_parts)}]
+
+    # Inject canvas image if we drew paths (mechanistic canvas update)
+    if paths and _get_canvas_callback is not None:
+        try:
+            png_bytes = _get_canvas_callback()
+            image_b64 = base64.standard_b64encode(png_bytes).decode("utf-8")
+            content.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": image_b64,
+                },
+            })
+        except Exception as e:
+            logger.warning(f"Failed to get canvas image: {e}")
+
+    return {"content": content}
 
 
 @tool(

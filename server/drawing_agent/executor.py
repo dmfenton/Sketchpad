@@ -83,6 +83,7 @@ async def execute_paths(
     state: "WorkspaceState",
     fps: int | None = None,
     stroke_delay: float | None = None,
+    skip_state_update: bool = False,
 ) -> AsyncGenerator[None, None]:
     """Execute paths with real-time pen position updates.
 
@@ -92,6 +93,7 @@ async def execute_paths(
         state: Workspace state for the user
         fps: Frames per second for updates (default: from settings)
         stroke_delay: Pause between strokes in seconds (default: from settings)
+        skip_state_update: If True, skip adding strokes to state (already added by tool handler)
 
     Yields after each path is complete to allow for cooperative multitasking.
     """
@@ -145,8 +147,9 @@ async def execute_paths(
         # Raise pen
         await send_message(PenMessage(x=pen_position.x, y=pen_position.y, down=False))
 
-        # Mark path complete
-        await state.add_stroke(path)
+        # Mark path complete (skip state update if already done by tool handler)
+        if not skip_state_update:
+            await state.add_stroke(path)
         await send_message(StrokeCompleteMessage(path=path))
 
         # Pause between strokes for deliberate pacing
