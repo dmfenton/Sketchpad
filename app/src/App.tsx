@@ -17,6 +17,7 @@ import {
   NewCanvasModal,
   NudgeModal,
   SplashScreen,
+  StartPanel,
   StatusPill,
 } from './components';
 import { getWebSocketUrl } from './config';
@@ -103,6 +104,23 @@ function MainApp(): React.JSX.Element {
     [send]
   );
 
+  // Handle start from the StartPanel (sends new_canvas and resumes)
+  const handleStartFromPanel = useCallback(
+    (direction?: string) => {
+      send({ type: 'new_canvas', direction });
+      send({ type: 'resume' });
+      canvas.setPaused(false);
+    },
+    [send, canvas]
+  );
+
+  // Determine if we should show the start panel
+  // Show when: canvas is empty, paused, and no messages (fresh start)
+  const showStartPanel =
+    canvas.state.strokes.length === 0 &&
+    canvas.state.paused &&
+    canvas.state.messages.length === 0;
+
   const handleGalleryPress = useCallback(() => {
     setGalleryModalVisible(true);
   }, []);
@@ -188,25 +206,35 @@ function MainApp(): React.JSX.Element {
             />
           </View>
 
-          {/* Message Stream */}
-          <MessageStream
-            messages={canvas.state.messages}
-            status={canvas.state.agentStatus}
-          />
+          {/* Start Panel or Message Stream + Action Bar */}
+          {showStartPanel ? (
+            <StartPanel
+              connected={wsState.connected}
+              onStart={handleStartFromPanel}
+            />
+          ) : (
+            <>
+              {/* Message Stream */}
+              <MessageStream
+                messages={canvas.state.messages}
+                status={canvas.state.agentStatus}
+              />
 
-          {/* Action Bar - Bottom */}
-          <ActionBar
-            drawingEnabled={canvas.state.drawingEnabled}
-            paused={paused}
-            connected={wsState.connected}
-            galleryCount={canvas.state.gallery.length}
-            onDrawToggle={handleDrawToggle}
-            onNudge={handleNudgePress}
-            onClear={handleClear}
-            onPauseToggle={handlePauseToggle}
-            onNewCanvas={handleNewCanvas}
-            onGallery={handleGalleryPress}
-          />
+              {/* Action Bar - Bottom */}
+              <ActionBar
+                drawingEnabled={canvas.state.drawingEnabled}
+                paused={paused}
+                connected={wsState.connected}
+                galleryCount={canvas.state.gallery.length}
+                onDrawToggle={handleDrawToggle}
+                onNudge={handleNudgePress}
+                onClear={handleClear}
+                onPauseToggle={handlePauseToggle}
+                onNewCanvas={handleNewCanvas}
+                onGallery={handleGalleryPress}
+              />
+            </>
+          )}
         </View>
 
         {/* Nudge Modal */}
