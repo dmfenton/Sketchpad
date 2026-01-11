@@ -201,6 +201,14 @@ class IterationMessage(BaseModel):
     max: int = 5  # Maximum iterations
 
 
+class StrokesReadyMessage(BaseModel):
+    """Notification that strokes are ready to be fetched via REST API."""
+
+    type: Literal["strokes_ready"] = "strokes_ready"
+    count: int  # Number of strokes ready
+    batch_id: int  # For ordering/deduplication
+
+
 class ClientStrokeMessage(BaseModel):
     """Human stroke from client."""
 
@@ -242,6 +250,7 @@ ServerMessage = (
     | ErrorMessage
     | PieceCompleteMessage
     | IterationMessage
+    | StrokesReadyMessage
 )
 ClientMessage = (
     ClientStrokeMessage | ClientNudgeMessage | ClientControlMessage | ClientNewCanvasMessage

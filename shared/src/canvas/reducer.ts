@@ -11,6 +11,11 @@ export const MAX_MESSAGES = 50;
 // Special ID for the live streaming message
 export const LIVE_MESSAGE_ID = 'live_thinking';
 
+export interface PendingStrokesInfo {
+  count: number;
+  batchId: number;
+}
+
 export interface CanvasHookState {
   strokes: Path[];
   currentStroke: Point[];
@@ -27,6 +32,7 @@ export interface CanvasHookState {
   paused: boolean;
   currentIteration: number;
   maxIterations: number;
+  pendingStrokes: PendingStrokesInfo | null; // Strokes ready to be fetched
 }
 
 export type CanvasAction =
@@ -58,7 +64,9 @@ export type CanvasAction =
     }
   | { type: 'SET_PAUSED'; paused: boolean }
   | { type: 'SET_ITERATION'; current: number; max: number }
-  | { type: 'RESET_TURN' };
+  | { type: 'RESET_TURN' }
+  | { type: 'STROKES_READY'; count: number; batchId: number }
+  | { type: 'CLEAR_PENDING_STROKES' };
 
 export const initialState: CanvasHookState = {
   strokes: [],
@@ -76,6 +84,7 @@ export const initialState: CanvasHookState = {
   paused: true, // Start paused
   currentIteration: 0,
   maxIterations: 5,
+  pendingStrokes: null,
 };
 
 export function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHookState {
@@ -215,6 +224,15 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
 
     case 'RESET_TURN':
       return { ...state, thinking: '', currentIteration: 0 };
+
+    case 'STROKES_READY':
+      return {
+        ...state,
+        pendingStrokes: { count: action.count, batchId: action.batchId },
+      };
+
+    case 'CLEAR_PENDING_STROKES':
+      return { ...state, pendingStrokes: null };
 
     default:
       return state;
