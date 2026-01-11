@@ -4,13 +4,14 @@
 
 import { Platform } from 'react-native';
 
+// Typed access to Expo public environment variables
+const env = process.env as Record<string, string | undefined>;
+
 /**
  * Get the base host for API connections.
  */
 function getHost(): string {
-  // Check for explicit env var
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  const envUrl = (process.env as Record<string, string | undefined>).EXPO_PUBLIC_API_URL;
+  const envUrl = env.EXPO_PUBLIC_API_URL;
   if (envUrl) {
     // Extract host from URL
     const match = envUrl.match(/https?:\/\/([^:/]+)/);
@@ -31,9 +32,7 @@ function getHost(): string {
  * Get the API URL for REST endpoints.
  */
 export function getApiUrl(): string {
-  // Check for explicit env var first
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  const envUrl = (process.env as Record<string, string | undefined>).EXPO_PUBLIC_API_URL;
+  const envUrl = env.EXPO_PUBLIC_API_URL;
   if (envUrl) return envUrl;
 
   // Production fallback for TestFlight builds
@@ -49,9 +48,7 @@ export function getApiUrl(): string {
  * This allows the app to connect to the server from any device on the LAN.
  */
 export function getWebSocketUrl(token?: string): string {
-  // Check for explicit env var first
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  const envUrl = (process.env as Record<string, string | undefined>).EXPO_PUBLIC_WS_URL;
+  const envUrl = env.EXPO_PUBLIC_WS_URL;
 
   // Production fallback for TestFlight builds
   const baseUrl = envUrl || (__DEV__ === false ? 'wss://monet.dmfenton.net/ws' : `ws://${getHost()}:8000/ws`);
