@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.9.2] - 2026-01-11
+## [1.9.3] - 2026-01-11
+
+### Changed
+- Upgraded drawing agent from Claude Sonnet 4 to Claude Opus 4.5
 
 ### Fixed
 - Gallery and workspace data now persists across container restarts (moved to mounted volume)
@@ -282,8 +285,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.9.2...HEAD
-[1.9.2]: https://github.com/dmfenton/sketchpad/compare/v1.9.1...v1.9.2
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.9.3...HEAD
+[1.9.3]: https://github.com/dmfenton/sketchpad/compare/v1.9.1...v1.9.3
 [1.9.1]: https://github.com/dmfenton/sketchpad/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/dmfenton/sketchpad/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/dmfenton/sketchpad/compare/v1.8.0...v1.8.1
