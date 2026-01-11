@@ -8,7 +8,7 @@ import io
 import logging
 from collections.abc import AsyncGenerator, Callable, Coroutine
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from claude_agent_sdk import (
     AssistantMessage,
@@ -17,13 +17,18 @@ from claude_agent_sdk import (
     HookContext,
     HookMatcher,
     PostToolUseHookInput,
+    PreCompactHookInput,
+    PreToolUseHookInput,
     ResultMessage,
+    StopHookInput,
+    SubagentStopHookInput,
     SystemMessage,
     TextBlock,
     ToolResultBlock,
     ToolUseBlock,
+    UserPromptSubmitHookInput,
 )
-from claude_agent_sdk.types import StreamEvent
+from claude_agent_sdk.types import StreamEvent, SyncHookJSONOutput
 from PIL import Image
 
 from drawing_agent.config import settings
@@ -76,6 +81,16 @@ class AgentCallbacks:
     on_code_result: Callable[[CodeExecutionResult], Coroutine[Any, Any, None]] | None = None
     on_error: Callable[[str, str | None], Coroutine[Any, Any, None]] | None = None
 
+
+# Type alias for SDK hook input - the SDK expects handlers to accept any hook input type
+HookInput: TypeAlias = (
+    PreToolUseHookInput
+    | PostToolUseHookInput
+    | UserPromptSubmitHookInput
+    | StopHookInput
+    | SubagentStopHookInput
+    | PreCompactHookInput
+)
 
 logger = logging.getLogger(__name__)
 
@@ -195,11 +210,7 @@ class DrawingAgent:
             permission_mode="acceptEdits",
             model=settings.agent_model if hasattr(settings, "agent_model") else None,
             include_partial_messages=True,  # Enable streaming partial messages
-            hooks={
-                "PostToolUse": [
-                    HookMatcher(hooks=[self._post_tool_use_hook])  # type: ignore[list-item]
-                ]
-            },
+            hooks={"PostToolUse": [HookMatcher(hooks=[self._post_tool_use_hook])]},
             # Pass API key to SDK subprocess
             env={"ANTHROPIC_API_KEY": settings.anthropic_api_key},
         )
@@ -210,16 +221,18 @@ class DrawingAgent:
 
     async def _post_tool_use_hook(
         self,
-        input_data: PostToolUseHookInput,
+        input_data: HookInput,
         _tool_use_id: str | None,
         _context: HookContext,
-    ) -> dict[str, Any]:
-        """PostToolUse hook - pause after draw_paths to let drawing complete."""
-        # input_data may be a dict or object depending on SDK version
-        if isinstance(input_data, dict):
-            tool_name = input_data.get("tool_name", "")
-        else:
-            tool_name = getattr(input_data, "tool_name", "")
+    ) -> SyncHookJSONOutput:
+        """PostToolUse hook - pause after draw_paths to let drawing complete.
+
+        Note: input_data is typed as HookInput (union of all hook types) to satisfy
+        the SDK's type requirements, but this hook only receives PostToolUseHookInput.
+        """
+        # Extract tool_name - PostToolUseHookInput has tool_name attribute
+        # Use getattr for compatibility with both object and dict forms
+        tool_name = str(getattr(input_data, "tool_name", "") or "")
         logger.info(f"PostToolUse: tool={tool_name}, collected_paths={len(self._collected_paths)}")
 
         # After draw_paths or generate_svg, execute drawing and wait
@@ -236,7 +249,7 @@ class DrawingAgent:
         elif tool_name == "mcp__drawing__mark_piece_done":
             self._piece_done = True
 
-        return {}
+        return SyncHookJSONOutput()
 
     def get_state(self) -> Any:
         """Get the workspace state (injected or singleton fallback)."""

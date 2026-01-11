@@ -473,8 +473,9 @@ async def get_agent_logs(
     file_logger = AgentFileLogger(user_dir=state._user_dir)
 
     if filename:
-        # Read specific file
-        return await file_logger.read_log_file(filename)
+        # Read specific file - TypedDict is compatible with dict[str, Any]
+        result = await file_logger.read_log_file(filename)
+        return dict(result)
 
     # Return list of recent log files with content
     files = await file_logger.list_log_files()
@@ -483,7 +484,7 @@ async def get_agent_logs(
     return {
         "total_files": len(files),
         "returned_files": len(logs),
-        "logs": logs,
+        "logs": [dict(log) for log in logs],
     }
 
 

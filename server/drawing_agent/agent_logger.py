@@ -9,11 +9,30 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 from pathlib import Path as FilePath
+from typing import TypedDict
 
 import aiofiles
 import aiofiles.os
 
 logger = logging.getLogger(__name__)
+
+
+class LogFileInfo(TypedDict):
+    """Information about a log file."""
+
+    filename: str
+    size: int
+    modified: str
+
+
+class LogFileContent(TypedDict, total=False):
+    """Content of a log file with metadata."""
+
+    exists: bool
+    content: str
+    error: str
+    filename: str
+
 
 # Log directory and file constants
 LOGS_DIRNAME = "logs"
@@ -194,16 +213,16 @@ class AgentFileLogger:
         entry = f"[{self._timestamp()}] STATUS: {status}\n"
         await self._write(entry)
 
-    async def list_log_files(self) -> list[dict[str, str | int]]:
+    async def list_log_files(self) -> list[LogFileInfo]:
         """List available log files.
 
         Returns:
-            List of dicts with filename, timestamp, and size
+            List of LogFileInfo with filename, size, and modified timestamp
         """
         if not await aiofiles.os.path.exists(self._logs_dir):
             return []
 
-        result: list[dict[str, str | int]] = []
+        result: list[LogFileInfo] = []
         entries = await aiofiles.os.listdir(self._logs_dir)
         log_files = sorted(
             [f for f in entries if f.startswith("turn_") and f.endswith(".log")],
@@ -214,59 +233,57 @@ class AgentFileLogger:
             filepath = self._logs_dir / filename
             try:
                 stat = await aiofiles.os.stat(filepath)
-                modified_iso: str = datetime.fromtimestamp(stat.st_mtime, UTC).isoformat()
                 result.append(
-                    {
-                        "filename": filename,
-                        "size": stat.st_size,
-                        "modified": modified_iso,
-                    }
+                    LogFileInfo(
+                        filename=filename,
+                        size=stat.st_size,
+                        modified=datetime.fromtimestamp(stat.st_mtime, UTC).isoformat(),
+                    )
                 )
             except Exception:
                 continue
 
         return result
 
-    async def read_log_file(self, filename: str) -> dict[str, str | bool]:
+    async def read_log_file(self, filename: str) -> LogFileContent:
         """Read a specific log file.
 
         Args:
             filename: Name of the log file to read
 
         Returns:
-            Dict with content and metadata
+            LogFileContent with content and metadata
         """
         # Security: validate filename to prevent path traversal
         if "/" in filename or "\\" in filename or not filename.startswith("turn_"):
-            return {"exists": False, "error": "Invalid filename", "content": ""}
+            return LogFileContent(exists=False, error="Invalid filename", content="")
 
         filepath = self._logs_dir / filename
         if not await aiofiles.os.path.exists(filepath):
-            return {"exists": False, "error": "File not found", "content": ""}
+            return LogFileContent(exists=False, error="File not found", content="")
 
         try:
             async with aiofiles.open(filepath) as f:
                 content = await f.read()
-            return {"exists": True, "content": content}
+            return LogFileContent(exists=True, content=content)
         except Exception as e:
-            return {"exists": True, "error": str(e), "content": ""}
+            return LogFileContent(exists=True, error=str(e), content="")
 
-    async def read_latest_logs(self, count: int = 5) -> list[dict[str, str | bool]]:
+    async def read_latest_logs(self, count: int = 5) -> list[LogFileContent]:
         """Read the most recent log files.
 
         Args:
             count: Number of recent log files to read
 
         Returns:
-            List of dicts with filename and content
+            List of LogFileContent with filename and content
         """
         files = await self.list_log_files()
-        results = []
+        results: list[LogFileContent] = []
 
         for file_info in files[:count]:
-            filename = str(file_info["filename"])
-            log_data = await self.read_log_file(filename)
-            log_data["filename"] = filename
+            log_data = await self.read_log_file(file_info["filename"])
+            log_data["filename"] = file_info["filename"]
             results.append(log_data)
 
         return results

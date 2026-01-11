@@ -171,13 +171,16 @@ async def use_magic_link_code(
 
 async def cleanup_expired_magic_links(session: AsyncSession) -> int:
     """Delete expired magic link tokens. Returns count of deleted tokens."""
-    from sqlalchemy import delete
+    from typing import cast
+
+    from sqlalchemy import CursorResult, delete
 
     result = await session.execute(
         delete(MagicLinkToken).where(MagicLinkToken.expires_at < datetime.now(UTC))
     )
-    # rowcount is available on CursorResult but mypy doesn't see it on Result[Any]
-    return getattr(result, "rowcount", 0) or 0
+    # DELETE returns CursorResult which has rowcount
+    cursor_result = cast(CursorResult[tuple[()]], result)
+    return cursor_result.rowcount or 0
 
 
 # =============================================================================

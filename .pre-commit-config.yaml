@@ -24,6 +24,7 @@ repos:
           - types-aiofiles
           - types-python-jose
           - boto3-stubs
+          - alembic
 
   # JavaScript/TypeScript - ESLint and Prettier
   - repo: local
