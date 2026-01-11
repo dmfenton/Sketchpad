@@ -297,13 +297,12 @@ class DrawingAgent:
         return SyncHookJSONOutput()
 
     def get_state(self) -> Any:
-        """Get the workspace state (injected or singleton fallback)."""
-        if self._state is not None:
-            return self._state
-        # Fallback to singleton for backwards compatibility
-        from drawing_agent.state import state_manager
-
-        return state_manager
+        """Get the workspace state (must be injected via constructor)."""
+        if self._state is None:
+            raise RuntimeError(
+                "Agent state not initialized. Pass state to DrawingAgent constructor."
+            )
+        return self._state
 
     async def _save_state(self) -> None:
         """Save state (async for WorkspaceState, sync for StateManager)."""
@@ -620,7 +619,3 @@ class DrawingAgent:
                 await cb.on_error(str(e), None)
 
             raise RuntimeError(f"Agent turn failed: {e}") from e
-
-
-# Singleton instance
-agent = DrawingAgent()
