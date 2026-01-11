@@ -2,21 +2,83 @@
  * Magic link verification route.
  * Handles Universal Links: https://monet.dmfenton.net/auth/verify?token=...
  *
- * This route exists because expo-router intercepts Universal Links.
- * We extract the token and redirect to main app with it in the URL,
- * where the Linking handler in App.tsx will process it.
+ * This route verifies the magic link token directly and sets auth state,
+ * then redirects to the main app.
  */
 
 import { Redirect, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+
+import { useAuth } from '../../src/context/AuthContext';
+import { useTheme } from '../../src/theme';
 
 export default function VerifyMagicLink() {
   const { token } = useLocalSearchParams<{ token: string }>();
+  const { verifyMagicLink } = useAuth();
+  const { colors } = useTheme();
+  const [verifying, setVerifying] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Redirect to main app with token - App.tsx will handle via getInitialURL
-  // The token gets passed through the redirect
-  if (token) {
-    return <Redirect href={`/?magic_token=${token}`} />;
+  useEffect(() => {
+    async function verify() {
+      if (!token) {
+        setVerifying(false);
+        return;
+      }
+
+      console.log('[VerifyMagicLink] Verifying token');
+      const result = await verifyMagicLink(token);
+      if (!result.success) {
+        console.log('[VerifyMagicLink] Verification failed:', result.error);
+        setError(result.error ?? 'Verification failed');
+      } else {
+        console.log('[VerifyMagicLink] Verification successful');
+      }
+      setVerifying(false);
+    }
+
+    void verify();
+  }, [token, verifyMagicLink]);
+
+  // Still verifying - show loading
+  if (verifying) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.text, { color: colors.textPrimary }]}>Signing you in...</Text>
+      </View>
+    );
   }
 
+  // Verification failed - show error then redirect
+  if (error) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+        <Redirect href="/" />
+      </View>
+    );
+  }
+
+  // Success or no token - redirect to main app
   return <Redirect href="/" />;
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  text: {
+    fontSize: 16,
+    marginTop: 12,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+  },
+});

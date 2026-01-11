@@ -32,11 +32,11 @@ import {
   StatusPill,
 } from './components';
 import { getWebSocketUrl } from './config';
-import { AuthProvider, useAuth } from './context';
+import { useAuth } from './context';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
 import { AuthScreen } from './screens';
-import { spacing, ThemeProvider, useTheme } from './theme';
+import { spacing, useTheme } from './theme';
 
 function MainApp(): React.JSX.Element {
   const { colors, isDark } = useTheme();
@@ -426,13 +426,8 @@ export default function App(): React.JSX.Element {
     };
   }, []);
 
-  return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
-  );
+  // Providers are in _layout.tsx for expo-router compatibility
+  return <AppContent />;
 }
 
 const styles = StyleSheet.create({
