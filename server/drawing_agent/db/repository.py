@@ -53,6 +53,15 @@ async def deactivate_user(session: AsyncSession, user_id: int) -> bool:
     return False
 
 
+async def list_users(session: AsyncSession, active_only: bool = True) -> list[User]:
+    """List all users, optionally filtering to active only."""
+    query = select(User).order_by(User.id)
+    if active_only:
+        query = query.where(User.is_active == True)  # noqa: E712
+    result = await session.execute(query)
+    return list(result.scalars().all())
+
+
 # =============================================================================
 # Invite Code Repository
 # =============================================================================

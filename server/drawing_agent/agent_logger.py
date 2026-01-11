@@ -122,13 +122,13 @@ class AgentFileLogger:
         self._current_log_file = self._logs_dir / filename
 
         entry = (
-            f"{'='*60}\n"
+            f"{'=' * 60}\n"
             f"AGENT TURN START\n"
-            f"{'='*60}\n"
+            f"{'=' * 60}\n"
             f"Timestamp: {self._timestamp()}\n"
             f"Piece Number: {piece_number}\n"
             f"Existing Strokes: {stroke_count}\n"
-            f"{'='*60}\n\n"
+            f"{'=' * 60}\n\n"
         )
         await self._write(entry)
 
@@ -140,13 +140,13 @@ class AgentFileLogger:
             duration = f"\nDuration: {elapsed.total_seconds():.2f}s"
 
         entry = (
-            f"\n{'='*60}\n"
+            f"\n{'=' * 60}\n"
             f"AGENT TURN END\n"
-            f"{'='*60}\n"
+            f"{'=' * 60}\n"
             f"Timestamp: {self._timestamp()}{duration}\n"
             f"Piece Done: {piece_done}\n"
             f"Thinking Length: {thinking_chars} chars\n"
-            f"{'='*60}\n"
+            f"{'=' * 60}\n"
         )
         await self._write(entry)
 
@@ -158,9 +158,7 @@ class AgentFileLogger:
         """Log agent thinking/monologue text."""
         if not text:
             return
-        entry = (
-            f"\n--- THINKING (iteration {iteration}) ---\n" f"{text}\n" f"--- END THINKING ---\n"
-        )
+        entry = f"\n--- THINKING (iteration {iteration}) ---\n{text}\n--- END THINKING ---\n"
         await self._write(entry)
 
     async def log_iteration_start(self, current: int, max_iter: int) -> None:

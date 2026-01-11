@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- CLI commands for user management: `user list`, `user workspace USER_ID`
+- CLI command for workspace inspection: `workspace list`
+
+### Changed
+- Persistence is now entirely server-side; client no longer triggers saves
+- Auto-save pieces to gallery when agent marks them done via orchestrator
+- Removed legacy single-user state management code (`state.py`, `workspace.py`, `handlers.py`)
+
+### Fixed
+- Double piece_count increment when completing pieces (was incremented in both agent.py and workspace_state.py)
+
 ## [1.9.3] - 2026-01-11
 
 ### Changed

@@ -57,8 +57,9 @@ async def shutdown_all_workspaces() -> None:
 
 async def run_migrations() -> None:
     """Run database migrations on startup."""
-    from alembic import command
     from alembic.config import Config
+
+    from alembic import command
 
     # Run alembic upgrade head
     alembic_cfg = Config("alembic.ini")

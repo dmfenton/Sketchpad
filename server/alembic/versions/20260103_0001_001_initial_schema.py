@@ -82,7 +82,9 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_gallery_pieces_workspace_id", "gallery_pieces", ["workspace_id"], unique=False)
+    op.create_index(
+        "ix_gallery_pieces_workspace_id", "gallery_pieces", ["workspace_id"], unique=False
+    )
 
 
 def downgrade() -> None:

@@ -15,6 +15,7 @@ from drawing_agent.types import (
     CodeExecutionMessage,
     ErrorMessage,
     IterationMessage,
+    NewCanvasMessage,
     Path,
     PieceCompleteMessage,
     StatusMessage,
@@ -209,9 +210,37 @@ class AgentOrchestrator:
         await self.broadcast_status(AgentStatus.IDLE)
 
         if done:
-            piece_num = self.agent.get_state().piece_count
-            logger.info(f"Piece {piece_num} complete")
+            # Auto-save completed piece to gallery
+            state = self.agent.get_state()
+            piece_num = state.piece_count
+            logger.info(f"Piece {piece_num} complete - auto-saving to gallery")
+
+            # Broadcast piece complete first (before incrementing piece_count)
             await self.broadcaster.broadcast(PieceCompleteMessage(piece_number=piece_num))
+
+            # Save to gallery and start fresh canvas
+            saved_id = await state.new_canvas()
+            logger.info(f"Saved piece {piece_num} as {saved_id}")
+
+            # Broadcast updates
+            await self.broadcaster.broadcast(NewCanvasMessage(saved_id=saved_id))
+
+            # Send gallery update with metadata only (not full strokes)
+            gallery_pieces = await state.list_gallery()
+            gallery_data = [
+                {
+                    "id": p.id,
+                    "created_at": p.created_at,
+                    "piece_number": p.piece_number,
+                    "stroke_count": len(p.strokes),
+                }
+                for p in gallery_pieces
+            ]
+            await self.broadcaster.broadcast({"type": "gallery_update", "canvases": gallery_data})
+            await self.broadcaster.broadcast({"type": "piece_count", "count": state.piece_count})
+
+            # Reset agent container for next piece
+            self.agent.reset_container()
 
         return done
 
