@@ -536,13 +536,21 @@ class DrawingAgent:
             state.monologue = all_thinking
             await self._save_state()
 
+            completed_piece: int | None = None
             if self._piece_done:
-                state.piece_count += 1
-                self.reset_container()  # Fresh session for new piece
-                await self._save_state()
+                # Capture piece number before incrementing
+                completed_piece = state.piece_count
+                # Save canvas to gallery and start fresh (increments piece_count)
+                result = state.new_canvas()
+                # Handle async (WorkspaceState) vs sync (StateManager)
+                if asyncio.iscoroutine(result):
+                    await result
+                self.reset_container()  # Fresh Claude session for new piece
 
             # Signal turn complete
-            yield AgentTurnComplete(thinking=all_thinking, done=self._piece_done)
+            yield AgentTurnComplete(
+                thinking=all_thinking, done=self._piece_done, piece_number=completed_piece
+            )
 
         except Exception as e:
             logger.exception("Agent turn failed")

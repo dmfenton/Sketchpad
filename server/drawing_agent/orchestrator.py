@@ -185,12 +185,14 @@ class AgentOrchestrator:
 
         done = False
         thinking_text = ""
+        completed_piece: int | None = None
 
         # Consume events from agent - drawing happens in PostToolUse hook
         async for event in self.agent.run_turn(callbacks=callbacks):
             if isinstance(event, AgentTurnComplete):
                 done = event.done
                 thinking_text = event.thinking or ""
+                completed_piece = event.piece_number
                 logger.info(f"Turn complete. Piece done: {done}")
                 # Send complete thinking text as a final message
                 if event.thinking:
@@ -208,10 +210,12 @@ class AgentOrchestrator:
         # Always broadcast IDLE after turn completes
         await self.broadcast_status(AgentStatus.IDLE)
 
-        if done:
-            piece_num = self.agent.get_state().piece_count
-            logger.info(f"Piece {piece_num} complete")
-            await self.broadcaster.broadcast(PieceCompleteMessage(piece_number=piece_num))
+        if done and completed_piece is not None:
+            new_piece_count = self.agent.get_state().piece_count
+            logger.info(f"Piece {completed_piece} complete, now on piece {new_piece_count}")
+            await self.broadcaster.broadcast(
+                PieceCompleteMessage(piece_number=completed_piece, new_piece_count=new_piece_count)
+            )
 
         return done
 

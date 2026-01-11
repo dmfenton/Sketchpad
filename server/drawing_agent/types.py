@@ -190,7 +190,8 @@ class PieceCompleteMessage(BaseModel):
     """A piece has been completed."""
 
     type: Literal["piece_complete"] = "piece_complete"
-    piece_number: int
+    piece_number: int  # The piece that was just completed (0-indexed)
+    new_piece_count: int | None = None  # The new piece count (for status bar update)
 
 
 class IterationMessage(BaseModel):
@@ -264,6 +265,7 @@ class AgentTurnComplete(BaseModel):
     type: Literal["turn_complete"] = "turn_complete"
     thinking: str
     done: bool  # True if piece is complete
+    piece_number: int | None = None  # Piece number that was completed (when done=True)
 
 
 AgentEvent = AgentPathsEvent | AgentTurnComplete

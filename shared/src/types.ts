@@ -152,7 +152,8 @@ export interface ErrorMessage {
 
 export interface PieceCompleteMessage {
   type: 'piece_complete';
-  piece_number: number;
+  piece_number: number; // The piece that was just completed (0-indexed)
+  new_piece_count?: number; // The new piece count (for status bar update)
 }
 
 export interface IterationMessage {

@@ -183,7 +183,11 @@ export const handleError: MessageHandler<ErrorMessage> = (message, dispatch) => 
 export const handlePieceComplete: MessageHandler<PieceCompleteMessage> = (message, dispatch) => {
   // Finalize any streaming thinking before showing piece complete
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
-  dispatch({ type: 'SET_PIECE_COUNT', count: message.piece_number });
+  // Use new_piece_count if available, otherwise increment piece_number for backward compatibility
+  const newPieceCount = message.new_piece_count ?? message.piece_number + 1;
+  dispatch({ type: 'SET_PIECE_COUNT', count: newPieceCount });
+  // Clear canvas since the piece is now saved to gallery
+  dispatch({ type: 'CLEAR' });
   dispatch({
     type: 'ADD_MESSAGE',
     message: {
