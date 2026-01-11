@@ -14,6 +14,7 @@ def _ensure_utc(dt: datetime) -> datetime:
         return dt.replace(tzinfo=UTC)
     return dt
 
+
 # =============================================================================
 # User Repository
 # =============================================================================
@@ -175,7 +176,8 @@ async def cleanup_expired_magic_links(session: AsyncSession) -> int:
     result = await session.execute(
         delete(MagicLinkToken).where(MagicLinkToken.expires_at < datetime.now(UTC))
     )
-    return result.rowcount
+    # rowcount is available on CursorResult but mypy doesn't see it on Result[Any]
+    return getattr(result, "rowcount", 0) or 0
 
 
 # =============================================================================

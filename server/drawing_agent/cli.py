@@ -26,7 +26,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from drawing_agent.agent import AgentCallbacks, CodeExecutionResult, DrawingAgent
+from drawing_agent.agent import AgentCallbacks, CodeExecutionResult, DrawingAgent, ToolCallInfo
 from drawing_agent.interpolation import estimate_path_length, interpolate_path
 from drawing_agent.state import state_manager
 from drawing_agent.types import AgentPathsEvent, AgentStatus, AgentTurnComplete, Path
@@ -206,13 +206,18 @@ async def _run_turn_async(
         else:
             console.print(f"\n[bold blue]--- Iteration {current}/{max_iter} ---[/bold blue]")
 
-    async def on_code_start(iteration: int) -> None:
-        event = {"type": "code_start", "iteration": iteration, "ts": _ts()}
+    async def on_code_start(tool_info: ToolCallInfo) -> None:
+        event = {
+            "type": "code_start",
+            "iteration": tool_info.iteration,
+            "tool": tool_info.name,
+            "ts": _ts(),
+        }
         events_log.append(event)
         if json_output:
             console.print(json.dumps(event))
         else:
-            console.print("\n[yellow]Executing code...[/yellow]")
+            console.print(f"\n[yellow]Executing {tool_info.name}...[/yellow]")
 
     async def on_code_result(result: CodeExecutionResult) -> None:
         event = {

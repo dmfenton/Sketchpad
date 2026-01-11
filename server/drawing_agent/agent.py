@@ -54,7 +54,7 @@ class CodeExecutionResult:
     return_code: int
     iteration: int
     tool_name: str | None = None
-    tool_input: dict | None = None
+    tool_input: dict[str, Any] | None = None
 
 
 @dataclass
@@ -62,7 +62,7 @@ class ToolCallInfo:
     """Information about a tool call."""
 
     name: str  # Tool name (e.g., "draw_paths", "generate_svg")
-    input: dict | None  # Tool input parameters
+    input: dict[str, Any] | None  # Tool input parameters
     iteration: int
 
 
@@ -197,7 +197,7 @@ class DrawingAgent:
             include_partial_messages=True,  # Enable streaming partial messages
             hooks={
                 "PostToolUse": [
-                    HookMatcher(hooks=[self._post_tool_use_hook])
+                    HookMatcher(hooks=[self._post_tool_use_hook])  # type: ignore[list-item]
                 ]
             },
             # Pass API key to SDK subprocess
@@ -223,7 +223,10 @@ class DrawingAgent:
         logger.info(f"PostToolUse: tool={tool_name}, collected_paths={len(self._collected_paths)}")
 
         # After draw_paths or generate_svg, execute drawing and wait
-        if tool_name in ("mcp__drawing__draw_paths", "mcp__drawing__generate_svg") and self._collected_paths:
+        if (
+            tool_name in ("mcp__drawing__draw_paths", "mcp__drawing__generate_svg")
+            and self._collected_paths
+        ):
             if self._on_draw:
                 logger.info(f"PostToolUse: drawing {len(self._collected_paths)} paths")
                 await self._on_draw(self._collected_paths.copy())
@@ -443,7 +446,7 @@ class DrawingAgent:
             all_thinking = ""
             iteration = 1
             last_tool_name: str | None = None
-            last_tool_input: dict | None = None
+            last_tool_input: dict[str, Any] | None = None
 
             # Process response messages
             async for message in self._client.receive_response():
@@ -475,7 +478,12 @@ class DrawingAgent:
                             # Only update all_thinking if it wasn't captured during streaming
                             # (e.g., if streaming was interrupted or incomplete)
                             text = block.text
-                            if text and all_thinking and not all_thinking.endswith(text) and text not in all_thinking:
+                            if (
+                                text
+                                and all_thinking
+                                and not all_thinking.endswith(text)
+                                and text not in all_thinking
+                            ):
                                 # This is new text that wasn't streamed - rare edge case
                                 logger.debug(f"Non-streamed text block: {len(text)} chars")
                                 all_thinking += text
@@ -492,7 +500,7 @@ class DrawingAgent:
                             # Extract friendly tool name (remove mcp__drawing__ prefix)
                             tool_name = block.name
                             if tool_name.startswith("mcp__drawing__"):
-                                tool_name = tool_name[len("mcp__drawing__"):]
+                                tool_name = tool_name[len("mcp__drawing__") :]
                             logger.info(f"Tool use: {tool_name}")
                             # Track tool info for pairing with result
                             last_tool_name = tool_name

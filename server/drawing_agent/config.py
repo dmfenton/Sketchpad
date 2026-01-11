@@ -25,8 +25,7 @@ def _get_ssm_params() -> dict[str, str]:
         ssm = boto3.client("ssm", region_name=region)
         resp = ssm.get_parameters_by_path(Path=path, WithDecryption=True)
         params = {
-            p["Name"].split("/")[-1].replace("-", "_"): p["Value"]
-            for p in resp["Parameters"]
+            p["Name"].split("/")[-1].replace("-", "_"): p["Value"] for p in resp["Parameters"]
         }
         logger.info(f"Loaded {len(params)} parameters from SSM ({path})")
         return params
@@ -118,4 +117,4 @@ class Settings(BaseSettings):
     aws_region: str = "us-east-1"
 
 
-settings = Settings()  # type: ignore[call-arg]
+settings = Settings()

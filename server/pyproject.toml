@@ -91,3 +91,10 @@ disallow_untyped_defs = true
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+
+[dependency-groups]
+dev = [
+    "boto3-stubs>=1.42.25",
+    "types-aiofiles>=25.1.0.20251011",
+    "types-python-jose>=3.5.0.20250531",
+]

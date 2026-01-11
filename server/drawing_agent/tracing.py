@@ -102,7 +102,7 @@ def get_current_trace_id() -> str | None:
     return None
 
 
-def record_client_spans(spans: list[dict]) -> int:
+def record_client_spans(spans: list[dict[str, Any]]) -> int:
     """Record spans received from mobile/web clients.
 
     Converts client span data to OpenTelemetry spans and exports them.

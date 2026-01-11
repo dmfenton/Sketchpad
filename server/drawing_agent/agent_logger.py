@@ -62,9 +62,7 @@ class AgentFileLogger:
 
             # List all log files
             entries = await aiofiles.os.listdir(self._logs_dir)
-            log_files = sorted(
-                [f for f in entries if f.startswith("turn_") and f.endswith(".log")]
-            )
+            log_files = sorted([f for f in entries if f.startswith("turn_") and f.endswith(".log")])
 
             # Remove oldest files if exceeding limit
             files_to_remove = len(log_files) - self._max_log_files
@@ -142,9 +140,7 @@ class AgentFileLogger:
         if not text:
             return
         entry = (
-            f"\n--- THINKING (iteration {iteration}) ---\n"
-            f"{text}\n"
-            f"--- END THINKING ---\n"
+            f"\n--- THINKING (iteration {iteration}) ---\n" f"{text}\n" f"--- END THINKING ---\n"
         )
         await self._write(entry)
 
@@ -207,7 +203,7 @@ class AgentFileLogger:
         if not await aiofiles.os.path.exists(self._logs_dir):
             return []
 
-        result = []
+        result: list[dict[str, str | int]] = []
         entries = await aiofiles.os.listdir(self._logs_dir)
         log_files = sorted(
             [f for f in entries if f.startswith("turn_") and f.endswith(".log")],
@@ -218,11 +214,14 @@ class AgentFileLogger:
             filepath = self._logs_dir / filename
             try:
                 stat = await aiofiles.os.stat(filepath)
-                result.append({
-                    "filename": filename,
-                    "size": stat.st_size,
-                    "modified": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat(),
-                })
+                modified_iso: str = datetime.fromtimestamp(stat.st_mtime, UTC).isoformat()
+                result.append(
+                    {
+                        "filename": filename,
+                        "size": stat.st_size,
+                        "modified": modified_iso,
+                    }
+                )
             except Exception:
                 continue
 
@@ -265,7 +264,7 @@ class AgentFileLogger:
         results = []
 
         for file_info in files[:count]:
-            filename = file_info["filename"]
+            filename = str(file_info["filename"])
             log_data = await self.read_log_file(filename)
             log_data["filename"] = filename
             results.append(log_data)
