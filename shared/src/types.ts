@@ -103,19 +103,6 @@ export interface GalleryChangedMessage {
   type: 'gallery_changed';
 }
 
-// @deprecated Use GalleryChangedMessage + REST API instead
-export interface GalleryUpdateMessage {
-  type: 'gallery_update';
-  canvases: SavedCanvas[];
-}
-
-// @deprecated Use REST API GET /gallery/{piece_number} instead
-export interface LoadCanvasMessage {
-  type: 'load_canvas';
-  strokes: Path[];
-  piece_number: number;
-}
-
 export interface InitMessage {
   type: 'init';
   strokes: Path[];
@@ -182,8 +169,6 @@ export type ServerMessage =
   | ClearMessage
   | NewCanvasMessage
   | GalleryChangedMessage
-  | GalleryUpdateMessage // @deprecated
-  | LoadCanvasMessage // @deprecated
   | InitMessage
   | PieceCountMessage
   | CodeExecutionMessage
@@ -221,19 +206,13 @@ export interface ClientNewCanvasMessage {
   direction?: string; // Optional direction for the agent
 }
 
-export interface ClientLoadCanvasMessage {
-  type: 'load_canvas';
-  canvas_id: string;
-}
-
 export type ClientMessage =
   | ClientStrokeMessage
   | ClientNudgeMessage
   | ClientClearMessage
   | ClientPauseMessage
   | ClientResumeMessage
-  | ClientNewCanvasMessage
-  | ClientLoadCanvasMessage;
+  | ClientNewCanvasMessage;
 
 // Agent message types for MessageStream component
 export type AgentMessageType =

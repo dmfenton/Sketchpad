@@ -142,21 +142,6 @@ class NewCanvasMessage(BaseModel):
     saved_id: str | None = None  # ID of saved canvas, None if was empty
 
 
-class GalleryUpdateMessage(BaseModel):
-    """Gallery was updated."""
-
-    type: Literal["gallery_update"] = "gallery_update"
-    canvases: list[SavedCanvas]
-
-
-class LoadCanvasMessage(BaseModel):
-    """Load a canvas from gallery."""
-
-    type: Literal["load_canvas"] = "load_canvas"
-    strokes: list[Path]
-    piece_number: int
-
-
 class ThinkingDeltaMessage(BaseModel):
     """Incremental thinking text (delta only, not accumulated)."""
 
@@ -237,8 +222,6 @@ ServerMessage = (
     | StatusMessage
     | ClearMessage
     | NewCanvasMessage
-    | GalleryUpdateMessage
-    | LoadCanvasMessage
     | CodeExecutionMessage
     | ErrorMessage
     | PieceCompleteMessage

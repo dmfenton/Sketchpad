@@ -5,7 +5,7 @@
 
 import { useCallback, useReducer } from 'react';
 
-import type { Path, ServerMessage } from '@drawing-agent/shared';
+import type { Path, SavedCanvas, ServerMessage } from '@drawing-agent/shared';
 import {
   canvasReducer,
   initialState,
@@ -26,6 +26,8 @@ export interface UseCanvasReturn {
   clear: () => void;
   clearMessages: () => void;
   setPaused: (paused: boolean) => void;
+  setGallery: (canvases: SavedCanvas[]) => void;
+  loadCanvas: (strokes: Path[], pieceNumber: number) => void;
 }
 
 export function useCanvas(): UseCanvasReturn {
@@ -76,6 +78,14 @@ export function useCanvas(): UseCanvasReturn {
     dispatch({ type: 'CLEAR_MESSAGES' });
   }, []);
 
+  const setGallery = useCallback((canvases: SavedCanvas[]) => {
+    dispatch({ type: 'SET_GALLERY', canvases });
+  }, []);
+
+  const loadCanvas = useCallback((strokes: Path[], pieceNumber: number) => {
+    dispatch({ type: 'LOAD_CANVAS', strokes, pieceNumber });
+  }, []);
+
   return {
     state,
     handleMessage,
@@ -86,6 +96,8 @@ export function useCanvas(): UseCanvasReturn {
     clear,
     clearMessages,
     setPaused,
+    setGallery,
+    loadCanvas,
   };
 }
 

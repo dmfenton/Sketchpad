@@ -47,7 +47,7 @@ function MainApp(): React.JSX.Element {
   // Function to load gallery via REST and update state
   const loadGallery = useCallback(async () => {
     const gallery = await fetchGallery();
-    canvas.handleMessage({ type: 'gallery_update', canvases: gallery });
+    canvas.setGallery(gallery);
   }, [fetchGallery, canvas]);
 
   // Handle WebSocket messages, intercept gallery_changed to refetch
@@ -144,12 +144,7 @@ function MainApp(): React.JSX.Element {
         void (async () => {
           const piece = await fetchGalleryPiece(pieceNumber);
           if (piece) {
-            // Dispatch load action to update canvas
-            canvas.handleMessage({
-              type: 'load_canvas',
-              strokes: piece.strokes,
-              piece_number: piece.piece_number,
-            });
+            canvas.loadCanvas(piece.strokes, piece.piece_number);
           }
         })();
       }
