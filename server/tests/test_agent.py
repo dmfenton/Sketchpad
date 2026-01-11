@@ -1,7 +1,7 @@
 """Tests for the drawing agent module."""
 
 import base64
-from unittest.mock import patch
+from typing import Any
 
 import pytest
 from PIL import Image
@@ -98,17 +98,25 @@ class TestDrawingAgentRunTurn:
 class TestDrawingAgentBuildPrompt:
     """Tests for building the prompt string."""
 
+    def _create_mock_state(
+        self, strokes: list | None = None, notes: str = "", piece_count: int = 0
+    ) -> Any:
+        """Create a mock state object for testing."""
+        from unittest.mock import MagicMock
+
+        mock_state = MagicMock()
+        mock_canvas = MagicMock()
+        mock_canvas.strokes = strokes or []
+        mock_state.canvas = mock_canvas
+        mock_state.notes = notes
+        mock_state.piece_count = piece_count
+        return mock_state
+
     def test_build_prompt_basic(self) -> None:
         agent = DrawingAgent()
+        agent._state = self._create_mock_state()
 
-        with (
-            patch("drawing_agent.agent.get_strokes", return_value=[]),
-            patch("drawing_agent.agent.state_manager") as mock_state,
-        ):
-            mock_state.notes = ""
-            mock_state.piece_count = 0
-
-            prompt = agent._build_prompt()
+        prompt = agent._build_prompt()
 
         # Should be a string with canvas info
         assert isinstance(prompt, str)
@@ -118,15 +126,12 @@ class TestDrawingAgentBuildPrompt:
 
     def test_build_prompt_with_notes(self) -> None:
         agent = DrawingAgent()
+        agent._state = self._create_mock_state(
+            notes="Previous work: drew a circle",
+            piece_count=1,
+        )
 
-        with (
-            patch("drawing_agent.agent.get_strokes", return_value=[]),
-            patch("drawing_agent.agent.state_manager") as mock_state,
-        ):
-            mock_state.notes = "Previous work: drew a circle"
-            mock_state.piece_count = 1
-
-            prompt = agent._build_prompt()
+        prompt = agent._build_prompt()
 
         # Should include notes
         assert "Your notes:" in prompt
@@ -134,17 +139,11 @@ class TestDrawingAgentBuildPrompt:
 
     def test_build_prompt_with_nudges(self) -> None:
         agent = DrawingAgent()
+        agent._state = self._create_mock_state()
         agent.add_nudge("Draw a tree")
         agent.add_nudge("Use green")
 
-        with (
-            patch("drawing_agent.agent.get_strokes", return_value=[]),
-            patch("drawing_agent.agent.state_manager") as mock_state,
-        ):
-            mock_state.notes = ""
-            mock_state.piece_count = 0
-
-            prompt = agent._build_prompt()
+        prompt = agent._build_prompt()
 
         # Should include nudges
         assert "Human nudges:" in prompt
@@ -156,16 +155,10 @@ class TestDrawingAgentBuildPrompt:
 
     def test_build_prompt_clears_nudges(self) -> None:
         agent = DrawingAgent()
+        agent._state = self._create_mock_state()
         agent.add_nudge("Test nudge")
 
-        with (
-            patch("drawing_agent.agent.get_strokes", return_value=[]),
-            patch("drawing_agent.agent.state_manager") as mock_state,
-        ):
-            mock_state.notes = ""
-            mock_state.piece_count = 0
-
-            agent._build_prompt()
+        agent._build_prompt()
 
         # Nudges should be cleared
         assert agent.pending_nudges == []

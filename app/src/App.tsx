@@ -41,10 +41,11 @@ function MainApp(): React.JSX.Element {
   const canvasRef = useRef(canvas);
   canvasRef.current = canvas;
 
-  // Stable callback that doesn't change between renders
+  // Stable callback that doesn't change between renders (uses ref pattern)
   const handleMessage = useCallback((message: Parameters<typeof canvas.handleMessage>[0]) => {
     canvasRef.current.handleMessage(message);
-  }, []); // Empty deps - stable callback
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle auth errors from WebSocket by trying to refresh, then sign out
   const handleAuthError = useCallback(() => {
