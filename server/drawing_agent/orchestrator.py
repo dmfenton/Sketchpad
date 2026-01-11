@@ -76,7 +76,9 @@ class AgentOrchestrator:
             await self.broadcaster.broadcast(msg)
 
         state = self.agent.get_state()
-        async for _ in execute_paths(paths, send_message, state=state):
+        # skip_state_update=True because strokes are added by the tool handler
+        # (before PostToolUse) so the canvas image includes them in the tool result
+        async for _ in execute_paths(paths, send_message, state=state, skip_state_update=True):
             pass
 
         # Back to thinking after drawing
