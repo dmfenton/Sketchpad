@@ -3,12 +3,7 @@
  */
 
 import React, { useCallback } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
@@ -57,7 +52,8 @@ function ActionButton({
         styles.button,
         active && { backgroundColor: colors.surfaceElevated },
         disabled && styles.buttonDisabled,
-        pressed && !disabled && { backgroundColor: colors.surfaceElevated, transform: [{ scale: 0.96 }] },
+        pressed &&
+          !disabled && { backgroundColor: colors.surfaceElevated, transform: [{ scale: 0.96 }] },
       ]}
       onPress={handlePress}
       disabled={disabled}
@@ -69,10 +65,10 @@ function ActionButton({
           disabled
             ? colors.textMuted
             : active
-            ? colors.primary
-            : variant === 'danger'
-            ? colors.error
-            : colors.textPrimary
+              ? colors.primary
+              : variant === 'danger'
+                ? colors.error
+                : colors.textPrimary
         }
       />
       <Text

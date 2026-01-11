@@ -100,3 +100,68 @@ def get_current_trace_id() -> str | None:
     if span and span.get_span_context().is_valid:
         return format(span.get_span_context().trace_id, "032x")
     return None
+
+
+def record_client_spans(spans: list[dict]) -> int:
+    """Record spans received from mobile/web clients.
+
+    Converts client span data to OpenTelemetry spans and exports them.
+
+    Args:
+        spans: List of span dicts from client with keys:
+            - traceId: X-Ray format trace ID
+            - spanId: 16 hex char span ID
+            - name: Span name
+            - startTime: Unix timestamp in ms
+            - endTime: Unix timestamp in ms (optional)
+            - attributes: Dict of attributes
+            - status: 'ok' or 'error'
+            - error: Error message (optional)
+
+    Returns:
+        Number of spans recorded
+    """
+    if not settings.otel_enabled:
+        return 0
+
+    tracer = get_tracer("mobile-client")
+    recorded = 0
+
+    for span_data in spans:
+        try:
+            # Create span with client-provided name and attributes
+            name = span_data.get("name", "unknown")
+            attributes = span_data.get("attributes", {})
+
+            # Add client trace/span IDs as attributes for correlation
+            attributes["client.trace_id"] = span_data.get("traceId", "")
+            attributes["client.span_id"] = span_data.get("spanId", "")
+            attributes["client.source"] = "mobile"
+
+            # Calculate duration
+            start_time = span_data.get("startTime", 0)
+            end_time = span_data.get("endTime", start_time)
+            duration_ms = end_time - start_time if end_time else 0
+            attributes["duration_ms"] = duration_ms
+
+            # Create the span
+            with tracer.start_as_current_span(
+                name,
+                kind=trace.SpanKind.CLIENT,
+            ) as span:
+                # Set attributes
+                for key, value in attributes.items():
+                    if isinstance(value, str | int | float | bool):
+                        span.set_attribute(key, value)
+
+                # Set error status if applicable
+                if span_data.get("status") == "error":
+                    error_msg = span_data.get("error", "Unknown error")
+                    span.set_status(trace.Status(trace.StatusCode.ERROR, error_msg))
+
+            recorded += 1
+
+        except Exception as e:
+            logger.warning(f"Failed to record client span: {e}")
+
+    return recorded

@@ -57,12 +57,7 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
   const remainingChars = MAX_LENGTH - text.length;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -101,7 +96,9 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
                 style={[styles.suggestionChip, { backgroundColor: colors.surfaceElevated }]}
                 onPress={() => handleSuggestion(suggestion)}
               >
-                <Text style={[styles.suggestionText, { color: colors.textSecondary }]}>{suggestion}</Text>
+                <Text style={[styles.suggestionText, { color: colors.textSecondary }]}>
+                  {suggestion}
+                </Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -109,7 +106,10 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
           {/* Input */}
           <View style={styles.inputContainer}>
             <TextInput
-              style={[styles.input, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
+              style={[
+                styles.input,
+                { backgroundColor: colors.surfaceElevated, color: colors.textPrimary },
+              ]}
               value={text}
               onChangeText={(t) => setText(t.slice(0, MAX_LENGTH))}
               placeholder="Type your suggestion..."

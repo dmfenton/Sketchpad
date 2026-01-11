@@ -3,18 +3,18 @@
  */
 
 import React from 'react';
-import {
-  FlatList,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { SavedCanvas } from '@drawing-agent/shared';
-import { spacing, borderRadius, typography, useTheme, type ColorScheme, type ShadowScheme } from '../theme';
+import {
+  spacing,
+  borderRadius,
+  typography,
+  useTheme,
+  type ColorScheme,
+  type ShadowScheme,
+} from '../theme';
 
 interface GalleryModalProps {
   visible: boolean;
@@ -52,8 +52,12 @@ function GalleryItem({ canvas, onPress, colors, shadows }: GalleryItemProps): Re
       onPress={onPress}
     >
       <View style={styles.itemHeader}>
-        <Text style={[styles.itemTitle, { color: colors.textPrimary }]}>Piece #{canvas.piece_number}</Text>
-        <Text style={[styles.itemDate, { color: colors.textMuted }]}>{formatDate(canvas.created_at)}</Text>
+        <Text style={[styles.itemTitle, { color: colors.textPrimary }]}>
+          Piece #{canvas.piece_number}
+        </Text>
+        <Text style={[styles.itemDate, { color: colors.textMuted }]}>
+          {formatDate(canvas.created_at)}
+        </Text>
       </View>
       <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>
         {canvas.stroke_count} strokes
@@ -87,7 +91,9 @@ export function GalleryModal({
         {canvases.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="images-outline" size={48} color={colors.textMuted} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No saved canvases yet</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              No saved canvases yet
+            </Text>
             <Text style={[styles.emptyHint, { color: colors.textMuted }]}>
               Tap &quot;New&quot; to save the current canvas and start fresh
             </Text>

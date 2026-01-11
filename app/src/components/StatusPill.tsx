@@ -31,7 +31,10 @@ export function StatusPill({
 
   useEffect(() => {
     // Only pulse when actively thinking, executing, or drawing
-    const isActiveStatus = effectiveStatus === 'thinking' || effectiveStatus === 'executing' || effectiveStatus === 'drawing';
+    const isActiveStatus =
+      effectiveStatus === 'thinking' ||
+      effectiveStatus === 'executing' ||
+      effectiveStatus === 'drawing';
     if (isActiveStatus && connected) {
       const animation = Animated.loop(
         Animated.sequence([
@@ -54,7 +57,10 @@ export function StatusPill({
     }
   }, [effectiveStatus, connected, pulseAnim]);
 
-  const isActive = effectiveStatus === 'thinking' || effectiveStatus === 'executing' || effectiveStatus === 'drawing';
+  const isActive =
+    effectiveStatus === 'thinking' ||
+    effectiveStatus === 'executing' ||
+    effectiveStatus === 'drawing';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }, shadows.sm]}>

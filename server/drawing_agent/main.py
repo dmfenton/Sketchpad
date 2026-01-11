@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from PIL import Image, ImageDraw
+from pydantic import BaseModel
 
 from drawing_agent.auth import auth_router
 from drawing_agent.auth.dependencies import CurrentUser
@@ -23,7 +24,7 @@ from drawing_agent.db import User, get_session, repository
 from drawing_agent.registry import workspace_registry
 from drawing_agent.share import share_router
 from drawing_agent.shutdown import shutdown_manager
-from drawing_agent.tracing import get_current_trace_id, setup_tracing
+from drawing_agent.tracing import get_current_trace_id, record_client_spans, setup_tracing
 from drawing_agent.user_handlers import handle_user_message
 from drawing_agent.workspace_state import WorkspaceState
 
@@ -55,9 +56,8 @@ async def shutdown_all_workspaces() -> None:
 
 async def run_migrations() -> None:
     """Run database migrations on startup."""
-    from alembic.config import Config
-
     from alembic import command
+    from alembic.config import Config
 
     # Run alembic upgrade head
     alembic_cfg = Config("alembic.ini")
@@ -159,6 +159,46 @@ async def version() -> dict[str, str | None]:
         "commit": os.environ.get("APP_COMMIT"),
         "build_time": os.environ.get("APP_BUILD_TIME"),
     }
+
+
+# ============== Client Tracing ==============
+
+
+class ClientSpan(BaseModel):
+    """A span from the mobile/web client."""
+
+    traceId: str
+    spanId: str
+    parentSpanId: str | None = None
+    name: str
+    startTime: int  # Unix timestamp in ms
+    endTime: int | None = None
+    attributes: dict[str, str | int | float | bool] = {}
+    status: str = "ok"
+    error: str | None = None
+
+
+class TracesRequest(BaseModel):
+    """Request body for POST /traces."""
+
+    spans: list[ClientSpan]
+
+
+@app.post("/traces")
+async def receive_traces(request: TracesRequest) -> dict[str, int]:
+    """Receive traces from mobile/web clients.
+
+    Accepts spans from client-side tracing and forwards them to X-Ray
+    via the OpenTelemetry collector. This enables end-to-end distributed
+    tracing from mobile app through the server.
+
+    No authentication required to minimize overhead on the client.
+    Spans are tagged with client.source=mobile for filtering.
+    """
+    # Convert Pydantic models to dicts for the tracing function
+    spans_data = [span.model_dump() for span in request.spans]
+    recorded = record_client_spans(spans_data)
+    return {"received": recorded}
 
 
 @app.get("/.well-known/apple-app-site-association")
@@ -313,6 +353,7 @@ async def get_dev_token() -> dict[str, str]:
         dev_user = await repository.get_user_by_email(session, dev_email)
         if not dev_user:
             from drawing_agent.auth.password import hash_password
+
             dev_user = await repository.create_user(
                 session, dev_email, hash_password("devpassword")
             )
@@ -362,12 +403,14 @@ async def get_workspace_debug(user: CurrentUser) -> dict[str, Any]:
         for file_path in workspace_dir.rglob("*"):
             if file_path.is_file():
                 stat = file_path.stat()
-                files.append({
-                    "name": file_path.name,
-                    "path": str(file_path.relative_to(workspace_dir)),
-                    "size": stat.st_size,
-                    "modified": stat.st_mtime,
-                })
+                files.append(
+                    {
+                        "name": file_path.name,
+                        "path": str(file_path.relative_to(workspace_dir)),
+                        "size": stat.st_size,
+                        "modified": stat.st_mtime,
+                    }
+                )
 
     return {"files": files}
 
@@ -441,15 +484,19 @@ async def get_agent_logs(
 async def websocket_endpoint(
     websocket: WebSocket,
     token: str | None = Query(default=None),
+    trace_id: str | None = Query(default=None),
 ) -> None:
     """WebSocket endpoint with JWT authentication and per-user routing.
 
-    Connect with: ws://host/ws?token=<jwt_access_token>
+    Connect with: ws://host/ws?token=<jwt_access_token>&trace_id=<client_trace_id>
 
     Each authenticated user gets their own workspace with:
     - Isolated canvas state
     - Personal agent instance
     - Private gallery
+
+    The optional trace_id parameter allows distributed tracing correlation
+    with mobile client spans.
     """
     # Must accept before any operations per ASGI spec
     await websocket.accept()
@@ -483,6 +530,16 @@ async def websocket_endpoint(
         return
 
     logger.info(f"WebSocket authenticated: user {user.email} (id={user_id})")
+
+    # Record client trace ID for distributed tracing correlation
+    if trace_id:
+        from opentelemetry import trace as otel_trace
+
+        current_span = otel_trace.get_current_span()
+        if current_span.is_recording():
+            current_span.set_attribute("client.trace_id", trace_id)
+            current_span.set_attribute("client.source", "mobile")
+        logger.debug(f"Client trace_id: {trace_id}")
 
     # Get or create user's workspace
     workspace = await workspace_registry.get_or_activate(user_id)

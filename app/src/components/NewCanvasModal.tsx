@@ -35,7 +35,11 @@ const DIRECTION_SUGGESTIONS = [
 
 const MAX_LENGTH = 200;
 
-export function NewCanvasModal({ visible, onClose, onStart }: NewCanvasModalProps): React.JSX.Element {
+export function NewCanvasModal({
+  visible,
+  onClose,
+  onStart,
+}: NewCanvasModalProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const [text, setText] = useState('');
 
@@ -64,12 +68,7 @@ export function NewCanvasModal({ visible, onClose, onStart }: NewCanvasModalProp
   const remainingChars = MAX_LENGTH - text.length;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -108,7 +107,9 @@ export function NewCanvasModal({ visible, onClose, onStart }: NewCanvasModalProp
                 style={[styles.suggestionChip, { backgroundColor: colors.surfaceElevated }]}
                 onPress={() => handleSuggestion(suggestion)}
               >
-                <Text style={[styles.suggestionText, { color: colors.textSecondary }]}>{suggestion}</Text>
+                <Text style={[styles.suggestionText, { color: colors.textSecondary }]}>
+                  {suggestion}
+                </Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -116,7 +117,10 @@ export function NewCanvasModal({ visible, onClose, onStart }: NewCanvasModalProp
           {/* Input */}
           <View style={styles.inputContainer}>
             <TextInput
-              style={[styles.input, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
+              style={[
+                styles.input,
+                { backgroundColor: colors.surfaceElevated, color: colors.textPrimary },
+              ]}
               value={text}
               onChangeText={(t) => setText(t.slice(0, MAX_LENGTH))}
               placeholder="Describe what to draw..."

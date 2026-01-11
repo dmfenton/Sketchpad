@@ -273,11 +273,7 @@ export function AuthScreen({ magicLinkError, onClearError }: AuthScreenProps): R
                   ? "Don't have an account? "
                   : 'Sign in with '}
               <Text style={{ color: colors.primary }}>
-                {mode === 'magic-link'
-                  ? 'Sign In'
-                  : mode === 'signin'
-                    ? 'Sign Up'
-                    : 'Magic Link'}
+                {mode === 'magic-link' ? 'Sign In' : mode === 'signin' ? 'Sign Up' : 'Magic Link'}
               </Text>
             </Text>
           </Pressable>

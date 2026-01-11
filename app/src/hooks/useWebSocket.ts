@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ClientMessage, ServerMessage } from '@drawing-agent/shared';
 
+import { tracer } from '../utils/tracing';
+
 export interface WebSocketState {
   connected: boolean;
   error: string | null;
@@ -54,30 +56,44 @@ export function useWebSocket({
     }
 
     // Don't create new connection if one already exists and is connecting/open
-    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
+    if (
+      wsRef.current &&
+      (wsRef.current.readyState === WebSocket.CONNECTING ||
+        wsRef.current.readyState === WebSocket.OPEN)
+    ) {
       console.log('[WebSocket] Already connected/connecting, skipping');
       return;
     }
 
     try {
-      // Append token to URL
-      const wsUrl = `${url}?token=${encodeURIComponent(token)}`;
+      // Append token and trace ID to URL for distributed tracing
+      const traceId = tracer.getTraceId();
+      const wsUrl = `${url}?token=${encodeURIComponent(token)}&trace_id=${traceId}`;
       console.log('[WebSocket] Connecting to:', url);
+
+      // Record connection attempt
+      tracer.recordEvent('ws.connect', { url });
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         console.log('[WebSocket] Connected!');
+        tracer.recordEvent('ws.connected');
         setState({ connected: true, error: null });
       };
 
       ws.onclose = (event) => {
         console.log('[WebSocket] Closed with code:', event.code, 'reason:', event.reason);
+        tracer.recordEvent('ws.disconnect', {
+          code: event.code,
+          reason: event.reason || '',
+        });
         setState((prev) => ({ ...prev, connected: false }));
         wsRef.current = null;
 
         // Auth error codes (4001 = auth failed)
         if (event.code === 4001) {
           console.log('[WebSocket] Auth error, triggering callback');
+          tracer.recordEvent('ws.auth_error');
           onAuthErrorRef.current?.();
           return; // Don't reconnect on auth errors
         }
@@ -88,6 +104,7 @@ export function useWebSocket({
 
       ws.onerror = (e) => {
         console.error('[WebSocket] Error:', e);
+        tracer.recordError('ws.error', new Error('WebSocket connection error'));
         setState((prev) => ({ ...prev, error: 'Connection error' }));
       };
 
@@ -98,11 +115,16 @@ export function useWebSocket({
           onMessageRef.current(message);
         } catch (e) {
           console.error('Failed to handle message:', e, '\nData:', event.data.substring(0, 200));
+          tracer.recordError(
+            'ws.message_parse_error',
+            e instanceof Error ? e : new Error(String(e))
+          );
         }
       };
 
       wsRef.current = ws;
-    } catch {
+    } catch (e) {
+      tracer.recordError('ws.connect_error', e instanceof Error ? e : new Error(String(e)));
       setState({ connected: false, error: 'Failed to connect' });
     }
   }, [url, token, reconnectInterval]);
