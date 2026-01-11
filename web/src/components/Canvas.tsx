@@ -2,7 +2,7 @@
  * SVG canvas component for web - renders strokes and handles mouse input.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import type { Path, Point } from '@drawing-agent/shared';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@drawing-agent/shared';
 
@@ -103,7 +103,7 @@ export function Canvas({
   onStrokeStart,
   onStrokeMove,
   onStrokeEnd,
-}: CanvasProps) {
+}: CanvasProps): React.ReactElement {
   const svgRef = useRef<SVGSVGElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 

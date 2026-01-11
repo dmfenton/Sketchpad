@@ -2,7 +2,7 @@
  * Message stream showing agent thoughts as bubbles.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { AgentMessage, AgentStatus } from '@drawing-agent/shared';
 import { STATUS_LABELS, LIVE_MESSAGE_ID } from '@drawing-agent/shared';
 
@@ -34,7 +34,7 @@ interface MessageBubbleProps {
   message: AgentMessage;
 }
 
-function MessageBubble({ message }: MessageBubbleProps) {
+function MessageBubble({ message }: MessageBubbleProps): React.ReactElement {
   const [expanded, setExpanded] = useState(false);
 
   // Iteration indicator
@@ -123,7 +123,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
   );
 }
 
-export function MessageStream({ messages, status }: MessageStreamProps) {
+export function MessageStream({ messages, status }: MessageStreamProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [showRaw, setShowRaw] = useState(false);
@@ -137,7 +137,7 @@ export function MessageStream({ messages, status }: MessageStreamProps) {
     }
   }, [messages, autoScroll]);
 
-  const handleScroll = () => {
+  const handleScroll = (): void => {
     if (!containerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
     const isAtBottom = scrollTop >= scrollHeight - clientHeight - 50;

@@ -59,21 +59,21 @@ export function useWebSocket({
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
-      ws.onopen = () => {
+      ws.onopen = (): void => {
         console.log('[WebSocket] Connected');
         setStatus('connected');
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = (event: MessageEvent): void => {
         try {
-          const message = JSON.parse(event.data) as ServerMessage;
+          const message = JSON.parse(event.data as string) as ServerMessage;
           onMessage(message);
         } catch (e) {
           console.error('[WebSocket] Failed to parse message:', e);
         }
       };
 
-      ws.onclose = (event) => {
+      ws.onclose = (event: CloseEvent): void => {
         console.log('[WebSocket] Disconnected:', event.code, event.reason);
         setStatus('disconnected');
         wsRef.current = null;
@@ -90,11 +90,11 @@ export function useWebSocket({
         }
         reconnectTimeoutRef.current = window.setTimeout(() => {
           console.log('[WebSocket] Reconnecting...');
-          connect();
+          void connect();
         }, 3000);
       };
 
-      ws.onerror = (error) => {
+      ws.onerror = (error: Event): void => {
         console.error('[WebSocket] Error:', error);
       };
     } catch (error) {
