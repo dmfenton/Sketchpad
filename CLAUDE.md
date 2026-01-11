@@ -583,22 +583,45 @@ Production uses OpenTelemetry with AWS X-Ray for distributed tracing:
 - **Collector**: ADOT Collector sidecar receives OTLP, exports to X-Ray
 - **Console**: View traces in AWS X-Ray console
 
-### Diagnosing Errors
+### Diagnose CLI
 
-Use the `/diagnose` skill or run the script directly:
+Use the `/diagnose` skill or run `scripts/diagnose.py` directly:
 
 ```bash
-# Show recent error traces (default)
-uv run python scripts/diagnose.py errors
+# Service status (quick health check, last 5 min)
+uv run python scripts/diagnose.py status
 
-# Show all recent traces
-uv run python scripts/diagnose.py recent
+# Traffic summary with stats
+uv run python scripts/diagnose.py summary 60
 
-# Get full trace details (including stack traces)
-uv run python scripts/diagnose.py trace 1-67890abc-def123456789abcd
+# Recent error traces
+uv run python scripts/diagnose.py errors 60
 
-# Show traces for specific endpoint
-uv run python scripts/diagnose.py path /auth/verify
+# All recent traces
+uv run python scripts/diagnose.py recent 30
+
+# WebSocket session traces
+uv run python scripts/diagnose.py ws 120
+
+# Slow traces (>1s duration, useful for finding WS sessions)
+uv run python scripts/diagnose.py slow 1 180
+
+# Traces for specific endpoint
+uv run python scripts/diagnose.py path /auth/verify 60
+
+# Full trace details (including stack traces)
+uv run python scripts/diagnose.py trace <trace_id>
+```
+
+**Output formats:**
+- `--md` / `--markdown` - Markdown tables (for Claude to read)
+- `--json` - JSON output (for scripts)
+- Default: Rich terminal tables
+
+Example with markdown output:
+```bash
+uv run python scripts/diagnose.py status --md
+uv run python scripts/diagnose.py ws 120 --md
 ```
 
 ### Trace IDs in Errors
