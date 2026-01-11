@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.5] - 2026-01-11
+
+### Added
+- Inject canvas image into tool results after drawing (agent sees result of its work)
+- Scrollable code previews for generate_svg tool in message stream
+
 ## [1.7.4] - 2026-01-10
 
 ### Fixed
@@ -233,7 +239,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.7.4...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.7.5...HEAD
+[1.7.5]: https://github.com/dmfenton/sketchpad/compare/v1.7.4...v1.7.5
 [1.7.4]: https://github.com/dmfenton/sketchpad/compare/v1.7.3...v1.7.4
 [1.6.0]: https://github.com/dmfenton/sketchpad/compare/v1.5.2...v1.6.0
 [1.5.2]: https://github.com/dmfenton/sketchpad/compare/v1.5.1...v1.5.2
