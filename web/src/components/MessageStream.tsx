@@ -11,6 +11,20 @@ interface MessageStreamProps {
   status: AgentStatus;
 }
 
+/**
+ * Extract code from tool_input metadata for preview
+ */
+function getCodeFromInput(
+  toolInput: Record<string, unknown> | null | undefined
+): string | null {
+  if (!toolInput) return null;
+  const code = toolInput.code;
+  if (typeof code === 'string') {
+    return code;
+  }
+  return null;
+}
+
 function formatTime(timestamp: number): string {
   const date = new Date(timestamp);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -54,17 +68,33 @@ function MessageBubble({ message }: MessageBubbleProps) {
   // Code execution
   if (message.type === 'code_execution') {
     const hasOutput = message.metadata?.stdout || message.metadata?.stderr;
+    const toolName = message.metadata?.tool_name;
+    const codePreview =
+      toolName === 'generate_svg'
+        ? getCodeFromInput(message.metadata?.tool_input)
+        : null;
+    const hasExpandableContent = hasOutput || codePreview;
 
     return (
       <div className="message code_execution">
         <div
           className="message-header"
-          onClick={() => hasOutput && setExpanded(!expanded)}
-          style={{ cursor: hasOutput ? 'pointer' : 'default' }}
+          onClick={() => hasExpandableContent && setExpanded(!expanded)}
+          style={{ cursor: hasExpandableContent ? 'pointer' : 'default' }}
         >
           <span className="message-text">{message.text}</span>
-          {hasOutput && <span className="expand-icon">{expanded ? '▲' : '▼'}</span>}
+          {hasExpandableContent && (
+            <span className="expand-icon">{expanded ? '▲' : '▼'}</span>
+          )}
         </div>
+        {expanded && codePreview && (
+          <div className="code-preview-section">
+            <div className="code-preview-header">
+              <span className="code-icon">🐍</span> Python Code
+            </div>
+            <pre className="code-preview">{codePreview}</pre>
+          </div>
+        )}
         {expanded && message.metadata?.stdout && (
           <pre className="code-output">{message.metadata.stdout}</pre>
         )}
@@ -232,19 +262,45 @@ export function MessageStream({ messages, status }: MessageStreamProps) {
         }
 
         .message-details,
-        .code-output {
+        .code-output,
+        .code-preview {
           margin-top: 8px;
           padding: 8px;
           background: var(--bg-primary);
           border-radius: 4px;
           font-size: 12px;
           overflow-x: auto;
-          max-height: 150px;
+          max-height: 200px;
           overflow-y: auto;
+          white-space: pre-wrap;
+          word-break: break-word;
         }
 
         .code-output.error {
           background: rgba(239, 68, 68, 0.1);
+        }
+
+        .code-preview-section {
+          margin-top: 8px;
+        }
+
+        .code-preview-header {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          color: var(--text-secondary);
+          margin-bottom: 4px;
+          font-weight: 500;
+        }
+
+        .code-icon {
+          font-size: 12px;
+        }
+
+        .code-preview {
+          margin-top: 0;
+          border: 1px solid var(--border);
         }
 
         .scroll-button {
