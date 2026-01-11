@@ -28,6 +28,7 @@ function App(): React.ReactElement {
   // Token cache for REST API calls
   const tokenRef = useRef<string | null>(null);
   const animatingRef = useRef(false);
+  const fetchedBatchIdRef = useRef<number>(0);
 
   // Get dev token for REST API calls
   const getToken = useCallback(async (): Promise<string> => {
@@ -83,9 +84,11 @@ function App(): React.ReactElement {
     const fetchAndAnimate = async (): Promise<void> => {
       if (!state.pendingStrokes) return;
 
-      console.log('[App] Fetching pending strokes:', state.pendingStrokes);
+      // Skip if we've already fetched this batch (prevents race condition)
+      if (state.pendingStrokes.batchId <= fetchedBatchIdRef.current) return;
+      fetchedBatchIdRef.current = state.pendingStrokes.batchId;
 
-      // Clear pending strokes first to prevent re-fetch
+      // Clear pending strokes to prevent re-fetch
       dispatch({ type: 'CLEAR_PENDING_STROKES' });
 
       try {
@@ -101,7 +104,6 @@ function App(): React.ReactElement {
 
         const data = await response.json();
         const strokes = data.strokes as PendingStroke[];
-        console.log('[App] Received strokes:', strokes.length);
 
         if (strokes.length > 0) {
           await animateStrokes(strokes);

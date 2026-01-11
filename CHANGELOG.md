@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Decoupled agent drawing from client rendering for improved reliability
+- Agent now queues pre-interpolated strokes and notifies clients via WebSocket
+- Clients fetch and animate strokes locally via REST API (`GET /strokes/pending`)
+- Strokes persist across client reconnections
+
 ## [1.9.3] - 2026-01-11
 
 ### Changed

@@ -80,10 +80,8 @@ class AgentOrchestrator:
         # Notify clients that strokes are ready
         await self.broadcaster.broadcast(StrokesReadyMessage(count=len(paths), batch_id=batch_id))
 
-        # Brief status indication that drawing is happening
+        # Brief status flash for UI feedback - client does actual drawing animation
         await self.broadcast_status(AgentStatus.DRAWING)
-        await asyncio.sleep(0.1)
-        await self.broadcast_status(AgentStatus.THINKING)
 
     async def broadcast_status(self, status: AgentStatus) -> None:
         """Broadcast a status update to all clients."""

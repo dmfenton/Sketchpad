@@ -5,6 +5,7 @@ import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path as FilePath
+from typing import Any
 
 import aiofiles
 import aiofiles.os
@@ -49,7 +50,7 @@ class WorkspaceState:
         self._loaded = False
 
         # Pending strokes for client-side rendering
-        self._pending_strokes: list[dict] = []
+        self._pending_strokes: list[dict[str, Any]] = []
         self._stroke_batch_id: int = 0
 
     @property
@@ -218,7 +219,7 @@ class WorkspaceState:
         await self.save()
         return batch_id
 
-    async def pop_strokes(self) -> list[dict]:
+    async def pop_strokes(self) -> list[dict[str, Any]]:
         """Get and clear pending strokes."""
         strokes = self._pending_strokes.copy()
         self._pending_strokes.clear()
