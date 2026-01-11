@@ -105,6 +105,7 @@ class Settings(BaseSettings):
     path_steps_per_unit: float = 0.5  # interpolation density
     travel_speed_multiplier: float = 2.0  # travel faster than drawing (pen up movement)
     pen_settle_delay: float = 0.05  # pause after pen down before moving (servo settling)
+    pen_lift_threshold: float = 2.0  # skip pen lift if next path starts within this distance
 
     # Limits
     max_stdout_chars: int = 2000  # truncate stdout in messages

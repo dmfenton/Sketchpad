@@ -77,6 +77,17 @@ def interpolate_travel(start: Point, end: Point, steps_per_unit: float) -> list[
     return [lerp_point(start, end, i / num_steps) for i in range(1, num_steps + 1)]
 
 
+def _get_next_path_start(
+    paths: list[Path], current_idx: int, steps_per_unit: float
+) -> Point | None:
+    """Get the first point of the next non-empty path, if any."""
+    for i in range(current_idx + 1, len(paths)):
+        interpolated = interpolate_path(paths[i], steps_per_unit)
+        if interpolated:
+            return interpolated[0]
+    return None
+
+
 async def execute_paths(
     paths: list[Path],
     send_message: Callable[[Any], Awaitable[None]],
@@ -102,12 +113,14 @@ async def execute_paths(
     frame_delay = 1.0 / fps
     travel_steps_per_unit = settings.path_steps_per_unit * settings.travel_speed_multiplier
     pen_settle_delay = settings.pen_settle_delay
+    pen_lift_threshold = settings.pen_lift_threshold
 
     state.status = AgentStatus.DRAWING
     await state.save()
 
-    # Track pen position for travel paths (pen plotter behavior)
+    # Track pen position and state for continuous drawing optimization
     pen_position: Point | None = None
+    pen_is_down: bool = False
 
     for path_idx, path in enumerate(paths):
         interpolated = interpolate_path(path, settings.path_steps_per_unit)
@@ -117,23 +130,46 @@ async def execute_paths(
 
         first_point = interpolated[0]
 
-        # Travel to start with pen up (pen plotter behavior)
-        if pen_position is not None:
+        # Check if we can continue drawing without lifting (pen already down and close)
+        if pen_is_down and pen_position is not None:
+            dist_to_start = distance(pen_position, first_point)
+            if dist_to_start <= pen_lift_threshold:
+                # Pen stays down - draw directly to start if not already there
+                if dist_to_start > 0.1:
+                    await send_message(PenMessage(x=first_point.x, y=first_point.y, down=True))
+                    await asyncio.sleep(frame_delay)
+            else:
+                # Too far - need to lift, travel, and lower
+                await send_message(PenMessage(x=pen_position.x, y=pen_position.y, down=False))
+                pen_is_down = False
+                travel_points = interpolate_travel(pen_position, first_point, travel_steps_per_unit)
+                travel_points = apply_easing(travel_points)
+                for point in travel_points:
+                    await send_message(PenMessage(x=point.x, y=point.y, down=False))
+                    await asyncio.sleep(frame_delay)
+                await send_message(PenMessage(x=first_point.x, y=first_point.y, down=True))
+                pen_is_down = True
+                if pen_settle_delay > 0:
+                    await asyncio.sleep(pen_settle_delay)
+        elif pen_position is not None:
+            # Pen is up, travel to start
             travel_points = interpolate_travel(pen_position, first_point, travel_steps_per_unit)
-            # Apply easing for realistic acceleration/deceleration
             travel_points = apply_easing(travel_points)
             for point in travel_points:
                 await send_message(PenMessage(x=point.x, y=point.y, down=False))
                 await asyncio.sleep(frame_delay)
+            await send_message(PenMessage(x=first_point.x, y=first_point.y, down=True))
+            pen_is_down = True
+            if pen_settle_delay > 0:
+                await asyncio.sleep(pen_settle_delay)
         else:
-            # First stroke: just move to start
+            # First stroke: move to start and lower pen
             await send_message(PenMessage(x=first_point.x, y=first_point.y, down=False))
             await asyncio.sleep(frame_delay)
-
-        # Lower pen and wait for servo to settle (pen plotter behavior)
-        await send_message(PenMessage(x=first_point.x, y=first_point.y, down=True))
-        if pen_settle_delay > 0:
-            await asyncio.sleep(pen_settle_delay)
+            await send_message(PenMessage(x=first_point.x, y=first_point.y, down=True))
+            pen_is_down = True
+            if pen_settle_delay > 0:
+                await asyncio.sleep(pen_settle_delay)
 
         # Draw stroke with easing
         eased_points = apply_easing(interpolated)
@@ -144,19 +180,30 @@ async def execute_paths(
         # Track where pen ended
         pen_position = eased_points[-1]
 
-        # Raise pen
-        await send_message(PenMessage(x=pen_position.x, y=pen_position.y, down=False))
+        # Check if next path starts close - if so, keep pen down
+        next_start = _get_next_path_start(paths, path_idx, settings.path_steps_per_unit)
+        if next_start is not None and distance(pen_position, next_start) <= pen_lift_threshold:
+            # Keep pen down for continuous drawing
+            pass
+        else:
+            # Raise pen
+            await send_message(PenMessage(x=pen_position.x, y=pen_position.y, down=False))
+            pen_is_down = False
 
         # Mark path complete (skip state update if already done by tool handler)
         if not skip_state_update:
             await state.add_stroke(path)
         await send_message(StrokeCompleteMessage(path=path))
 
-        # Pause between strokes for deliberate pacing
-        if stroke_delay > 0 and path_idx < len(paths) - 1:
+        # Pause between strokes (skip if pen stayed down for continuous drawing)
+        if stroke_delay > 0 and path_idx < len(paths) - 1 and not pen_is_down:
             await asyncio.sleep(stroke_delay)
 
         yield  # Allow other tasks to run
+
+    # Ensure pen is up at the end
+    if pen_is_down and pen_position is not None:
+        await send_message(PenMessage(x=pen_position.x, y=pen_position.y, down=False))
 
     # Execution complete
     state.status = AgentStatus.IDLE
