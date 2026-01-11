@@ -64,65 +64,74 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <View style={[styles.container, { backgroundColor: colors.surface }, shadows.md]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
-            <Ionicons name="brush" size={28} color={colors.primary} />
+        {/* Header - hidden when custom input is shown to save space for keyboard */}
+        {!showCustomInput && (
+          <View style={styles.header}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
+              <Ionicons name="brush" size={28} color={colors.primary} />
+            </View>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Start Creating</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Choose an idea or describe your vision
+            </Text>
           </View>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Start Creating</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Choose an idea or describe your vision
-          </Text>
-        </View>
+        )}
 
-        {/* Quick Ideas Grid */}
-        <View style={styles.ideasSection}>
-          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Quick ideas</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.ideasRow}
-          >
-            {QUICK_IDEAS.map((idea) => (
-              <Pressable
-                key={idea.label}
-                style={({ pressed }) => [
-                  styles.ideaChip,
-                  { backgroundColor: colors.surfaceElevated },
-                  pressed && { transform: [{ scale: 0.96 }], opacity: 0.8 },
-                  !connected && styles.disabled,
-                ]}
-                onPress={() => handleQuickStart(idea.label.toLowerCase())}
-                disabled={!connected}
-              >
-                <Ionicons
-                  name={idea.icon}
-                  size={18}
-                  color={connected ? colors.primary : colors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.ideaLabel,
-                    { color: connected ? colors.textPrimary : colors.textMuted },
+        {/* Quick Ideas Grid - hidden when custom input is shown */}
+        {!showCustomInput && (
+          <View style={styles.ideasSection}>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Quick ideas</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.ideasRow}
+            >
+              {QUICK_IDEAS.map((idea) => (
+                <Pressable
+                  key={idea.label}
+                  style={({ pressed }) => [
+                    styles.ideaChip,
+                    { backgroundColor: colors.surfaceElevated },
+                    pressed && { transform: [{ scale: 0.96 }], opacity: 0.8 },
+                    !connected && styles.disabled,
                   ]}
+                  onPress={() => handleQuickStart(idea.label.toLowerCase())}
+                  disabled={!connected}
                 >
-                  {idea.label}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
+                  <Ionicons
+                    name={idea.icon}
+                    size={18}
+                    color={connected ? colors.primary : colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.ideaLabel,
+                      { color: connected ? colors.textPrimary : colors.textMuted },
+                    ]}
+                  >
+                    {idea.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
-        {/* Divider */}
-        <View style={styles.dividerContainer}>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          <Text style={[styles.dividerText, { color: colors.textMuted }]}>or</Text>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-        </View>
+        {/* Divider - hidden when custom input is shown */}
+        {!showCustomInput && (
+          <View style={styles.dividerContainer}>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dividerText, { color: colors.textMuted }]}>or</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          </View>
+        )}
 
         {/* Custom Input Section */}
         {showCustomInput ? (
           <View style={styles.customInputSection}>
+            <Text style={[styles.inputTitle, { color: colors.textPrimary }]}>
+              Describe your vision
+            </Text>
             <View style={styles.inputWrapper}>
               <TextInput
                 style={[
@@ -342,6 +351,11 @@ const styles = StyleSheet.create({
   },
   customInputSection: {
     gap: spacing.md,
+  },
+  inputTitle: {
+    ...typography.heading,
+    fontSize: 18,
+    textAlign: 'center',
   },
   inputWrapper: {
     position: 'relative',
