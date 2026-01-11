@@ -5,7 +5,7 @@
 
 import { useCallback, useReducer } from 'react';
 
-import type { Path, ServerMessage } from '@drawing-agent/shared';
+import type { CanvasAction, Path, ServerMessage } from '@drawing-agent/shared';
 import {
   canvasReducer,
   initialState,
@@ -18,6 +18,7 @@ export { LIVE_MESSAGE_ID, type CanvasAction, type CanvasHookState } from '@drawi
 
 export interface UseCanvasReturn {
   state: CanvasHookState;
+  dispatch: React.Dispatch<CanvasAction>;
   handleMessage: (message: ServerMessage) => void;
   startStroke: (x: number, y: number) => void;
   addPoint: (x: number, y: number) => void;
@@ -78,6 +79,7 @@ export function useCanvas(): UseCanvasReturn {
 
   return {
     state,
+    dispatch,
     handleMessage,
     startStroke,
     addPoint,

@@ -18,6 +18,9 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import type { PendingStroke } from '@drawing-agent/shared';
+import { useStrokeAnimation } from '@drawing-agent/shared';
+
 import { tracer } from './utils/tracing';
 
 import {
@@ -31,7 +34,7 @@ import {
   StartPanel,
   StatusPill,
 } from './components';
-import { getWebSocketUrl } from './config';
+import { getApiUrl, getWebSocketUrl } from './config';
 import { useAuth } from './context';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -50,7 +53,25 @@ function MainApp(): React.JSX.Element {
   const paused = canvas.state.paused;
 
   // canvas.handleMessage is already stable (useCallback with [])
-  const { handleMessage } = canvas;
+  const { handleMessage, dispatch } = canvas;
+
+  // Fetch pending strokes from server
+  const fetchStrokes = useCallback(async (): Promise<PendingStroke[]> => {
+    if (!accessToken) throw new Error('No auth token');
+    const response = await fetch(`${getApiUrl()}/strokes/pending`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch strokes');
+    const data = (await response.json()) as { strokes: PendingStroke[] };
+    return data.strokes;
+  }, [accessToken]);
+
+  // Use shared animation hook for agent-drawn strokes
+  useStrokeAnimation({
+    pendingStrokes: canvas.state.pendingStrokes,
+    dispatch,
+    fetchStrokes,
+  });
 
   // Handle auth errors from WebSocket by trying to refresh, then sign out
   const handleAuthError = useCallback(() => {

@@ -5,6 +5,7 @@ import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path as FilePath
+from typing import Any
 
 import aiofiles
 import aiofiles.os
@@ -47,6 +48,10 @@ class WorkspaceState:
         self._notes: str = ""
         self._monologue: str = ""
         self._loaded = False
+
+        # Pending strokes for client-side rendering
+        self._pending_strokes: list[dict[str, Any]] = []
+        self._stroke_batch_id: int = 0
 
     @property
     def is_loaded(self) -> bool:
@@ -101,6 +106,8 @@ class WorkspaceState:
             self._piece_count = data.get("piece_count", 0)
             self._notes = data.get("notes", "")
             self._monologue = data.get("monologue", "")
+            self._pending_strokes = data.get("pending_strokes", [])
+            self._stroke_batch_id = data.get("stroke_batch_id", 0)
 
             logger.info(
                 f"Workspace loaded for user {self.user_id}: "
@@ -120,6 +127,8 @@ class WorkspaceState:
                 "piece_count": self._piece_count,
                 "notes": self._notes,
                 "monologue": self._monologue,
+                "pending_strokes": self._pending_strokes,
+                "stroke_batch_id": self._stroke_batch_id,
                 "updated_at": datetime.now(UTC).isoformat(),
             }
 
@@ -168,6 +177,54 @@ class WorkspaceState:
     @monologue.setter
     def monologue(self, value: str) -> None:
         self._monologue = value
+
+    @property
+    def has_pending_strokes(self) -> bool:
+        """Check if there are pending strokes to render."""
+        return len(self._pending_strokes) > 0
+
+    @property
+    def pending_stroke_count(self) -> int:
+        """Number of pending strokes."""
+        return len(self._pending_strokes)
+
+    @property
+    def stroke_batch_id(self) -> int:
+        """Current stroke batch ID."""
+        return self._stroke_batch_id
+
+    # --- Stroke Queue Operations ---
+
+    async def queue_strokes(self, paths: list[Path]) -> int:
+        """Interpolate paths and queue for client-side rendering.
+
+        Returns the batch_id for this set of strokes.
+        """
+        from drawing_agent.config import settings
+        from drawing_agent.interpolation import interpolate_path
+
+        self._stroke_batch_id += 1
+        batch_id = self._stroke_batch_id
+
+        for path in paths:
+            points = interpolate_path(path, settings.path_steps_per_unit)
+            self._pending_strokes.append(
+                {
+                    "batch_id": batch_id,
+                    "path": path.model_dump(),
+                    "points": [{"x": p.x, "y": p.y} for p in points],
+                }
+            )
+
+        await self.save()
+        return batch_id
+
+    async def pop_strokes(self) -> list[dict[str, Any]]:
+        """Get and clear pending strokes."""
+        strokes = self._pending_strokes.copy()
+        self._pending_strokes.clear()
+        await self.save()
+        return strokes
 
     # --- Canvas Operations ---
 

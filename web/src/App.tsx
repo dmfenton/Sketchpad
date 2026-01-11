@@ -2,9 +2,10 @@
  * Drawing Agent Web Dev Server
  */
 
-import React, { useCallback } from 'react';
-import type { ServerMessage } from '@drawing-agent/shared';
-import { STATUS_LABELS } from '@drawing-agent/shared';
+import React, { useCallback, useRef } from 'react';
+import type { PendingStroke, ServerMessage } from '@drawing-agent/shared';
+import { STATUS_LABELS, useStrokeAnimation } from '@drawing-agent/shared';
+import { getApiUrl } from './config';
 
 import { Canvas } from './components/Canvas';
 import { MessageStream } from './components/MessageStream';
@@ -15,9 +16,41 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { useDebug } from './hooks/useDebug';
 
 function App(): React.ReactElement {
-  const { state, handleMessage, startStroke, addPoint, endStroke, toggleDrawing } = useCanvas();
+  const { state, dispatch, handleMessage, startStroke, addPoint, endStroke, toggleDrawing } =
+    useCanvas();
 
   const { logMessage, ...debug } = useDebug();
+
+  // Token cache for REST API calls
+  const tokenRef = useRef<string | null>(null);
+
+  // Get dev token for REST API calls
+  const getToken = useCallback(async (): Promise<string> => {
+    if (tokenRef.current) return tokenRef.current;
+    const response = await fetch(`${getApiUrl()}/auth/dev-token`);
+    if (!response.ok) throw new Error('Failed to get dev token');
+    const data = await response.json();
+    tokenRef.current = data.access_token as string;
+    return tokenRef.current;
+  }, []);
+
+  // Fetch pending strokes from server
+  const fetchStrokes = useCallback(async (): Promise<PendingStroke[]> => {
+    const token = await getToken();
+    const response = await fetch(`${getApiUrl()}/strokes/pending`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch strokes');
+    const data = await response.json();
+    return data.strokes as PendingStroke[];
+  }, [getToken]);
+
+  // Use shared animation hook
+  useStrokeAnimation({
+    pendingStrokes: state.pendingStrokes,
+    dispatch,
+    fetchStrokes,
+  });
 
   const onMessage = useCallback(
     (message: ServerMessage) => {

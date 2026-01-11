@@ -13,5 +13,8 @@ export * from './canvas';
 // WebSocket message handling
 export * from './websocket';
 
+// React hooks
+export * from './hooks';
+
 // Utilities
 export { boundedConcat, boundedPush, generateMessageId } from './utils';

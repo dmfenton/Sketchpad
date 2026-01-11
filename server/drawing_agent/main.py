@@ -57,9 +57,8 @@ async def shutdown_all_workspaces() -> None:
 
 async def run_migrations() -> None:
     """Run database migrations on startup."""
-    from alembic.config import Config
-
     from alembic import command
+    from alembic.config import Config
 
     # Run alembic upgrade head
     alembic_cfg = Config("alembic.ini")
@@ -339,6 +338,20 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
     ]
 
 
+@app.get("/strokes/pending")
+async def get_pending_strokes(user: CurrentUser) -> dict[str, Any]:
+    """Fetch and clear pending strokes for client-side rendering.
+
+    Returns pre-interpolated strokes that the agent has generated.
+    The client should animate these strokes locally.
+
+    Strokes are cleared after fetching - each stroke is only returned once.
+    """
+    state = await get_user_state(user)
+    strokes = await state.pop_strokes()
+    return {"strokes": strokes, "count": len(strokes)}
+
+
 @app.post("/piece_count/{count}")
 async def set_piece_count(count: int, user: CurrentUser) -> dict[str, int]:
     """Set piece count for user's workspace."""
@@ -585,6 +598,20 @@ async def websocket_endpoint(
             f"User {user_id}: sent init with {len(workspace.state.canvas.strokes)} strokes, "
             f"{len(gallery_data)} gallery, piece #{workspace.state.piece_count}"
         )
+
+        # Notify if there are pending strokes to fetch (reconnection scenario)
+        if workspace.state.has_pending_strokes:
+            await workspace.connections.send_to(
+                websocket,
+                {
+                    "type": "strokes_ready",
+                    "count": workspace.state.pending_stroke_count,
+                    "batch_id": workspace.state.stroke_batch_id,
+                },
+            )
+            logger.info(
+                f"User {user_id}: notified of {workspace.state.pending_stroke_count} pending strokes"
+            )
 
         while True:
             # Check shutdown between receives

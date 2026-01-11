@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Protocol
 from drawing_agent.agent import AgentCallbacks, CodeExecutionResult, ToolCallInfo
 from drawing_agent.agent_logger import AgentFileLogger
 from drawing_agent.config import settings
-from drawing_agent.executor import execute_paths
 from drawing_agent.types import (
     AgentStatus,
     AgentTurnComplete,
@@ -19,6 +18,7 @@ from drawing_agent.types import (
     Path,
     PieceCompleteMessage,
     StatusMessage,
+    StrokesReadyMessage,
     ThinkingDeltaMessage,
     ThinkingMessage,
 )
@@ -59,31 +59,30 @@ class AgentOrchestrator:
         self.agent.set_on_draw(self._draw_paths)
 
     async def _draw_paths(self, paths: list[Path]) -> None:
-        """Draw paths - called by agent's PostToolUse hook.
+        """Queue paths for client-side rendering.
 
-        This blocks until all paths are drawn, which pauses Claude
-        until drawing is complete.
+        Instead of streaming PenMessages at 60fps, we queue the paths
+        and notify clients to fetch them. This decouples agent execution
+        from rendering and makes the system more resilient.
         """
         if not paths:
             logger.debug("_draw_paths called with empty paths list")
             return
 
-        logger.info(f">>> Drawing {len(paths)} paths")
+        logger.info(f">>> Queueing {len(paths)} paths for client rendering")
         if self.file_logger:
             await self.file_logger.log_drawing(len(paths))
-        await self.broadcast_status(AgentStatus.DRAWING)
-
-        async def send_message(msg: Any) -> None:
-            await self.broadcaster.broadcast(msg)
 
         state = self.agent.get_state()
-        # skip_state_update=True because strokes are added by the tool handler
-        # (before PostToolUse) so the canvas image includes them in the tool result
-        async for _ in execute_paths(paths, send_message, state=state, skip_state_update=True):
-            pass
 
-        # Back to thinking after drawing
-        await self.broadcast_status(AgentStatus.THINKING)
+        # Interpolate paths and queue for client fetch
+        batch_id = await state.queue_strokes(paths)
+
+        # Notify clients that strokes are ready
+        await self.broadcaster.broadcast(StrokesReadyMessage(count=len(paths), batch_id=batch_id))
+
+        # Brief status flash for UI feedback - client does actual drawing animation
+        await self.broadcast_status(AgentStatus.DRAWING)
 
     async def broadcast_status(self, status: AgentStatus) -> None:
         """Broadcast a status update to all clients."""

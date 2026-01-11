@@ -10,8 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - CLI commands for user management: `user list`, `user workspace USER_ID`
 - CLI command for workspace inspection: `workspace list`
+- Shared `useStrokeAnimation` hook for web and React Native
 
 ### Changed
+- Decoupled agent drawing from client rendering for improved reliability
+- Agent now queues pre-interpolated strokes and notifies clients via WebSocket
+- Clients fetch and animate strokes locally via REST API (`GET /strokes/pending`)
+- Strokes persist across client reconnections
 - Persistence is now entirely server-side; client no longer triggers saves
 - Auto-save pieces to gallery when agent marks them done via orchestrator
 - Removed legacy single-user state management code (`state.py`, `workspace.py`, `handlers.py`)

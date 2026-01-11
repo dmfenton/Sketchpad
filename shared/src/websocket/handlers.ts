@@ -22,6 +22,7 @@ import type {
   ServerMessage,
   StatusMessage,
   StrokeCompleteMessage,
+  StrokesReadyMessage,
   ThinkingDeltaMessage,
   ThinkingMessage,
 } from '../types';
@@ -252,6 +253,12 @@ export const handlePaused: MessageHandler<PausedMessage> = (message, dispatch) =
   dispatch({ type: 'SET_PAUSED', paused: message.paused });
 };
 
+export const handleStrokesReady: MessageHandler<StrokesReadyMessage> = (message, dispatch) => {
+  // Signal that strokes are ready to be fetched from the REST API
+  // The hook will watch for this state change and trigger the fetch
+  dispatch({ type: 'STROKES_READY', count: message.count, batchId: message.batch_id });
+};
+
 // Handler registry
 const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessage>>> = {
   pen: handlePen as MessageHandler<ServerMessage>,
@@ -270,6 +277,7 @@ const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessa
   init: handleInit as MessageHandler<ServerMessage>,
   piece_count: handlePieceCount as MessageHandler<ServerMessage>,
   paused: handlePaused as MessageHandler<ServerMessage>,
+  strokes_ready: handleStrokesReady as MessageHandler<ServerMessage>,
 };
 
 /**

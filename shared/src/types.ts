@@ -166,6 +166,22 @@ export interface PausedMessage {
   paused: boolean;
 }
 
+export interface StrokesReadyMessage {
+  type: 'strokes_ready';
+  count: number;
+  batch_id: number;
+}
+
+/**
+ * A pending stroke ready for client-side rendering.
+ * Contains the original path and pre-interpolated points.
+ */
+export interface PendingStroke {
+  batch_id: number;
+  path: Path;
+  points: Point[]; // Pre-interpolated points for animation
+}
+
 export type ServerMessage =
   | PenMessage
   | StrokeCompleteMessage
@@ -182,7 +198,8 @@ export type ServerMessage =
   | ErrorMessage
   | PieceCompleteMessage
   | IterationMessage
-  | PausedMessage;
+  | PausedMessage
+  | StrokesReadyMessage;
 
 // WebSocket messages - Client to Server
 export interface ClientStrokeMessage {
