@@ -41,14 +41,40 @@ function randomHex(length: number): string {
 // Maximum number of spans to buffer before dropping
 const MAX_SPAN_BUFFER = 500;
 
+interface TracerConfig {
+  enabled?: boolean;
+  serverUrl?: string;
+}
+
 class Tracer {
   private traceId: string;
   private spans: Span[] = [];
   private flushInterval: ReturnType<typeof setInterval> | null = null;
   private enabled: boolean = true;
+  private serverUrl: string | null = null;
 
   constructor() {
     this.traceId = this.generateTraceId();
+  }
+
+  /**
+   * Configure the tracer (useful for testing).
+   */
+  configure(config: TracerConfig): void {
+    if (config.enabled !== undefined) {
+      this.enabled = config.enabled;
+    }
+    if (config.serverUrl !== undefined) {
+      this.serverUrl = config.serverUrl;
+    }
+  }
+
+  /**
+   * Reset tracer state (generates new trace ID and clears spans).
+   */
+  reset(): void {
+    this.traceId = this.generateTraceId();
+    this.spans = [];
   }
 
   /**
@@ -219,7 +245,7 @@ class Tracer {
     this.spans = [];
 
     try {
-      const response = await fetch(`${getApiUrl()}/traces`, {
+      const response = await fetch(`${this.getServerUrl()}/traces`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ spans: spansToSend }),
@@ -251,10 +277,24 @@ class Tracer {
   }
 
   /**
-   * Get pending span count (for debugging).
+   * Get pending span count (for debugging/testing).
    */
   getPendingCount(): number {
     return this.spans.length;
+  }
+
+  /**
+   * Alias for getPendingCount (for testing compatibility).
+   */
+  getPendingSpanCount(): number {
+    return this.spans.length;
+  }
+
+  /**
+   * Get the configured server URL for flush requests.
+   */
+  private getServerUrl(): string {
+    return this.serverUrl ?? getApiUrl();
   }
 }
 

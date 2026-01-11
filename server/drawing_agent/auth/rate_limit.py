@@ -64,3 +64,4 @@ rate_limiter = RateLimiter()
 # Rate limit configs
 MAGIC_LINK_BY_EMAIL = RateLimitConfig(max_requests=3, window_seconds=900)  # 3 per 15 min per email
 MAGIC_LINK_BY_IP = RateLimitConfig(max_requests=10, window_seconds=60)  # 10 per min per IP
+TRACES_BY_IP = RateLimitConfig(max_requests=60, window_seconds=60)  # 60 per min per IP (1/sec avg)

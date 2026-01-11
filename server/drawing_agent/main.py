@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from drawing_agent.auth import auth_router
 from drawing_agent.auth.dependencies import CurrentUser
 from drawing_agent.auth.jwt import TokenError, get_user_id_from_token
+from drawing_agent.auth.rate_limit import TRACES_BY_IP, rate_limiter
 from drawing_agent.canvas import path_to_point_list
 from drawing_agent.config import settings
 from drawing_agent.db import User, get_session, repository
@@ -185,7 +186,7 @@ class TracesRequest(BaseModel):
 
 
 @app.post("/traces")
-async def receive_traces(request: TracesRequest) -> dict[str, int]:
+async def receive_traces(traces_request: TracesRequest, request: Request) -> dict[str, int]:
     """Receive traces from mobile/web clients.
 
     Accepts spans from client-side tracing and forwards them to X-Ray
@@ -194,9 +195,15 @@ async def receive_traces(request: TracesRequest) -> dict[str, int]:
 
     No authentication required to minimize overhead on the client.
     Spans are tagged with client.source=mobile for filtering.
+    Rate limited to 60 requests/minute per IP.
     """
+    # Rate limit by IP
+    client_ip = request.client.host if request.client else "unknown"
+    if not rate_limiter.is_allowed(f"traces:{client_ip}", TRACES_BY_IP):
+        raise HTTPException(status_code=429, detail="Too many requests")
+
     # Convert Pydantic models to dicts for the tracing function
-    spans_data = [span.model_dump() for span in request.spans]
+    spans_data = [span.model_dump() for span in traces_request.spans]
     recorded = record_client_spans(spans_data)
     return {"received": recorded}
 
