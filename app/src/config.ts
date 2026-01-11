@@ -4,14 +4,11 @@
 
 import { Platform } from 'react-native';
 
-// Typed access to Expo public environment variables
-const env = process.env as Record<string, string | undefined>;
-
 /**
  * Get the base host for API connections.
  */
 function getHost(): string {
-  const envUrl = env.EXPO_PUBLIC_API_URL;
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl) {
     // Extract host from URL
     const match = envUrl.match(/https?:\/\/([^:/]+)/);
@@ -32,7 +29,7 @@ function getHost(): string {
  * Get the API URL for REST endpoints.
  */
 export function getApiUrl(): string {
-  const envUrl = env.EXPO_PUBLIC_API_URL;
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl) return envUrl;
 
   // Production fallback for TestFlight builds
@@ -48,7 +45,7 @@ export function getApiUrl(): string {
  * This allows the app to connect to the server from any device on the LAN.
  */
 export function getWebSocketUrl(token?: string): string {
-  const envUrl = env.EXPO_PUBLIC_WS_URL;
+  const envUrl = process.env.EXPO_PUBLIC_WS_URL;
 
   // Production fallback for TestFlight builds
   const baseUrl = envUrl || (__DEV__ === false ? 'wss://monet.dmfenton.net/ws' : `ws://${getHost()}:8000/ws`);
