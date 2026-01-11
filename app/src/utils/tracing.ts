@@ -38,6 +38,9 @@ function randomHex(length: number): string {
 /**
  * Tracer class for collecting and sending spans.
  */
+// Maximum number of spans to buffer before dropping
+const MAX_SPAN_BUFFER = 500;
+
 class Tracer {
   private traceId: string;
   private spans: Span[] = [];
@@ -106,7 +109,7 @@ class Tracer {
           span.status = 'error';
           span.error = error.message;
         }
-        if (this.enabled) {
+        if (this.enabled && this.spans.length < MAX_SPAN_BUFFER) {
           this.spans.push(span);
         }
       },
@@ -118,6 +121,7 @@ class Tracer {
    */
   recordEvent(name: string, attributes: Record<string, unknown> = {}): void {
     if (!this.enabled) return;
+    if (this.spans.length >= MAX_SPAN_BUFFER) return; // Drop if buffer full
 
     const now = Date.now();
     const span: Span = {
@@ -141,6 +145,7 @@ class Tracer {
    */
   recordError(name: string, error: Error, attributes: Record<string, unknown> = {}): void {
     if (!this.enabled) return;
+    if (this.spans.length >= MAX_SPAN_BUFFER) return; // Drop if buffer full
 
     const now = Date.now();
     const span: Span = {
