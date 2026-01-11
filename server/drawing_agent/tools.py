@@ -409,7 +409,7 @@ async def handle_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "draw_paths",
-    "Draw paths on the canvas. Each path has a type (line, polyline, quadratic, cubic, svg) and either points or a d-string.",
+    "Draw paths on the canvas (800x600). Coordinates must be within bounds: X 0-800, Y 0-600. Each path has a type (line, polyline, quadratic, cubic, svg) and either points or a d-string.",
     {
         "type": "object",
         "properties": {
@@ -435,7 +435,7 @@ async def handle_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
                         },
                         "d": {
                             "type": "string",
-                            "description": "SVG path d-string (for type=svg). Example: 'M 10 10 L 100 100 C 150 50 200 150 250 100'",
+                            "description": "SVG path d-string (for type=svg). Coordinates must be within canvas bounds (0-800, 0-600). Example: 'M 100 100 L 400 300 C 500 200 600 400 700 300'",
                         },
                     },
                     "required": ["type"],
@@ -469,8 +469,10 @@ async def mark_piece_done(_args: dict[str, Any]) -> dict[str, Any]:
     "generate_svg",
     """Run Python code to generate SVG paths programmatically. Use this for algorithmic, mathematical, or complex generative drawings.
 
+IMPORTANT: Canvas is 800x600. All coordinates must be within X: 0-800, Y: 0-600. Center is (400, 300).
+
 The code has access to:
-- canvas_width, canvas_height: Canvas dimensions
+- canvas_width (800), canvas_height (600): Use for positioning within bounds
 - math, random, json: Standard library modules
 - Helper functions:
   - line(x1, y1, x2, y2) -> path dict
@@ -481,16 +483,15 @@ The code has access to:
   - output_paths(paths_list) -> prints JSON to stdout
   - output_svg_paths(d_strings_list) -> prints JSON to stdout
 
-Example - draw a spiral:
+Example - draw a spiral centered on canvas:
 ```python
 paths = []
+cx, cy = canvas_width / 2, canvas_height / 2  # (400, 300)
 for i in range(100):
     t = i * 0.1
     r = 10 + t * 5
-    x1 = canvas_width/2 + r * math.cos(t)
-    y1 = canvas_height/2 + r * math.sin(t)
-    x2 = canvas_width/2 + (r+5) * math.cos(t+0.1)
-    y2 = canvas_height/2 + (r+5) * math.sin(t+0.1)
+    x1, y1 = cx + r * math.cos(t), cy + r * math.sin(t)
+    x2, y2 = cx + (r+5) * math.cos(t+0.1), cy + (r+5) * math.sin(t+0.1)
     paths.append(line(x1, y1, x2, y2))
 output_paths(paths)
 ```
@@ -498,8 +499,8 @@ output_paths(paths)
 Example - draw using raw SVG d-strings:
 ```python
 output_svg_paths([
-    "M 100 100 C 150 50 200 150 250 100",
-    "M 100 200 Q 175 150 250 200"
+    "M 200 200 C 300 100 500 400 600 300",
+    "M 200 400 Q 400 300 600 400"
 ])
 ```""",
     {
