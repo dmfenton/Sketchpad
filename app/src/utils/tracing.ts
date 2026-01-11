@@ -252,14 +252,14 @@ class Tracer {
       });
 
       if (!response.ok) {
-        // Re-add spans on failure (up to a limit)
-        if (this.spans.length < 100) {
+        // Re-add spans on failure (up to buffer limit)
+        if (this.spans.length + spansToSend.length <= MAX_SPAN_BUFFER) {
           this.spans = [...spansToSend, ...this.spans];
         }
       }
     } catch {
-      // Re-add spans on network failure (up to a limit)
-      if (this.spans.length < 100) {
+      // Re-add spans on network failure (up to buffer limit)
+      if (this.spans.length + spansToSend.length <= MAX_SPAN_BUFFER) {
         this.spans = [...spansToSend, ...this.spans];
       }
     }

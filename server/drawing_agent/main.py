@@ -197,8 +197,9 @@ async def receive_traces(traces_request: TracesRequest, request: Request) -> dic
     Spans are tagged with client.source=mobile for filtering.
     Rate limited to 60 requests/minute per IP.
     """
-    # Rate limit by IP
-    client_ip = request.client.host if request.client else "unknown"
+    # Rate limit by IP (check X-Forwarded-For for clients behind proxy)
+    forwarded_for = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+    client_ip = forwarded_for or (request.client.host if request.client else "unknown")
     if not rate_limiter.is_allowed(f"traces:{client_ip}", TRACES_BY_IP):
         raise HTTPException(status_code=429, detail="Too many requests")
 

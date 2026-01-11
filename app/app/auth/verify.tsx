@@ -51,14 +51,9 @@ export default function VerifyMagicLink() {
     );
   }
 
-  // Verification failed - show error then redirect
+  // Verification failed - redirect with error param so AuthScreen can display it
   if (error) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-        <Redirect href="/" />
-      </View>
-    );
+    return <Redirect href={`/?auth_error=${encodeURIComponent(error)}`} />;
   }
 
   // Success or no token - redirect to main app
@@ -75,10 +70,5 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 16,
     marginTop: 12,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    paddingHorizontal: 24,
   },
 });
