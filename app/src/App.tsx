@@ -5,7 +5,7 @@
 
 import * as Linking from 'expo-linking';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StatusBar, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StatusBar, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -208,10 +208,15 @@ function MainApp(): React.JSX.Element {
 
           {/* Start Panel or Message Stream + Action Bar */}
           {showStartPanel ? (
-            <StartPanel
-              connected={wsState.connected}
-              onStart={handleStartFromPanel}
-            />
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+            >
+              <StartPanel
+                connected={wsState.connected}
+                onStart={handleStartFromPanel}
+              />
+            </KeyboardAvoidingView>
           ) : (
             <>
               {/* Message Stream */}

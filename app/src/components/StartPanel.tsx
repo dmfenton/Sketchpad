@@ -5,11 +5,13 @@
 
 import React, { useState } from 'react';
 import {
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,10 +57,15 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
 
   const remainingChars = MAX_LENGTH - customText.length;
 
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.surface }, shadows.md]}>
-      {/* Header */}
-      <View style={styles.header}>
+    <TouchableWithoutFeedback onPress={dismissKeyboard}>
+      <View style={[styles.container, { backgroundColor: colors.surface }, shadows.md]}>
+        {/* Header */}
+        <View style={styles.header}>
         <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
           <Ionicons name="brush" size={28} color={colors.primary} />
         </View>
@@ -228,16 +235,17 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
         </View>
       )}
 
-      {/* Connection status hint */}
-      {!connected && (
-        <View style={styles.connectionHint}>
-          <Ionicons name="cloud-offline-outline" size={14} color={colors.textMuted} />
-          <Text style={[styles.connectionHintText, { color: colors.textMuted }]}>
-            Connecting to server...
-          </Text>
-        </View>
-      )}
-    </View>
+        {/* Connection status hint */}
+        {!connected && (
+          <View style={styles.connectionHint}>
+            <Ionicons name="cloud-offline-outline" size={14} color={colors.textMuted} />
+            <Text style={[styles.connectionHintText, { color: colors.textMuted }]}>
+              Connecting to server...
+            </Text>
+          </View>
+        )}
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
