@@ -290,6 +290,43 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
     ]
 
 
+@app.get("/gallery/{piece_number}")
+async def get_gallery_piece(piece_number: int, user: CurrentUser) -> dict[str, Any]:
+    """Get a specific gallery piece with strokes."""
+    state = await get_user_state(user)
+    strokes = await state.load_from_gallery(piece_number)
+    if strokes is None:
+        raise HTTPException(status_code=404, detail=f"Piece {piece_number} not found")
+    return {
+        "piece_number": piece_number,
+        "strokes": [s.model_dump() for s in strokes],
+    }
+
+
+@app.delete("/gallery/{piece_number}")
+async def delete_gallery_piece(piece_number: int, user: CurrentUser) -> dict[str, bool]:
+    """Delete a gallery piece."""
+    state = await get_user_state(user)
+    deleted = await state.delete_from_gallery(piece_number)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Piece {piece_number} not found")
+    return {"deleted": True}
+
+
+@app.get("/workspace")
+async def get_workspace(user: CurrentUser) -> dict[str, Any]:
+    """Get current workspace state (canvas, piece count, status)."""
+    state = await get_user_state(user)
+    workspace = workspace_registry.get(user.id)
+    return {
+        "strokes": [s.model_dump() for s in state.canvas.strokes],
+        "piece_count": state.piece_count,
+        "status": state.status.value,
+        "paused": workspace.agent.paused if workspace else True,
+        "monologue": state.monologue or "",
+    }
+
+
 @app.post("/piece_count/{count}")
 async def set_piece_count(count: int, user: CurrentUser) -> dict[str, int]:
     """Set piece count for user's workspace."""
@@ -490,24 +527,12 @@ async def websocket_endpoint(
     await shutdown_manager.register_connection(websocket)
 
     try:
-        # Send current state to new client
-        gallery_pieces = await workspace.state.list_gallery()
-        gallery_data = [
-            {
-                "id": p.id,
-                "created_at": p.created_at,
-                "piece_number": p.piece_number,
-                "stroke_count": len(p.strokes),
-            }
-            for p in gallery_pieces
-        ]
-
+        # Send current state to new client (gallery fetched via REST)
         await workspace.connections.send_to(
             websocket,
             {
                 "type": "init",
                 "strokes": [s.model_dump() for s in workspace.state.canvas.strokes],
-                "gallery": gallery_data,
                 "status": workspace.state.status.value,
                 "paused": workspace.agent.paused,
                 "piece_count": workspace.state.piece_count,
@@ -516,7 +541,7 @@ async def websocket_endpoint(
         )
         logger.info(
             f"User {user_id}: sent init with {len(workspace.state.canvas.strokes)} strokes, "
-            f"{len(gallery_data)} gallery, piece #{workspace.state.piece_count}"
+            f"piece #{workspace.state.piece_count}"
         )
 
         while True:

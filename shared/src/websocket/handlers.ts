@@ -10,6 +10,7 @@ import type {
   ClearMessage,
   CodeExecutionMessage,
   ErrorMessage,
+  GalleryChangedMessage,
   GalleryUpdateMessage,
   InitMessage,
   IterationMessage,
@@ -212,10 +213,18 @@ export const handleNewCanvas: MessageHandler<NewCanvasMessage> = (_message, disp
   dispatch({ type: 'CLEAR_MESSAGES' });
 };
 
+// @deprecated - use gallery_changed + REST API instead
 export const handleGalleryUpdate: MessageHandler<GalleryUpdateMessage> = (message, dispatch) => {
   dispatch({ type: 'SET_GALLERY', canvases: message.canvases });
 };
 
+// Notification to refetch gallery via REST
+export const handleGalleryChanged: MessageHandler<GalleryChangedMessage> = (_message, dispatch) => {
+  // Dispatch action to trigger gallery refetch - app handles the REST call
+  dispatch({ type: 'GALLERY_CHANGED' });
+};
+
+// @deprecated - use REST API GET /gallery/{piece_number} instead
 export const handleLoadCanvas: MessageHandler<LoadCanvasMessage> = (message, dispatch) => {
   dispatch({
     type: 'LOAD_CANVAS',
@@ -228,7 +237,6 @@ export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
   dispatch({
     type: 'INIT',
     strokes: message.strokes,
-    gallery: message.gallery,
     status: message.status,
     pieceCount: message.piece_count,
     paused: message.paused,
@@ -269,8 +277,9 @@ const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessa
   piece_complete: handlePieceComplete as MessageHandler<ServerMessage>,
   clear: handleClear as MessageHandler<ServerMessage>,
   new_canvas: handleNewCanvas as MessageHandler<ServerMessage>,
-  gallery_update: handleGalleryUpdate as MessageHandler<ServerMessage>,
-  load_canvas: handleLoadCanvas as MessageHandler<ServerMessage>,
+  gallery_changed: handleGalleryChanged as MessageHandler<ServerMessage>,
+  gallery_update: handleGalleryUpdate as MessageHandler<ServerMessage>, // @deprecated
+  load_canvas: handleLoadCanvas as MessageHandler<ServerMessage>, // @deprecated
   init: handleInit as MessageHandler<ServerMessage>,
   piece_count: handlePieceCount as MessageHandler<ServerMessage>,
   paused: handlePaused as MessageHandler<ServerMessage>,

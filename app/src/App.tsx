@@ -4,10 +4,12 @@
  */
 
 import * as Linking from 'expo-linking';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StatusBar, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import type { ServerMessage } from '@drawing-agent/shared';
 
 import {
   ActionBar,
@@ -21,6 +23,7 @@ import {
 } from './components';
 import { getWebSocketUrl } from './config';
 import { AuthProvider, useAuth } from './context';
+import { useApi } from './hooks/useApi';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
 import { AuthScreen } from './screens';
@@ -36,9 +39,33 @@ function MainApp(): React.JSX.Element {
 
   const canvas = useCanvas();
   const paused = canvas.state.paused;
+  const { fetchGallery, fetchGalleryPiece } = useApi();
 
-  // canvas.handleMessage is already stable (useCallback with [])
-  const { handleMessage } = canvas;
+  // Track if we've fetched gallery for this connection
+  const galleryFetchedRef = useRef(false);
+
+  // Function to load gallery via REST and update state
+  const loadGallery = useCallback(async () => {
+    const gallery = await fetchGallery();
+    canvas.handleMessage({ type: 'gallery_update', canvases: gallery });
+  }, [fetchGallery, canvas]);
+
+  // Handle WebSocket messages, intercept gallery_changed to refetch
+  const handleMessage = useCallback(
+    (message: ServerMessage) => {
+      canvas.handleMessage(message);
+      // Refetch gallery when notified of changes
+      if (message.type === 'gallery_changed') {
+        void loadGallery();
+      }
+      // Also fetch gallery on init (first connect)
+      if (message.type === 'init' && !galleryFetchedRef.current) {
+        galleryFetchedRef.current = true;
+        void loadGallery();
+      }
+    },
+    [canvas, loadGallery]
+  );
 
   // Handle auth errors from WebSocket by trying to refresh, then sign out
   const handleAuthError = useCallback(() => {
@@ -109,10 +136,25 @@ function MainApp(): React.JSX.Element {
 
   const handleGallerySelect = useCallback(
     (canvasId: string) => {
-      send({ type: 'load_canvas', canvas_id: canvasId });
       setGalleryModalVisible(false);
+      // Extract piece number from canvasId (e.g., "piece_000001" -> 1)
+      const match = canvasId.match(/piece_0*(\d+)/);
+      if (match?.[1]) {
+        const pieceNumber = parseInt(match[1], 10);
+        void (async () => {
+          const piece = await fetchGalleryPiece(pieceNumber);
+          if (piece) {
+            // Dispatch load action to update canvas
+            canvas.handleMessage({
+              type: 'load_canvas',
+              strokes: piece.strokes,
+              piece_number: piece.piece_number,
+            });
+          }
+        })();
+      }
     },
-    [send]
+    [fetchGalleryPiece, canvas]
   );
 
   const handlePauseToggle = useCallback(() => {

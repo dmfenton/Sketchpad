@@ -10,7 +10,6 @@ from drawing_agent.registry import ActiveWorkspace
 from drawing_agent.types import (
     AgentStatus,
     ClearMessage,
-    LoadCanvasMessage,
     NewCanvasMessage,
     Path,
     PathType,
@@ -62,19 +61,8 @@ async def handle_new_canvas(
 
     await workspace.connections.broadcast(NewCanvasMessage(saved_id=saved_id))
 
-    # Send updated gallery
-    gallery_pieces = await workspace.state.list_gallery()
-    gallery_data = [
-        {
-            "id": p.id,
-            "created_at": p.created_at,
-            "piece_number": p.piece_number,
-            "stroke_count": len(p.strokes),
-        }
-        for p in gallery_pieces
-    ]
-    # Send as raw dict - app expects stroke_count metadata, not full strokes
-    await workspace.connections.broadcast({"type": "gallery_update", "canvases": gallery_data})
+    # Notify client to refetch gallery (client uses REST to get actual data)
+    await workspace.connections.broadcast({"type": "gallery_changed"})
     await workspace.connections.broadcast(
         {"type": "piece_count", "count": workspace.state.piece_count}
     )
@@ -89,30 +77,6 @@ async def handle_new_canvas(
     logger.info(
         f"User {workspace.user_id}: new canvas (piece #{workspace.state.piece_count}), saved: {saved_id}, auto-started"
     )
-
-
-async def handle_load_canvas(workspace: ActiveWorkspace, message: dict[str, Any]) -> None:
-    """Handle loading a canvas from gallery."""
-    canvas_id = message.get("canvas_id", "")
-
-    # Extract piece number from canvas_id (e.g., "piece_074")
-    if canvas_id.startswith("piece_"):
-        try:
-            piece_num = int(canvas_id.split("_")[1])
-            strokes = await workspace.state.load_from_gallery(piece_num)
-
-            if strokes:
-                workspace.state.canvas.strokes[:] = strokes
-                await workspace.state.save()
-                await workspace.connections.broadcast(
-                    LoadCanvasMessage(strokes=strokes, piece_number=piece_num)
-                )
-                logger.info(f"User {workspace.user_id}: loaded canvas {canvas_id}")
-                return
-        except (ValueError, IndexError):
-            pass
-
-    logger.warning(f"User {workspace.user_id}: canvas not found: {canvas_id}")
 
 
 async def handle_pause(workspace: ActiveWorkspace) -> None:
@@ -146,7 +110,6 @@ HANDLERS: dict[str, Any] = {
     "nudge": handle_nudge,
     "clear": handle_clear,
     "new_canvas": handle_new_canvas,
-    "load_canvas": handle_load_canvas,
     "pause": handle_pause,
     "resume": handle_resume,
 }
@@ -159,7 +122,7 @@ async def handle_user_message(workspace: ActiveWorkspace, message: dict[str, Any
 
     if handler:
         # Handlers that need the message get it, others don't
-        if msg_type in ("stroke", "nudge", "load_canvas", "new_canvas", "resume"):
+        if msg_type in ("stroke", "nudge", "new_canvas", "resume"):
             await handler(workspace, message)
         else:
             await handler(workspace)

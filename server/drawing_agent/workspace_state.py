@@ -268,3 +268,19 @@ class WorkspaceState:
                     return None
 
         return None
+
+    async def delete_from_gallery(self, piece_number: int) -> bool:
+        """Delete a piece from the gallery. Returns True if deleted."""
+        # Try both 3-digit and 6-digit formats for backwards compatibility
+        for fmt in [f"piece_{piece_number:06d}.json", f"piece_{piece_number:03d}.json"]:
+            piece_file = self._gallery_dir / fmt
+            if await aiofiles.os.path.exists(piece_file):
+                try:
+                    await aiofiles.os.remove(piece_file)
+                    logger.info(f"Deleted gallery piece {piece_number}")
+                    return True
+                except OSError as e:
+                    logger.warning(f"Failed to delete gallery piece {piece_number}: {e}")
+                    return False
+
+        return False

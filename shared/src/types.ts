@@ -98,11 +98,18 @@ export interface NewCanvasMessage {
   saved_id: string | null;
 }
 
+// Notification that gallery has changed - client should refetch via REST
+export interface GalleryChangedMessage {
+  type: 'gallery_changed';
+}
+
+// @deprecated Use GalleryChangedMessage + REST API instead
 export interface GalleryUpdateMessage {
   type: 'gallery_update';
   canvases: SavedCanvas[];
 }
 
+// @deprecated Use REST API GET /gallery/{piece_number} instead
 export interface LoadCanvasMessage {
   type: 'load_canvas';
   strokes: Path[];
@@ -112,7 +119,6 @@ export interface LoadCanvasMessage {
 export interface InitMessage {
   type: 'init';
   strokes: Path[];
-  gallery: SavedCanvas[];
   status: AgentStatus;
   paused: boolean;
   piece_count: number;
@@ -175,8 +181,9 @@ export type ServerMessage =
   | StatusMessage
   | ClearMessage
   | NewCanvasMessage
-  | GalleryUpdateMessage
-  | LoadCanvasMessage
+  | GalleryChangedMessage
+  | GalleryUpdateMessage // @deprecated
+  | LoadCanvasMessage // @deprecated
   | InitMessage
   | PieceCountMessage
   | CodeExecutionMessage

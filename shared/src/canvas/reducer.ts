@@ -47,11 +47,11 @@ export type CanvasAction =
   | { type: 'TOGGLE_DRAWING' }
   | { type: 'SET_PIECE_COUNT'; count: number }
   | { type: 'SET_GALLERY'; canvases: SavedCanvas[] }
+  | { type: 'GALLERY_CHANGED' } // Notification to refetch gallery via REST
   | { type: 'LOAD_CANVAS'; strokes: Path[]; pieceNumber: number }
   | {
       type: 'INIT';
       strokes: Path[];
-      gallery: SavedCanvas[];
       status: AgentStatus;
       pieceCount: number;
       paused: boolean;
@@ -188,6 +188,11 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
     case 'SET_GALLERY':
       return { ...state, gallery: action.canvases };
 
+    case 'GALLERY_CHANGED':
+      // Just a notification - app should handle fetching gallery via REST
+      // We set a flag or the app hooks into this action separately
+      return state;
+
     case 'LOAD_CANVAS':
       return {
         ...state,
@@ -200,7 +205,6 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
       return {
         ...state,
         strokes: action.strokes,
-        gallery: action.gallery,
         agentStatus: action.status,
         pieceCount: action.pieceCount,
         paused: action.paused,
