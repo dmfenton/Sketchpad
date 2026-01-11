@@ -225,7 +225,7 @@ class TestInjectCanvasImage:
 
     def test_inject_canvas_image_adds_image_to_content(self) -> None:
         # Create a simple PNG image (minimal valid PNG bytes)
-        png_bytes = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82'
+        png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
 
         def get_canvas() -> bytes:
             return png_bytes
@@ -241,6 +241,7 @@ class TestInjectCanvasImage:
         assert content[0]["source"]["media_type"] == "image/png"
         # Verify it's valid base64
         import base64
+
         decoded = base64.standard_b64decode(content[0]["source"]["data"])
         assert decoded == png_bytes
 

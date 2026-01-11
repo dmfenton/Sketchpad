@@ -173,9 +173,7 @@ async def logout(user: CurrentUser) -> MessageResponse:
 
 
 @router.post("/magic-link", response_model=MessageResponse)
-async def request_magic_link(
-    request: MagicLinkRequest, http_request: Request
-) -> MessageResponse:
+async def request_magic_link(request: MagicLinkRequest, http_request: Request) -> MessageResponse:
     """Request a magic link for passwordless signin.
 
     Sends an email with a magic link if the user exists.
