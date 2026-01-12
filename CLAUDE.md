@@ -4,7 +4,8 @@
 
 Drawing Agent is an autonomous AI artist application with:
 - **Backend**: Python 3.11+ with FastAPI, Claude Agent SDK, WebSocket support
-- **Frontend**: React Native with Expo, TypeScript, react-native-svg
+- **Mobile App**: React Native with Expo, TypeScript, react-native-svg
+- **Web App**: React + Vite + Tailwind CSS 4, mobile-responsive, auth-protected
 
 ## Environment Setup
 
@@ -185,41 +186,57 @@ cd shared && npm run format   # Prettier
 
 **Must build shared/ before app/web changes take effect.**
 
-### Web Dev Server (web/)
+### Web App (web/)
 
-React + Vite dev server for accelerated development at http://localhost:5173:
+Mobile-responsive React + Vite + Tailwind CSS 4 web app. In production, served by FastAPI.
 
 ```
 web/src/
-├── App.tsx               # Main layout
+├── App.tsx               # Main layout with auth guard
+├── main.tsx              # Entry point with AuthProvider
+├── config.ts             # API/WebSocket URL detection
+├── styles.css            # Tailwind 4 with @theme colors
 ├── components/
-│   ├── Canvas.tsx        # SVG canvas with mouse handling
+│   ├── Canvas.tsx        # SVG canvas with mouse + touch handling
 │   ├── MessageStream.tsx # Agent thoughts display
 │   ├── DebugPanel.tsx    # Tabbed debug (Agent/Files/Messages)
-│   └── ActionBar.tsx     # Pause/Resume/Clear/Nudge
+│   ├── ActionBar.tsx     # Pause/Resume/Clear/Nudge
+│   ├── AuthScreen.tsx    # Magic link email/code login
+│   └── MobileNav.tsx     # Bottom tab bar for mobile
+├── context/
+│   └── AuthContext.tsx   # Auth state, JWT management
 └── hooks/
     ├── useCanvas.ts      # Shared reducer wrapper
-    ├── useWebSocket.ts   # WebSocket with auto dev token
-    └── useDebug.ts       # Debug data fetching
+    ├── useWebSocket.ts   # WebSocket with auth token
+    ├── useDebug.ts       # Debug data fetching with auth
+    └── useViewport.ts    # Responsive breakpoint detection
 ```
 
-**Start web dev server:**
+**Development:**
 ```bash
-make dev-web    # Starts both Python server + Vite dev server
-make web        # Starts Vite dev server only
+make dev-web      # Server + Vite dev server (hot reload)
+make web          # Vite dev server only
+make web-build    # Build for production
+make web-preview  # Preview production build locally
 ```
 
 **Features:**
-- Canvas rendering (SVG-based, same as app/)
-- Agent message stream with live streaming indicator
-- Debug panel with agent state, workspace files, WebSocket log
-- Action bar: pause/resume, clear canvas, send nudge
-- Auto dev token authentication (no login needed in dev mode)
+- Mobile-responsive layout (mobile/tablet/desktop breakpoints)
+- Touch drawing support for mobile devices
+- Bottom tab navigation on mobile (Canvas/Messages/Debug)
+- Magic link authentication in production
+- Auto dev token in development (no login needed)
+- Tailwind CSS 4 with custom dark theme
 
-**Debug API endpoints used by web:**
-- `GET /auth/dev-token` - Get dev JWT token (dev mode only)
-- `GET /debug/agent` - Agent state (status, notes, piece count)
-- `GET /debug/workspace` - Workspace files list
+**Responsive Breakpoints:**
+- Mobile: `<768px` - Single column, bottom tab nav
+- Tablet: `768-1023px` - Narrower right panel
+- Desktop: `≥1024px` - Full 2-column layout
+
+**Production Hosting:**
+- Built web app served by FastAPI via StaticFiles
+- Same-origin API calls (no CORS issues)
+- WebSocket uses `wss://` automatically on HTTPS
 
 ## Server Deployment (AWS)
 
@@ -233,10 +250,14 @@ git push origin v1.0.0
 ```
 
 This triggers `.github/workflows/release.yml` which:
-1. Builds Docker image from `server/`
+1. Builds Docker image (multi-stage: web app + Python server)
 2. Pushes to AWS ECR with version tag + `latest`
 3. Creates GitHub Release with changelog
 4. Watchtower on EC2 auto-pulls new image within 30 seconds
+
+**Docker Build (multi-stage):**
+- Stage 1: Node.js builds shared/ and web/ with pnpm
+- Stage 2: Python server with uv, copies web/dist for static serving
 
 ### Infrastructure (Terraform)
 
