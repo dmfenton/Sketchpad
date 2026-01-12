@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { PendingStroke } from '@drawing-agent/shared';
 import { useStrokeAnimation } from '@drawing-agent/shared';
 
+import { useTokenRefresh } from './hooks/useTokenRefresh';
 import { tracer } from './utils/tracing';
 
 import {
@@ -73,17 +74,12 @@ function MainApp(): React.JSX.Element {
     fetchStrokes,
   });
 
-  // Handle auth errors from WebSocket by trying to refresh, then sign out
-  const handleAuthError = useCallback(() => {
-    console.log('[App] WebSocket auth error, attempting token refresh');
-    void (async () => {
-      const refreshed = await refreshToken();
-      if (!refreshed) {
-        console.log('[App] Token refresh failed, signing out');
-        await signOut();
-      }
-    })();
-  }, [refreshToken, signOut]);
+  // Handle auth errors from WebSocket with proper mutex pattern
+  const { handleAuthError } = useTokenRefresh({
+    refreshToken,
+    signOut,
+    cooldownMs: 5000,
+  });
 
   const { state: wsState, send } = useWebSocket({
     url: getWebSocketUrl(),

@@ -1,6 +1,7 @@
 """Agent orchestrator - manages the agent loop and callbacks."""
 
 import asyncio
+import contextlib
 import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
@@ -54,9 +55,22 @@ class AgentOrchestrator:
     broadcaster: Broadcaster
     file_logger: AgentFileLogger | None = field(default=None)
 
+    # Event-driven wake-up (replaces polling)
+    _wake_event: asyncio.Event = field(default_factory=asyncio.Event)
+
     def __post_init__(self) -> None:
         # Set up the agent's draw callback to use our _draw_paths method
         self.agent.set_on_draw(self._draw_paths)
+
+    def wake(self) -> None:
+        """Signal the agent loop to wake up immediately.
+
+        Call this when:
+        - A client connects
+        - Agent is resumed
+        - A nudge is received
+        """
+        self._wake_event.set()
 
     async def _draw_paths(self, paths: list[Path]) -> None:
         """Queue paths for client-side rendering.
@@ -244,20 +258,32 @@ class AgentOrchestrator:
         return done
 
     async def run_loop(self) -> None:
-        """Main agent loop that runs continuously."""
+        """Main agent loop that runs continuously.
+
+        Uses event-driven wake-up instead of polling to reduce latency:
+        - Wakes immediately when signaled (client connect, resume, nudge)
+        - Falls back to interval timeout for safety
+        """
         while True:
             try:
+                # Wait for wake signal or timeout
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(
+                        self._wake_event.wait(),
+                        timeout=settings.agent_interval,
+                    )
+
+                # Clear event for next wait cycle
+                self._wake_event.clear()
+
                 # Only run when clients are connected (cost control)
                 if not self.broadcaster.active_connections:
-                    await asyncio.sleep(settings.agent_interval)
                     continue
 
                 if self.agent.paused:
-                    await asyncio.sleep(settings.agent_interval)
                     continue
 
                 await self.run_turn()
-                await asyncio.sleep(settings.agent_interval)
 
             except Exception as e:
                 logger.error(f"Agent loop error: {e}")
@@ -265,4 +291,3 @@ class AgentOrchestrator:
                     await self.file_logger.log_error(f"Agent loop error: {e}")
                 await self.broadcaster.broadcast(ErrorMessage(message=str(e)))
                 await self.broadcast_status(AgentStatus.IDLE)
-                await asyncio.sleep(settings.agent_interval)

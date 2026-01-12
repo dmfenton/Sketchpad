@@ -1,17 +1,22 @@
 """Filesystem-backed workspace state for multi-user isolation."""
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path as FilePath
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiofiles
 import aiofiles.os
 
 from drawing_agent.config import settings
-from drawing_agent.types import AgentStatus, CanvasState, Path, SavedCanvas
+from drawing_agent.types import AgentStatus, CanvasState, Path, PendingStrokeDict, SavedCanvas
+
+if TYPE_CHECKING:
+    from drawing_agent.config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -55,15 +60,19 @@ class WorkspaceState:
         self._gallery_index: list[dict[str, Any]] | None = None
 
         # Pending strokes for client-side rendering
-        self._pending_strokes: list[dict[str, Any]] = []
+        self._pending_strokes: list[PendingStrokeDict] = []
         self._stroke_batch_id: int = 0
+
+        # Save debouncing - coalesce rapid saves
+        self._save_pending: bool = False
+        self._save_task: asyncio.Task[None] | None = None
 
     @property
     def is_loaded(self) -> bool:
         return self._loaded
 
     @classmethod
-    async def load_for_user(cls, user_id: int) -> "WorkspaceState":
+    async def load_for_user(cls, user_id: int) -> WorkspaceState:
         """Load or create workspace state for a user."""
         # Validate user_id is a positive integer (path traversal protection)
         if not isinstance(user_id, int) or user_id <= 0:
@@ -123,8 +132,37 @@ class WorkspaceState:
 
         self._loaded = True
 
-    async def save(self) -> None:
-        """Save state to filesystem atomically."""
+    async def save(self, debounce_ms: int = 0) -> None:
+        """Save state to filesystem atomically.
+
+        Args:
+            debounce_ms: If > 0, debounce saves by this many milliseconds.
+                         Multiple calls within the window will be coalesced.
+
+        Enforces max_workspace_size_bytes limit to prevent disk exhaustion.
+        """
+        from drawing_agent.config import settings as app_settings
+
+        if debounce_ms > 0:
+            # Debounced save - schedule and return immediately
+            self._save_pending = True
+            if self._save_task is None or self._save_task.done():
+                self._save_task = asyncio.create_task(self._debounced_save(debounce_ms))
+            return
+
+        await self._do_save(app_settings)
+
+    async def _debounced_save(self, debounce_ms: int) -> None:
+        """Wait for debounce period then save if still pending."""
+        from drawing_agent.config import settings as app_settings
+
+        await asyncio.sleep(debounce_ms / 1000.0)
+        if self._save_pending:
+            self._save_pending = False
+            await self._do_save(app_settings)
+
+    async def _do_save(self, app_settings: Settings) -> None:
+        """Actually perform the save."""
         async with self._write_lock:
             data = {
                 "canvas": self._canvas.model_dump(),
@@ -137,10 +175,27 @@ class WorkspaceState:
                 "updated_at": datetime.now(UTC).isoformat(),
             }
 
+            # Serialize and check size
+            json_data = json.dumps(data, indent=2)
+            if len(json_data) > app_settings.max_workspace_size_bytes:
+                logger.warning(
+                    f"User {self.user_id}: workspace size ({len(json_data)} bytes) "
+                    f"exceeds limit ({app_settings.max_workspace_size_bytes} bytes), "
+                    "truncating old strokes"
+                )
+                # Remove oldest strokes until under limit
+                while (
+                    len(json_data) > app_settings.max_workspace_size_bytes
+                    and len(self._canvas.strokes) > 10
+                ):
+                    self._canvas.strokes = self._canvas.strokes[10:]
+                    data["canvas"] = self._canvas.model_dump()
+                    json_data = json.dumps(data, indent=2)
+
             # Write to temp file first, then atomically rename
             temp_file = self._workspace_file.with_suffix(".json.tmp")
             async with aiofiles.open(temp_file, "w") as f:
-                await f.write(json.dumps(data, indent=2))
+                await f.write(json_data)
 
             # Atomic rename (on POSIX systems)
             await aiofiles.os.replace(temp_file, self._workspace_file)
@@ -205,11 +260,22 @@ class WorkspaceState:
 
         Returns the batch_id for this set of strokes.
         Thread-safe: uses stroke lock to prevent race conditions.
+        Enforces max_pending_strokes limit to prevent memory exhaustion.
         """
         from drawing_agent.config import settings
         from drawing_agent.interpolation import interpolate_path
 
         async with self._stroke_lock:
+            # Check pending strokes limit
+            if len(self._pending_strokes) >= settings.max_pending_strokes:
+                logger.warning(
+                    f"User {self.user_id}: pending strokes limit reached "
+                    f"({settings.max_pending_strokes}), dropping oldest"
+                )
+                # Drop oldest strokes to make room
+                drop_count = len(paths)
+                self._pending_strokes = self._pending_strokes[drop_count:]
+
             self._stroke_batch_id += 1
             batch_id = self._stroke_batch_id
 
@@ -226,7 +292,7 @@ class WorkspaceState:
         await self.save()
         return batch_id
 
-    async def pop_strokes(self) -> list[dict[str, Any]]:
+    async def pop_strokes(self) -> list[PendingStrokeDict]:
         """Get and clear pending strokes.
 
         Thread-safe: uses stroke lock to prevent race conditions.
@@ -306,13 +372,17 @@ class WorkspaceState:
         return saved_id
 
     async def _update_gallery_index(self, new_entry: dict[str, Any]) -> None:
-        """Add a new entry to the gallery index."""
+        """Add or update an entry in the gallery index."""
         # Load current index if not cached
         if self._gallery_index is None:
             await self._load_gallery_index()
 
-        # Add new entry
+        # Add or update entry (avoid duplicates)
         if self._gallery_index is not None:
+            entry_id = new_entry.get("id")
+            # Remove existing entry with same ID if present
+            self._gallery_index = [e for e in self._gallery_index if e.get("id") != entry_id]
+            # Add new entry
             self._gallery_index.append(new_entry)
             self._gallery_index.sort(key=lambda p: p["piece_number"])
 

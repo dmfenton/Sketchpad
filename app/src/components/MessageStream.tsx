@@ -54,7 +54,11 @@ interface MessageBubbleProps {
   colors: ColorScheme;
 }
 
-function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JSX.Element {
+const MessageBubble = React.memo(function MessageBubble({
+  message,
+  isNew,
+  colors,
+}: MessageBubbleProps): React.JSX.Element {
   const fadeAnim = useRef(new Animated.Value(isNew ? 0 : 1)).current;
   const slideAnim = useRef(new Animated.Value(isNew ? 20 : 0)).current;
   const [expanded, setExpanded] = useState(false);
@@ -284,7 +288,7 @@ function MessageBubble({ message, isNew, colors }: MessageBubbleProps): React.JS
       )}
     </Animated.View>
   );
-}
+});
 
 export function MessageStream({ messages, status }: MessageStreamProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
@@ -297,17 +301,32 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
 
   // Track new messages for animation
   const newMessageIds = useRef(new Set<string>());
+  const cleanupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (messages.length > lastMessageCount.current) {
       const newMessages = messages.slice(lastMessageCount.current);
       newMessages.forEach((m) => newMessageIds.current.add(m.id));
-      // Clear after animation
-      setTimeout(() => {
+      // Clear after animation - with proper cleanup
+      cleanupTimeoutRef.current = setTimeout(() => {
         newMessages.forEach((m) => newMessageIds.current.delete(m.id));
       }, 500);
     }
     lastMessageCount.current = messages.length;
+
+    // Cleanup on unmount or when messages change
+    return () => {
+      if (cleanupTimeoutRef.current) {
+        clearTimeout(cleanupTimeoutRef.current);
+      }
+    };
   }, [messages]);
+
+  // Clear refs on unmount
+  useEffect(() => {
+    return () => {
+      newMessageIds.current.clear();
+    };
+  }, []);
 
   // Pulse animation when active (thinking, executing, drawing)
   useEffect(() => {

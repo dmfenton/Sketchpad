@@ -43,14 +43,28 @@ export function useStrokeAnimation({
 }: UseStrokeAnimationOptions): void {
   const animatingRef = useRef(false);
   const fetchedBatchIdRef = useRef(0);
+  const unmountedRef = useRef(false);
+
+  // Reset refs on unmount to prevent blocking future animations
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      animatingRef.current = false;
+      fetchedBatchIdRef.current = 0;
+    };
+  }, []);
 
   const animateStrokes = useCallback(
     async (strokes: PendingStroke[]): Promise<void> => {
-      if (animatingRef.current) return;
+      if (animatingRef.current || unmountedRef.current) return;
       animatingRef.current = true;
 
       try {
         for (const stroke of strokes) {
+          // Check for unmount between strokes
+          if (unmountedRef.current) break;
+
           const points = stroke.points;
           if (points.length === 0) continue;
 
@@ -59,21 +73,28 @@ export function useStrokeAnimation({
 
           // Animate through points using requestAnimationFrame for smoothness
           for (let i = 0; i < points.length; i++) {
+            // Check for unmount during animation
+            if (unmountedRef.current) break;
+
             const point = points[i];
             const isFirst = i === 0;
 
             await new Promise<void>((resolve) => {
               requestAnimationFrame(() => {
-                dispatch({ type: 'SET_PEN', x: point.x, y: point.y, down: !isFirst });
+                if (!unmountedRef.current) {
+                  dispatch({ type: 'SET_PEN', x: point.x, y: point.y, down: !isFirst });
+                }
                 setTimeout(resolve, frameDelayMs);
               });
             });
           }
 
-          // Lift pen and finalize stroke
-          const lastPoint = points[points.length - 1];
-          dispatch({ type: 'SET_PEN', x: lastPoint.x, y: lastPoint.y, down: false });
-          dispatch({ type: 'ADD_STROKE', path: stroke.path });
+          // Lift pen and finalize stroke (only if not unmounted)
+          if (!unmountedRef.current) {
+            const lastPoint = points[points.length - 1];
+            dispatch({ type: 'SET_PEN', x: lastPoint.x, y: lastPoint.y, down: false });
+            dispatch({ type: 'ADD_STROKE', path: stroke.path });
+          }
         }
       } finally {
         animatingRef.current = false;

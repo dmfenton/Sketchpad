@@ -202,6 +202,7 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         ...state,
         strokes: action.strokes,
         currentStroke: [],
+        agentStroke: [], // Clear agent stroke to prevent stale drawing
         viewingPiece: action.pieceNumber,
       };
 

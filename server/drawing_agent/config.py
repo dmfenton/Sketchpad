@@ -110,6 +110,11 @@ class Settings(BaseSettings):
     max_stdout_chars: int = 2000  # truncate stdout in messages
     max_stderr_chars: int = 500  # truncate stderr in messages
 
+    # Rate limiting (prevent abuse)
+    max_strokes_per_minute: int = 60  # max user strokes per minute
+    max_pending_strokes: int = 1000  # max pending strokes queued for animation
+    max_workspace_size_bytes: int = 10 * 1024 * 1024  # 10MB max workspace.json size
+
     # Tracing (OpenTelemetry + X-Ray via ADOT Collector)
     otel_enabled: bool = False  # Enable in production via env var
     otel_service_name: str = "drawing-agent"

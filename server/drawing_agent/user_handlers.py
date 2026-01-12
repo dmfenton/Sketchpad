@@ -6,6 +6,8 @@ Each handler receives the ActiveWorkspace context for the authenticated user.
 import logging
 from typing import Any
 
+from drawing_agent.config import settings
+from drawing_agent.rate_limiter import RateLimiter, RateLimiterConfig
 from drawing_agent.registry import ActiveWorkspace
 from drawing_agent.types import (
     AgentStatus,
@@ -20,9 +22,26 @@ from drawing_agent.types import (
 
 logger = logging.getLogger(__name__)
 
+# Rate limiter for user strokes
+_stroke_limiter = RateLimiter(
+    RateLimiterConfig(
+        max_requests=settings.max_strokes_per_minute,
+        window_seconds=60.0,
+    )
+)
+
 
 async def handle_stroke(workspace: ActiveWorkspace, message: dict[str, Any]) -> None:
     """Handle a stroke from the user."""
+    # Rate limit check
+    if not _stroke_limiter.is_allowed(workspace.user_id):
+        remaining_info = f"({_stroke_limiter.remaining(workspace.user_id)} remaining)"
+        logger.warning(f"User {workspace.user_id}: stroke rate limited {remaining_info}")
+        await workspace.connections.broadcast(
+            {"type": "error", "message": "Drawing too fast. Please slow down."}
+        )
+        return
+
     points = [Point(x=p["x"], y=p["y"]) for p in message.get("points", [])]
     if points:
         path = Path(type=PathType.POLYLINE, points=points, author="human")
@@ -37,6 +56,9 @@ async def handle_nudge(workspace: ActiveWorkspace, message: dict[str, Any]) -> N
     text = message.get("text", "")
     if text:
         workspace.agent.add_nudge(text)
+        # Wake the orchestrator immediately to process the nudge
+        if workspace.orchestrator:
+            workspace.orchestrator.wake()
         logger.info(f"User {workspace.user_id} nudge: {text}")
 
 
@@ -85,6 +107,9 @@ async def handle_new_canvas(
     await workspace.state.save()
     await workspace.connections.broadcast(StatusMessage(status=AgentStatus.IDLE))
     await workspace.connections.broadcast({"type": "paused", "paused": False})
+    # Wake the orchestrator immediately to start working
+    if workspace.orchestrator:
+        workspace.orchestrator.wake()
 
     logger.info(
         f"User {workspace.user_id}: new canvas (piece #{workspace.state.piece_count}), saved: {saved_id}, auto-started"
@@ -137,6 +162,9 @@ async def handle_resume(workspace: ActiveWorkspace, message: dict[str, Any] | No
     await workspace.state.save()
     await workspace.connections.broadcast(StatusMessage(status=AgentStatus.IDLE))
     await workspace.connections.broadcast({"type": "paused", "paused": False})
+    # Wake the orchestrator immediately to start working
+    if workspace.orchestrator:
+        workspace.orchestrator.wake()
     logger.info(f"User {workspace.user_id}: agent resumed")
 
 

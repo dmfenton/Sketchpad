@@ -1,9 +1,24 @@
 """Type definitions for the drawing agent."""
 
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, TypedDict
 
 from pydantic import BaseModel
+
+
+class PointDict(TypedDict):
+    """Dictionary representation of a point."""
+
+    x: float
+    y: float
+
+
+class PendingStrokeDict(TypedDict):
+    """Dictionary representation of a pending stroke for animation."""
+
+    batch_id: int
+    path: dict[str, Any]  # Serialized Path model
+    points: list[PointDict]
 
 
 class Point(BaseModel):
