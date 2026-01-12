@@ -29,6 +29,10 @@ export default {
       bundleIdentifier: 'net.dmfenton.sketchpad',
       buildNumber,
       associatedDomains: ['applinks:monet.dmfenton.net'],
+      infoPlist: {
+        // App only uses standard HTTPS/TLS (exempt encryption)
+        ITSAppUsesNonExemptEncryption: false,
+      },
     },
     android: {
       adaptiveIcon: {
