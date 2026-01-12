@@ -2,10 +2,23 @@
  * Code Monet Splash Screen
  * An impressionist-inspired animated splash with floating water lilies,
  * gentle brush strokes, and dreamy color transitions.
+ *
+ * Uses Reanimated for smooth, spring-based animations with parallel execution.
+ * Total duration: ~2.2 seconds (vs previous ~5 seconds)
  */
 
-import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, StyleSheet, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Dimensions, StyleSheet, View } from 'react-native';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 import { spacing, typography, useTheme } from '../theme';
 
@@ -103,88 +116,145 @@ function BrushStroke({
   );
 }
 
+// Spring config for smooth, natural feel
+const SPRING_CONFIG = {
+  damping: 15,
+  stiffness: 100,
+  mass: 0.8,
+};
+
+const FAST_SPRING = {
+  damping: 20,
+  stiffness: 150,
+};
+
 export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element {
   const { colors, gradients, shadows } = useTheme();
-  // Animation values
-  const fadeIn = useRef(new Animated.Value(0)).current;
-  const titleSlide = useRef(new Animated.Value(30)).current;
-  const subtitleFade = useRef(new Animated.Value(0)).current;
-  const floatAnim = useRef(new Animated.Value(0)).current;
-  const fadeOut = useRef(new Animated.Value(1)).current;
+
+  // Animation values - all running in parallel
+  const containerOpacity = useSharedValue(1);
+  const backgroundScale = useSharedValue(0.9);
+  const svgOpacity = useSharedValue(0);
+  const svgScale = useSharedValue(0.8);
+  const titleOpacity = useSharedValue(0);
+  const titleTranslateY = useSharedValue(20);
+  const subtitleOpacity = useSharedValue(0);
+  const brushOpacity = useSharedValue(0);
+  const brushScale = useSharedValue(0.5);
+  const attributionOpacity = useSharedValue(0);
+  const floatOffset = useSharedValue(0);
+
+  // Staggered lily animations
+  const lily1 = useSharedValue(0);
+  const lily2 = useSharedValue(0);
+  const lily3 = useSharedValue(0);
+  const lily4 = useSharedValue(0);
+  const lily5 = useSharedValue(0);
+  const lily6 = useSharedValue(0);
 
   useEffect(() => {
-    // Orchestrated animation sequence
-    Animated.sequence([
-      // Phase 1: Fade in background and content
-      Animated.parallel([
-        Animated.timing(fadeIn, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
+    // All animations start immediately and run in parallel
+    // Phase 1: Background and decorations (0-400ms)
+    backgroundScale.value = withSpring(1, FAST_SPRING);
+    svgOpacity.value = withSpring(1, SPRING_CONFIG);
+    svgScale.value = withSpring(1, SPRING_CONFIG);
 
-      // Phase 2: Title slides in
-      Animated.parallel([
-        Animated.timing(titleSlide, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(subtitleFade, {
-          toValue: 1,
-          duration: 800,
-          delay: 200,
-          useNativeDriver: true,
-        }),
-      ]),
+    // Staggered lily reveals (each 50ms apart)
+    lily1.value = withDelay(50, withSpring(1, SPRING_CONFIG));
+    lily2.value = withDelay(100, withSpring(1, SPRING_CONFIG));
+    lily3.value = withDelay(150, withSpring(1, SPRING_CONFIG));
+    lily4.value = withDelay(200, withSpring(1, SPRING_CONFIG));
+    lily5.value = withDelay(250, withSpring(1, SPRING_CONFIG));
+    lily6.value = withDelay(300, withSpring(1, SPRING_CONFIG));
 
-      // Phase 3: Gentle floating animation
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(floatAnim, {
-            toValue: 1,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(floatAnim, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-        ]),
-        { iterations: 1 }
-      ),
+    // Phase 2: Title and subtitle (150ms delay, overlaps with lilies)
+    titleOpacity.value = withDelay(150, withSpring(1, FAST_SPRING));
+    titleTranslateY.value = withDelay(150, withSpring(0, SPRING_CONFIG));
+    subtitleOpacity.value = withDelay(300, withSpring(1, SPRING_CONFIG));
 
-      // Phase 4: Hold then fade out
-      Animated.delay(300),
-      Animated.timing(fadeOut, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onFinish();
-    });
-  }, [fadeIn, titleSlide, subtitleFade, floatAnim, fadeOut, onFinish]);
+    // Phase 3: Brush icon and attribution (400ms delay)
+    brushOpacity.value = withDelay(400, withSpring(1, SPRING_CONFIG));
+    brushScale.value = withDelay(400, withSpring(1, SPRING_CONFIG));
+    attributionOpacity.value = withDelay(500, withSpring(1, SPRING_CONFIG));
 
-  const floatTransform = floatAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -6],
-  });
+    // Gentle floating animation (continuous)
+    floatOffset.value = withDelay(
+      300,
+      withSequence(
+        withTiming(-4, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(4, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 400, easing: Easing.inOut(Easing.ease) })
+      )
+    );
+
+    // Phase 4: Fade out (starts at 1800ms, completes by 2200ms)
+    containerOpacity.value = withDelay(
+      1800,
+      withTiming(0, { duration: 400, easing: Easing.out(Easing.ease) }, (finished) => {
+        if (finished) {
+          runOnJS(onFinish)();
+        }
+      })
+    );
+  }, [
+    backgroundScale,
+    svgOpacity,
+    svgScale,
+    titleOpacity,
+    titleTranslateY,
+    subtitleOpacity,
+    brushOpacity,
+    brushScale,
+    attributionOpacity,
+    floatOffset,
+    containerOpacity,
+    lily1,
+    lily2,
+    lily3,
+    lily4,
+    lily5,
+    lily6,
+    onFinish,
+  ]);
+
+  // Animated styles
+  const containerStyle = useAnimatedStyle(() => ({
+    opacity: containerOpacity.value,
+  }));
+
+  const backgroundStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: backgroundScale.value }],
+  }));
+
+  const svgStyle = useAnimatedStyle(() => ({
+    opacity: svgOpacity.value,
+    transform: [{ scale: svgScale.value }, { translateY: floatOffset.value }],
+  }));
+
+  const titleContainerStyle = useAnimatedStyle(() => ({
+    opacity: titleOpacity.value,
+    transform: [{ translateY: titleTranslateY.value }],
+  }));
+
+  const subtitleStyle = useAnimatedStyle(() => ({
+    opacity: subtitleOpacity.value,
+  }));
+
+  const brushContainerStyle = useAnimatedStyle(() => ({
+    opacity: brushOpacity.value,
+    transform: [{ scale: brushScale.value }],
+  }));
+
+  const attributionStyle = useAnimatedStyle(() => ({
+    opacity: attributionOpacity.value,
+  }));
 
   return (
-    <Animated.View
-      style={[styles.container, { backgroundColor: colors.background, opacity: fadeOut }]}
-    >
+    <Animated.View style={[styles.container, { backgroundColor: colors.background }, containerStyle]}>
       {/* Gradient-like background with overlapping circles */}
-      <View style={styles.gradientBackground}>
+      <Animated.View style={[styles.gradientBackground, backgroundStyle]}>
         <View
-          style={[
-            styles.gradientCircle,
-            styles.gradientCircle1,
-            { backgroundColor: gradients.mist[0] },
-          ]}
+          style={[styles.gradientCircle, styles.gradientCircle1, { backgroundColor: gradients.mist[0] }]}
         />
         <View
           style={[
@@ -194,31 +264,15 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
           ]}
         />
         <View
-          style={[
-            styles.gradientCircle,
-            styles.gradientCircle3,
-            { backgroundColor: gradients.garden[0] },
-          ]}
+          style={[styles.gradientCircle, styles.gradientCircle3, { backgroundColor: gradients.garden[0] }]}
         />
         <View
-          style={[
-            styles.gradientCircle,
-            styles.gradientCircle4,
-            { backgroundColor: gradients.sunrise[0] },
-          ]}
+          style={[styles.gradientCircle, styles.gradientCircle4, { backgroundColor: gradients.sunrise[0] }]}
         />
-      </View>
+      </Animated.View>
 
       {/* SVG decorations */}
-      <Animated.View
-        style={[
-          styles.svgContainer,
-          {
-            opacity: fadeIn,
-            transform: [{ translateY: floatTransform }],
-          },
-        ]}
-      >
+      <Animated.View style={[styles.svgContainer, svgStyle]}>
         <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={styles.svg}>
           {/* Background brush strokes */}
           <BrushStroke
@@ -321,28 +375,16 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
 
       {/* Title content */}
       <View style={styles.content}>
-        <Animated.View
-          style={[
-            styles.titleContainer,
-            {
-              opacity: fadeIn,
-              transform: [{ translateY: titleSlide }],
-            },
-          ]}
-        >
-          <Animated.Text style={[styles.title, { color: colors.textPrimary }]}>
-            Code Monet
-          </Animated.Text>
+        <Animated.View style={[styles.titleContainer, titleContainerStyle]}>
+          <Animated.Text style={[styles.title, { color: colors.textPrimary }]}>Code Monet</Animated.Text>
           <View style={[styles.titleUnderline, { backgroundColor: colors.secondary }]} />
         </Animated.View>
 
-        <Animated.Text
-          style={[styles.subtitle, { color: colors.textSecondary, opacity: subtitleFade }]}
-        >
+        <Animated.Text style={[styles.subtitle, { color: colors.textSecondary }, subtitleStyle]}>
           Where AI Meets Impressionism
         </Animated.Text>
 
-        <Animated.View style={[styles.brushContainer, { opacity: subtitleFade }]}>
+        <Animated.View style={[styles.brushContainer, brushContainerStyle]}>
           <View style={[styles.brushIcon, shadows.glow]}>
             <Svg width={40} height={40} viewBox="0 0 40 40">
               <Path
@@ -357,9 +399,7 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
       </View>
 
       {/* Bottom attribution */}
-      <Animated.Text
-        style={[styles.attribution, { color: colors.textMuted, opacity: subtitleFade }]}
-      >
+      <Animated.Text style={[styles.attribution, { color: colors.textMuted }, attributionStyle]}>
         An AI Drawing Experience
       </Animated.Text>
     </Animated.View>

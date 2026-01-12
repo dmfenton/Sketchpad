@@ -6,7 +6,6 @@
 import * as Linking from 'expo-linking';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   AppState,
   KeyboardAvoidingView,
@@ -28,6 +27,7 @@ import {
   ActionBar,
   Canvas,
   GalleryModal,
+  LoadingScreen,
   MessageStream,
   NewCanvasModal,
   NudgeModal,
@@ -296,7 +296,6 @@ function MainApp(): React.JSX.Element {
 }
 
 function AppContent(): React.JSX.Element {
-  const { colors } = useTheme();
   const { isLoading, isAuthenticated, verifyMagicLink, setTokensFromCallback } = useAuth();
   const [magicLinkError, setMagicLinkError] = useState<string | null>(null);
   const [verifyingMagicLink, setVerifyingMagicLink] = useState(false);
@@ -395,13 +394,7 @@ function AppContent(): React.JSX.Element {
 
   // Show loading screen while checking auth or verifying magic link
   if (isLoading || verifyingMagicLink) {
-    return (
-      <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </GestureHandlerRootView>
-    );
+    return <LoadingScreen />;
   }
 
   // Show auth screen if not authenticated (pass magic link error if any)
@@ -450,11 +443,6 @@ export default function App(): React.JSX.Element {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   container: {
     flex: 1,
