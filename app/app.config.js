@@ -18,7 +18,7 @@ export default {
     icon: './assets/icon.png',
     scheme: 'codemonet',
     userInterfaceStyle: 'automatic',
-    newArchEnabled: true,
+    newArchEnabled: false,
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',
