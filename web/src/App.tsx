@@ -1,8 +1,10 @@
 /**
- * Drawing Agent Web Dev Server
+ * Drawing Agent Web App
+ *
+ * Mobile-responsive layout with auth protection.
  */
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { PendingStroke, ServerMessage } from '@drawing-agent/shared';
 import { STATUS_LABELS, useStrokeAnimation } from '@drawing-agent/shared';
 import { getApiUrl } from './config';
@@ -11,39 +13,45 @@ import { Canvas } from './components/Canvas';
 import { MessageStream } from './components/MessageStream';
 import { DebugPanel } from './components/DebugPanel';
 import { ActionBar } from './components/ActionBar';
+import { AuthScreen } from './components/AuthScreen';
+import { MobileNav, type MobileTab } from './components/MobileNav';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useDebug } from './hooks/useDebug';
+import { useViewport } from './hooks/useViewport';
+import { useAuth } from './context/AuthContext';
 
-function App(): React.ReactElement {
+function LoadingScreen(): React.ReactElement {
+  return (
+    <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-text-secondary">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+function MainApp(): React.ReactElement {
+  const { accessToken } = useAuth();
+  const { isMobile } = useViewport();
+  const [mobileTab, setMobileTab] = useState<MobileTab>('canvas');
+
   const { state, dispatch, handleMessage, startStroke, addPoint, endStroke, toggleDrawing } =
     useCanvas();
 
   const { logMessage, ...debug } = useDebug();
 
-  // Token cache for REST API calls
-  const tokenRef = useRef<string | null>(null);
-
-  // Get dev token for REST API calls
-  const getToken = useCallback(async (): Promise<string> => {
-    if (tokenRef.current) return tokenRef.current;
-    const response = await fetch(`${getApiUrl()}/auth/dev-token`);
-    if (!response.ok) throw new Error('Failed to get dev token');
-    const data = await response.json();
-    tokenRef.current = data.access_token as string;
-    return tokenRef.current;
-  }, []);
-
   // Fetch pending strokes from server
   const fetchStrokes = useCallback(async (): Promise<PendingStroke[]> => {
-    const token = await getToken();
+    if (!accessToken) return [];
     const response = await fetch(`${getApiUrl()}/strokes/pending`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!response.ok) throw new Error('Failed to fetch strokes');
     const data = await response.json();
     return data.strokes as PendingStroke[];
-  }, [getToken]);
+  }, [accessToken]);
 
   // Use shared animation hook
   useStrokeAnimation({
@@ -69,22 +77,38 @@ function App(): React.ReactElement {
     }
   }, [endStroke, send]);
 
+  // Determine which class to add for mobile tab visibility
+  const mobileClass = isMobile
+    ? mobileTab === 'messages'
+      ? 'show-messages'
+      : mobileTab === 'debug'
+        ? 'show-debug'
+        : ''
+    : '';
+
   return (
-    <div className="app">
+    <div className={`app ${mobileClass}`}>
       <header className="header">
         <div className="header-left">
-          <h1>Drawing Agent</h1>
+          <h1 className={isMobile ? 'text-sm' : ''}>Code Monet</h1>
           <div className="connection-status">
             <div className={`connection-dot ${wsStatus}`} />
           </div>
         </div>
-        <div className="header-center">
-          <div className={`status-pill ${state.agentStatus}`}>
-            {STATUS_LABELS[state.agentStatus]}
+        {!isMobile && (
+          <div className="header-center">
+            <div className={`status-pill ${state.agentStatus}`}>
+              {STATUS_LABELS[state.agentStatus]}
+            </div>
           </div>
-        </div>
+        )}
         <div className="header-right">
-          <span className="piece-count">Piece #{state.pieceCount}</span>
+          {isMobile && (
+            <div className={`status-pill ${state.agentStatus}`}>
+              {STATUS_LABELS[state.agentStatus]}
+            </div>
+          )}
+          <span className="piece-count">#{state.pieceCount}</span>
         </div>
       </header>
 
@@ -110,18 +134,43 @@ function App(): React.ReactElement {
       </div>
 
       <div className="right-panel">
-        <MessageStream messages={state.messages} status={state.agentStatus} />
-        <DebugPanel
-          agent={debug.agent}
-          files={debug.files}
-          messageLog={debug.messageLog}
-          onRefresh={debug.refresh}
-          onClearLog={debug.clearLog}
-        />
+        {(!isMobile || mobileTab === 'messages') && (
+          <MessageStream messages={state.messages} status={state.agentStatus} />
+        )}
+        {(!isMobile || mobileTab === 'debug') && (
+          <DebugPanel
+            agent={debug.agent}
+            files={debug.files}
+            messageLog={debug.messageLog}
+            onRefresh={debug.refresh}
+            onClearLog={debug.clearLog}
+          />
+        )}
       </div>
 
+      {isMobile && (
+        <MobileNav
+          activeTab={mobileTab}
+          onTabChange={setMobileTab}
+          messageCount={state.messages.length}
+        />
+      )}
     </div>
   );
+}
+
+function App(): React.ReactElement {
+  const { isLoading, isAuthenticated } = useAuth();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (!isAuthenticated) {
+    return <AuthScreen />;
+  }
+
+  return <MainApp />;
 }
 
 export default App;

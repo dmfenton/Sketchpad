@@ -1,10 +1,13 @@
 /**
- * WebSocket hook with auto dev token.
+ * WebSocket hook with auth integration.
+ *
+ * Uses AuthContext for token management.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClientMessage, ServerMessage } from '@drawing-agent/shared';
-import { getApiUrl, getWebSocketUrl } from '../config';
+import { getWebSocketUrl } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 
@@ -24,28 +27,18 @@ export function useWebSocket({
   onMessage,
   autoConnect = true,
 }: UseWebSocketOptions): UseWebSocketReturn {
+  const { accessToken, refreshAccessToken } = useAuth();
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const wsRef = useRef<WebSocket | null>(null);
-  const tokenRef = useRef<string | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
-
-  const getDevToken = useCallback(async (): Promise<string> => {
-    // Try to get cached token
-    if (tokenRef.current) {
-      return tokenRef.current;
-    }
-
-    // Fetch dev token from backend
-    const response = await fetch(`${getApiUrl()}/auth/dev-token`);
-    if (!response.ok) {
-      throw new Error('Failed to get dev token');
-    }
-    const data = await response.json();
-    tokenRef.current = data.access_token;
-    return data.access_token;
-  }, []);
+  const reconnectAttempts = useRef(0);
 
   const connect = useCallback(async () => {
+    if (!accessToken) {
+      console.log('[WebSocket] No access token, skipping connection');
+      return;
+    }
+
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
@@ -53,15 +46,14 @@ export function useWebSocket({
     setStatus('connecting');
 
     try {
-      const token = await getDevToken();
-      const wsUrl = `${getWebSocketUrl()}?token=${token}`;
-
+      const wsUrl = `${getWebSocketUrl()}?token=${encodeURIComponent(accessToken)}`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = (): void => {
         console.log('[WebSocket] Connected');
         setStatus('connected');
+        reconnectAttempts.current = 0;
       };
 
       ws.onmessage = (event: MessageEvent): void => {
@@ -73,25 +65,40 @@ export function useWebSocket({
         }
       };
 
-      ws.onclose = (event: CloseEvent): void => {
+      ws.onclose = async (event: CloseEvent): Promise<void> => {
         console.log('[WebSocket] Disconnected:', event.code, event.reason);
         setStatus('disconnected');
         wsRef.current = null;
 
-        // Auth error - clear token and don't reconnect immediately
+        // Auth error - try to refresh token
         if (event.code === 4001) {
-          tokenRef.current = null;
-          console.log('[WebSocket] Auth error, will retry with new token');
+          console.log('[WebSocket] Auth error, attempting token refresh');
+          const refreshed = await refreshAccessToken();
+          if (refreshed) {
+            // Token refreshed, reconnect immediately
+            reconnectAttempts.current = 0;
+            setTimeout(() => connect(), 100);
+            return;
+          }
+          // Refresh failed, auth context will handle logout
+          return;
         }
 
-        // Auto-reconnect after delay
-        if (reconnectTimeoutRef.current) {
-          window.clearTimeout(reconnectTimeoutRef.current);
+        // Auto-reconnect with exponential backoff
+        const maxAttempts = 10;
+        if (reconnectAttempts.current < maxAttempts) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
+          reconnectAttempts.current++;
+
+          if (reconnectTimeoutRef.current) {
+            window.clearTimeout(reconnectTimeoutRef.current);
+          }
+
+          console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
+          reconnectTimeoutRef.current = window.setTimeout(() => {
+            void connect();
+          }, delay);
         }
-        reconnectTimeoutRef.current = window.setTimeout(() => {
-          console.log('[WebSocket] Reconnecting...');
-          void connect();
-        }, 3000);
       };
 
       ws.onerror = (error: Event): void => {
@@ -103,10 +110,10 @@ export function useWebSocket({
 
       // Retry after delay
       reconnectTimeoutRef.current = window.setTimeout(() => {
-        connect();
+        void connect();
       }, 3000);
     }
-  }, [getDevToken, onMessage]);
+  }, [accessToken, onMessage, refreshAccessToken]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -130,10 +137,10 @@ export function useWebSocket({
     }
   }, []);
 
-  // Auto-connect on mount
+  // Connect when we have a token
   useEffect(() => {
-    if (autoConnect) {
-      connect();
+    if (autoConnect && accessToken) {
+      void connect();
     }
 
     return () => {
@@ -144,7 +151,7 @@ export function useWebSocket({
         wsRef.current.close();
       }
     };
-  }, [autoConnect, connect]);
+  }, [autoConnect, accessToken, connect]);
 
   return { status, send, connect, disconnect };
 }

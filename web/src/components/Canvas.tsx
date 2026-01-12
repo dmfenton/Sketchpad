@@ -1,5 +1,5 @@
 /**
- * SVG canvas component for web - renders strokes and handles mouse input.
+ * SVG canvas component for web - renders strokes and handles mouse/touch input.
  */
 
 import React, { useCallback, useRef, useState } from 'react';
@@ -107,33 +107,43 @@ export function Canvas({
   const svgRef = useRef<SVGSVGElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  const getPoint = useCallback((e: React.MouseEvent): Point | null => {
+  // Get point from mouse event
+  const getMousePoint = useCallback((e: React.MouseEvent): Point | null => {
     if (!svgRef.current) return null;
     const rect = svgRef.current.getBoundingClientRect();
     return screenToCanvas(e.clientX, e.clientY, rect);
   }, []);
 
+  // Get point from touch event
+  const getTouchPoint = useCallback((e: React.TouchEvent): Point | null => {
+    if (!svgRef.current || e.touches.length === 0) return null;
+    const touch = e.touches[0]!;
+    const rect = svgRef.current.getBoundingClientRect();
+    return screenToCanvas(touch.clientX, touch.clientY, rect);
+  }, []);
+
+  // Mouse event handlers
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (!drawingEnabled) return;
-      const point = getPoint(e);
+      const point = getMousePoint(e);
       if (point) {
         setIsDrawing(true);
         onStrokeStart(point.x, point.y);
       }
     },
-    [drawingEnabled, getPoint, onStrokeStart]
+    [drawingEnabled, getMousePoint, onStrokeStart]
   );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (!isDrawing || !drawingEnabled) return;
-      const point = getPoint(e);
+      const point = getMousePoint(e);
       if (point) {
         onStrokeMove(point.x, point.y);
       }
     },
-    [isDrawing, drawingEnabled, getPoint, onStrokeMove]
+    [isDrawing, drawingEnabled, getMousePoint, onStrokeMove]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -150,6 +160,44 @@ export function Canvas({
     }
   }, [isDrawing, onStrokeEnd]);
 
+  // Touch event handlers
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (!drawingEnabled) return;
+      // Prevent scrolling while drawing
+      e.preventDefault();
+      const point = getTouchPoint(e);
+      if (point) {
+        setIsDrawing(true);
+        onStrokeStart(point.x, point.y);
+      }
+    },
+    [drawingEnabled, getTouchPoint, onStrokeStart]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isDrawing || !drawingEnabled) return;
+      e.preventDefault();
+      const point = getTouchPoint(e);
+      if (point) {
+        onStrokeMove(point.x, point.y);
+      }
+    },
+    [isDrawing, drawingEnabled, getTouchPoint, onStrokeMove]
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (isDrawing) {
+        e.preventDefault();
+        setIsDrawing(false);
+        onStrokeEnd();
+      }
+    },
+    [isDrawing, onStrokeEnd]
+  );
+
   return (
     <div className="canvas-wrapper">
       <svg
@@ -158,11 +206,20 @@ export function Canvas({
         height="100%"
         viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
         preserveAspectRatio="xMidYMid meet"
+        // Mouse events
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
-        style={{ cursor: drawingEnabled ? 'crosshair' : 'default' }}
+        // Touch events
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        style={{
+          cursor: drawingEnabled ? 'crosshair' : 'default',
+          touchAction: drawingEnabled ? 'none' : 'auto',
+        }}
       >
         {/* Grid pattern */}
         <defs>
@@ -238,19 +295,7 @@ export function Canvas({
 
       {/* Drawing mode indicator */}
       {drawingEnabled && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            padding: '4px 8px',
-            background: '#e94560',
-            color: '#fff',
-            borderRadius: 4,
-            fontSize: 12,
-            fontWeight: 600,
-          }}
-        >
+        <div className="absolute top-2 left-2 px-2 py-1 bg-accent text-white rounded text-xs font-semibold">
           Drawing Mode
         </div>
       )}

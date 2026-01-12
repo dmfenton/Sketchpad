@@ -1,11 +1,9 @@
-.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test lint format typecheck clean cli cli-turn cli-status build-shared
+.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web web-build web-preview test lint format typecheck clean cli cli-turn cli-status build-shared
 
 # Install all dependencies
 install:
 	cd server && uv sync
-	cd app && pnpm install
-	cd shared && npm install
-	cd web && npm install
+	pnpm install
 
 # Run server + Expo app (foreground, Ctrl+C to stop)
 dev:
@@ -68,7 +66,15 @@ app:
 
 # Run web dev server only
 web:
-	cd web && npm run dev
+	cd web && pnpm run dev
+
+# Build web app for production
+web-build: build-shared
+	cd web && pnpm run build
+
+# Preview production build (serves built files locally)
+web-preview: web-build
+	cd web && pnpm run preview
 
 # Run server + Vite web app (foreground, Ctrl+C to stop)
 dev-web:
@@ -94,7 +100,7 @@ coverage:
 
 # Build shared library
 build-shared:
-	cd shared && npm run build
+	cd shared && pnpm run build
 
 # Lint all code
 lint: lint-server lint-app lint-shared lint-web
@@ -106,10 +112,10 @@ lint-app:
 	cd app && pnpm lint
 
 lint-shared:
-	cd shared && npm run lint
+	cd shared && pnpm run lint
 
 lint-web:
-	cd web && npm run lint
+	cd web && pnpm run lint
 
 # Format all code
 format: format-server format-app format-shared format-web
@@ -121,10 +127,10 @@ format-app:
 	cd app && pnpm format
 
 format-shared:
-	cd shared && npm run format
+	cd shared && pnpm run format
 
 format-web:
-	cd web && npm run format
+	cd web && pnpm run format
 
 # Type checking
 typecheck: typecheck-server typecheck-app typecheck-shared typecheck-web
@@ -136,10 +142,10 @@ typecheck-app:
 	cd app && pnpm typecheck
 
 typecheck-shared:
-	cd shared && npm run typecheck
+	cd shared && pnpm run typecheck
 
 typecheck-web:
-	cd web && npm run typecheck
+	cd web && pnpm run typecheck
 
 # Clean build artifacts
 clean:
@@ -150,3 +156,4 @@ clean:
 	rm -rf server/.ruff_cache 2>/dev/null || true
 	rm -rf app/coverage 2>/dev/null || true
 	rm -rf shared/dist 2>/dev/null || true
+	rm -rf web/dist 2>/dev/null || true

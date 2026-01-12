@@ -1,3 +1,29 @@
+# Stage 1: Build web app
+FROM node:20-slim AS web-builder
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /build
+
+# Copy package files for all workspaces
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY shared/package.json shared/
+COPY web/package.json web/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source files
+COPY shared/ shared/
+COPY web/ web/
+
+# Build shared library then web app
+RUN cd shared && pnpm run build
+RUN cd web && pnpm run build
+
+
+# Stage 2: Python server
 FROM python:3.11-slim
 
 # Build args for version info
@@ -18,9 +44,12 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Copy project files
-COPY pyproject.toml uv.lock alembic.ini ./
-COPY drawing_agent/ drawing_agent/
-COPY alembic/ alembic/
+COPY server/pyproject.toml server/uv.lock server/alembic.ini ./
+COPY server/drawing_agent/ drawing_agent/
+COPY server/alembic/ alembic/
+
+# Copy built web app from builder stage
+COPY --from=web-builder /build/web/dist ./web/dist
 
 # Install dependencies
 RUN uv sync --frozen --no-dev

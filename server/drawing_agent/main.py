@@ -6,12 +6,14 @@ import json
 import logging
 import traceback
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageDraw
 from pydantic import BaseModel
 
@@ -655,6 +657,17 @@ async def websocket_endpoint(
         logger.error(f"WebSocket error for user {user_id}: {e}")
         await workspace_registry.on_disconnect(user_id, websocket)
         await shutdown_manager.unregister_connection(websocket)
+
+
+# ============== Static File Serving (Web App) ==============
+# Mount web app static files in production
+# Must be last to not override API routes
+web_dist = Path(__file__).parent.parent.parent / "web" / "dist"
+if web_dist.exists():
+    logger.info(f"Mounting web app from {web_dist}")
+    app.mount("/", StaticFiles(directory=web_dist, html=True), name="web")
+else:
+    logger.info("Web app not found, skipping static file mount")
 
 
 if __name__ == "__main__":

@@ -1,22 +1,13 @@
 /**
  * Debug data hook - fetches workspace and agent state.
+ *
+ * Uses AuthContext for token management.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import type { ServerMessage } from '@drawing-agent/shared';
 import { getApiUrl } from '../config';
-
-// Cache the dev token
-let cachedToken: string | null = null;
-
-async function getDevToken(): Promise<string> {
-  if (cachedToken) return cachedToken;
-  const response = await fetch(`${getApiUrl()}/auth/dev-token`);
-  if (!response.ok) throw new Error('Failed to get dev token');
-  const data = await response.json();
-  cachedToken = data.access_token;
-  return data.access_token;
-}
+import { useAuth } from '../context/AuthContext';
 
 export interface WorkspaceFile {
   name: string;
@@ -50,6 +41,8 @@ interface UseDebugReturn extends DebugState {
 const MAX_LOG_MESSAGES = 100;
 
 export function useDebug(): UseDebugReturn {
+  const { accessToken, refreshAccessToken } = useAuth();
+
   const [state, setState] = useState<DebugState>({
     agent: null,
     files: [],
@@ -59,16 +52,28 @@ export function useDebug(): UseDebugReturn {
   });
 
   const refresh = useCallback(async () => {
+    if (!accessToken) return;
+
     setState((s) => ({ ...s, loading: true, error: null }));
 
     try {
-      const token = await getDevToken();
-      const headers = { Authorization: `Bearer ${token}` };
+      const headers = { Authorization: `Bearer ${accessToken}` };
 
       const [agentRes, workspaceRes] = await Promise.all([
         fetch(`${getApiUrl()}/debug/agent`, { headers }),
         fetch(`${getApiUrl()}/debug/workspace`, { headers }),
       ]);
+
+      // Handle 401 - try to refresh token
+      if (agentRes.status === 401 || workspaceRes.status === 401) {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          // Retry with new token
+          setTimeout(() => refresh(), 100);
+          return;
+        }
+        throw new Error('Authentication failed');
+      }
 
       if (!agentRes.ok || !workspaceRes.ok) {
         throw new Error('Failed to fetch debug info');
@@ -90,7 +95,7 @@ export function useDebug(): UseDebugReturn {
         error: error instanceof Error ? error.message : 'Unknown error',
       }));
     }
-  }, []);
+  }, [accessToken, refreshAccessToken]);
 
   const logMessage = useCallback((message: ServerMessage) => {
     setState((s) => ({
@@ -106,12 +111,14 @@ export function useDebug(): UseDebugReturn {
     setState((s) => ({ ...s, messageLog: [] }));
   }, []);
 
-  // Initial fetch and polling
+  // Initial fetch and polling when we have a token
   useEffect(() => {
+    if (!accessToken) return;
+
     refresh();
     const interval = setInterval(refresh, 5000);
     return () => clearInterval(interval);
-  }, [refresh]);
+  }, [accessToken, refresh]);
 
   return {
     ...state,
