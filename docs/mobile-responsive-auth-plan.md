@@ -15,7 +15,7 @@ Transform the web dev server into a production-ready mobile-responsive web app:
 
 ---
 
-## Phase 1: Mobile Responsive Design ✅ STARTED
+## Phase 1: Mobile Responsive Design ✅ COMPLETE
 
 **Current state**: 3-column fixed grid (canvas + right panel 400px)
 
@@ -108,7 +108,7 @@ Transform the web dev server into a production-ready mobile-responsive web app:
 
 ---
 
-## Phase 2: Authentication Integration
+## Phase 2: Authentication Integration ✅ COMPLETE
 
 **Current state**: Dev token auto-fetched from `/auth/dev-token` (dev mode only)
 
@@ -180,7 +180,7 @@ if (isDev) {
 
 ---
 
-## Phase 3: Python Server Static Hosting
+## Phase 3: Python Server Static Hosting ✅ COMPLETE
 
 **Current state**: Vite dev server on :5173, proxies to FastAPI :8000
 
