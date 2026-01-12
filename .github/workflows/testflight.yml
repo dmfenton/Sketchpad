@@ -63,6 +63,14 @@ jobs:
         working-directory: shared
         run: pnpm run build
 
+      - name: Copy shared to app node_modules
+        run: |
+          # Metro can't follow pnpm workspace symlinks during Xcode build
+          # Replace the symlink with actual built content
+          rm -rf app/node_modules/@drawing-agent/shared
+          mkdir -p app/node_modules/@drawing-agent
+          cp -r shared app/node_modules/@drawing-agent/shared
+
       - name: Run prebuild
         working-directory: app
         env:
