@@ -2,6 +2,7 @@
  * Authentication Context - Manages JWT tokens with secure storage
  */
 
+import { decode as base64Decode } from 'base-64';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
@@ -78,7 +79,9 @@ function decodeToken(token: string): { sub: string; email: string; exp: number }
   try {
     const parts = token.split('.');
     if (parts.length !== 3 || !parts[1]) return null;
-    const decoded = atob(parts[1]);
+    // Handle URL-safe base64 (replace - with + and _ with /)
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = base64Decode(base64);
     return JSON.parse(decoded) as { sub: string; email: string; exp: number };
   } catch {
     return null;

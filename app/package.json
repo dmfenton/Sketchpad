@@ -13,10 +13,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@drawing-agent/shared": "file:../shared",
     "@babel/runtime": "^7.28.4",
+    "@drawing-agent/shared": "file:../shared",
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.3",
+    "base-64": "^1.0.0",
     "expo": "~54.0.30",
     "expo-linking": "~8.0.11",
     "expo-router": "~6.0.21",
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.0",
     "@testing-library/react-native": "^12.8.0",
+    "@types/base-64": "^1.0.2",
     "@types/jest": "^29.5.14",
     "@types/node": "^25.0.3",
     "@types/react": "~19.1.17",
