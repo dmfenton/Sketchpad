@@ -54,29 +54,14 @@ jobs:
         with:
           node-version: '22'
           cache: 'pnpm'
-          cache-dependency-path: |
-            shared/pnpm-lock.yaml
-            app/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install shared dependencies
-        working-directory: shared
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build shared library
         working-directory: shared
         run: pnpm run build
-
-      - name: Install app dependencies
-        working-directory: app
-        run: pnpm install --frozen-lockfile
-
-      - name: Link shared package
-        run: |
-          # pnpm creates symlinks for file: dependencies which Metro can't follow in CI
-          # Replace the symlink with actual content
-          rm -rf app/node_modules/@drawing-agent/shared
-          mkdir -p app/node_modules/@drawing-agent
-          cp -r shared app/node_modules/@drawing-agent/shared
 
       - name: Run prebuild
         working-directory: app
