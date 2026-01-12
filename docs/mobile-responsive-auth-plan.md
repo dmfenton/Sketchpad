@@ -3,17 +3,30 @@
 ## Overview
 
 Transform the web dev server into a production-ready mobile-responsive web app:
-1. **Mobile responsive** - Works on phones/tablets via CSS/layout changes
+1. **Mobile responsive** - Works on phones/tablets via Tailwind CSS
 2. **Auth-protected** - Uses existing magic link auth in production
 3. **Python-served** - FastAPI serves built static files
 
+## Tech Stack
+
+- **Tailwind CSS 4** - CSS-first configuration with `@theme` directive
+- **Vite + @tailwindcss/vite** - Build integration
+- **Custom theme colors** - bg-primary, bg-secondary, accent, etc.
+
 ---
 
-## Phase 1: Mobile Responsive Design
+## Phase 1: Mobile Responsive Design ✅ STARTED
 
 **Current state**: 3-column fixed grid (canvas + right panel 400px)
 
 **Target**: Responsive layout with collapsible panels for mobile
+
+### 1.0 Tailwind Setup ✅ DONE
+
+- Installed `tailwindcss`, `@tailwindcss/vite`, `postcss`, `autoprefixer`
+- Updated `vite.config.ts` with Tailwind plugin
+- Converted `styles.css` to use Tailwind 4's `@theme` directive
+- Added responsive breakpoints and mobile nav styles
 
 ### 1.1 Layout Strategy
 
@@ -50,49 +63,43 @@ Transform the web dev server into a production-ready mobile-responsive web app:
 - Full-screen modal on mobile
 - Accessible via tab or hamburger menu
 
-### 1.3 CSS Changes
+### 1.3 CSS Changes ✅ DONE
 
-**styles.css additions**:
+**Tailwind 4 Theme** (`styles.css`):
 ```css
-/* Mobile breakpoints */
-@media (max-width: 767px) {
-  /* Mobile styles */
-  .app-container {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr auto;
-  }
+@import 'tailwindcss';
 
-  .right-panel {
-    display: none; /* Hidden by default, shown via tabs */
-  }
-
-  .mobile-tab-bar {
-    display: flex;
-  }
+@theme {
+  --color-bg-primary: #1a1a2e;
+  --color-bg-secondary: #16213e;
+  --color-bg-tertiary: #0f3460;
+  --color-accent: #e94560;
+  --color-accent-dim: #a83248;
+  --color-text-primary: #eee;
+  --color-text-secondary: #aaa;
+  --color-text-muted: #666;
+  --color-border: #333;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-error: #ef4444;
 }
 
-@media (min-width: 768px) and (max-width: 1023px) {
-  /* Tablet styles */
-  .app-container {
-    grid-template-columns: 1fr 300px;
-  }
-}
+/* Responsive breakpoints already added */
+@media (max-width: 767px) { /* Mobile */ }
+@media (max-width: 1023px) { /* Tablet */ }
 
-/* Touch-friendly sizing */
-.btn {
+/* Touch-friendly sizing via @utility */
+@utility touch-target {
   min-height: 44px;
   min-width: 44px;
 }
-
-/* Mobile navigation */
-.mobile-tab-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: none; /* Shown on mobile */
-}
 ```
+
+**Tailwind classes available**:
+- `bg-bg-primary`, `bg-bg-secondary`, `bg-accent`
+- `text-text-primary`, `text-text-secondary`
+- `border-border`, `border-accent`
+- All standard Tailwind utilities (flex, grid, p-*, etc.)
 
 ### 1.4 New Files
 
