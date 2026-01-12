@@ -3,18 +3,13 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
-// Add the shared package to watch folders so Metro can resolve it
+// For local development with pnpm's file: link to shared package
 const sharedPath = path.resolve(__dirname, '../shared');
 
+// Watch the shared directory for hot reload during local development
 config.watchFolders = [sharedPath];
 
-// Configure resolver to find the shared package
-config.resolver.nodeModulesPaths = [
-  path.resolve(__dirname, 'node_modules'),
-  path.resolve(sharedPath, 'node_modules'),
-];
-
-// Ensure symlinks are resolved
+// Enable symlink support for local development with pnpm
 config.resolver.unstable_enableSymlinks = true;
 
 module.exports = config;

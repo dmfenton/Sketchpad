@@ -70,6 +70,14 @@ jobs:
         working-directory: app
         run: pnpm install --frozen-lockfile
 
+      - name: Link shared package
+        run: |
+          # pnpm creates symlinks for file: dependencies which Metro can't follow in CI
+          # Replace the symlink with actual content
+          rm -rf app/node_modules/@drawing-agent/shared
+          mkdir -p app/node_modules/@drawing-agent
+          cp -r shared app/node_modules/@drawing-agent/shared
+
       - name: Run prebuild
         working-directory: app
         env:
