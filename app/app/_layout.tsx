@@ -4,23 +4,40 @@
  */
 
 import * as Sentry from '@sentry/react-native';
-import { Stack } from 'expo-router';
+import Constants from 'expo-constants';
+import { Stack, useNavigationContainerRef } from 'expo-router';
+import { useEffect } from 'react';
 
 import { AuthProvider } from '../src/context/AuthContext';
 import { ThemeProvider } from '../src/theme';
 
+// Check if running in Expo Go (native features limited)
+const isExpoGo = Constants.appOwnership === ('expo' as typeof Constants.appOwnership);
+
+// Create navigation integration for route tracking
+const navigationIntegration = Sentry.reactNavigationIntegration({
+  enableTimeToInitialDisplay: !isExpoGo,
+});
+
 // Initialize Sentry for crash reporting
 Sentry.init({
   dsn: 'https://cbc0025fc6dcd2b55265bc8b4e429b20@o4510700455591936.ingest.us.sentry.io/4510700456443904',
-  // Disable in development
   enabled: !__DEV__,
-  // Set sample rate for performance monitoring
   tracesSampleRate: 0.2,
-  // Capture unhandled promise rejections
+  integrations: [navigationIntegration],
+  enableNativeFramesTracking: !isExpoGo,
   enableAutoSessionTracking: true,
 });
 
 function RootLayout() {
+  const navigationRef = useNavigationContainerRef();
+
+  useEffect(() => {
+    if (navigationRef) {
+      navigationIntegration.registerNavigationContainer(navigationRef);
+    }
+  }, [navigationRef]);
+
   return (
     <ThemeProvider>
       <AuthProvider>
