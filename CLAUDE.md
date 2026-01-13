@@ -567,6 +567,9 @@ Or manually trigger via GitHub Actions → TestFlight Deploy → Run workflow.
 | `APPLE_ID` | Apple Developer email |
 | `ITC_TEAM_ID` | App Store Connect team ID |
 | `KEYCHAIN_PASSWORD` | Random string for CI keychain |
+| `SENTRY_ORG` | Sentry organization slug |
+| `SENTRY_PROJECT` | Sentry project slug |
+| `SENTRY_AUTH_TOKEN` | Sentry auth token for source maps (optional) |
 
 ### Versioning
 

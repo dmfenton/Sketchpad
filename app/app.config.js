@@ -18,7 +18,7 @@ export default {
     icon: './assets/icon.png',
     scheme: 'codemonet',
     userInterfaceStyle: 'automatic',
-    newArchEnabled: false,
+    newArchEnabled: true,
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',
@@ -47,7 +47,17 @@ export default {
       output: 'static',
       favicon: './assets/favicon.png',
     },
-    plugins: ['expo-router', 'expo-secure-store'],
+    plugins: [
+      'expo-router',
+      'expo-secure-store',
+      [
+        '@sentry/react-native',
+        {
+          organization: process.env.SENTRY_ORG,
+          project: process.env.SENTRY_PROJECT,
+        },
+      ],
+    ],
     experiments: {
       typedRoutes: true,
     },

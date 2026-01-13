@@ -15,6 +15,9 @@ env:
   # Production URLs
   EXPO_PUBLIC_API_URL: 'https://monet.dmfenton.net'
   EXPO_PUBLIC_WS_URL: 'wss://monet.dmfenton.net/ws'
+  # Sentry
+  SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+  SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
 jobs:
   build-ios:
@@ -76,6 +79,7 @@ jobs:
         env:
           APP_VERSION: ${{ steps.version.outputs.version }}
           APP_BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: npx expo prebuild --platform ios --clean
 
       - name: Set up Ruby
