@@ -80,6 +80,8 @@ jobs:
           APP_VERSION: ${{ steps.version.outputs.version }}
           APP_BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          # Disable Sentry source map auto-upload (enable when SENTRY_AUTH_TOKEN is configured)
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
         run: npx expo prebuild --platform ios --clean
 
       - name: Set up Ruby
@@ -165,7 +167,8 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           ITC_TEAM_ID: ${{ secrets.ITC_TEAM_ID }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ALLOW_FAILURE: 'true'
+          # Disable Sentry source map auto-upload (enable when SENTRY_AUTH_TOKEN is configured)
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
         run: fastlane ios beta
 
       - name: Upload IPA artifact
