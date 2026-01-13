@@ -55,6 +55,8 @@ export default {
         {
           organization: process.env.SENTRY_ORG,
           project: process.env.SENTRY_PROJECT,
+          // Disable auto source map upload in CI - auth token not configured
+          uploadSourceMaps: !!process.env.SENTRY_AUTH_TOKEN,
         },
       ],
     ],
