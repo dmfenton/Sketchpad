@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.2] - 2026-01-14
+
+### Added
+
+- `/web-version` endpoint to check deployed web version
+
+### Fixed
+
+- Web cache busting: HTML now served with no-cache headers
+- S3 sync uses `--exact-timestamps` to detect content changes when file size matches
+
 ## [1.13.1] - 2026-01-14
 
 ### Added
@@ -390,7 +401,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.13.1...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.13.2...HEAD
+[1.13.2]: https://github.com/dmfenton/sketchpad/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/dmfenton/sketchpad/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/dmfenton/sketchpad/compare/v1.10.0...v1.13.0
 [1.10.0]: https://github.com/dmfenton/sketchpad/compare/v1.9.3...v1.10.0
