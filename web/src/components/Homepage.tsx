@@ -4,15 +4,44 @@
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { getApiUrl, getWebSocketUrl } from '../config';
 
 interface HomepageProps {
   onEnter: () => void;
 }
 
-// Simulated brush strokes that animate like the real agent
+// Types for API responses
+interface GalleryPiece {
+  id: string;
+  user_id: string;
+  piece_number: number;
+  stroke_count: number;
+  created_at: string;
+}
+
+interface StrokePoint {
+  x: number;
+  y: number;
+}
+
+interface PathData {
+  type: string;
+  points?: StrokePoint[];
+  d?: string;
+  author?: string;
+}
+
+interface PieceStrokes {
+  id: string;
+  strokes: PathData[];
+  piece_number: number;
+  created_at: string;
+}
+
+// Simulated brush strokes for fallback animation
 interface SimulatedStroke {
   id: number;
-  points: { x: number; y: number }[];
+  points: StrokePoint[];
   color: string;
   width: number;
   progress: number;
@@ -29,9 +58,9 @@ const PALETTE = {
 
 const ALL_COLORS = [...PALETTE.primary, ...PALETTE.secondary, ...PALETTE.accent, ...PALETTE.warm];
 
-// Generate a smooth bezier curve path
-function generateArtisticPath(): { x: number; y: number }[] {
-  const points: { x: number; y: number }[] = [];
+// Generate a smooth bezier curve path for fallback
+function generateArtisticPath(): StrokePoint[] {
+  const points: StrokePoint[] = [];
   const startX = Math.random() * 300 + 50;
   const startY = Math.random() * 200 + 50;
 
@@ -47,7 +76,6 @@ function generateArtisticPath(): { x: number; y: number }[] {
     currentX += Math.cos(angle) * distance;
     currentY += Math.sin(angle) * distance;
 
-    // Keep within bounds
     currentX = Math.max(20, Math.min(380, currentX));
     currentY = Math.max(20, Math.min(280, currentY));
 
@@ -57,7 +85,7 @@ function generateArtisticPath(): { x: number; y: number }[] {
   return points;
 }
 
-function pointsToPath(points: { x: number; y: number }[], progress: number): string {
+function pointsToPath(points: StrokePoint[], progress: number): string {
   if (points.length < 2) return '';
 
   const visiblePoints = Math.ceil(points.length * progress);
@@ -78,13 +106,94 @@ function pointsToPath(points: { x: number; y: number }[], progress: number): str
   return d;
 }
 
-// Live canvas that simulates the AI drawing
+// Convert server path data to SVG path string
+function pathDataToSvg(path: PathData, scale: number = 1): string {
+  if (path.d) {
+    // SVG path - scale it
+    if (scale === 1) return path.d;
+    // Simple scaling for SVG paths - just scale the numbers
+    return path.d.replace(/[\d.]+/g, (match) => String(parseFloat(match) * scale));
+  }
+
+  if (path.points && path.points.length >= 2) {
+    const pts = path.points;
+    let d = `M ${pts[0].x * scale} ${pts[0].y * scale}`;
+
+    if (path.type === 'line' && pts.length === 2) {
+      d += ` L ${pts[1].x * scale} ${pts[1].y * scale}`;
+    } else {
+      for (let i = 1; i < pts.length; i++) {
+        const prev = pts[i - 1];
+        const curr = pts[i];
+        const midX = ((prev.x + curr.x) / 2) * scale;
+        const midY = ((prev.y + curr.y) / 2) * scale;
+        d += ` Q ${prev.x * scale} ${prev.y * scale} ${midX} ${midY}`;
+      }
+    }
+    return d;
+  }
+
+  return '';
+}
+
+// Live canvas that connects to real WebSocket or falls back to simulation
 function LiveCanvas(): React.ReactElement {
-  const [strokes, setStrokes] = useState<SimulatedStroke[]>([]);
+  const [realStrokes, setRealStrokes] = useState<PathData[]>([]);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [simStrokes, setSimStrokes] = useState<SimulatedStroke[]>([]);
   const [currentStroke, setCurrentStroke] = useState<SimulatedStroke | null>(null);
   const strokeIdRef = useRef(0);
   const animationRef = useRef<number>();
+  const wsRef = useRef<WebSocket | null>(null);
 
+  // Try to connect to WebSocket for live strokes
+  useEffect(() => {
+    const connectWs = (): void => {
+      try {
+        const ws = new WebSocket(getWebSocketUrl());
+
+        ws.onopen = (): void => {
+          setWsConnected(true);
+        };
+
+        ws.onmessage = (event): void => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'canvas_state' && msg.strokes) {
+              setRealStrokes(msg.strokes);
+            } else if (msg.type === 'stroke' || msg.type === 'new_stroke') {
+              setRealStrokes((prev) => [...prev.slice(-50), msg.path || msg]);
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        };
+
+        ws.onclose = (): void => {
+          setWsConnected(false);
+          wsRef.current = null;
+        };
+
+        ws.onerror = (): void => {
+          setWsConnected(false);
+        };
+
+        wsRef.current = ws;
+      } catch {
+        setWsConnected(false);
+      }
+    };
+
+    connectWs();
+
+    return (): void => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
+
+  // Fallback simulation when no WebSocket
   const createNewStroke = useCallback((): void => {
     const newStroke: SimulatedStroke = {
       id: strokeIdRef.current++,
@@ -97,6 +206,11 @@ function LiveCanvas(): React.ReactElement {
   }, []);
 
   useEffect(() => {
+    if (wsConnected && realStrokes.length > 0) {
+      // Using real data, no simulation needed
+      return;
+    }
+
     createNewStroke();
 
     const animate = (): void => {
@@ -106,10 +220,7 @@ function LiveCanvas(): React.ReactElement {
         const newProgress = prev.progress + 0.02;
 
         if (newProgress >= 1) {
-          // Stroke complete, add to finished strokes
-          setStrokes((s) => [...s.slice(-15), { ...prev, progress: 1 }]);
-
-          // Start a new stroke after a brief pause
+          setSimStrokes((s) => [...s.slice(-15), { ...prev, progress: 1 }]);
           setTimeout(createNewStroke, 500 + Math.random() * 1000);
           return null;
         }
@@ -127,7 +238,10 @@ function LiveCanvas(): React.ReactElement {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [createNewStroke]);
+  }, [createNewStroke, wsConnected, realStrokes.length]);
+
+  // Render real strokes if connected, otherwise simulation
+  const showReal = wsConnected && realStrokes.length > 0;
 
   return (
     <svg viewBox="0 0 400 300" className="live-canvas-svg">
@@ -138,44 +252,68 @@ function LiveCanvas(): React.ReactElement {
         </filter>
       </defs>
 
-      {/* Paper texture background */}
       <rect width="400" height="300" fill="#fefefe" />
 
-      {/* Completed strokes */}
-      {strokes.map((stroke) => (
-        <path
-          key={stroke.id}
-          d={pointsToPath(stroke.points, stroke.progress)}
-          fill="none"
-          stroke={stroke.color}
-          strokeWidth={stroke.width}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={0.85}
-          filter="url(#pencilTexture)"
-        />
-      ))}
+      {showReal ? (
+        // Real strokes from server
+        realStrokes.slice(-30).map((stroke, i) => (
+          <path
+            key={i}
+            d={pathDataToSvg(stroke, 0.5)}
+            fill="none"
+            stroke={stroke.author === 'human' ? '#3b82f6' : '#2d3436'}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.85}
+          />
+        ))
+      ) : (
+        <>
+          {/* Simulated strokes */}
+          {simStrokes.map((stroke) => (
+            <path
+              key={stroke.id}
+              d={pointsToPath(stroke.points, stroke.progress)}
+              fill="none"
+              stroke={stroke.color}
+              strokeWidth={stroke.width}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={0.85}
+              filter="url(#pencilTexture)"
+            />
+          ))}
 
-      {/* Current stroke being drawn */}
-      {currentStroke && (
-        <path
-          d={pointsToPath(currentStroke.points, currentStroke.progress)}
-          fill="none"
-          stroke={currentStroke.color}
-          strokeWidth={currentStroke.width}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          filter="url(#pencilTexture)"
-        />
+          {currentStroke && (
+            <path
+              d={pointsToPath(currentStroke.points, currentStroke.progress)}
+              fill="none"
+              stroke={currentStroke.color}
+              strokeWidth={currentStroke.width}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              filter="url(#pencilTexture)"
+            />
+          )}
+
+          {currentStroke && currentStroke.progress > 0 && (
+            <g
+              transform={`translate(${currentStroke.points[Math.floor(currentStroke.points.length * currentStroke.progress)]?.x || 0}, ${currentStroke.points[Math.floor(currentStroke.points.length * currentStroke.progress)]?.y || 0})`}
+            >
+              <circle r="4" fill={currentStroke.color} opacity="0.8">
+                <animate attributeName="r" values="4;6;4" dur="0.5s" repeatCount="indefinite" />
+              </circle>
+            </g>
+          )}
+        </>
       )}
 
-      {/* Pen cursor */}
-      {currentStroke && currentStroke.progress > 0 && (
-        <g
-          transform={`translate(${currentStroke.points[Math.floor(currentStroke.points.length * currentStroke.progress)]?.x || 0}, ${currentStroke.points[Math.floor(currentStroke.points.length * currentStroke.progress)]?.y || 0})`}
-        >
-          <circle r="4" fill={currentStroke.color} opacity="0.8">
-            <animate attributeName="r" values="4;6;4" dur="0.5s" repeatCount="indefinite" />
+      {/* Live indicator */}
+      {showReal && (
+        <g transform="translate(370, 20)">
+          <circle r="6" fill="#4ade80">
+            <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
           </circle>
         </g>
       )}
@@ -262,16 +400,21 @@ function PaintSplatter({
   );
 }
 
-// Gallery preview item
+// Gallery item - loads real strokes from API or falls back to generated
 function GalleryItem({
+  piece,
   index,
   delay,
 }: {
+  piece?: GalleryPiece;
   index: number;
   delay: number;
 }): React.ReactElement {
-  // Generate unique "artwork" for each gallery item
-  const strokes = useRef(
+  const [strokes, setStrokes] = useState<PathData[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  // Fallback generated strokes
+  const fallbackStrokes = useRef(
     Array.from({ length: 8 }, () => ({
       d: `M ${20 + Math.random() * 60} ${20 + Math.random() * 60} Q ${Math.random() * 100} ${Math.random() * 100}, ${40 + Math.random() * 60} ${40 + Math.random() * 60}`,
       color: ALL_COLORS[Math.floor(Math.random() * ALL_COLORS.length)],
@@ -279,25 +422,61 @@ function GalleryItem({
     }))
   ).current;
 
+  useEffect(() => {
+    if (!piece) return;
+
+    const fetchStrokes = async (): Promise<void> => {
+      try {
+        const url = `${getApiUrl()}/public/gallery/${piece.user_id}/${piece.id}/strokes`;
+        const response = await fetch(url);
+        if (response.ok) {
+          const data: PieceStrokes = await response.json();
+          if (data.strokes && data.strokes.length > 0) {
+            setStrokes(data.strokes);
+            setLoaded(true);
+          }
+        }
+      } catch {
+        // Fall back to generated strokes
+      }
+    };
+
+    fetchStrokes();
+  }, [piece]);
+
+  const displayNumber = piece?.piece_number ?? index + 1;
+
   return (
     <div className="gallery-item" style={{ animationDelay: `${delay}s` }}>
       <div className="gallery-frame">
         <svg viewBox="0 0 100 100" className="gallery-artwork">
           <rect width="100" height="100" fill="#fafafa" />
-          {strokes.map((stroke, i) => (
-            <path
-              key={i}
-              d={stroke.d}
-              fill="none"
-              stroke={stroke.color}
-              strokeWidth={stroke.width}
-              strokeLinecap="round"
-              opacity={0.8}
-            />
-          ))}
+          {loaded && strokes.length > 0
+            ? strokes.slice(0, 30).map((stroke, i) => (
+                <path
+                  key={i}
+                  d={pathDataToSvg(stroke, 100 / 800)}
+                  fill="none"
+                  stroke={stroke.author === 'human' ? '#3b82f6' : '#2d3436'}
+                  strokeWidth={1}
+                  strokeLinecap="round"
+                  opacity={0.8}
+                />
+              ))
+            : fallbackStrokes.map((stroke, i) => (
+                <path
+                  key={i}
+                  d={stroke.d}
+                  fill="none"
+                  stroke={stroke.color}
+                  strokeWidth={stroke.width}
+                  strokeLinecap="round"
+                  opacity={0.8}
+                />
+              ))}
         </svg>
       </div>
-      <span className="gallery-label">Piece #{String(index + 1).padStart(4, '0')}</span>
+      <span className="gallery-label">Piece #{String(displayNumber).padStart(4, '0')}</span>
     </div>
   );
 }
@@ -305,6 +484,7 @@ function GalleryItem({
 export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
   const [mounted, setMounted] = useState(false);
   const [scrollY, setScrollY] = useState(0);
+  const [galleryPieces, setGalleryPieces] = useState<GalleryPiece[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -317,6 +497,23 @@ export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
     return (): void => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Fetch gallery pieces from public API
+  useEffect(() => {
+    const fetchGallery = async (): Promise<void> => {
+      try {
+        const response = await fetch(`${getApiUrl()}/public/gallery?limit=6`);
+        if (response.ok) {
+          const pieces: GalleryPiece[] = await response.json();
+          setGalleryPieces(pieces);
+        }
+      } catch {
+        // Fall back to generated gallery
+      }
+    };
+
+    fetchGallery();
+  }, []);
+
   // Generate splatters once
   const splatters = useRef(
     Array.from({ length: 20 }, () => ({
@@ -327,6 +524,9 @@ export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
       y: Math.random() * 100,
     }))
   ).current;
+
+  // Use real gallery pieces if available, otherwise generate placeholders
+  const displayPieces = galleryPieces.length > 0 ? galleryPieces : Array.from({ length: 6 });
 
   return (
     <div className={`homepage ${mounted ? 'mounted' : ''}`}>
@@ -466,11 +666,20 @@ export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
             <span className="title-accent" />
             From the Gallery
           </h2>
-          <p className="section-subtitle">A glimpse into the ever-growing collection</p>
+          <p className="section-subtitle">
+            {galleryPieces.length > 0
+              ? 'Real artwork created by Code Monet'
+              : 'A glimpse into the ever-growing collection'}
+          </p>
 
           <div className="gallery-grid">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <GalleryItem key={i} index={i} delay={i * 0.15} />
+            {displayPieces.map((piece, i) => (
+              <GalleryItem
+                key={(piece as GalleryPiece)?.id ?? i}
+                piece={piece as GalleryPiece | undefined}
+                index={i}
+                delay={i * 0.15}
+              />
             ))}
           </div>
 

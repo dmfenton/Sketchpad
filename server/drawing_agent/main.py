@@ -57,8 +57,9 @@ async def shutdown_all_workspaces() -> None:
 
 async def run_migrations() -> None:
     """Run database migrations on startup."""
-    from alembic import command
     from alembic.config import Config
+
+    from alembic import command
 
     # Run alembic upgrade head
     alembic_cfg = Config("alembic.ini")
@@ -344,6 +345,84 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
         }
         for p in pieces
     ]
+
+
+@app.get("/public/gallery")
+async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict[str, Any]]:
+    """Get public gallery showcasing recent artwork across all users.
+
+    Returns featured pieces for the homepage - no authentication required.
+    """
+    from pathlib import Path as FilePath
+
+    pieces: list[dict[str, Any]] = []
+    workspace_base = FilePath(settings.workspace_base_dir)
+
+    if not workspace_base.exists():
+        return []
+
+    # Scan all user gallery directories
+    for user_dir in workspace_base.iterdir():
+        if not user_dir.is_dir():
+            continue
+
+        gallery_dir = user_dir / "gallery"
+        if not gallery_dir.exists():
+            continue
+
+        # Load gallery index if it exists
+        index_file = gallery_dir / "index.json"
+        if index_file.exists():
+            try:
+                index_data = json.loads(index_file.read_text())
+                for entry in index_data.get("pieces", []):
+                    pieces.append(
+                        {
+                            "id": entry.get("id", ""),
+                            "user_id": user_dir.name,
+                            "piece_number": entry.get("piece_number", 0),
+                            "stroke_count": entry.get("stroke_count", 0),
+                            "created_at": entry.get("created_at", ""),
+                        }
+                    )
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    # Sort by created_at descending (most recent first)
+    pieces.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+
+    return pieces[:limit]
+
+
+@app.get("/public/gallery/{user_id}/{piece_id}/strokes")
+async def get_public_piece_strokes(user_id: str, piece_id: str) -> dict[str, Any]:
+    """Get strokes for a specific gallery piece.
+
+    Returns the full stroke data for rendering on the homepage.
+    """
+    from pathlib import Path as FilePath
+
+    workspace_base = FilePath(settings.workspace_base_dir)
+    gallery_dir = workspace_base / user_id / "gallery"
+
+    if not gallery_dir.exists():
+        raise HTTPException(status_code=404, detail="Gallery not found")
+
+    # Find the piece file
+    piece_file = gallery_dir / f"{piece_id}.json"
+    if not piece_file.exists():
+        raise HTTPException(status_code=404, detail="Piece not found")
+
+    try:
+        data = json.loads(piece_file.read_text())
+        return {
+            "id": piece_id,
+            "strokes": data.get("strokes", []),
+            "piece_number": data.get("piece_number", 0),
+            "created_at": data.get("created_at", ""),
+        }
+    except (json.JSONDecodeError, OSError) as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load piece: {e}") from e
 
 
 @app.get("/strokes/pending")
