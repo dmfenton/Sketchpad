@@ -58,6 +58,17 @@ Affected commands:
 - `make server-bg` / `make server-restart` (uv cache)
 - `pnpm start` in app/ (Expo cache)
 
+## Git Workflow
+
+**Always use Pull Requests** - never push directly to Main, even if you have bypass permissions.
+
+1. Create a feature branch
+2. Make commits on the branch
+3. Push the branch and create a PR with `gh pr create`
+4. Wait for review/approval before merging
+
+This ensures code review happens and keeps the workflow consistent.
+
 ## Development Servers
 
 ### Live Reload (IMPORTANT)
