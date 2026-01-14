@@ -33,11 +33,5 @@ module.exports = {
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
   },
-  ignorePatterns: [
-    'node_modules/',
-    '.expo/',
-    'babel.config.js',
-    'metro.config.js',
-    '.eslintrc.js',
-  ],
+  ignorePatterns: ['node_modules/', '.expo/', 'babel.config.js', 'metro.config.js', '.eslintrc.js'],
 };

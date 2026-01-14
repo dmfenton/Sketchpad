@@ -161,9 +161,7 @@ user_app = typer.Typer(help="Manage users and view workspace state")
 app.add_typer(user_app, name="user")
 
 
-async def _list_users_with_workspace_async() -> (
-    list[tuple[int, str, str, bool, int, int, str]]
-):
+async def _list_users_with_workspace_async() -> list[tuple[int, str, str, bool, int, int, str]]:
     """List users with workspace summary."""
     from drawing_agent.db import get_session, repository
     from drawing_agent.workspace_state import WorkspaceState
@@ -217,7 +215,9 @@ async def _get_workspace_state_async(
         "piece_count": state.piece_count,
         "stroke_count": len(state.canvas.strokes),
         "notes": state.notes,
-        "monologue_preview": state.monologue[:200] + "..." if len(state.monologue) > 200 else state.monologue,
+        "monologue_preview": state.monologue[:200] + "..."
+        if len(state.monologue) > 200
+        else state.monologue,
         "gallery_count": len(gallery),
         "gallery": [
             {
@@ -379,13 +379,15 @@ async def _list_workspaces_async() -> list[dict]:
         has_workspace = workspace_file.exists()
         workspace_size = workspace_file.stat().st_size if has_workspace else 0
 
-        workspaces.append({
-            "user_id": user_id,
-            "path": str(user_dir),
-            "has_workspace": has_workspace,
-            "workspace_size": workspace_size,
-            "gallery_count": gallery_count,
-        })
+        workspaces.append(
+            {
+                "user_id": user_id,
+                "path": str(user_dir),
+                "has_workspace": has_workspace,
+                "workspace_size": workspace_size,
+                "gallery_count": gallery_count,
+            }
+        )
 
     return workspaces
 

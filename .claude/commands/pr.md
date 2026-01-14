@@ -8,6 +8,7 @@ Create a Pull Request with automated code review and issue resolution.
 ## Arguments
 
 The argument `$ARGUMENTS` can be:
+
 - Empty: Create a PR for the current branch
 - A PR number: Review an existing PR (e.g., `123`)
 - A title: Create a PR with this title
@@ -22,6 +23,7 @@ git log Main..HEAD --oneline
 ```
 
 Verify:
+
 - Working directory is clean
 - Current branch is not Main
 - There are commits ahead of Main
@@ -49,11 +51,13 @@ Launch the `code-reviewer` agent to perform a full review.
 ### 4. Fix Issues
 
 For each issue identified:
+
 1. **Critical**: Must fix before proceeding
 2. **Important**: Should fix, ask if any should be skipped
 3. **Nits**: Apply if straightforward
 
 After fixes:
+
 ```bash
 git add -A
 git commit -m "fix: Address code review feedback"

@@ -36,7 +36,13 @@ function formatTime(timestamp: number): string {
   } as Intl.DateTimeFormatOptions);
 }
 
-export function DebugPanel({ agent, files, messageLog, onRefresh, onClearLog }: DebugPanelProps): React.ReactElement {
+export function DebugPanel({
+  agent,
+  files,
+  messageLog,
+  onRefresh,
+  onClearLog,
+}: DebugPanelProps): React.ReactElement {
   const [activeTab, setActiveTab] = useState<TabId>('agent');
 
   return (

@@ -5,6 +5,7 @@ Standards for the platform-agnostic shared library used by app/ and web/.
 ## Purpose
 
 This library contains code that works identically on React Native and web:
+
 - Canvas state reducer
 - WebSocket message handlers
 - Type definitions
@@ -38,6 +39,7 @@ export type { Path, Point, PendingStroke } from './types';
 ### Memoize Expensive Components
 
 Use `React.memo()` for components that:
+
 - Render in lists
 - Have stable props but parent re-renders frequently
 
@@ -54,6 +56,7 @@ const MessageBubble = React.memo(function MessageBubble({
 ### Cleanup in useEffect
 
 Always clean up:
+
 - Timeouts
 - Event listeners
 - Refs that track state
@@ -96,12 +99,12 @@ export function useStrokeAnimation(...) {
 
 ### Refs vs State
 
-| Use Ref | Use State |
-|---------|-----------|
+| Use Ref                                        | Use State                           |
+| ---------------------------------------------- | ----------------------------------- |
 | Mutable value that shouldn't trigger re-render | Value that should trigger re-render |
-| Tracking "in progress" flags | UI-visible data |
-| Storing timeouts/intervals | User-facing state |
-| Previous value comparison | Form inputs |
+| Tracking "in progress" flags                   | UI-visible data                     |
+| Storing timeouts/intervals                     | User-facing state                   |
+| Previous value comparison                      | Form inputs                         |
 
 ```typescript
 // Ref: doesn't need to re-render when changed
@@ -150,7 +153,7 @@ Use `useCallback` with minimal dependencies:
 // Good - stable callback
 const handleMessage = useCallback((msg: ServerMessage) => {
   dispatch(routeMessage(msg));
-}, []);  // dispatch is stable from useReducer
+}, []); // dispatch is stable from useReducer
 ```
 
 ### Return Stable Objects
@@ -159,10 +162,13 @@ Memoize return objects to prevent consumer re-renders:
 
 ```typescript
 // If returning an object, memoize it
-return useMemo(() => ({
-  handleAuthError,
-  isRefreshing: isRefreshingRef.current,
-}), [handleAuthError]);
+return useMemo(
+  () => ({
+    handleAuthError,
+    isRefreshing: isRefreshingRef.current,
+  }),
+  [handleAuthError]
+);
 ```
 
 ## Testing

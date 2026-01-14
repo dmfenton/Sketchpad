@@ -18,17 +18,21 @@ Be courteous and constructive. Comment on the code, not the developer. Use "Nit:
 Execute these passes sequentially. Do not skip passes.
 
 ### Pass 1: Discovery
+
 1. Run `git status` to identify changed files
 2. Run `git diff` to see pending changes (or `gh pr diff <number>` for PR review)
 3. Categorize files by area (server/, app/)
 
 ### Pass 2: Automated Checks
+
 1. Backend: `make lint-server && make typecheck-server`
 2. Frontend: `make lint-app && make typecheck-app`
 3. Report any failures before proceeding
 
 ### Pass 3: Design Review
+
 For each changed file:
+
 - [ ] SOLID principles compliance
 - [ ] DRY - any duplicated logic?
 - [ ] KISS/YAGNI - over-engineered?
@@ -36,7 +40,9 @@ For each changed file:
 - [ ] Module boundaries respected
 
 ### Pass 4: Implementation Review
+
 For each changed file:
+
 - [ ] Functionality correct for all cases
 - [ ] Edge cases handled
 - [ ] Error handling with context
@@ -44,7 +50,9 @@ For each changed file:
 - [ ] Async patterns correct (Python: async/await, JS: Promises)
 
 ### Pass 5: Code Smell Detection
+
 Look for:
+
 - [ ] Unnecessarily defensive code (null checks where impossible)
 - [ ] Kruft (commented code, unused imports, debug logging)
 - [ ] Leaky abstractions (internal details exposed)
@@ -54,6 +62,7 @@ Look for:
 ### Pass 6: Project Standards
 
 **Python Backend:**
+
 - [ ] Type hints everywhere
 - [ ] Format with `ruff format`
 - [ ] Async/await for I/O operations
@@ -61,12 +70,14 @@ Look for:
 - [ ] PEP 8 naming conventions
 
 **TypeScript Frontend:**
+
 - [ ] Strict TypeScript - no `any` types
 - [ ] Functional components with hooks
 - [ ] Named exports preferred
 - [ ] No unused imports/variables
 
 ### Pass 7: Test Quality
+
 - [ ] Tests follow Arrange-Act-Assert pattern
 - [ ] Each test tests ONE thing
 - [ ] Edge cases covered
@@ -74,6 +85,7 @@ Look for:
 - [ ] No flaky tests
 
 ### Pass 8: Documentation & Changelog
+
 - [ ] CLAUDE.md patterns followed
 - [ ] Complex algorithms explained
 - [ ] "Why" behind non-obvious decisions captured
@@ -86,6 +98,7 @@ Look for:
   - Security: Security-related changes
 
 ### Pass 9: Final Synthesis
+
 1. Compile all findings
 2. Categorize by severity:
    - **Critical**: Must fix (security, breaking, data loss)
@@ -97,6 +110,7 @@ Look for:
 ## Feedback Format
 
 For each issue:
+
 1. **File:Line** - Location
 2. **Issue** - Clear description
 3. **Why** - Impact or reasoning

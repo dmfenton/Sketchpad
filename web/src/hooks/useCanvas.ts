@@ -30,7 +30,11 @@ export function useCanvas(): UseCanvasReturn {
 
   const handleMessage = useCallback((message: ServerMessage) => {
     // Debug logging for stroke-related messages
-    if (message.type === 'stroke_complete' || message.type === 'init' || message.type === 'strokes_ready') {
+    if (
+      message.type === 'stroke_complete' ||
+      message.type === 'init' ||
+      message.type === 'strokes_ready'
+    ) {
       console.log('[useCanvas] Received:', message.type, message);
     }
     routeMessage(message, dispatch);
