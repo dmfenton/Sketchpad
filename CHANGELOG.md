@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-01-14
+
 ### Added
 
 - Code Monet marketing homepage with live canvas preview and AI artwork gallery
@@ -377,7 +379,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.13.0...HEAD
+[1.13.0]: https://github.com/dmfenton/sketchpad/compare/v1.10.0...v1.13.0
 [1.10.0]: https://github.com/dmfenton/sketchpad/compare/v1.9.3...v1.10.0
 [1.9.3]: https://github.com/dmfenton/sketchpad/compare/v1.9.1...v1.9.3
 [1.9.1]: https://github.com/dmfenton/sketchpad/compare/v1.9.0...v1.9.1
