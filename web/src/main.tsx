@@ -1,4 +1,4 @@
-import React, { StrictMode, useState } from 'react';
+import React, { StrictMode, useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { Homepage } from './components/Homepage';
@@ -6,24 +6,29 @@ import './styles.css';
 import './homepage.css';
 
 function Root(): React.ReactElement {
-  // Check if we should skip homepage (e.g., returning from app or direct link)
-  const [showHomepage, setShowHomepage] = useState(() => {
-    // Skip homepage if URL has ?studio or in dev mode with ?dev
-    const params = new URLSearchParams(window.location.search);
-    return !params.has('studio') && !params.has('dev');
-  });
+  const [currentPath, setCurrentPath] = useState(() => window.location.pathname);
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = (): void => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const handleEnterStudio = (): void => {
-    // Update URL without reload
-    window.history.pushState({}, '', '?studio');
-    setShowHomepage(false);
+    window.history.pushState({}, '', '/studio');
+    setCurrentPath('/studio');
   };
 
-  if (showHomepage) {
-    return <Homepage onEnter={handleEnterStudio} />;
+  // Show studio for /studio path
+  if (currentPath === '/studio') {
+    return <App />;
   }
 
-  return <App />;
+  // Show homepage for root and all other paths
+  return <Homepage onEnter={handleEnterStudio} />;
 }
 
 createRoot(document.getElementById('root')!).render(
