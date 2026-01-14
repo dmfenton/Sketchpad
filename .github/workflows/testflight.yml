@@ -61,8 +61,8 @@ jobs:
 
           echo "Comparing $PREVIOUS_TAG to $CURRENT_TAG"
 
-          # Check for changes in iOS-related paths
-          IOS_PATHS="app/ shared/ package.json pnpm-lock.yaml pnpm-workspace.yaml .github/workflows/testflight.yml"
+          # Check for changes in iOS-related paths (code that affects the iOS app)
+          IOS_PATHS="app/ shared/ package.json pnpm-lock.yaml pnpm-workspace.yaml"
 
           CHANGED_FILES=$(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG")
           echo "Changed files:"
