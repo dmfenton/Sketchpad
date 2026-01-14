@@ -347,6 +347,106 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
     ]
 
 
+@app.get("/public/gallery")
+async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict[str, Any]]:
+    """Get public gallery showcasing artwork from the featured user.
+
+    Returns pieces for the homepage - no authentication required.
+    Only shows artwork from the configured featured user (homepage_featured_email).
+    """
+    from pathlib import Path as FilePath
+
+    pieces: list[dict[str, Any]] = []
+    workspace_base = FilePath(settings.workspace_base_dir)
+
+    if not workspace_base.exists():
+        return []
+
+    # Look up the featured user's ID from their email
+    featured_user_id: int | None = None
+    if settings.homepage_featured_email:
+        async with get_session() as session:
+            featured_user = await repository.get_user_by_email(
+                session, settings.homepage_featured_email
+            )
+            if featured_user:
+                featured_user_id = featured_user.id
+
+    # If no featured user found, return empty
+    if featured_user_id is None:
+        return []
+
+    # Only load gallery from the featured user
+    gallery_dir = workspace_base / str(featured_user_id) / "gallery"
+    if not gallery_dir.exists():
+        return []
+
+    # Load gallery index
+    index_file = gallery_dir / "index.json"
+    if index_file.exists():
+        try:
+            index_data = json.loads(index_file.read_text())
+            for entry in index_data.get("pieces", []):
+                pieces.append(
+                    {
+                        "id": entry.get("id", ""),
+                        "user_id": str(featured_user_id),
+                        "piece_number": entry.get("piece_number", 0),
+                        "stroke_count": entry.get("stroke_count", 0),
+                        "created_at": entry.get("created_at", ""),
+                    }
+                )
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Sort by piece_number descending (most recent first)
+    pieces.sort(key=lambda p: p.get("piece_number", 0), reverse=True)
+
+    return pieces[:limit]
+
+
+@app.get("/public/gallery/{user_id}/{piece_id}/strokes")
+async def get_public_piece_strokes(user_id: str, piece_id: str) -> dict[str, Any]:
+    """Get strokes for a specific gallery piece.
+
+    Returns the full stroke data for rendering on the homepage.
+    """
+    from pathlib import Path as FilePath
+
+    # Validate user_id is numeric to prevent path traversal
+    if not user_id.isdigit():
+        raise HTTPException(status_code=400, detail="Invalid user_id")
+
+    # Validate piece_id format (alphanumeric, underscore, hyphen only)
+    if not piece_id.replace("_", "").replace("-", "").isalnum():
+        raise HTTPException(status_code=400, detail="Invalid piece_id")
+
+    workspace_base = FilePath(settings.workspace_base_dir).resolve()
+    gallery_dir = workspace_base / user_id / "gallery"
+    piece_file = (gallery_dir / f"{piece_id}.json").resolve()
+
+    # Ensure the resolved path stays within the workspace (prevent path traversal)
+    if not str(piece_file).startswith(str(workspace_base)):
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    if not gallery_dir.exists():
+        raise HTTPException(status_code=404, detail="Gallery not found")
+
+    if not piece_file.exists():
+        raise HTTPException(status_code=404, detail="Piece not found")
+
+    try:
+        data = json.loads(piece_file.read_text())
+        return {
+            "id": piece_id,
+            "strokes": data.get("strokes", []),
+            "piece_number": data.get("piece_number", 0),
+            "created_at": data.get("created_at", ""),
+        }
+    except (json.JSONDecodeError, OSError) as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load piece: {e}") from e
+
+
 @app.get("/strokes/pending")
 async def get_pending_strokes(user: CurrentUser) -> dict[str, Any]:
     """Fetch and clear pending strokes for client-side rendering.
