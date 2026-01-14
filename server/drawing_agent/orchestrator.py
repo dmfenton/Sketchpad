@@ -102,10 +102,12 @@ class AgentOrchestrator:
         await self.broadcast_status(AgentStatus.DRAWING)
 
         # Wait for client animation to complete
-        # Client animates at ~60fps (16.67ms per point)
-        # Add small buffer for network latency and fetch time
-        animation_time_ms = (total_points * (1000 / 60)) + 500  # 500ms buffer
-        animation_time_s = animation_time_ms / 1000
+        # Calculate based on client frame rate, with buffer for network latency
+        # Cap to prevent very long waits that block agent responsiveness
+        animation_time_ms = (
+            total_points * (1000 / settings.client_animation_fps)
+        ) + settings.animation_wait_buffer_ms
+        animation_time_s = min(animation_time_ms / 1000, settings.max_animation_wait_s)
         logger.info(f">>> Waiting {animation_time_s:.2f}s for {total_points} points to animate")
         await asyncio.sleep(animation_time_s)
 
