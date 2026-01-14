@@ -349,9 +349,10 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
 
 @app.get("/public/gallery")
 async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict[str, Any]]:
-    """Get public gallery showcasing recent artwork across all users.
+    """Get public gallery showcasing artwork from the featured user.
 
-    Returns featured pieces for the homepage - no authentication required.
+    Returns pieces for the homepage - no authentication required.
+    Only shows artwork from the configured featured user (homepage_featured_email).
     """
     from pathlib import Path as FilePath
 
@@ -361,35 +362,45 @@ async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict
     if not workspace_base.exists():
         return []
 
-    # Scan all user gallery directories
-    for user_dir in workspace_base.iterdir():
-        if not user_dir.is_dir():
-            continue
+    # Look up the featured user's ID from their email
+    featured_user_id: int | None = None
+    if settings.homepage_featured_email:
+        async with get_session() as session:
+            featured_user = await repository.get_user_by_email(
+                session, settings.homepage_featured_email
+            )
+            if featured_user:
+                featured_user_id = featured_user.id
 
-        gallery_dir = user_dir / "gallery"
-        if not gallery_dir.exists():
-            continue
+    # If no featured user found, return empty
+    if featured_user_id is None:
+        return []
 
-        # Load gallery index if it exists
-        index_file = gallery_dir / "index.json"
-        if index_file.exists():
-            try:
-                index_data = json.loads(index_file.read_text())
-                for entry in index_data.get("pieces", []):
-                    pieces.append(
-                        {
-                            "id": entry.get("id", ""),
-                            "user_id": user_dir.name,
-                            "piece_number": entry.get("piece_number", 0),
-                            "stroke_count": entry.get("stroke_count", 0),
-                            "created_at": entry.get("created_at", ""),
-                        }
-                    )
-            except (json.JSONDecodeError, OSError):
-                pass
+    # Only load gallery from the featured user
+    gallery_dir = workspace_base / str(featured_user_id) / "gallery"
+    if not gallery_dir.exists():
+        return []
 
-    # Sort by created_at descending (most recent first)
-    pieces.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    # Load gallery index
+    index_file = gallery_dir / "index.json"
+    if index_file.exists():
+        try:
+            index_data = json.loads(index_file.read_text())
+            for entry in index_data.get("pieces", []):
+                pieces.append(
+                    {
+                        "id": entry.get("id", ""),
+                        "user_id": str(featured_user_id),
+                        "piece_number": entry.get("piece_number", 0),
+                        "stroke_count": entry.get("stroke_count", 0),
+                        "created_at": entry.get("created_at", ""),
+                    }
+                )
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Sort by piece_number descending (most recent first)
+    pieces.sort(key=lambda p: p.get("piece_number", 0), reverse=True)
 
     return pieces[:limit]
 

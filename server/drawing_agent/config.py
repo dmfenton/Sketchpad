@@ -121,5 +121,8 @@ class Settings(BaseSettings):
     otel_exporter_endpoint: str = "http://otel-collector:4318"  # ADOT Collector OTLP/HTTP
     aws_region: str = "us-east-1"
 
+    # Homepage / Public Gallery
+    homepage_featured_email: str = "dmfenton@gmail.com"  # Only show this user's art on homepage
+
 
 settings = Settings()
