@@ -17,4 +17,11 @@ export * from './websocket';
 export * from './hooks';
 
 // Utilities
-export { boundedConcat, boundedPush, generateMessageId } from './utils';
+export {
+  boundedConcat,
+  boundedPush,
+  generateMessageId,
+  bionicWord,
+  chunkWords,
+} from './utils';
+export type { BionicWord } from './utils';
