@@ -5,7 +5,27 @@
     "excludedCommands": ["sudo", "docker", "uv"],
     "network": {
       "allowLocalBinding": true,
-      "allowAllUnixSockets": true
+      "allowAllUnixSockets": true,
+      "allowedDomains": [
+        "github.com",
+        "*.github.com",
+        "api.github.com",
+        "registry.npmjs.org",
+        "*.npmjs.org",
+        "pypi.org",
+        "*.pypi.org",
+        "files.pythonhosted.org",
+        "*.python.org",
+        "nodejs.org",
+        "*.nodejs.org",
+        "registry.yarnpkg.com",
+        "expo.dev",
+        "*.expo.dev",
+        "api.anthropic.com",
+        "*.anthropic.com",
+        "sentry.io",
+        "*.sentry.io"
+      ]
     }
   },
   "permissions": {
