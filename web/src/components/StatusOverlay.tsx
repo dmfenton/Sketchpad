@@ -9,8 +9,13 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { AgentMessage, AgentStatus, ToolName } from '@drawing-agent/shared';
-import { bionicWord, chunkWords } from '@drawing-agent/shared';
+import type { AgentMessage, AgentStatus } from '@drawing-agent/shared';
+import {
+  bionicWord,
+  chunkWords,
+  getLastToolCall,
+  TOOL_DISPLAY_NAMES,
+} from '@drawing-agent/shared';
 
 // Time between word chunks in ms
 const CHUNK_INTERVAL_MS = 150;
@@ -22,29 +27,6 @@ interface StatusOverlayProps {
   thinking: string;
   messages: AgentMessage[];
 }
-
-/**
- * Get the most recent code_execution message to show tool name.
- */
-function getLastToolCall(messages: AgentMessage[]): ToolName | null {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg?.type === 'code_execution' && msg.metadata?.tool_name) {
-      return msg.metadata.tool_name;
-    }
-  }
-  return null;
-}
-
-/**
- * Human-readable tool labels.
- */
-const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
-  draw_paths: 'drawing paths',
-  generate_svg: 'generating SVG',
-  view_canvas: 'viewing canvas',
-  mark_piece_done: 'marking done',
-};
 
 /**
  * Render a word with bionic formatting (bold first part).
@@ -83,10 +65,12 @@ function ThinkingDisplay({ text }: { text: string }): React.ReactElement {
   useEffect(() => {
     if (chunks.length === 0) return;
 
+    let timeoutId: ReturnType<typeof setTimeout>;
+
     const interval = setInterval(() => {
       setOpacity(0); // Fade out
 
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         setChunkIndex((prev) => {
           // Move to next chunk, or stay at last if we're at the end
           const next = prev + 1;
@@ -96,7 +80,10 @@ function ThinkingDisplay({ text }: { text: string }): React.ReactElement {
       }, 50); // Short fade duration
     }, CHUNK_INTERVAL_MS);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeoutId);
+    };
   }, [chunks.length]);
 
   // Clamp index if chunks changed

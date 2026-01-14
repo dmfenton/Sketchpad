@@ -2,6 +2,8 @@
  * Pure utility functions shared across platforms.
  */
 
+import type { AgentMessage, ToolName } from './types';
+
 /**
  * Push an item to an array with a maximum length, dropping oldest items.
  * This is a pure function - returns a new array.
@@ -63,4 +65,17 @@ export const chunkWords = (text: string, chunkSize: number = 2): string[][] => {
     chunks.push(words.slice(i, i + chunkSize));
   }
   return chunks;
+};
+
+/**
+ * Get the most recent code_execution message to find the current tool.
+ */
+export const getLastToolCall = (messages: AgentMessage[]): ToolName | null => {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg?.type === 'code_execution' && msg.metadata?.tool_name) {
+      return msg.metadata.tool_name;
+    }
+  }
+  return null;
 };

@@ -11,8 +11,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native';
 
-import type { AgentMessage, AgentStatus, ToolName } from '@drawing-agent/shared';
-import { bionicWord, chunkWords } from '@drawing-agent/shared';
+import type { AgentMessage, AgentStatus } from '@drawing-agent/shared';
+import { bionicWord, chunkWords, getLastToolCall, TOOL_DISPLAY_NAMES } from '@drawing-agent/shared';
 
 import { borderRadius, spacing, typography, useTheme } from '../theme';
 
@@ -26,29 +26,6 @@ interface StatusOverlayProps {
   thinking: string;
   messages: AgentMessage[];
 }
-
-/**
- * Get the most recent code_execution message to show tool name.
- */
-function getLastToolCall(messages: AgentMessage[]): ToolName | null {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg?.type === 'code_execution' && msg.metadata?.tool_name) {
-      return msg.metadata.tool_name;
-    }
-  }
-  return null;
-}
-
-/**
- * Human-readable tool labels.
- */
-const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
-  draw_paths: 'drawing paths',
-  generate_svg: 'generating SVG',
-  view_canvas: 'viewing canvas',
-  mark_piece_done: 'marking done',
-};
 
 /**
  * Render a word with bionic formatting (bold first part).

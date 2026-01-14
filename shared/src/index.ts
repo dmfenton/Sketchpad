@@ -23,5 +23,6 @@ export {
   generateMessageId,
   bionicWord,
   chunkWords,
+  getLastToolCall,
 } from './utils';
 export type { BionicWord } from './utils';
