@@ -255,15 +255,17 @@ class WorkspaceState:
 
     # --- Stroke Queue Operations ---
 
-    async def queue_strokes(self, paths: list[Path]) -> int:
+    async def queue_strokes(self, paths: list[Path]) -> tuple[int, int]:
         """Interpolate paths and queue for client-side rendering.
 
-        Returns the batch_id for this set of strokes.
+        Returns (batch_id, total_point_count) for this set of strokes.
         Thread-safe: uses stroke lock to prevent race conditions.
         Enforces max_pending_strokes limit to prevent memory exhaustion.
         """
         from drawing_agent.config import settings
         from drawing_agent.interpolation import interpolate_path
+
+        total_points = 0
 
         async with self._stroke_lock:
             # Check pending strokes limit
@@ -281,6 +283,7 @@ class WorkspaceState:
 
             for path in paths:
                 points = interpolate_path(path, settings.path_steps_per_unit)
+                total_points += len(points)
                 self._pending_strokes.append(
                     {
                         "batch_id": batch_id,
@@ -290,7 +293,7 @@ class WorkspaceState:
                 )
 
         await self.save()
-        return batch_id
+        return batch_id, total_points
 
     async def pop_strokes(self) -> list[PendingStrokeDict]:
         """Get and clear pending strokes.

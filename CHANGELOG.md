@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Agent now pauses execution while client animates drawing strokes
+- `queue_strokes()` returns `(batch_id, total_points)` tuple for animation timing
+
 ## [1.10.0] - 2026-01-11
 
 ### Added

@@ -140,6 +140,79 @@ class TestOrchestratorWake:
                 mock_run_turn.assert_not_called()
 
 
+class TestDrawPathsAnimationWait:
+    """Tests for _draw_paths animation wait behavior."""
+
+    @pytest.mark.asyncio
+    async def test_draw_paths_waits_for_animation(
+        self, orchestrator: AgentOrchestrator, mock_agent
+    ) -> None:
+        """_draw_paths should wait for estimated animation time."""
+        import time
+
+        from drawing_agent.types import Path, Point
+
+        # Mock state.queue_strokes to return known values
+        mock_state = MagicMock()
+        # 30 points at 60fps = 0.5s + 0.5s buffer = 1.0s
+        mock_state.queue_strokes = AsyncMock(return_value=(1, 30))
+        mock_agent.get_state.return_value = mock_state
+
+        paths = [Path(type="line", points=[Point(x=0, y=0), Point(x=100, y=100)])]
+
+        start = time.monotonic()
+        await orchestrator._draw_paths(paths)
+        elapsed = time.monotonic() - start
+
+        # Should wait approximately 1.0s (30 points / 60fps + 0.5s buffer)
+        # Allow some tolerance for test execution overhead
+        assert elapsed >= 0.9, f"Expected >= 0.9s wait, got {elapsed:.2f}s"
+        assert elapsed < 1.5, f"Expected < 1.5s wait, got {elapsed:.2f}s"
+
+    @pytest.mark.asyncio
+    async def test_draw_paths_caps_wait_time(
+        self, orchestrator: AgentOrchestrator, mock_agent
+    ) -> None:
+        """_draw_paths should cap wait time to max_animation_wait_s."""
+        import time
+
+        from drawing_agent.types import Path, Point
+
+        # Mock state.queue_strokes with many points that would exceed max wait
+        mock_state = MagicMock()
+        # 10000 points at 60fps = 166s, but should be capped
+        mock_state.queue_strokes = AsyncMock(return_value=(1, 10000))
+        mock_agent.get_state.return_value = mock_state
+
+        paths = [Path(type="line", points=[Point(x=0, y=0), Point(x=100, y=100)])]
+
+        # Patch max_animation_wait_s to a short value for testing
+        with patch("drawing_agent.orchestrator.settings") as mock_settings:
+            mock_settings.client_animation_fps = 60
+            mock_settings.animation_wait_buffer_ms = 500
+            mock_settings.max_animation_wait_s = 2.0  # 2 second cap for test
+
+            start = time.monotonic()
+            await orchestrator._draw_paths(paths)
+            elapsed = time.monotonic() - start
+
+        # Should be capped near 2s (the patched max)
+        assert elapsed >= 1.8, f"Expected >= 1.8s (capped), got {elapsed:.2f}s"
+        assert elapsed <= 2.5, f"Expected <= 2.5s (capped), got {elapsed:.2f}s"
+
+    @pytest.mark.asyncio
+    async def test_draw_paths_skips_empty(self, orchestrator: AgentOrchestrator) -> None:
+        """_draw_paths should return immediately for empty paths."""
+        import time
+
+        start = time.monotonic()
+        await orchestrator._draw_paths([])
+        elapsed = time.monotonic() - start
+
+        # Should be nearly instant
+        assert elapsed < 0.1
+
+
 class TestOrchestratorWakeIntegration:
     """Integration tests for wake behavior."""
 
