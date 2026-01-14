@@ -484,12 +484,14 @@
 
 .canvas-body {
   padding: 0;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
 }
 
 .live-canvas-svg {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
 }
 
 /* ============================================
@@ -527,7 +529,8 @@
   font-style: italic;
   color: var(--hp-text-secondary);
   margin: 0;
-  min-height: 1.5em;
+  height: 3em;
+  overflow: hidden;
 }
 
 .thought-text .cursor {
