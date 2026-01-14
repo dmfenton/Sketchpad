@@ -165,8 +165,8 @@ jobs:
           for i in {1..24}; do
             sleep 5
 
-            # Check /version endpoint
-            RESPONSE=$(curl -sf https://monet.dmfenton.net/version 2>/dev/null || echo '{}')
+            # Check /api/version endpoint
+            RESPONSE=$(curl -sf https://monet.dmfenton.net/api/version 2>/dev/null || echo '{}')
             DEPLOYED_VERSION=$(echo "$RESPONSE" | jq -r '.version // empty')
 
             if [ "$DEPLOYED_VERSION" = "$VERSION" ]; then
@@ -191,5 +191,5 @@ jobs:
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: v$VERSION" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: \`$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Deployment**: ✅ Verified running at https://monet.dmfenton.net/version" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment**: ✅ Verified running at https://monet.dmfenton.net/api/version" >> $GITHUB_STEP_SUMMARY
           echo "- **iOS**: TestFlight build triggered" >> $GITHUB_STEP_SUMMARY
