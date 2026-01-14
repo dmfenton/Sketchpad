@@ -102,10 +102,7 @@ const getPathCount = (toolInput: Record<string, unknown> | null | undefined): nu
   return null;
 };
 
-export const handleCodeExecution: MessageHandler<CodeExecutionMessage> = (
-  message,
-  dispatch
-) => {
+export const handleCodeExecution: MessageHandler<CodeExecutionMessage> = (message, dispatch) => {
   // Finalize any streaming thinking before showing code execution
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
 

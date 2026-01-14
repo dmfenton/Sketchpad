@@ -12,7 +12,7 @@ class TestRateLimiter:
         user_id = 1
 
         for i in range(5):
-            assert limiter.is_allowed(user_id, now=float(i)), f"Request {i+1} should be allowed"
+            assert limiter.is_allowed(user_id, now=float(i)), f"Request {i + 1} should be allowed"
 
     def test_blocks_requests_over_limit(self) -> None:
         """Requests over the limit should be blocked."""

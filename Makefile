@@ -3,9 +3,7 @@
 # Install all dependencies
 install:
 	cd server && uv sync
-	cd app && pnpm install
-	cd shared && npm install
-	cd web && npm install
+	pnpm install
 
 # Run server + Expo app (foreground, Ctrl+C to stop)
 dev:
@@ -68,7 +66,7 @@ app:
 
 # Run web dev server only
 web:
-	cd web && npm run dev
+	cd web && pnpm dev
 
 # Run server + Vite web app (foreground, Ctrl+C to stop)
 dev-web:
@@ -94,7 +92,7 @@ coverage:
 
 # Build shared library
 build-shared:
-	cd shared && npm run build
+	cd shared && pnpm build
 
 # Lint all code
 lint: lint-server lint-app lint-shared lint-web
@@ -106,25 +104,28 @@ lint-app:
 	cd app && pnpm lint
 
 lint-shared:
-	cd shared && npm run lint
+	cd shared && pnpm lint
 
 lint-web:
-	cd web && npm run lint
+	cd web && pnpm lint
 
 # Format all code
-format: format-server format-app format-shared format-web
+format: format-server format-js
 
 format-server:
 	cd server && uv run ruff format .
 
-format-app:
-	cd app && pnpm format
+format-js:
+	pnpm format
 
-format-shared:
-	cd shared && npm run format
+# Check formatting without writing
+format-check: format-check-server format-check-js
 
-format-web:
-	cd web && npm run format
+format-check-server:
+	cd server && uv run ruff format --check .
+
+format-check-js:
+	pnpm format:check
 
 # Type checking
 typecheck: typecheck-server typecheck-app typecheck-shared typecheck-web
@@ -136,10 +137,10 @@ typecheck-app:
 	cd app && pnpm typecheck
 
 typecheck-shared:
-	cd shared && npm run typecheck
+	cd shared && pnpm typecheck
 
 typecheck-web:
-	cd web && npm run typecheck
+	cd web && pnpm typecheck
 
 # Clean build artifacts
 clean:

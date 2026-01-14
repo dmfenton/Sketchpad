@@ -3,6 +3,7 @@
 ## Project Overview
 
 Drawing Agent is an autonomous AI artist application with:
+
 - **Backend**: Python 3.11+ with FastAPI, Claude Agent SDK, WebSocket support
 - **Frontend**: React Native with Expo, TypeScript, react-native-svg
 
@@ -15,6 +16,7 @@ Drawing Agent is an autonomous AI artist application with:
 ## Claude Code Sandbox
 
 Sandbox configured in `.claude/settings.json`:
+
 - Auto-allows `make`, `uv`, `pnpm`, `git`, `gh`, `curl`, and common dev commands
 - No permission prompts for standard development workflows
 - Run `make test`, `make dev`, `make lint`, `git commit`, `git push` freely
@@ -22,6 +24,7 @@ Sandbox configured in `.claude/settings.json`:
 ### How it works
 
 Claude Code uses [bubblewrap](https://github.com/containers/bubblewrap) for sandboxing:
+
 - Creates isolated mount namespace with read-only bind mounts by default
 - `Edit()` permission rules in settings.json control bash write access (not `Write()`)
 - **Use absolute paths** - tilde (`~`) expansion is unreliable in sandbox configs
@@ -33,11 +36,13 @@ Example: To allow uv cache writes, use `Edit(/home/user/.cache/uv/**)` not `Edit
 On Linux, bubblewrap creates an isolated network namespace. All traffic routes through a proxy that checks the `allowedDomains` whitelist. **Without `allowedDomains`, all outbound network access is blocked.**
 
 The `sandbox.network` config in settings.json includes:
+
 - `allowLocalBinding`: Allow binding to localhost ports (for dev servers)
 - `allowAllUnixSockets`: Allow Unix socket access
 - `allowedDomains`: **Required for curl, git, npm, etc.** Whitelist of domains the proxy will allow
 
 Domains we need for this project:
+
 - `github.com`, `*.github.com` - git operations, GitHub CLI
 - `registry.npmjs.org`, `*.npmjs.org` - npm/pnpm packages
 - `pypi.org`, `files.pythonhosted.org` - Python packages
@@ -49,6 +54,7 @@ Domains we need for this project:
 There's a path resolution bug where `Edit()` rules for paths outside the working directory get incorrectly concatenated. Until fixed, commands that write to `~/.cache/uv` or `~/.expo` require `dangerouslyDisableSandbox: true`.
 
 Affected commands:
+
 - `make server-bg` / `make server-restart` (uv cache)
 - `pnpm start` in app/ (Expo cache)
 
@@ -57,6 +63,7 @@ Affected commands:
 ### Live Reload (IMPORTANT)
 
 Both servers have **live reload enabled by default** - they auto-restart on file changes:
+
 - **Python server**: Uvicorn with watchfiles (reload=True in dev mode)
 - **React Native app**: Expo with Metro bundler hot reload
 
@@ -71,6 +78,7 @@ make dev-stop  # Force-kill any stuck servers by port
 ```
 
 **Ports:**
+
 - Python server: http://localhost:8000
 - Expo app: http://localhost:8081
 - Vite web: http://localhost:5173
@@ -78,6 +86,7 @@ make dev-stop  # Force-kill any stuck servers by port
 Both have live reload - no restarts needed for code changes.
 
 **Only restart if:**
+
 - Changed dependencies (pyproject.toml, package.json)
 - Server crashed
 - Stale behavior after 5+ seconds post-save
@@ -95,6 +104,7 @@ curl "localhost:8000/debug/logs?lines=50"
 ```
 
 The `/debug/agent` endpoint returns:
+
 - `paused`, `status`, `container_id`
 - `piece_count`, `stroke_count`
 - `pending_nudges`, `connected_clients`
@@ -158,6 +168,7 @@ Edit `server/drawing_agent/agent.py` - the `SYSTEM_PROMPT` constant
 ## File Locations
 
 ### Backend (server/drawing_agent/)
+
 - `main.py` - FastAPI app, routes, WebSocket endpoint
 - `agent.py` - Claude agent with streaming turn execution
 - `handlers.py` - WebSocket message handlers
@@ -170,6 +181,7 @@ Edit `server/drawing_agent/agent.py` - the `SYSTEM_PROMPT` constant
 - `types.py` - Pydantic models and message types
 
 ### Frontend (app/src/)
+
 - `App.tsx` - Main app component
 - `components/Canvas.tsx` - SVG canvas with touch handling
 - `hooks/useCanvas.ts` - Canvas state management
@@ -192,6 +204,7 @@ shared/src/
 ```
 
 **Development:**
+
 ```bash
 cd shared && npm run build    # Build TypeScript to dist/
 cd shared && npm run dev      # Watch mode
@@ -220,12 +233,14 @@ web/src/
 ```
 
 **Start web dev server:**
+
 ```bash
 make dev-web    # Starts both Python server + Vite dev server
 make web        # Starts Vite dev server only
 ```
 
 **Features:**
+
 - Canvas rendering (SVG-based, same as app/)
 - Agent message stream with live streaming indicator
 - Debug panel with agent state, workspace files, WebSocket log
@@ -233,6 +248,7 @@ make web        # Starts Vite dev server only
 - Auto dev token authentication (no login needed in dev mode)
 
 **Debug API endpoints used by web:**
+
 - `GET /auth/dev-token` - Get dev JWT token (dev mode only)
 - `GET /debug/agent` - Agent state (status, notes, piece count)
 - `GET /debug/workspace` - Workspace files list
@@ -249,6 +265,7 @@ git push origin v1.0.0
 ```
 
 This triggers `.github/workflows/release.yml` which:
+
 1. Builds Docker image from `server/`
 2. Pushes to AWS ECR with version tag + `latest`
 3. Creates GitHub Release with changelog
@@ -275,6 +292,7 @@ infrastructure/
 ```
 
 **Key resources:**
+
 - **EC2** (t3.small, 2GB RAM) running Docker Compose
 - **EBS** 10GB data volume at `/home/ec2-user/data` (persists across instance replacement)
 - **ECR** repository with 5-image retention
@@ -284,6 +302,7 @@ infrastructure/
 - **CloudWatch** alerts to email
 
 **Terraform commands:**
+
 ```bash
 cd infrastructure
 
@@ -305,6 +324,7 @@ terraform output
 SES is configured for sending magic link emails from `noreply@dmfenton.net`.
 
 **What Terraform creates:**
+
 - Domain identity verification (TXT record)
 - DKIM signing (3 CNAME records)
 - SPF record for domain authentication
@@ -313,16 +333,19 @@ SES is configured for sending magic link emails from `noreply@dmfenton.net`.
 - IAM policy for EC2 to send emails
 
 **After applying Terraform:**
+
 1. Wait ~5 minutes for DNS propagation
 2. Check verification status in AWS Console
 3. If in SES sandbox, request production access
 
 **SES Sandbox Limitations:**
+
 - New SES accounts start in "sandbox" mode
 - Can only send to verified email addresses
 - Request production access via AWS Console → SES → Account Dashboard → Request Production Access
 
 **Environment variables for the app:**
+
 ```bash
 # Add to .env
 SES_SENDER_EMAIL=noreply@dmfenton.net
@@ -330,6 +353,7 @@ AWS_REGION=us-east-1
 ```
 
 **Testing email sending:**
+
 ```bash
 # From EC2 instance (uses instance role)
 aws ses send-email \
@@ -395,9 +419,9 @@ gh secret set AWS_SECRET_ACCESS_KEY --body "$(terraform output -raw github_actio
 
 ### Required GitHub Secrets (Server)
 
-| Secret | Description |
-|--------|-------------|
-| `AWS_ACCESS_KEY_ID` | IAM user access key for ECR push |
+| Secret                  | Description                      |
+| ----------------------- | -------------------------------- |
+| `AWS_ACCESS_KEY_ID`     | IAM user access key for ECR push |
 | `AWS_SECRET_ACCESS_KEY` | IAM user secret key for ECR push |
 
 Add at: https://github.com/dmfenton/Sketchpad/settings/secrets/actions
@@ -433,6 +457,7 @@ uv run alembic current
 ### Workspace Storage
 
 Each user has a filesystem directory:
+
 ```
 agent_workspace/users/{user_id}/
 ├── workspace.json       # Canvas state, notes, piece_count
@@ -489,12 +514,14 @@ asyncio.run(create_user('admin@example.com', 'ChangeMe123!'))
 ### Sign-in Methods
 
 **Magic Link (default):**
+
 1. User enters email in app
 2. Server sends email with sign-in link via SES
 3. User taps link → iOS Universal Link opens app
 4. App exchanges token for JWT → user authenticated
 
 **Password (legacy):**
+
 1. Admin creates invite code via CLI
 2. User signs up with invite code + password
 3. User signs in with email/password
@@ -571,21 +598,21 @@ Or manually trigger via GitHub Actions → TestFlight Deploy → Run workflow.
 
 ### Required GitHub Secrets
 
-| Secret | Description |
-|--------|-------------|
-| `APP_STORE_CONNECT_API_KEY_ID` | App Store Connect API key ID |
-| `APP_STORE_CONNECT_ISSUER_ID` | App Store Connect issuer ID |
-| `APP_STORE_CONNECT_API_KEY_P8` | .p8 key file contents |
-| `IOS_DISTRIBUTION_CERT_P12` | Base64-encoded .p12 certificate |
-| `IOS_DISTRIBUTION_CERT_PASSWORD` | Certificate password |
-| `IOS_PROVISIONING_PROFILE` | Base64-encoded .mobileprovision |
-| `APPLE_TEAM_ID` | 10-char Apple team ID |
-| `APPLE_ID` | Apple Developer email |
-| `ITC_TEAM_ID` | App Store Connect team ID |
-| `KEYCHAIN_PASSWORD` | Random string for CI keychain |
-| `SENTRY_ORG` | Sentry organization slug |
-| `SENTRY_PROJECT` | Sentry project slug |
-| `SENTRY_AUTH_TOKEN` | Sentry auth token for source maps (optional) |
+| Secret                           | Description                                  |
+| -------------------------------- | -------------------------------------------- |
+| `APP_STORE_CONNECT_API_KEY_ID`   | App Store Connect API key ID                 |
+| `APP_STORE_CONNECT_ISSUER_ID`    | App Store Connect issuer ID                  |
+| `APP_STORE_CONNECT_API_KEY_P8`   | .p8 key file contents                        |
+| `IOS_DISTRIBUTION_CERT_P12`      | Base64-encoded .p12 certificate              |
+| `IOS_DISTRIBUTION_CERT_PASSWORD` | Certificate password                         |
+| `IOS_PROVISIONING_PROFILE`       | Base64-encoded .mobileprovision              |
+| `APPLE_TEAM_ID`                  | 10-char Apple team ID                        |
+| `APPLE_ID`                       | Apple Developer email                        |
+| `ITC_TEAM_ID`                    | App Store Connect team ID                    |
+| `KEYCHAIN_PASSWORD`              | Random string for CI keychain                |
+| `SENTRY_ORG`                     | Sentry organization slug                     |
+| `SENTRY_PROJECT`                 | Sentry project slug                          |
+| `SENTRY_AUTH_TOKEN`              | Sentry auth token for source maps (optional) |
 
 ### Versioning
 
@@ -603,6 +630,7 @@ Update `EXPO_PUBLIC_WS_URL` in `.github/workflows/testflight.yml` to point to yo
 ### Overview
 
 Production uses OpenTelemetry with AWS X-Ray for distributed tracing:
+
 - **App**: Instrumented with opentelemetry-python (FastAPI, SQLAlchemy, logging)
 - **Collector**: ADOT Collector sidecar receives OTLP, exports to X-Ray
 - **Console**: View traces in AWS X-Ray console
@@ -638,11 +666,13 @@ uv run python scripts/diagnose.py trace <trace_id>
 ```
 
 **Output formats:**
+
 - `--md` / `--markdown` - Markdown tables (for Claude to read)
 - `--json` - JSON output (for scripts)
 - Default: Rich terminal tables
 
 Example with markdown output:
+
 ```bash
 uv run python scripts/diagnose.py status --md
 uv run python scripts/diagnose.py ws 120 --md
@@ -651,11 +681,13 @@ uv run python scripts/diagnose.py ws 120 --md
 ### Trace IDs in Errors
 
 500 errors include trace_id in the response:
+
 ```json
-{"detail": "Internal Server Error", "trace_id": "abc123..."}
+{ "detail": "Internal Server Error", "trace_id": "abc123..." }
 ```
 
 Use this ID to look up the full trace with stack trace:
+
 ```bash
 uv run python scripts/diagnose.py trace <trace_id>
 ```
@@ -695,6 +727,7 @@ uv run python scripts/remote.py shell "docker exec drawing-agent python -c 'impo
 ### SQLite database locking
 
 SQLite doesn't handle concurrent writers. If you get "database is locked" errors:
+
 1. Don't run Python scripts that write to DB while the app is running
 2. Use `scripts/remote.py shell` with sqlite3 for direct DB access
 3. Or stop the container first: `uv run python scripts/remote.py shell "docker stop drawing-agent"`
@@ -702,6 +735,7 @@ SQLite doesn't handle concurrent writers. If you get "database is locked" errors
 ### SSM commands timing out
 
 If `scripts/remote.py` commands timeout:
+
 1. Check instance health: `aws ec2 describe-instance-status --instance-ids <id>`
 2. Instance may be undersized (t3.micro only has 1GB RAM)
 3. Current production uses t3.small (2GB RAM)

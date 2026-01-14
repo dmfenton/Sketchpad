@@ -154,6 +154,7 @@ make coverage
 ### CI/CD
 
 GitHub Actions runs on every push and PR:
+
 - **Server**: Ruff lint/format, Mypy type check, Pytest
 - **App**: ESLint, TypeScript check, Jest
 - **Docker**: Build verification
@@ -166,44 +167,44 @@ Connect to `ws://localhost:8000/ws`
 
 **Server → Client:**
 
-| Type | Payload | Description |
-|------|---------|-------------|
-| `pen` | `{x, y, down}` | Pen position at 60fps |
-| `stroke_complete` | `{path}` | Path finished drawing |
-| `thinking` | `{text}` | Agent thinking stream |
-| `status` | `{status}` | Agent status change |
-| `clear` | `{}` | Canvas cleared |
+| Type              | Payload        | Description           |
+| ----------------- | -------------- | --------------------- |
+| `pen`             | `{x, y, down}` | Pen position at 60fps |
+| `stroke_complete` | `{path}`       | Path finished drawing |
+| `thinking`        | `{text}`       | Agent thinking stream |
+| `status`          | `{status}`     | Agent status change   |
+| `clear`           | `{}`           | Canvas cleared        |
 
 **Client → Server:**
 
-| Type | Payload | Description |
-|------|---------|-------------|
-| `stroke` | `{points}` | Human drew a stroke |
-| `nudge` | `{text}` | Human suggestion |
-| `clear` | `{}` | Clear canvas request |
-| `pause` | `{}` | Pause agent loop |
-| `resume` | `{}` | Resume agent loop |
+| Type     | Payload    | Description          |
+| -------- | ---------- | -------------------- |
+| `stroke` | `{points}` | Human drew a stroke  |
+| `nudge`  | `{text}`   | Human suggestion     |
+| `clear`  | `{}`       | Clear canvas request |
+| `pause`  | `{}`       | Pause agent loop     |
+| `resume` | `{}`       | Resume agent loop    |
 
 ### REST Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/canvas.png` | Current canvas as PNG |
-| `GET` | `/canvas.svg` | Current canvas as SVG |
-| `GET` | `/state` | Full state JSON |
-| `GET` | `/health` | Health check |
+| Method | Path          | Description           |
+| ------ | ------------- | --------------------- |
+| `GET`  | `/canvas.png` | Current canvas as PNG |
+| `GET`  | `/canvas.svg` | Current canvas as SVG |
+| `GET`  | `/state`      | Full state JSON       |
+| `GET`  | `/health`     | Health check          |
 
 ## Configuration
 
 Environment variables (`.env`):
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ANTHROPIC_API_KEY` | Yes | Claude API key |
-| `HOST` | No | Server host (default: 0.0.0.0) |
-| `PORT` | No | Server port (default: 8000) |
-| `AGENT_INTERVAL` | No | Seconds between agent turns (default: 10) |
-| `STATE_FILE` | No | Path to state file (default: state.json) |
+| Variable            | Required | Description                               |
+| ------------------- | -------- | ----------------------------------------- |
+| `ANTHROPIC_API_KEY` | Yes      | Claude API key                            |
+| `HOST`              | No       | Server host (default: 0.0.0.0)            |
+| `PORT`              | No       | Server port (default: 8000)               |
+| `AGENT_INTERVAL`    | No       | Seconds between agent turns (default: 10) |
+| `STATE_FILE`        | No       | Path to state file (default: state.json)  |
 
 ## License
 

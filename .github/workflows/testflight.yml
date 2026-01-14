@@ -3,8 +3,8 @@ name: TestFlight Deploy
 on:
   push:
     tags:
-      - 'v*'  # Triggers on tags like v1.0.0, v1.2.3-beta, etc.
-  workflow_dispatch:  # Allow manual trigger
+      - 'v*' # Triggers on tags like v1.0.0, v1.2.3-beta, etc.
+  workflow_dispatch: # Allow manual trigger
     inputs:
       version:
         description: 'Version override (e.g., 1.0.0)'
@@ -22,7 +22,7 @@ env:
 jobs:
   build-ios:
     name: Build & Deploy iOS
-    runs-on: macos-15  # Apple Silicon runner with Xcode 16+
+    runs-on: macos-15 # Apple Silicon runner with Xcode 16+
 
     steps:
       - name: Checkout code

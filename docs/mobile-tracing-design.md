@@ -32,19 +32,20 @@ To correlate mobile and server traces:
 ```typescript
 // Mobile: Generate trace context
 const traceId = generateTraceId(); // 32 hex chars
-const spanId = generateSpanId();   // 16 hex chars
+const spanId = generateSpanId(); // 16 hex chars
 
 // Pass to WebSocket
 ws.connect(`wss://server/ws?trace_id=${traceId}`);
 
 // Server: Extract and use trace ID
 const traceId = request.query.trace_id;
-tracer.startSpan("websocket_session", { traceId });
+tracer.startSpan('websocket_session', { traceId });
 ```
 
 ## What to Trace on Mobile
 
 ### Session Lifecycle
+
 - `app.launch` - App cold start
 - `app.foreground` - App brought to foreground
 - `app.background` - App sent to background
@@ -52,6 +53,7 @@ tracer.startSpan("websocket_session", { traceId });
 - `session.end` - User ends session
 
 ### WebSocket Events
+
 - `ws.connect` - WebSocket connection initiated
 - `ws.connected` - WebSocket successfully connected
 - `ws.disconnect` - WebSocket disconnected
@@ -60,6 +62,7 @@ tracer.startSpan("websocket_session", { traceId });
 - `ws.message.receive` - Message received (type, size)
 
 ### User Interactions
+
 - `canvas.touch` - Canvas touch event (start/move/end)
 - `action.pause` - User paused agent
 - `action.resume` - User resumed agent
@@ -67,6 +70,7 @@ tracer.startSpan("websocket_session", { traceId });
 - `action.nudge` - User sent nudge
 
 ### Errors
+
 - `error.js` - JavaScript errors
 - `error.network` - Network failures
 - `error.render` - Render failures
@@ -103,16 +107,12 @@ class Tracer {
 
   private generateTraceId(): string {
     // 32 hex characters
-    return Array.from({ length: 32 }, () =>
-      Math.floor(Math.random() * 16).toString(16)
-    ).join('');
+    return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
   }
 
   private generateSpanId(): string {
     // 16 hex characters
-    return Array.from({ length: 16 }, () =>
-      Math.floor(Math.random() * 16).toString(16)
-    ).join('');
+    return Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
   }
 
   getTraceId(): string {
@@ -251,7 +251,7 @@ export function useWebSocket() {
     ws.onclose = (event) => {
       tracer.recordEvent('ws.disconnect', {
         code: event.code,
-        reason: event.reason
+        reason: event.reason,
       });
     };
 
@@ -336,6 +336,7 @@ Spans sent to server:
 4. **Direct X-Ray API** - Requires AWS credentials on client (security risk)
 
 The custom lightweight approach was chosen because:
+
 - Minimal dependencies
 - Uses existing OTEL collector infrastructure
 - Full control over what's traced

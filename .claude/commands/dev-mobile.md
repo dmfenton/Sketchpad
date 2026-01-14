@@ -5,6 +5,7 @@ description: Start dev servers (server + Expo mobile app)
 Start the development servers using `make dev` (Python server + Expo mobile app).
 
 Run `make dev` in foreground. This will:
+
 1. Kill any existing processes on ports 8000 and 8081
 2. Start the Python server on :8000
 3. Start the Expo app on :8081

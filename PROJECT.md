@@ -101,7 +101,7 @@ for i in range(40):
     r = 50 + i * 4
     cx = canvas_width / 2 + math.cos(angle) * r
     cy = canvas_height / 2 + math.sin(angle) * r
-    
+
     # Approximate circle with polyline
     circle_points = []
     radius = 5 + i * 0.5
@@ -112,7 +112,7 @@ for i in range(40):
             "y": cy + math.sin(a) * radius
         })
     circle_points.append(circle_points[0])  # close the circle
-    
+
     paths.append({"type": "polyline", "points": circle_points})
 ```
 
@@ -150,7 +150,7 @@ for i in range(40):
 Server to client:
 
 ```json
-{"type": "pen", "x": 150.5, "y": 203.2, "down": true}
+{ "type": "pen", "x": 150.5, "y": 203.2, "down": true }
 ```
 
 Sent at 60fps during drawing. The app uses this to show pen position and extend the current stroke.
@@ -162,19 +162,19 @@ Sent at 60fps during drawing. The app uses this to show pen position and extend 
 Sent when a path finishes. App adds it to completed strokes.
 
 ```json
-{"type": "thinking", "text": "The density in the lower right feels heavy..."}
+{ "type": "thinking", "text": "The density in the lower right feels heavy..." }
 ```
 
 Streamed as agent thinks. App displays in thinking panel.
 
 ```json
-{"type": "status", "status": "drawing"}
+{ "type": "status", "status": "drawing" }
 ```
 
 Agent status changed.
 
 ```json
-{"type": "clear"}
+{ "type": "clear" }
 ```
 
 Canvas was cleared.
@@ -188,13 +188,13 @@ Client to server:
 Human drew something. Server adds to canvas immediately.
 
 ```json
-{"type": "nudge", "text": "try adding something in the upper left"}
+{ "type": "nudge", "text": "try adding something in the upper left" }
 ```
 
 Human suggestion. Included in agent’s next prompt.
 
 ```json
-{"type": "clear"}
+{ "type": "clear" }
 ```
 
 Human requests canvas clear.
@@ -368,6 +368,7 @@ When the server receives code from the agent:
 1. Extract `paths` variable from result
 1. Validate paths (correct structure, points within bounds)
 1. Begin execution loop:
+
 - For each path:
   - Move pen to first point (pen up)
   - Send pen position updates
@@ -378,6 +379,7 @@ When the server receives code from the agent:
     - 16ms delay between updates
   - Raise pen
   - Mark path complete, send stroke_complete event
+
 1. When all paths done, persist state, return to idle
 
 Interpolation: For lines, linear interpolation. For quadratic/cubic beziers, evaluate the curve parametrically. For polylines, linear between each consecutive pair of points.

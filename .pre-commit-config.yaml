@@ -26,28 +26,65 @@ repos:
           - boto3-stubs
           - alembic
 
-  # JavaScript/TypeScript - ESLint and Prettier
+  # JavaScript/TypeScript - Prettier (formatting)
   - repo: local
     hooks:
-      - id: eslint
-        name: eslint
+      - id: prettier
+        name: prettier
+        entry: bash -c 'npx prettier --write .'
+        language: system
+        files: \.(ts|tsx|js|jsx|json|css|md)$
+        pass_filenames: false
+
+  # JavaScript/TypeScript - ESLint (app/)
+  - repo: local
+    hooks:
+      - id: eslint-app
+        name: eslint (app)
         entry: bash -c 'cd app && pnpm lint'
         language: system
         files: ^app/.*\.(ts|tsx)$
         pass_filenames: false
 
-      - id: prettier
-        name: prettier
-        entry: bash -c 'cd app && pnpm format'
-        language: system
-        files: ^app/.*\.(ts|tsx|json)$
-        pass_filenames: false
-
-      - id: typecheck
-        name: typecheck
+      - id: typecheck-app
+        name: typecheck (app)
         entry: bash -c 'cd app && pnpm typecheck'
         language: system
         files: ^app/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # JavaScript/TypeScript - ESLint (web/)
+  - repo: local
+    hooks:
+      - id: eslint-web
+        name: eslint (web)
+        entry: bash -c 'cd web && pnpm lint'
+        language: system
+        files: ^web/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      - id: typecheck-web
+        name: typecheck (web)
+        entry: bash -c 'cd web && pnpm typecheck'
+        language: system
+        files: ^web/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # JavaScript/TypeScript - ESLint (shared/)
+  - repo: local
+    hooks:
+      - id: eslint-shared
+        name: eslint (shared)
+        entry: bash -c 'cd shared && pnpm lint'
+        language: system
+        files: ^shared/.*\.ts$
+        pass_filenames: false
+
+      - id: typecheck-shared
+        name: typecheck (shared)
+        entry: bash -c 'cd shared && pnpm typecheck'
+        language: system
+        files: ^shared/.*\.ts$
         pass_filenames: false
 
   # General

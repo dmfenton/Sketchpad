@@ -125,7 +125,6 @@ function App(): React.ReactElement {
           onClearLog={debug.clearLog}
         />
       </div>
-
     </div>
   );
 }
