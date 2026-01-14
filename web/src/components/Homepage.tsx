@@ -1,45 +1,22 @@
 /**
- * Code Monet - Showpiece Homepage
- * An immersive landing experience for the autonomous AI artist
+ * Code Monet - Analog Atelier Homepage
+ * An artist's studio aesthetic inspired by Monet's world
  */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getApiUrl } from '../config';
-import {
-  LiveCanvas,
-  ThoughtStream,
-  GalleryItem,
-  PaintSplatter,
-  GalleryPiece,
-  ALL_COLORS,
-} from './homepage';
+import { LiveCanvas, ThoughtStream, GalleryItem, GalleryPiece } from './homepage';
 
 interface HomepageProps {
   onEnter: () => void;
 }
 
-interface SplatterData {
-  delay: number;
-  size: number;
-  color: string;
-  x: number;
-  y: number;
-}
-
 export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
   const [mounted, setMounted] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
   const [galleryPieces, setGalleryPieces] = useState<GalleryPiece[]>([]);
 
   useEffect(() => {
     setMounted(true);
-
-    const handleScroll = (): void => {
-      setScrollY(window.scrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return (): void => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Fetch gallery pieces from public API
@@ -59,46 +36,13 @@ export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
     fetchGallery();
   }, []);
 
-  // Generate splatters once
-  const splatters = useRef<SplatterData[]>(
-    Array.from({ length: 20 }, () => ({
-      delay: Math.random() * 5,
-      size: Math.random() * 30 + 10,
-      color: ALL_COLORS[Math.floor(Math.random() * ALL_COLORS.length)],
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-    }))
-  ).current;
-
   // Use real gallery pieces if available, otherwise generate placeholders
   const displayPieces = galleryPieces.length > 0 ? galleryPieces : Array.from({ length: 6 });
 
   return (
     <div className={`homepage ${mounted ? 'mounted' : ''}`}>
-      {/* Ambient paint splatters */}
-      <div className="splatters-container">
-        {splatters.map((s, i) => (
-          <PaintSplatter key={i} {...s} />
-        ))}
-      </div>
-
       {/* Hero section - full viewport */}
       <section className="hero-section">
-        <div className="hero-background">
-          <div
-            className="gradient-orb orb-1"
-            style={{ transform: `translate(${scrollY * 0.1}px, ${scrollY * 0.05}px)` }}
-          />
-          <div
-            className="gradient-orb orb-2"
-            style={{ transform: `translate(${-scrollY * 0.08}px, ${scrollY * 0.1}px)` }}
-          />
-          <div
-            className="gradient-orb orb-3"
-            style={{ transform: `translate(${scrollY * 0.05}px, ${-scrollY * 0.08}px)` }}
-          />
-        </div>
-
         <div className="hero-content">
           <div className="hero-text">
             <div className="title-container">
@@ -130,75 +74,86 @@ export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
           </div>
 
           <div className="hero-canvas">
-            <div className="canvas-window">
-              <div className="window-header">
-                <div className="window-dots">
-                  <span className="dot red" />
-                  <span className="dot yellow" />
-                  <span className="dot green" />
+            <div className="canvas-easel">
+              <div className="canvas-frame">
+                <div className="canvas-body">
+                  <LiveCanvas />
                 </div>
-                <span className="window-title">code-monet — creating</span>
-              </div>
-              <div className="canvas-body">
-                <LiveCanvas />
               </div>
             </div>
             <ThoughtStream />
           </div>
         </div>
-
-        <div className="scroll-indicator">
-          <span>Scroll to explore</span>
-          <div className="scroll-arrow">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M12 5v14M5 12l7 7 7-7" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </div>
-        </div>
       </section>
 
-      {/* How it works */}
+      {/* How it works - Editorial narrative */}
       <section className="how-section" id="watch">
         <div className="section-content">
           <h2 className="section-title">
             <span className="title-accent" />
-            How It Works
+            The Creative Process
           </h2>
 
-          <div className="process-steps">
+          <div className="process-narrative">
             <div className="process-step">
-              <div className="step-number">01</div>
-              <h3>Observe</h3>
-              <p>
-                The AI examines its canvas, understanding what exists and imagining what could be.
-              </p>
+              <div className="step-marker">
+                <div className="step-number">I</div>
+                <div className="step-line" />
+              </div>
+              <div className="step-content">
+                <h3>Observe</h3>
+                <p>
+                  The artist examines its canvas with patient attention, understanding the marks
+                  already made and sensing the possibilities that remain. Like Monet studying the
+                  light on his water lilies, it considers composition, balance, and the emotional
+                  weight of empty space.
+                </p>
+              </div>
             </div>
 
             <div className="process-step">
-              <div className="step-number">02</div>
-              <h3>Contemplate</h3>
-              <p>
-                It reasons about composition, color theory, and emotional resonance — sharing its
-                thoughts in real-time.
-              </p>
+              <div className="step-marker">
+                <div className="step-number">II</div>
+                <div className="step-line" />
+              </div>
+              <div className="step-content">
+                <h3>Contemplate</h3>
+                <p>
+                  In moments of visible thought, the AI reasons about color theory, movement, and
+                  meaning. It shares its creative deliberations in real-time — not as explanation,
+                  but as an invitation into the artistic mind at work.
+                </p>
+              </div>
             </div>
 
             <div className="process-step">
-              <div className="step-number">03</div>
-              <h3>Create</h3>
-              <p>
-                With intention behind every movement, it writes code that becomes brushstrokes on
-                canvas.
-              </p>
+              <div className="step-marker">
+                <div className="step-number">III</div>
+                <div className="step-line" />
+              </div>
+              <div className="step-content">
+                <h3>Create</h3>
+                <p>
+                  With intention behind every gesture, the artist writes code that becomes
+                  brushstrokes on canvas. Each mark is deliberate — placed not by chance or
+                  algorithm, but by something closer to aesthetic judgment.
+                </p>
+              </div>
             </div>
 
             <div className="process-step">
-              <div className="step-number">04</div>
-              <h3>Evolve</h3>
-              <p>
-                Each piece informs the next. The artist grows, develops preferences, refines its
-                style.
-              </p>
+              <div className="step-marker">
+                <div className="step-number">IV</div>
+                <div className="step-line" />
+              </div>
+              <div className="step-content">
+                <h3>Evolve</h3>
+                <p>
+                  Each piece informs the next. The artist develops preferences, refines its visual
+                  language, builds on what came before. Over time, a style emerges — not programmed,
+                  but discovered through the act of making.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -212,30 +167,45 @@ export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
               <div className="artist-avatar">
                 <svg viewBox="0 0 120 120" className="avatar-svg">
                   <defs>
-                    <linearGradient id="avatarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#e94560" />
-                      <stop offset="50%" stopColor="#7b68ee" />
-                      <stop offset="100%" stopColor="#4ecdc4" />
+                    <linearGradient id="brushGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#c4a35a" />
+                      <stop offset="100%" stopColor="#d4a84b" />
+                    </linearGradient>
+                    <linearGradient id="brushGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#6a9fb5" />
+                      <stop offset="100%" stopColor="#8b7ea8" />
+                    </linearGradient>
+                    <linearGradient id="brushGrad3" x1="0%" y1="100%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#b5606e" />
+                      <stop offset="100%" stopColor="#c8b8d0" />
                     </linearGradient>
                   </defs>
-                  <circle
-                    cx="60"
-                    cy="60"
-                    r="55"
-                    fill="none"
-                    stroke="url(#avatarGradient)"
-                    strokeWidth="2"
-                  />
-                  <circle cx="60" cy="60" r="45" fill="url(#avatarGradient)" opacity="0.1" />
+                  {/* Abstract brush strokes representing the AI artist */}
                   <path
-                    d="M 40 70 Q 60 50, 80 70"
+                    d="M 20 80 Q 40 40, 70 60 T 100 50"
                     fill="none"
-                    stroke="url(#avatarGradient)"
-                    strokeWidth="3"
+                    stroke="url(#brushGrad1)"
+                    strokeWidth="8"
                     strokeLinecap="round"
+                    opacity="0.9"
                   />
-                  <circle cx="45" cy="50" r="4" fill="#e94560" />
-                  <circle cx="75" cy="50" r="4" fill="#4ecdc4" />
+                  <path
+                    d="M 30 30 Q 60 50, 90 35"
+                    fill="none"
+                    stroke="url(#brushGrad2)"
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    opacity="0.8"
+                  />
+                  <path
+                    d="M 15 60 Q 45 80, 80 90"
+                    fill="none"
+                    stroke="url(#brushGrad3)"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    opacity="0.7"
+                  />
+                  <circle cx="55" cy="55" r="3" fill="#2c3e50" opacity="0.6" />
                 </svg>
               </div>
             </div>
@@ -335,11 +305,11 @@ export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
           </h2>
           <p className="section-subtitle">
             {galleryPieces.length > 0
-              ? 'Real artwork created by Code Monet'
+              ? 'Original artwork created by Code Monet'
               : 'A glimpse into the ever-growing collection'}
           </p>
 
-          <div className="gallery-grid">
+          <div className="gallery-wall">
             {displayPieces.map((piece, i) => (
               <GalleryItem
                 key={(piece as GalleryPiece)?.id ?? i}
@@ -371,14 +341,14 @@ export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
         <div className="footer-content">
           <div className="footer-brand">
             <svg className="footer-logo" viewBox="0 0 40 40">
-              <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="1.5" />
               <path
-                d="M 12 28 Q 20 10, 28 28"
+                d="M 10 30 Q 20 10, 30 30"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="2.5"
                 strokeLinecap="round"
               />
+              <circle cx="20" cy="15" r="2" fill="currentColor" opacity="0.6" />
             </svg>
             <span>Code Monet</span>
           </div>
