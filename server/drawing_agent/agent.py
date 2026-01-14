@@ -8,7 +8,7 @@ import io
 import logging
 from collections.abc import AsyncGenerator, Callable, Coroutine
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias, TypedDict
 
 from claude_agent_sdk import (
     AssistantMessage,
@@ -91,6 +91,41 @@ HookInput: TypeAlias = (
     | SubagentStopHookInput
     | PreCompactHookInput
 )
+
+
+class PostToolUseHookDict(TypedDict, total=False):
+    """Dict structure the Claude Agent SDK passes to PostToolUse hooks in Python.
+
+    The SDK documentation shows typed classes, but at runtime Python receives dicts.
+    """
+
+    hook_event_name: str
+    session_id: str
+    tool_name: str
+    tool_input: dict[str, Any]
+    tool_response: Any
+
+
+# Union of possible input types for hooks (dict at runtime, typed for static analysis)
+HookInputOrDict: TypeAlias = HookInput | PostToolUseHookDict | dict[str, Any]
+
+
+def extract_tool_name(input_data: HookInputOrDict) -> str:
+    """Extract tool_name from hook input, handling both dict and object forms.
+
+    The Claude Agent SDK passes dicts in Python, but types suggest objects.
+    This helper safely extracts tool_name from either form.
+
+    Args:
+        input_data: Hook input data (dict or typed object)
+
+    Returns:
+        The tool name, or empty string if not found
+    """
+    if isinstance(input_data, dict):
+        return str(input_data.get("tool_name", "") or "")
+    return str(getattr(input_data, "tool_name", "") or "")
+
 
 logger = logging.getLogger(__name__)
 
@@ -266,21 +301,16 @@ class DrawingAgent:
 
     async def _post_tool_use_hook(
         self,
-        input_data: HookInput,
+        input_data: HookInputOrDict,
         _tool_use_id: str | None,
         _context: HookContext,
     ) -> SyncHookJSONOutput:
-        """PostToolUse hook - pause after draw_paths to let drawing complete.
+        """PostToolUse hook - trigger drawing after draw_paths/generate_svg completes.
 
-        Note: input_data is typed as HookInput (union of all hook types) to satisfy
-        the SDK's type requirements, but this hook only receives PostToolUseHookInput.
-        The SDK passes a dict in Python, not an object with attributes.
+        The Claude Agent SDK passes a dict at runtime in Python, despite typed
+        documentation suggesting objects. We use extract_tool_name() to handle both.
         """
-        # Extract tool_name - SDK passes a dict in Python
-        if isinstance(input_data, dict):
-            tool_name = str(input_data.get("tool_name", "") or "")
-        else:
-            tool_name = str(getattr(input_data, "tool_name", "") or "")
+        tool_name = extract_tool_name(input_data)
         logger.info(f"PostToolUse: tool={tool_name}, collected_paths={len(self._collected_paths)}")
 
         # After draw_paths or generate_svg, execute drawing and wait

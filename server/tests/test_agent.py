@@ -2,12 +2,13 @@
 
 import base64
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from PIL import Image
 
-from drawing_agent.agent import DrawingAgent
-from drawing_agent.types import AgentTurnComplete
+from drawing_agent.agent import DrawingAgent, extract_tool_name
+from drawing_agent.types import AgentTurnComplete, Path, Point
 
 
 class TestDrawingAgentPauseResume:
@@ -178,3 +179,156 @@ class TestDrawingAgentContainerManagement:
         agent.reset_container()
         assert agent._abort is True
         # Client disconnect happens async - just verify abort is set
+
+
+class TestExtractToolName:
+    """Tests for extract_tool_name helper function."""
+
+    def test_extract_from_dict(self) -> None:
+        """Extract tool_name from a dict (runtime SDK format)."""
+        input_data = {"tool_name": "mcp__drawing__draw_paths", "tool_input": {}}
+        assert extract_tool_name(input_data) == "mcp__drawing__draw_paths"
+
+    def test_extract_from_dict_missing_key(self) -> None:
+        """Return empty string when tool_name key is missing."""
+        input_data: dict[str, Any] = {"tool_input": {}}
+        assert extract_tool_name(input_data) == ""
+
+    def test_extract_from_dict_none_value(self) -> None:
+        """Return empty string when tool_name is None."""
+        input_data: dict[str, Any] = {"tool_name": None}
+        assert extract_tool_name(input_data) == ""
+
+    def test_extract_from_dict_empty_string(self) -> None:
+        """Return empty string when tool_name is empty."""
+        input_data = {"tool_name": ""}
+        assert extract_tool_name(input_data) == ""
+
+    def test_extract_from_object(self) -> None:
+        """Extract tool_name from an object with attributes."""
+        mock_input = MagicMock()
+        mock_input.tool_name = "mcp__drawing__generate_svg"
+        assert extract_tool_name(mock_input) == "mcp__drawing__generate_svg"
+
+    def test_extract_from_object_missing_attr(self) -> None:
+        """Return empty string when object lacks tool_name attribute."""
+        mock_input = MagicMock(spec=[])  # No attributes
+        assert extract_tool_name(mock_input) == ""
+
+
+class TestPostToolUseHook:
+    """Tests for _post_tool_use_hook behavior."""
+
+    def _create_agent_with_paths(self, paths: list[Path] | None = None) -> DrawingAgent:
+        """Create an agent with pre-populated collected paths."""
+        agent = DrawingAgent()
+        if paths:
+            agent._collected_paths = paths.copy()
+        return agent
+
+    @pytest.mark.asyncio
+    async def test_hook_calls_on_draw_for_draw_paths(self) -> None:
+        """Hook calls _on_draw when draw_paths tool completes with collected paths."""
+        agent = self._create_agent_with_paths(
+            [Path(type="line", points=[Point(x=0, y=0), Point(x=100, y=100)])]
+        )
+        on_draw_mock = AsyncMock()
+        agent.set_on_draw(on_draw_mock)
+
+        # SDK passes a dict at runtime
+        input_data = {"tool_name": "mcp__drawing__draw_paths", "tool_input": {}}
+        await agent._post_tool_use_hook(input_data, None, MagicMock())
+
+        on_draw_mock.assert_called_once()
+        assert len(agent._collected_paths) == 0  # Cleared after draw
+
+    @pytest.mark.asyncio
+    async def test_hook_calls_on_draw_for_generate_svg(self) -> None:
+        """Hook calls _on_draw when generate_svg tool completes."""
+        agent = self._create_agent_with_paths(
+            [
+                Path(
+                    type="cubic",
+                    points=[
+                        Point(x=0, y=0),
+                        Point(x=50, y=50),
+                        Point(x=100, y=0),
+                        Point(x=100, y=100),
+                    ],
+                )
+            ]
+        )
+        on_draw_mock = AsyncMock()
+        agent.set_on_draw(on_draw_mock)
+
+        input_data = {"tool_name": "mcp__drawing__generate_svg", "tool_input": {}}
+        await agent._post_tool_use_hook(input_data, None, MagicMock())
+
+        on_draw_mock.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_hook_skips_on_draw_when_no_paths(self) -> None:
+        """Hook does not call _on_draw when collected_paths is empty."""
+        agent = DrawingAgent()
+        on_draw_mock = AsyncMock()
+        agent.set_on_draw(on_draw_mock)
+
+        input_data = {"tool_name": "mcp__drawing__draw_paths", "tool_input": {}}
+        await agent._post_tool_use_hook(input_data, None, MagicMock())
+
+        on_draw_mock.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_hook_skips_on_draw_when_callback_not_set(self) -> None:
+        """Hook handles missing _on_draw callback gracefully."""
+        agent = self._create_agent_with_paths(
+            [Path(type="line", points=[Point(x=0, y=0), Point(x=100, y=100)])]
+        )
+        # Don't set on_draw callback
+
+        input_data = {"tool_name": "mcp__drawing__draw_paths", "tool_input": {}}
+        await agent._post_tool_use_hook(input_data, None, MagicMock())
+
+        # Should not raise, paths should still be cleared
+        assert len(agent._collected_paths) == 0
+
+    @pytest.mark.asyncio
+    async def test_hook_sets_piece_done_for_mark_piece_done(self) -> None:
+        """Hook sets _piece_done flag when mark_piece_done tool completes."""
+        agent = DrawingAgent()
+        assert agent._piece_done is False
+
+        input_data = {"tool_name": "mcp__drawing__mark_piece_done", "tool_input": {}}
+        await agent._post_tool_use_hook(input_data, None, MagicMock())
+
+        assert agent._piece_done is True
+
+    @pytest.mark.asyncio
+    async def test_hook_ignores_other_tools(self) -> None:
+        """Hook does not trigger drawing for unrelated tools."""
+        agent = self._create_agent_with_paths(
+            [Path(type="line", points=[Point(x=0, y=0), Point(x=100, y=100)])]
+        )
+        on_draw_mock = AsyncMock()
+        agent.set_on_draw(on_draw_mock)
+
+        input_data = {"tool_name": "mcp__drawing__view_canvas", "tool_input": {}}
+        await agent._post_tool_use_hook(input_data, None, MagicMock())
+
+        on_draw_mock.assert_not_called()
+        # Paths should NOT be cleared for other tools
+        assert len(agent._collected_paths) == 1
+
+    @pytest.mark.asyncio
+    async def test_hook_handles_empty_tool_name(self) -> None:
+        """Hook handles missing/empty tool_name gracefully."""
+        agent = self._create_agent_with_paths(
+            [Path(type="line", points=[Point(x=0, y=0), Point(x=100, y=100)])]
+        )
+        on_draw_mock = AsyncMock()
+        agent.set_on_draw(on_draw_mock)
+
+        input_data: dict[str, Any] = {"tool_input": {}}  # No tool_name
+        await agent._post_tool_use_hook(input_data, None, MagicMock())
+
+        on_draw_mock.assert_not_called()
