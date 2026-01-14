@@ -172,7 +172,11 @@ describe('AuthContext', () => {
     describe('verifyMagicLinkCode', () => {
       it('stores tokens and updates state on success', async () => {
         const futureExp = Math.floor(Date.now() / 1000) + 3600;
-        const accessToken = createTestToken({ sub: '1', email: 'test@example.com', exp: futureExp });
+        const accessToken = createTestToken({
+          sub: '1',
+          email: 'test@example.com',
+          exp: futureExp,
+        });
 
         mockFetch.mockResolvedValueOnce({
           ok: true,

@@ -125,18 +125,20 @@ export function LiveCanvas(): React.ReactElement {
       <rect width="400" height="300" fill="#fefefe" />
 
       {showReal ? (
-        realStrokes.slice(-30).map((stroke, i) => (
-          <path
-            key={i}
-            d={pathDataToSvg(stroke, 0.5)}
-            fill="none"
-            stroke={stroke.author === 'human' ? '#3b82f6' : '#2d3436'}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={0.85}
-          />
-        ))
+        realStrokes
+          .slice(-30)
+          .map((stroke, i) => (
+            <path
+              key={i}
+              d={pathDataToSvg(stroke, 0.5)}
+              fill="none"
+              stroke={stroke.author === 'human' ? '#3b82f6' : '#2d3436'}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={0.85}
+            />
+          ))
       ) : (
         <>
           {simStrokes.map((stroke) => (

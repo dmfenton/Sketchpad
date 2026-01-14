@@ -36,9 +36,10 @@ class TestWorkspaceStateStrokeQueue:
             points=[Point(x=0, y=0), Point(x=100, y=100)],
         )
 
-        batch_id = await workspace_state.queue_strokes([path])
+        batch_id, total_points = await workspace_state.queue_strokes([path])
 
         assert batch_id == 1
+        assert total_points > 0  # Should have interpolated points
         assert workspace_state.has_pending_strokes is True
         assert workspace_state.pending_stroke_count == 1
         assert workspace_state.stroke_batch_id == 1
@@ -51,9 +52,10 @@ class TestWorkspaceStateStrokeQueue:
             DrawPath(type="line", points=[Point(x=100, y=100), Point(x=200, y=0)]),
         ]
 
-        batch_id = await workspace_state.queue_strokes(paths)
+        batch_id, total_points = await workspace_state.queue_strokes(paths)
 
         assert batch_id == 1
+        assert total_points > 0
         assert workspace_state.pending_stroke_count == 2
 
     @pytest.mark.asyncio
@@ -61,8 +63,8 @@ class TestWorkspaceStateStrokeQueue:
         """Test that batch ID increments with each queue call."""
         path = DrawPath(type="line", points=[Point(x=0, y=0), Point(x=100, y=100)])
 
-        batch1 = await workspace_state.queue_strokes([path])
-        batch2 = await workspace_state.queue_strokes([path])
+        batch1, _ = await workspace_state.queue_strokes([path])
+        batch2, _ = await workspace_state.queue_strokes([path])
 
         assert batch1 == 1
         assert batch2 == 2

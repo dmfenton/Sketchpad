@@ -26,9 +26,10 @@ class TestPendingStrokesLimit:
         """Strokes under limit should be queued normally."""
         path = Path(type=PathType.LINE, points=[Point(x=0, y=0), Point(x=100, y=100)])
 
-        batch_id = await workspace.queue_strokes([path])
+        batch_id, total_points = await workspace.queue_strokes([path])
 
         assert batch_id == 1
+        assert total_points > 0
         assert len(workspace._pending_strokes) == 1
         assert workspace._pending_strokes[0]["batch_id"] == 1
 
@@ -37,9 +38,9 @@ class TestPendingStrokesLimit:
         """Multiple batches should have incrementing IDs."""
         path = Path(type=PathType.LINE, points=[Point(x=0, y=0), Point(x=100, y=100)])
 
-        batch1 = await workspace.queue_strokes([path])
-        batch2 = await workspace.queue_strokes([path])
-        batch3 = await workspace.queue_strokes([path])
+        batch1, _ = await workspace.queue_strokes([path])
+        batch2, _ = await workspace.queue_strokes([path])
+        batch3, _ = await workspace.queue_strokes([path])
 
         assert batch1 == 1
         assert batch2 == 2

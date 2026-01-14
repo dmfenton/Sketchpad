@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+.expo/
+
+# Python
+server/
+__pycache__/
+*.pyc
+.venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Data
+*.db
+*.sqlite
+
+# Other
+coverage/
+*.log

@@ -13,7 +13,12 @@ interface ActionBarProps {
   onToggleDrawing: () => void;
 }
 
-export function ActionBar({ paused, drawingEnabled, onSend, onToggleDrawing }: ActionBarProps): React.ReactElement {
+export function ActionBar({
+  paused,
+  drawingEnabled,
+  onSend,
+  onToggleDrawing,
+}: ActionBarProps): React.ReactElement {
   const [inputText, setInputText] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [modalDirection, setModalDirection] = useState('');
@@ -111,11 +116,7 @@ export function ActionBar({ paused, drawingEnabled, onSend, onToggleDrawing }: A
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
               />
-              <button
-                className="primary"
-                onClick={handleNudge}
-                disabled={!inputText.trim()}
-              >
+              <button className="primary" onClick={handleNudge} disabled={!inputText.trim()}>
                 Send
               </button>
               <button className="secondary pause-btn" onClick={handlePause}>

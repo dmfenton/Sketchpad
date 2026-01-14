@@ -11,6 +11,7 @@ import { Canvas } from './components/Canvas';
 import { MessageStream } from './components/MessageStream';
 import { DebugPanel } from './components/DebugPanel';
 import { ActionBar } from './components/ActionBar';
+import { StatusOverlay } from './components/StatusOverlay';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useDebug } from './hooks/useDebug';
@@ -96,6 +97,11 @@ function App(): React.ReactElement {
       />
 
       <div className="canvas-container">
+        <StatusOverlay
+          status={state.agentStatus}
+          thinking={state.thinking}
+          messages={state.messages}
+        />
         <Canvas
           strokes={state.strokes}
           currentStroke={state.currentStroke}
@@ -119,7 +125,6 @@ function App(): React.ReactElement {
           onClearLog={debug.clearLog}
         />
       </div>
-
     </div>
   );
 }

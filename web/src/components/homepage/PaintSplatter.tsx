@@ -12,7 +12,13 @@ export interface PaintSplatterProps {
   y: number;
 }
 
-export function PaintSplatter({ delay, size, color, x, y }: PaintSplatterProps): React.ReactElement {
+export function PaintSplatter({
+  delay,
+  size,
+  color,
+  x,
+  y,
+}: PaintSplatterProps): React.ReactElement {
   return (
     <div
       className="paint-splatter"

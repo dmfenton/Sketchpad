@@ -110,7 +110,13 @@ export function useStrokeAnimation({
 
       // Skip if we've already fetched this batch (prevents race condition)
       if (pendingStrokes.batchId <= fetchedBatchIdRef.current) {
-        console.log('[useStrokeAnimation] Skipping batch', pendingStrokes.batchId, '- already fetched (ref:', fetchedBatchIdRef.current, ')');
+        console.log(
+          '[useStrokeAnimation] Skipping batch',
+          pendingStrokes.batchId,
+          '- already fetched (ref:',
+          fetchedBatchIdRef.current,
+          ')'
+        );
         return;
       }
       console.log('[useStrokeAnimation] Fetching batch', pendingStrokes.batchId);

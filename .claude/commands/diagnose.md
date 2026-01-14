@@ -5,6 +5,7 @@ Query AWS X-Ray traces to diagnose server errors and performance issues.
 ## Arguments
 
 `$ARGUMENTS` can be:
+
 - `recent` - Show recent traces (default: last 30 minutes)
 - `errors` - Show recent error/fault traces
 - `trace <TRACE_ID>` - Get full trace details
@@ -20,6 +21,7 @@ uv run python scripts/diagnose.py recent
 ```
 
 Shows all traces from the last 30 minutes with:
+
 - Trace ID
 - HTTP method and URL
 - Response status
@@ -41,6 +43,7 @@ uv run python scripts/diagnose.py trace 1-67890abc-def123456789abcd
 ```
 
 Shows full trace details including:
+
 - All segments (service boundaries)
 - HTTP request/response details
 - Exception stack traces
@@ -61,6 +64,7 @@ Shows traces for a specific API endpoint.
 If a user reports a 500 error:
 
 1. Get error traces:
+
    ```bash
    uv run python scripts/diagnose.py errors
    ```
@@ -68,6 +72,7 @@ If a user reports a 500 error:
 2. Find the relevant trace by URL/time
 
 3. Get full details:
+
    ```bash
    uv run python scripts/diagnose.py trace <TRACE_ID>
    ```

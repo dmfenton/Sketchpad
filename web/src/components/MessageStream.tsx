@@ -14,9 +14,7 @@ interface MessageStreamProps {
 /**
  * Extract code from tool_input metadata for preview
  */
-function getCodeFromInput(
-  toolInput: Record<string, unknown> | null | undefined
-): string | null {
+function getCodeFromInput(toolInput: Record<string, unknown> | null | undefined): string | null {
   if (!toolInput) return null;
   const code = toolInput.code;
   if (typeof code === 'string') {
@@ -70,9 +68,7 @@ function MessageBubble({ message }: MessageBubbleProps): React.ReactElement {
     const hasOutput = message.metadata?.stdout || message.metadata?.stderr;
     const toolName = message.metadata?.tool_name;
     const codePreview =
-      toolName === 'generate_svg'
-        ? getCodeFromInput(message.metadata?.tool_input)
-        : null;
+      toolName === 'generate_svg' ? getCodeFromInput(message.metadata?.tool_input) : null;
     const hasExpandableContent = hasOutput || codePreview;
 
     return (
@@ -83,9 +79,7 @@ function MessageBubble({ message }: MessageBubbleProps): React.ReactElement {
           style={{ cursor: hasExpandableContent ? 'pointer' : 'default' }}
         >
           <span className="message-text">{message.text}</span>
-          {hasExpandableContent && (
-            <span className="expand-icon">{expanded ? '▲' : '▼'}</span>
-          )}
+          {hasExpandableContent && <span className="expand-icon">{expanded ? '▲' : '▼'}</span>}
         </div>
         {expanded && codePreview && (
           <div className="code-preview-section">

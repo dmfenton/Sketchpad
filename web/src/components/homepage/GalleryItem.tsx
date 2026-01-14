@@ -62,17 +62,19 @@ export function GalleryItem({ piece, index, delay }: GalleryItemProps): React.Re
         <svg viewBox="0 0 100 100" className="gallery-artwork">
           <rect width="100" height="100" fill="#fafafa" />
           {loaded && strokes.length > 0
-            ? strokes.slice(0, 30).map((stroke, i) => (
-                <path
-                  key={i}
-                  d={pathDataToSvg(stroke, 100 / 800)}
-                  fill="none"
-                  stroke={stroke.author === 'human' ? '#3b82f6' : '#2d3436'}
-                  strokeWidth={1}
-                  strokeLinecap="round"
-                  opacity={0.8}
-                />
-              ))
+            ? strokes
+                .slice(0, 30)
+                .map((stroke, i) => (
+                  <path
+                    key={i}
+                    d={pathDataToSvg(stroke, 100 / 800)}
+                    fill="none"
+                    stroke={stroke.author === 'human' ? '#3b82f6' : '#2d3436'}
+                    strokeWidth={1}
+                    strokeLinecap="round"
+                    opacity={0.8}
+                  />
+                ))
             : fallbackStrokes.map((stroke, i) => (
                 <path
                   key={i}

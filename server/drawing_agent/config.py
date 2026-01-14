@@ -106,6 +106,11 @@ class Settings(BaseSettings):
     pen_settle_delay: float = 0.05  # pause after pen down before moving (servo settling)
     pen_lift_threshold: float = 2.0  # skip pen lift if next path starts within this distance
 
+    # Animation wait (agent pauses while client animates)
+    client_animation_fps: int = 60  # client animation frame rate
+    animation_wait_buffer_ms: int = 500  # extra buffer for network/fetch latency
+    max_animation_wait_s: float = 30.0  # cap to prevent very long waits
+
     # Limits
     max_stdout_chars: int = 2000  # truncate stdout in messages
     max_stderr_chars: int = 500  # truncate stderr in messages

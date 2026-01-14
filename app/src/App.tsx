@@ -33,6 +33,7 @@ import {
   NudgeModal,
   SplashScreen,
   StartPanel,
+  StatusOverlay,
   StatusPill,
 } from './components';
 import { getApiUrl, getWebSocketUrl } from './config';
@@ -226,6 +227,11 @@ function MainApp(): React.JSX.Element {
 
           {/* Canvas - Main area */}
           <View style={styles.canvasContainer}>
+            <StatusOverlay
+              status={canvas.state.agentStatus}
+              thinking={canvas.state.thinking}
+              messages={canvas.state.messages}
+            />
             <Canvas
               strokes={canvas.state.strokes}
               currentStroke={canvas.state.currentStroke}

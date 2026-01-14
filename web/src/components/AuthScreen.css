@@ -102,7 +102,9 @@
   border-radius: 12px;
   color: #fff;
   font-size: 1rem;
-  transition: border-color 0.2s, background-color 0.2s;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
 }
 
 .auth-field input::placeholder {
@@ -162,7 +164,9 @@
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
