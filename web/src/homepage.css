@@ -1,0 +1,554 @@
+/**
+ * Code Monet - Homepage Styles
+ * Elegant, artistic landing page design
+ */
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes drawStroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(100vh) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+    transform: translateY(90vh) scale(1);
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-10vh) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes stroke-draw {
+  from {
+    stroke-dashoffset: 500;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(233, 69, 96, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 40px rgba(233, 69, 96, 0.6));
+  }
+}
+
+/* ============================================
+   HOMEPAGE LAYOUT
+   ============================================ */
+
+.homepage {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 50%, #16213e 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.homepage.mounted .hero-title,
+.homepage.mounted .hero-subtitle,
+.homepage.mounted .hero-description,
+.homepage.mounted .enter-button,
+.homepage.mounted .feature {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+/* Staggered animations */
+.homepage.mounted .title-line-1 {
+  animation-delay: 0.2s;
+}
+
+.homepage.mounted .title-line-2 {
+  animation-delay: 0.4s;
+}
+
+.homepage.mounted .hero-subtitle {
+  animation-delay: 0.6s;
+}
+
+.homepage.mounted .hero-description {
+  animation-delay: 0.8s;
+}
+
+.homepage.mounted .enter-button {
+  animation-delay: 1s;
+}
+
+.homepage.mounted .feature:nth-child(1) {
+  animation-delay: 1.2s;
+}
+
+.homepage.mounted .feature:nth-child(2) {
+  animation-delay: 1.4s;
+}
+
+.homepage.mounted .feature:nth-child(3) {
+  animation-delay: 1.6s;
+}
+
+/* ============================================
+   ANIMATED BACKGROUND
+   ============================================ */
+
+.homepage-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  animation: fadeIn 2s ease-out 0.5s forwards;
+}
+
+.homepage-canvas svg {
+  width: 100%;
+  height: 100%;
+}
+
+.particles-container {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.floating-particle {
+  position: absolute;
+  bottom: -20px;
+  border-radius: 50%;
+  opacity: 0;
+  animation: float 12s ease-in-out infinite;
+  filter: blur(1px);
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
+
+.homepage-header {
+  position: relative;
+  z-index: 10;
+  padding: 24px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo-mark {
+  color: white;
+  opacity: 0.9;
+}
+
+.logo-mark svg {
+  display: block;
+}
+
+/* ============================================
+   CONTENT WRAPPER
+   ============================================ */
+
+.homepage-content {
+  position: relative;
+  z-index: 10;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================
+   HERO SECTION
+   ============================================ */
+
+.hero {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+  padding: 0 80px 60px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hero-text {
+  max-width: 600px;
+}
+
+.hero-title {
+  font-size: clamp(4rem, 10vw, 8rem);
+  font-weight: 200;
+  line-height: 0.95;
+  margin: 0 0 32px 0;
+  letter-spacing: -0.03em;
+}
+
+.title-line {
+  display: block;
+  opacity: 0;
+}
+
+.title-line-1 {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 100;
+}
+
+.title-line-2 {
+  color: white;
+  font-weight: 300;
+  background: linear-gradient(
+    90deg,
+    #e94560 0%,
+    #ff6b6b 25%,
+    #7b68ee 50%,
+    #4ecdc4 75%,
+    #e94560 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 8s linear infinite;
+}
+
+.hero-subtitle {
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0 0 20px 0;
+  opacity: 0;
+  letter-spacing: 0.02em;
+}
+
+.hero-description {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 40px 0;
+  opacity: 0;
+  max-width: 480px;
+}
+
+/* ============================================
+   ENTER BUTTON
+   ============================================ */
+
+.enter-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 36px;
+  background: linear-gradient(135deg, #e94560, #ff6b6b);
+  border: none;
+  border-radius: 50px;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.enter-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #ff6b6b, #e94560);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.enter-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 40px rgba(233, 69, 96, 0.4);
+}
+
+.enter-button:hover::before {
+  opacity: 1;
+}
+
+.enter-button:active {
+  transform: translateY(0);
+}
+
+.button-text,
+.button-arrow {
+  position: relative;
+  z-index: 1;
+}
+
+.button-arrow {
+  transition: transform 0.3s ease;
+}
+
+.enter-button:hover .button-arrow {
+  transform: translateX(4px);
+}
+
+/* ============================================
+   HERO VISUAL / CANVAS PREVIEW
+   ============================================ */
+
+.hero-visual {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.canvas-preview {
+  position: relative;
+  animation: fadeIn 1.5s ease-out 0.8s forwards;
+  opacity: 0;
+}
+
+.preview-frame {
+  background: white;
+  border-radius: 16px;
+  box-shadow:
+    0 25px 80px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  position: relative;
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+.preview-canvas {
+  display: block;
+  width: 400px;
+  height: 300px;
+}
+
+.preview-stroke {
+  stroke-dasharray: 500;
+  stroke-dashoffset: 500;
+  animation: stroke-draw 3s ease-out forwards;
+}
+
+.preview-stroke.stroke-1 {
+  animation-delay: 1.5s;
+}
+
+.preview-stroke.stroke-2 {
+  animation-delay: 2s;
+}
+
+.preview-stroke.stroke-3 {
+  animation-delay: 2.5s;
+}
+
+.preview-status {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(26, 26, 46, 0.9);
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background: #4ade80;
+  border-radius: 50%;
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.status-text {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================
+   FEATURES SECTION
+   ============================================ */
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  padding: 60px 80px 80px;
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.3));
+}
+
+.feature {
+  text-align: center;
+  opacity: 0;
+}
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 20px;
+  color: #e94560;
+}
+
+.feature-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.feature h3 {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: white;
+  margin: 0 0 12px 0;
+}
+
+.feature p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+
+.homepage-footer {
+  padding: 24px 40px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.875rem;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 1200px) {
+  .hero {
+    padding: 0 40px 40px;
+    gap: 40px;
+  }
+
+  .features {
+    padding: 40px;
+  }
+}
+
+@media (max-width: 968px) {
+  .hero {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .hero-text {
+    max-width: 100%;
+    order: 1;
+  }
+
+  .hero-description {
+    max-width: 100%;
+  }
+
+  .hero-visual {
+    order: 0;
+    margin-bottom: 20px;
+  }
+
+  .preview-canvas {
+    width: 320px;
+    height: 240px;
+  }
+
+  .features {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero {
+    padding: 0 24px 40px;
+  }
+
+  .hero-title {
+    font-size: 3.5rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1.25rem;
+  }
+
+  .hero-description {
+    font-size: 1rem;
+  }
+
+  .preview-canvas {
+    width: 280px;
+    height: 210px;
+  }
+
+  .features {
+    padding: 40px 24px;
+  }
+
+  .homepage-header {
+    padding: 16px 24px;
+  }
+}
