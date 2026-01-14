@@ -37,13 +37,6 @@ jobs:
         with:
           version: 9
 
-      - name: Build web frontend
-        run: |
-          cd shared && pnpm install && pnpm build
-          cd ../web && pnpm install && pnpm build
-          echo "Web frontend built successfully"
-          ls -la dist/
-
       - name: Extract version from tag
         id: version
         run: |
@@ -56,6 +49,17 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build web frontend
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cd shared && pnpm install && pnpm build
+          cd ../web && pnpm install && pnpm build
+          # Write version file for nginx to serve
+          echo "$VERSION" > dist/version.txt
+          echo "Web frontend built successfully (v$VERSION)"
+          ls -la dist/
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
