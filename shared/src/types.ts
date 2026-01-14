@@ -133,6 +133,16 @@ export interface ThinkingDeltaMessage {
 
 export type ToolName = 'draw_paths' | 'generate_svg' | 'view_canvas' | 'mark_piece_done';
 
+/**
+ * Human-readable display names for tools.
+ */
+export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
+  draw_paths: 'drawing paths',
+  generate_svg: 'generating SVG',
+  view_canvas: 'viewing canvas',
+  mark_piece_done: 'marking done',
+};
+
 export interface CodeExecutionMessage {
   type: 'code_execution';
   status: 'started' | 'completed';
