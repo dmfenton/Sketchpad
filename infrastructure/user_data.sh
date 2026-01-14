@@ -109,6 +109,49 @@ CONFIG_BUCKET="drawing-agent-config-${ACCOUNT_ID}"
 echo "Downloading config files from s3://${CONFIG_BUCKET}/deploy/..."
 aws s3 sync "s3://${CONFIG_BUCKET}/deploy/" /home/ec2-user/ --region us-east-1
 chown -R ec2-user:ec2-user /home/ec2-user/*.yml /home/ec2-user/*.yaml /home/ec2-user/*.conf 2>/dev/null || true
+chown -R ec2-user:ec2-user /home/ec2-user/web 2>/dev/null || true
+
+# Create a script to sync web files from S3
+cat > /home/ec2-user/sync-web.sh << 'SCRIPT'
+#!/bin/bash
+TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+ACCOUNT_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | cut -d'"' -f4)
+CONFIG_BUCKET="drawing-agent-config-${ACCOUNT_ID}"
+aws s3 sync "s3://${CONFIG_BUCKET}/deploy/web/" /home/ec2-user/web/ --region us-east-1 --delete
+SCRIPT
+chmod +x /home/ec2-user/sync-web.sh
+chown ec2-user:ec2-user /home/ec2-user/sync-web.sh
+
+# Create systemd service to sync web files
+cat > /etc/systemd/system/sync-web.service << 'EOF'
+[Unit]
+Description=Sync web files from S3
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/ec2-user/sync-web.sh
+User=ec2-user
+EOF
+
+# Create systemd timer to run every minute
+cat > /etc/systemd/system/sync-web.timer << 'EOF'
+[Unit]
+Description=Sync web files from S3 every minute
+
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=60
+
+[Install]
+WantedBy=timers.target
+EOF
+
+# Enable and start the timer
+systemctl daemon-reload
+systemctl enable sync-web.timer
+systemctl start sync-web.timer
 
 # Signal completion
 echo "User data script completed successfully" > /home/ec2-user/user_data_complete.txt

@@ -27,6 +27,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Build web frontend
+        run: |
+          cd shared && pnpm install && pnpm build
+          cd ../web && pnpm install && pnpm build
+          echo "Web frontend built successfully"
+          ls -la dist/
+
       - name: Extract version from tag
         id: version
         run: |
@@ -76,12 +93,16 @@ jobs:
 
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Sync deploy configs to S3
+      - name: Sync deploy configs and web build to S3
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           BUCKET="drawing-agent-config-${ACCOUNT_ID}"
+
           echo "Syncing deploy/ to s3://${BUCKET}/deploy/"
           aws s3 sync deploy/ "s3://${BUCKET}/deploy/" --delete
+
+          echo "Syncing web build to s3://${BUCKET}/deploy/web/"
+          aws s3 sync web/dist/ "s3://${BUCKET}/deploy/web/" --delete
 
       - name: Extract changelog
         id: changelog
