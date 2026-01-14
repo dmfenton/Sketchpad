@@ -2,11 +2,15 @@ import React, { StrictMode, useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { Homepage } from './components/Homepage';
+import { AuthScreen } from './components/AuthScreen';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import './styles.css';
 import './homepage.css';
+import './components/AuthScreen.css';
 
-function Root(): React.ReactElement {
+function Router(): React.ReactElement {
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname);
+  const { isLoading, isAuthenticated } = useAuth();
 
   // Handle browser back/forward navigation
   useEffect(() => {
@@ -17,18 +21,46 @@ function Root(): React.ReactElement {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const handleEnterStudio = (): void => {
-    window.history.pushState({}, '', '/studio');
-    setCurrentPath('/studio');
+  const navigateTo = (path: string): void => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
   };
 
-  // Show studio for /studio path
+  const handleEnterStudio = (): void => {
+    navigateTo('/studio');
+  };
+
+  const handleBackToHome = (): void => {
+    navigateTo('/');
+  };
+
+  // Show loading while checking auth
+  if (currentPath === '/studio' && isLoading) {
+    return (
+      <div className="auth-loading">
+        <div className="auth-spinner" />
+      </div>
+    );
+  }
+
+  // Studio requires authentication
   if (currentPath === '/studio') {
+    if (!isAuthenticated) {
+      return <AuthScreen onBack={handleBackToHome} />;
+    }
     return <App />;
   }
 
-  // Show homepage for root and all other paths
+  // Homepage is public
   return <Homepage onEnter={handleEnterStudio} />;
+}
+
+function Root(): React.ReactElement {
+  return (
+    <AuthProvider>
+      <Router />
+    </AuthProvider>
+  );
 }
 
 createRoot(document.getElementById('root')!).render(
