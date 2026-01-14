@@ -37,18 +37,43 @@ export interface SimulatedStroke {
   progress: number;
 }
 
-// Impressionist palette inspired by Monet
+// Monet-inspired palette from his actual paintings
+// Colors drawn from Water Lilies, Impression Sunrise, and Giverny gardens
 export const PALETTE = {
-  primary: ['#e94560', '#ff6b6b', '#ff8585'],
-  secondary: ['#7b68ee', '#9b8aff', '#b8a9ff'],
-  accent: ['#4ecdc4', '#6ee7de', '#8ff4ed'],
-  warm: ['#ffd93d', '#ffe566', '#ffed8a'],
-  neutral: ['#2d3436', '#636e72', '#b2bec3'],
+  // Ochres and golds - morning light
+  ochre: ['#c4a35a', '#d4a84b', '#b89b4a'],
+  // Water and sky blues
+  water: ['#6a9fb5', '#7eb3c4', '#5d8a9e'],
+  // Lily pinks and roses
+  rose: ['#b5606e', '#c8868f', '#a85060'],
+  // Garden greens and sage
+  sage: ['#7d8471', '#8f9682', '#6b7560'],
+  // Lavender and violet shadows
+  lavender: ['#8b7ea8', '#9d90b8', '#7a6d98'],
+  // Warm earth tones
+  sienna: ['#9e6b4a', '#b07d5a', '#8a5d40'],
+  // Deep indigos for shadows
+  indigo: ['#2c3e50', '#34495e', '#243342'],
 };
 
+// Flattened array of all colors for random selection
 export const ALL_COLORS = [
-  ...PALETTE.primary,
-  ...PALETTE.secondary,
-  ...PALETTE.accent,
-  ...PALETTE.warm,
+  ...PALETTE.ochre,
+  ...PALETTE.water,
+  ...PALETTE.rose,
+  ...PALETTE.sage,
+  ...PALETTE.lavender,
+  ...PALETTE.sienna,
+];
+
+// Subset of warmer, more prominent colors for simulated strokes
+export const STROKE_COLORS = [
+  '#c4a35a', // ochre
+  '#6a9fb5', // water blue
+  '#b5606e', // rose
+  '#7d8471', // sage
+  '#8b7ea8', // lavender
+  '#9e6b4a', // sienna
+  '#d4a84b', // gold
+  '#7eb3c4', // light blue
 ];
