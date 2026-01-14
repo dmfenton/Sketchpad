@@ -274,10 +274,13 @@ class DrawingAgent:
 
         Note: input_data is typed as HookInput (union of all hook types) to satisfy
         the SDK's type requirements, but this hook only receives PostToolUseHookInput.
+        The SDK passes a dict in Python, not an object with attributes.
         """
-        # Extract tool_name - PostToolUseHookInput has tool_name attribute
-        # Use getattr for compatibility with both object and dict forms
-        tool_name = str(getattr(input_data, "tool_name", "") or "")
+        # Extract tool_name - SDK passes a dict in Python
+        if isinstance(input_data, dict):
+            tool_name = str(input_data.get("tool_name", "") or "")
+        else:
+            tool_name = str(getattr(input_data, "tool_name", "") or "")
         logger.info(f"PostToolUse: tool={tool_name}, collected_paths={len(self._collected_paths)}")
 
         # After draw_paths or generate_svg, execute drawing and wait

@@ -105,10 +105,15 @@ export function useStrokeAnimation({
 
   useEffect(() => {
     const fetchAndAnimate = async (): Promise<void> => {
+      console.log('[useStrokeAnimation] Effect triggered, pendingStrokes:', pendingStrokes);
       if (!pendingStrokes) return;
 
       // Skip if we've already fetched this batch (prevents race condition)
-      if (pendingStrokes.batchId <= fetchedBatchIdRef.current) return;
+      if (pendingStrokes.batchId <= fetchedBatchIdRef.current) {
+        console.log('[useStrokeAnimation] Skipping batch', pendingStrokes.batchId, '- already fetched (ref:', fetchedBatchIdRef.current, ')');
+        return;
+      }
+      console.log('[useStrokeAnimation] Fetching batch', pendingStrokes.batchId);
       fetchedBatchIdRef.current = pendingStrokes.batchId;
 
       // Clear pending state to prevent re-fetch
@@ -116,6 +121,7 @@ export function useStrokeAnimation({
 
       try {
         const strokes = await fetchStrokes();
+        console.log('[useStrokeAnimation] Fetched', strokes.length, 'strokes');
         if (strokes.length > 0) {
           await animateStrokes(strokes);
         }
