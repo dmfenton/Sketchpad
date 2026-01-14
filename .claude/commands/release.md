@@ -85,29 +85,42 @@ Becomes:
 ## [1.0.1] - 2026-01-03
 ```
 
-### 5. Commit and Tag
+### 5. Create Release PR
 
 ```bash
+git checkout -b release/vX.Y.Z
 git add CHANGELOG.md
 git commit -m "chore: Release vX.Y.Z"
+git push -u origin release/vX.Y.Z
+gh pr create --title "chore: Release vX.Y.Z" --body "## Release vX.Y.Z
+
+[Changelog contents here]"
+```
+
+### 6. Merge and Tag
+
+After PR is approved/merged:
+
+```bash
+git checkout Main
+git pull origin Main
 git tag vX.Y.Z
-git push origin Main
 git push origin vX.Y.Z
 ```
 
-### 6. Verify Deployments
+### 7. Verify Deployments
 
 After pushing the tag, GitHub Actions will:
 
 1. **Server**: Build Docker image → Push to ECR → Watchtower auto-deploys (30s)
-2. **iOS App**: Build IPA → Upload to TestFlight
+2. **iOS App**: Build IPA → Upload to TestFlight (skipped if no iOS changes)
 
 Provide links:
 
 - GitHub Actions: `https://github.com/dmfenton/sketchpad/actions`
 - GitHub Release: `https://github.com/dmfenton/sketchpad/releases/tag/vX.Y.Z`
 
-### 7. Summary
+### 8. Summary
 
 Output:
 
