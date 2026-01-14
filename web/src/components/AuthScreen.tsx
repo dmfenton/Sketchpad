@@ -1,24 +1,19 @@
 /**
- * Authentication Screen - Login/Signup with invite code for web
+ * Authentication Screen - Magic link only
  */
 
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import './AuthScreen.css';
 
-type AuthMode = 'magic-link' | 'signin' | 'signup';
-
 interface AuthScreenProps {
   onBack?: () => void;
 }
 
 export function AuthScreen({ onBack }: AuthScreenProps): React.ReactElement {
-  const { signIn, signUp, requestMagicLink, verifyMagicLinkCode } = useAuth();
+  const { requestMagicLink, verifyMagicLinkCode } = useAuth();
 
-  const [mode, setMode] = useState<AuthMode>('magic-link');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
   const [code, setCode] = useState('');
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,54 +31,30 @@ export function AuthScreen({ onBack }: AuthScreenProps): React.ReactElement {
     setLoading(true);
 
     try {
-      let result;
-
-      if (mode === 'magic-link') {
-        if (!email.trim()) {
-          setError('Email is required');
-          setLoading(false);
-          return;
-        }
-
-        if (showCodeInput) {
-          if (code.length !== 6) {
-            setError('Please enter the 6-digit code');
-            setLoading(false);
-            return;
-          }
-          result = await verifyMagicLinkCode(email, code);
-        } else {
-          result = await requestMagicLink(email);
-          if (result.success) {
-            setSuccess('Check your email for a sign-in link or enter the code below');
-            setShowCodeInput(true);
-            setLoading(false);
-            return;
-          }
-        }
-      } else if (mode === 'signin') {
-        if (!email.trim() || !password.trim()) {
-          setError('Email and password are required');
-          setLoading(false);
-          return;
-        }
-        result = await signIn(email, password);
-      } else {
-        if (!email.trim() || !password.trim()) {
-          setError('Email and password are required');
-          setLoading(false);
-          return;
-        }
-        if (!inviteCode.trim()) {
-          setError('Invite code is required to sign up');
-          setLoading(false);
-          return;
-        }
-        result = await signUp(email, password, inviteCode);
+      if (!email.trim()) {
+        setError('Email is required');
+        setLoading(false);
+        return;
       }
 
-      if (!result.success) {
-        setError(result.error ?? 'Authentication failed');
+      if (showCodeInput) {
+        if (code.length !== 6) {
+          setError('Please enter the 6-digit code');
+          setLoading(false);
+          return;
+        }
+        const result = await verifyMagicLinkCode(email, code);
+        if (!result.success) {
+          setError(result.error ?? 'Invalid or expired code');
+        }
+      } else {
+        const result = await requestMagicLink(email);
+        if (result.success) {
+          setSuccess('Check your email for a sign-in link, or enter the code below');
+          setShowCodeInput(true);
+        } else {
+          setError(result.error ?? 'Failed to send magic link');
+        }
       }
     } catch {
       setError('An unexpected error occurred');
@@ -92,11 +63,13 @@ export function AuthScreen({ onBack }: AuthScreenProps): React.ReactElement {
     }
   };
 
-  const switchMode = (newMode: AuthMode): void => {
-    setMode(newMode);
-    clearMessages();
-    setShowCodeInput(false);
-    setCode('');
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    setEmail(e.target.value);
+    if (showCodeInput) {
+      setShowCodeInput(false);
+      setCode('');
+      clearMessages();
+    }
   };
 
   return (
@@ -125,13 +98,7 @@ export function AuthScreen({ onBack }: AuthScreenProps): React.ReactElement {
             </svg>
           </div>
           <h1 className="auth-title">Code Monet</h1>
-          <p className="auth-subtitle">
-            {mode === 'magic-link'
-              ? 'Sign in with email'
-              : mode === 'signin'
-                ? 'Welcome back'
-                : 'Create your account'}
-          </p>
+          <p className="auth-subtitle">Sign in with email</p>
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
@@ -141,13 +108,7 @@ export function AuthScreen({ onBack }: AuthScreenProps): React.ReactElement {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (showCodeInput) {
-                  setShowCodeInput(false);
-                  setCode('');
-                }
-              }}
+              onChange={handleEmailChange}
               placeholder="you@example.com"
               autoComplete="email"
               disabled={loading}
@@ -155,7 +116,7 @@ export function AuthScreen({ onBack }: AuthScreenProps): React.ReactElement {
             />
           </div>
 
-          {mode === 'magic-link' && showCodeInput && (
+          {showCodeInput && (
             <div className="auth-field">
               <label htmlFor="code">Verification Code</label>
               <input
@@ -173,123 +134,24 @@ export function AuthScreen({ onBack }: AuthScreenProps): React.ReactElement {
             </div>
           )}
 
-          {mode !== 'magic-link' && (
-            <div className="auth-field">
-              <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                disabled={loading}
-                required
-              />
-            </div>
-          )}
-
-          {mode === 'signup' && (
-            <div className="auth-field">
-              <label htmlFor="inviteCode">Invite Code</label>
-              <input
-                id="inviteCode"
-                type="text"
-                value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                placeholder="Enter your invite code"
-                autoComplete="off"
-                disabled={loading}
-                required
-              />
-              <span className="auth-field-hint">Required to create an account</span>
-            </div>
-          )}
-
           {error && <div className="auth-error">{error}</div>}
           {success && <div className="auth-success">{success}</div>}
 
           <button type="submit" className="auth-submit" disabled={loading}>
             {loading ? (
               <span className="auth-spinner" />
-            ) : mode === 'magic-link' ? (
-              showCodeInput ? (
-                'Verify Code'
-              ) : (
-                'Send Magic Link'
-              )
-            ) : mode === 'signin' ? (
-              'Sign In'
+            ) : showCodeInput ? (
+              'Verify Code'
             ) : (
-              'Sign Up'
+              'Send Magic Link'
             )}
           </button>
         </form>
 
         <div className="auth-footer">
-          {mode === 'magic-link' && (
-            <>
-              <button
-                type="button"
-                className="auth-link"
-                onClick={() => switchMode('signin')}
-                disabled={loading}
-              >
-                Use password instead
-              </button>
-              <span className="auth-divider">or</span>
-              <button
-                type="button"
-                className="auth-link"
-                onClick={() => switchMode('signup')}
-                disabled={loading}
-              >
-                Create account with invite code
-              </button>
-            </>
-          )}
-          {mode === 'signin' && (
-            <>
-              <button
-                type="button"
-                className="auth-link"
-                onClick={() => switchMode('magic-link')}
-                disabled={loading}
-              >
-                Sign in with magic link
-              </button>
-              <span className="auth-divider">or</span>
-              <button
-                type="button"
-                className="auth-link"
-                onClick={() => switchMode('signup')}
-                disabled={loading}
-              >
-                Create account
-              </button>
-            </>
-          )}
-          {mode === 'signup' && (
-            <>
-              <button
-                type="button"
-                className="auth-link"
-                onClick={() => switchMode('magic-link')}
-                disabled={loading}
-              >
-                Sign in with magic link
-              </button>
-              <span className="auth-divider">or</span>
-              <button
-                type="button"
-                className="auth-link"
-                onClick={() => switchMode('signin')}
-                disabled={loading}
-              >
-                Sign in with password
-              </button>
-            </>
-          )}
+          <p className="auth-note">
+            New users will be automatically registered when signing in with a valid invite.
+          </p>
         </div>
       </div>
     </div>

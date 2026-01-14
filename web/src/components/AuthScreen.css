@@ -199,37 +199,17 @@
 }
 
 .auth-footer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.auth-link {
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.875rem;
-  cursor: pointer;
-  padding: 0;
-  transition: color 0.2s;
-}
-
-.auth-link:hover:not(:disabled) {
-  color: #e94560;
-}
-
-.auth-link:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.auth-divider {
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 0.75rem;
+.auth-note {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* Loading state */

@@ -22,12 +22,6 @@ export interface AuthState {
 }
 
 export interface AuthContextValue extends AuthState {
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (
-    email: string,
-    password: string,
-    inviteCode: string
-  ) => Promise<{ success: boolean; error?: string }>;
   signOut: () => void;
   requestMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>;
   verifyMagicLinkCode: (
@@ -148,76 +142,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     void loadTokens();
   }, [refreshTokenInternal]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    try {
-      const response = await fetch(`${getApiUrl()}/auth/signin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        const error = (await response.json()) as { detail: string };
-        return { success: false, error: error.detail || 'Sign in failed' };
-      }
-
-      const data = (await response.json()) as { access_token: string; refresh_token: string };
-      localStorage.setItem(ACCESS_TOKEN_KEY, data.access_token);
-      localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
-
-      const decoded = decodeToken(data.access_token);
-      if (decoded) {
-        setState({
-          isLoading: false,
-          isAuthenticated: true,
-          user: { id: parseInt(decoded.sub, 10), email: decoded.email },
-          accessToken: data.access_token,
-        });
-        return { success: true };
-      }
-
-      return { success: false, error: 'Invalid token received' };
-    } catch (error) {
-      console.error('[Auth] Sign in error:', error);
-      return { success: false, error: 'Network error' };
-    }
-  }, []);
-
-  const signUp = useCallback(async (email: string, password: string, inviteCode: string) => {
-    try {
-      const response = await fetch(`${getApiUrl()}/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, invite_code: inviteCode }),
-      });
-
-      if (!response.ok) {
-        const error = (await response.json()) as { detail: string };
-        return { success: false, error: error.detail || 'Sign up failed' };
-      }
-
-      const data = (await response.json()) as { access_token: string; refresh_token: string };
-      localStorage.setItem(ACCESS_TOKEN_KEY, data.access_token);
-      localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
-
-      const decoded = decodeToken(data.access_token);
-      if (decoded) {
-        setState({
-          isLoading: false,
-          isAuthenticated: true,
-          user: { id: parseInt(decoded.sub, 10), email: decoded.email },
-          accessToken: data.access_token,
-        });
-        return { success: true };
-      }
-
-      return { success: false, error: 'Invalid token received' };
-    } catch (error) {
-      console.error('[Auth] Sign up error:', error);
-      return { success: false, error: 'Network error' };
-    }
-  }, []);
-
   const signOut = useCallback(() => {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
@@ -287,13 +211,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
-      signIn,
-      signUp,
       signOut,
       requestMagicLink,
       verifyMagicLinkCode,
     }),
-    [state, signIn, signUp, signOut, requestMagicLink, verifyMagicLinkCode]
+    [state, signOut, requestMagicLink, verifyMagicLinkCode]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
