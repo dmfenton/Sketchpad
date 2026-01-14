@@ -323,8 +323,9 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
 
   // Clear refs on unmount
   useEffect(() => {
+    const currentNewMessageIds = newMessageIds.current;
     return () => {
-      newMessageIds.current.clear();
+      currentNewMessageIds.clear();
     };
   }, []);
 

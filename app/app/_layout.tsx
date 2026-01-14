@@ -4,7 +4,7 @@
  */
 
 import * as Sentry from '@sentry/react-native';
-import Constants from 'expo-constants';
+import Constants, { AppOwnership } from 'expo-constants';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import { useEffect } from 'react';
 
@@ -12,7 +12,7 @@ import { AuthProvider } from '../src/context/AuthContext';
 import { ThemeProvider } from '../src/theme';
 
 // Check if running in Expo Go (native features limited)
-const isExpoGo = Constants.appOwnership === ('expo' as typeof Constants.appOwnership);
+const isExpoGo = Constants.appOwnership === AppOwnership.Expo;
 
 // Create navigation integration for route tracking
 const navigationIntegration = Sentry.reactNavigationIntegration({
