@@ -53,6 +53,7 @@ jobs:
       - name: Build web frontend
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          VITE_UMAMI_WEBSITE_ID: ${{ secrets.UMAMI_WEBSITE_ID }}
         run: |
           cd shared && pnpm install && pnpm build
           cd ../web && pnpm install && pnpm build

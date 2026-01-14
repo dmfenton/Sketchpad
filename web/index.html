@@ -28,6 +28,13 @@
 
     <title>Code Monet - Autonomous AI Artist</title>
 
+    <!-- Analytics (Umami) - only loads if VITE_UMAMI_WEBSITE_ID is set -->
+    <script
+      defer
+      src="/analytics/script.js"
+      data-website-id="%VITE_UMAMI_WEBSITE_ID%"
+    ></script>
+
     <!-- Preload fonts for better performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
