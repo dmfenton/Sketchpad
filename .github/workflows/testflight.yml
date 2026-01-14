@@ -10,6 +10,11 @@ on:
         description: 'Version override (e.g., 1.0.0)'
         required: false
         type: string
+      force:
+        description: 'Force build even if no iOS changes detected'
+        required: false
+        type: boolean
+        default: false
 
 env:
   # Production URLs
@@ -20,8 +25,71 @@ env:
   SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
 jobs:
+  check-changes:
+    name: Check for iOS changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      skip_reason: ${{ steps.check.outputs.skip_reason }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if iOS-related files changed
+        id: check
+        run: |
+          # Force build if manually triggered with force flag
+          if [ "${{ inputs.force }}" == "true" ]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "skip_reason=" >> $GITHUB_OUTPUT
+            echo "Force build requested"
+            exit 0
+          fi
+
+          # Get the previous tag
+          CURRENT_TAG="${GITHUB_REF#refs/tags/}"
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "$CURRENT_TAG^" 2>/dev/null || echo "")
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "No previous tag found, building"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "skip_reason=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Comparing $PREVIOUS_TAG to $CURRENT_TAG"
+
+          # Check for changes in iOS-related paths
+          IOS_PATHS="app/ shared/ package.json pnpm-lock.yaml pnpm-workspace.yaml .github/workflows/testflight.yml"
+
+          CHANGED_FILES=$(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG")
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          # Check if any iOS-related files changed
+          IOS_CHANGES=""
+          for path in $IOS_PATHS; do
+            if echo "$CHANGED_FILES" | grep -q "^$path"; then
+              IOS_CHANGES="$IOS_CHANGES $path"
+            fi
+          done
+
+          if [ -n "$IOS_CHANGES" ]; then
+            echo "iOS-related changes detected in:$IOS_CHANGES"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "skip_reason=" >> $GITHUB_OUTPUT
+          else
+            echo "No iOS-related changes detected, skipping build"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "skip_reason=No changes in app/, shared/, or dependency files since $PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          fi
+
   build-ios:
     name: Build & Deploy iOS
+    needs: check-changes
+    if: needs.check-changes.outputs.should_build == 'true'
     runs-on: macos-15 # Apple Silicon runner with Xcode 16+
 
     steps:
@@ -182,3 +250,17 @@ jobs:
         if: always()
         run: |
           security delete-keychain $KEYCHAIN_PATH || true
+
+  skip-report:
+    name: Report Skipped Build
+    needs: check-changes
+    if: needs.check-changes.outputs.should_build == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report skip reason
+        run: |
+          echo "## TestFlight Build Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason:** ${{ needs.check-changes.outputs.skip_reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To force a build, manually trigger the workflow with the 'Force build' option enabled." >> $GITHUB_STEP_SUMMARY
