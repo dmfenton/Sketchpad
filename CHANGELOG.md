@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Code Monet marketing homepage with live canvas preview and AI artwork gallery
+- Web authentication via magic link email (6-digit code verification)
+- Public gallery API (`/public/gallery`, `/public/gallery/{user_id}/{piece_id}/strokes`)
+- Nginx configuration for serving static web frontend
+- Automated web frontend deployment (S3 sync + EC2 systemd timer)
+- "About the Artist" and "About the Creator" sections on homepage
+
+### Changed
+- Web routing uses URL paths (`/` for homepage, `/studio` for authenticated app)
+- Simplified web auth to magic link only (removed password authentication)
+
+### Security
+- Path traversal protection on public gallery API (validates user_id and piece_id)
+
 ## [1.10.0] - 2026-01-11
 
 ### Added

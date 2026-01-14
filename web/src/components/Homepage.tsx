@@ -164,8 +164,10 @@ function LiveCanvas(): React.ReactElement {
             } else if (msg.type === 'stroke' || msg.type === 'new_stroke') {
               setRealStrokes((prev) => [...prev.slice(-50), msg.path || msg]);
             }
-          } catch {
-            // Ignore parse errors
+          } catch (e) {
+            if (import.meta.env.DEV) {
+              console.warn('[LiveCanvas] Failed to parse WebSocket message:', e);
+            }
           }
         };
 

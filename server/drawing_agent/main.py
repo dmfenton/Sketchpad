@@ -413,14 +413,25 @@ async def get_public_piece_strokes(user_id: str, piece_id: str) -> dict[str, Any
     """
     from pathlib import Path as FilePath
 
-    workspace_base = FilePath(settings.workspace_base_dir)
+    # Validate user_id is numeric to prevent path traversal
+    if not user_id.isdigit():
+        raise HTTPException(status_code=400, detail="Invalid user_id")
+
+    # Validate piece_id format (alphanumeric, underscore, hyphen only)
+    if not piece_id.replace("_", "").replace("-", "").isalnum():
+        raise HTTPException(status_code=400, detail="Invalid piece_id")
+
+    workspace_base = FilePath(settings.workspace_base_dir).resolve()
     gallery_dir = workspace_base / user_id / "gallery"
+    piece_file = (gallery_dir / f"{piece_id}.json").resolve()
+
+    # Ensure the resolved path stays within the workspace (prevent path traversal)
+    if not str(piece_file).startswith(str(workspace_base)):
+        raise HTTPException(status_code=400, detail="Invalid path")
 
     if not gallery_dir.exists():
         raise HTTPException(status_code=404, detail="Gallery not found")
 
-    # Find the piece file
-    piece_file = gallery_dir / f"{piece_id}.json"
     if not piece_file.exists():
         raise HTTPException(status_code=404, detail="Piece not found")
 
