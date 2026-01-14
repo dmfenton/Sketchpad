@@ -73,11 +73,14 @@ class AgentOrchestrator:
         self._wake_event.set()
 
     async def _draw_paths(self, paths: list[Path]) -> None:
-        """Queue paths for client-side rendering.
+        """Queue paths for client-side rendering and wait for animation.
 
         Instead of streaming PenMessages at 60fps, we queue the paths
         and notify clients to fetch them. This decouples agent execution
         from rendering and makes the system more resilient.
+
+        After notifying clients, waits for the estimated animation duration
+        so the agent doesn't start thinking while drawing is in progress.
         """
         if not paths:
             logger.debug("_draw_paths called with empty paths list")
@@ -90,13 +93,21 @@ class AgentOrchestrator:
         state = self.agent.get_state()
 
         # Interpolate paths and queue for client fetch
-        batch_id = await state.queue_strokes(paths)
+        batch_id, total_points = await state.queue_strokes(paths)
 
         # Notify clients that strokes are ready
         await self.broadcaster.broadcast(StrokesReadyMessage(count=len(paths), batch_id=batch_id))
 
-        # Brief status flash for UI feedback - client does actual drawing animation
+        # Set status to drawing
         await self.broadcast_status(AgentStatus.DRAWING)
+
+        # Wait for client animation to complete
+        # Client animates at ~60fps (16.67ms per point)
+        # Add small buffer for network latency and fetch time
+        animation_time_ms = (total_points * (1000 / 60)) + 500  # 500ms buffer
+        animation_time_s = animation_time_ms / 1000
+        logger.info(f">>> Waiting {animation_time_s:.2f}s for {total_points} points to animate")
+        await asyncio.sleep(animation_time_s)
 
     async def broadcast_status(self, status: AgentStatus) -> None:
         """Broadcast a status update to all clients."""
