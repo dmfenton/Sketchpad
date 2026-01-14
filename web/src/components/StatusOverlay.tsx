@@ -15,12 +15,9 @@ import {
   chunkWords,
   getLastToolCall,
   TOOL_DISPLAY_NAMES,
+  BIONIC_CHUNK_INTERVAL_MS,
+  BIONIC_CHUNK_SIZE,
 } from '@drawing-agent/shared';
-
-// Time between word chunks in ms
-const CHUNK_INTERVAL_MS = 150;
-// Words per chunk
-const CHUNK_SIZE = 3;
 
 interface StatusOverlayProps {
   status: AgentStatus;
@@ -50,7 +47,7 @@ function ThinkingDisplay({ text }: { text: string }): React.ReactElement {
   const prevTextRef = useRef(text);
 
   // Split text into chunks
-  const chunks = useMemo(() => chunkWords(text, CHUNK_SIZE), [text]);
+  const chunks = useMemo(() => chunkWords(text, BIONIC_CHUNK_SIZE), [text]);
 
   // Reset when text changes significantly (new turn)
   useEffect(() => {
@@ -78,7 +75,7 @@ function ThinkingDisplay({ text }: { text: string }): React.ReactElement {
         });
         setOpacity(1); // Fade in
       }, 50); // Short fade duration
-    }, CHUNK_INTERVAL_MS);
+    }, BIONIC_CHUNK_INTERVAL_MS);
 
     return () => {
       clearInterval(interval);

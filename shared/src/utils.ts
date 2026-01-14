@@ -31,6 +31,13 @@ export const generateMessageId = (): string => `msg_${++messageIdCounter}_${Date
  * Bionic reading types and utilities.
  * Bionic reading bolds the first ~40% of each word to guide eye movement.
  */
+
+/** Time between word chunks in ms */
+export const BIONIC_CHUNK_INTERVAL_MS = 150;
+
+/** Number of words per chunk */
+export const BIONIC_CHUNK_SIZE = 3;
+
 export interface BionicWord {
   bold: string;
   regular: string;

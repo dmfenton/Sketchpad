@@ -24,5 +24,7 @@ export {
   bionicWord,
   chunkWords,
   getLastToolCall,
+  BIONIC_CHUNK_INTERVAL_MS,
+  BIONIC_CHUNK_SIZE,
 } from './utils';
 export type { BionicWord } from './utils';
