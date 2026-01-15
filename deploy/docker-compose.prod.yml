@@ -123,6 +123,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://umami:${UMAMI_DB_PASSWORD:?UMAMI_DB_PASSWORD is required}@umami-db:5432/umami
       - APP_SECRET=${UMAMI_APP_SECRET:?UMAMI_APP_SECRET is required}
+      - BASE_PATH=/analytics
       - DISABLE_TELEMETRY=1
     depends_on:
       umami-db:
