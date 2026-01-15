@@ -79,8 +79,8 @@ if ! grep -q "$DATA_DEVICE" /etc/fstab; then
   echo "$DATA_DEVICE /home/ec2-user/data xfs defaults,nofail 0 2" >> /etc/fstab
 fi
 
-# Install sqlite3 for DB management and gettext for envsubst
-yum install -y sqlite gettext
+# Install sqlite3 for DB management
+yum install -y sqlite
 
 # Create app directories with secure permissions
 mkdir -p /home/ec2-user/data/db
@@ -110,16 +110,6 @@ echo "Downloading config files from s3://${CONFIG_BUCKET}/deploy/..."
 aws s3 sync "s3://${CONFIG_BUCKET}/deploy/" /home/ec2-user/ --region us-east-1
 chown -R ec2-user:ec2-user /home/ec2-user/*.yml /home/ec2-user/*.yaml /home/ec2-user/*.conf 2>/dev/null || true
 chown -R ec2-user:ec2-user /home/ec2-user/web 2>/dev/null || true
-
-# Template nginx.conf with SSM parameters
-echo "Fetching config from SSM for nginx templating..."
-export ADMIN_IP=$(aws ssm get-parameter --name "/drawing-agent/prod/admin-ip" --query "Parameter.Value" --output text --region us-east-1)
-if [ -f /home/ec2-user/nginx.conf ] && [ -n "$ADMIN_IP" ]; then
-  echo "Substituting ADMIN_IP=$ADMIN_IP in nginx.conf..."
-  envsubst '${ADMIN_IP}' < /home/ec2-user/nginx.conf > /home/ec2-user/nginx.conf.tmp
-  mv /home/ec2-user/nginx.conf.tmp /home/ec2-user/nginx.conf
-  chown ec2-user:ec2-user /home/ec2-user/nginx.conf
-fi
 
 # Create a script to sync web files from S3
 cat > /home/ec2-user/sync-web.sh << 'SCRIPT'

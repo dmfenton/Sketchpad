@@ -14,7 +14,6 @@ locals {
   config = {
     "apple-team-id" = "PG5D259899"
     "database-url"  = "sqlite+aiosqlite:///data/drawing_agent.db"
-    "admin-ip"      = var.admin_ip
   }
 
   # Dev config overrides
