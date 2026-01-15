@@ -96,6 +96,40 @@ resource "aws_ssm_parameter" "dev_config" {
 }
 
 # =============================================================================
+# Umami Analytics Parameters
+# =============================================================================
+
+resource "aws_ssm_parameter" "umami_db_password" {
+  name        = "${local.ssm_prefix}/umami-db-password"
+  description = "Umami PostgreSQL database password"
+  type        = "SecureString"
+  value       = "CHANGE_ME_IN_CONSOLE"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = {
+    Type = "secret"
+  }
+}
+
+resource "aws_ssm_parameter" "umami_app_secret" {
+  name        = "${local.ssm_prefix}/umami-app-secret"
+  description = "Umami application secret"
+  type        = "SecureString"
+  value       = "CHANGE_ME_IN_CONSOLE"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = {
+    Type = "secret"
+  }
+}
+
+# =============================================================================
 # IAM Policy for EC2 to read prod parameters
 # =============================================================================
 
@@ -114,7 +148,10 @@ resource "aws_iam_role_policy" "ec2_ssm_parameters" {
           "ssm:GetParameters",
           "ssm:GetParametersByPath"
         ]
-        Resource = "arn:aws:ssm:${var.aws_region}:*:parameter${local.ssm_prefix}/prod/*"
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:*:parameter${local.ssm_prefix}/prod/*",
+          "arn:aws:ssm:${var.aws_region}:*:parameter${local.ssm_prefix}/umami-*"
+        ]
       },
       {
         Sid    = "DecryptSecrets"
@@ -151,6 +188,15 @@ output "ssm_setup_instructions" {
 
       aws ssm put-parameter --name "${local.ssm_prefix}/prod/jwt-secret" \
         --value "$(python -c 'import secrets; print(secrets.token_hex(32))')" \
+        --type SecureString --overwrite --region ${var.aws_region}
+
+      # Umami analytics secrets:
+      aws ssm put-parameter --name "${local.ssm_prefix}/umami-db-password" \
+        --value "$(python -c 'import secrets; print(secrets.token_urlsafe(24))')" \
+        --type SecureString --overwrite --region ${var.aws_region}
+
+      aws ssm put-parameter --name "${local.ssm_prefix}/umami-app-secret" \
+        --value "$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" \
         --type SecureString --overwrite --region ${var.aws_region}
 
       # For local dev:

@@ -47,6 +47,15 @@ resource "aws_security_group" "main" {
     description = "HTTPS"
   }
 
+  # Analytics dashboard (Umami) - admin only
+  ingress {
+    from_port   = 3001
+    to_port     = 3001
+    protocol    = "tcp"
+    cidr_blocks = [var.allowed_ssh_cidr]
+    description = "Analytics dashboard (IP restricted)"
+  }
+
   # Outbound
   egress {
     from_port   = 0
