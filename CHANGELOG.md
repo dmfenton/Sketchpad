@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-01-15
+
+### Added
+
+- Maestro E2E tests for iOS simulator (auth, action-bar, canvas, websocket flows)
+- `make e2e` and `make e2e-install` targets for E2E testing
+- TestIDs on all interactive components for reliable E2E selection
+- E2E testing documentation in CLAUDE.md
+
 ## [1.13.4] - 2026-01-14
 
 ### Changed
@@ -424,7 +433,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.13.3...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.14.0...HEAD
+[1.14.0]: https://github.com/dmfenton/sketchpad/compare/v1.13.4...v1.14.0
+[1.13.4]: https://github.com/dmfenton/sketchpad/compare/v1.13.3...v1.13.4
 [1.13.3]: https://github.com/dmfenton/sketchpad/compare/v1.13.2...v1.13.3
 [1.13.2]: https://github.com/dmfenton/sketchpad/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/dmfenton/sketchpad/compare/v1.13.0...v1.13.1
