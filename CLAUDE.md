@@ -13,6 +13,57 @@ Drawing Agent is an autonomous AI artist application with:
 - Config loads from both `../.env` and `.env` so it works from any directory
 - Required: `ANTHROPIC_API_KEY`
 
+## Package Management
+
+**This project uses pnpm workspaces.** Do NOT use npm.
+
+### Workspace Structure
+
+```
+/                    # Root workspace
+├── app/             # React Native app (Expo)
+├── web/             # Vite web app
+├── shared/          # Shared TypeScript library
+└── server/          # Python backend (uses uv, not pnpm)
+```
+
+### Key Rules
+
+1. **Always use pnpm** - Never run `npm install` or create `package-lock.json` files
+2. **No app/.npmrc** - The root `.npmrc` handles hoisting for react-native/expo
+3. **Build shared after changes** - Run `cd shared && pnpm build` after modifying shared/
+4. **Install from root** - Run `pnpm install` from project root, not subdirectories
+
+### Adding Dependencies
+
+```bash
+# Add to specific workspace
+pnpm add <package> --filter app
+pnpm add <package> --filter web
+pnpm add <package> --filter shared
+
+# Add to root (dev tools, etc.)
+pnpm add -w <package>
+```
+
+### Common Issues
+
+**"Unable to resolve module X"** - React Native needs some transitive deps hoisted:
+```bash
+pnpm add <missing-module> --filter app
+```
+
+**pnpm store location error** - Clean reinstall:
+```bash
+rm -rf node_modules app/node_modules web/node_modules shared/node_modules
+pnpm install
+```
+
+**Stale shared library** - Rebuild:
+```bash
+cd shared && pnpm build
+```
+
 ## Claude Code Sandbox
 
 Sandbox configured in `.claude/settings.json`:
@@ -164,7 +215,7 @@ The `/debug/agent` endpoint returns:
 3. Add to `HANDLERS` dict in `handlers.py`
 4. Add type to `shared/src/types.ts`
 5. Add handler in `shared/src/websocket/handlers.ts`
-6. Rebuild shared: `cd shared && npm run build`
+6. Rebuild shared: `cd shared && pnpm build`
 
 ### Modifying the agent prompt
 
@@ -217,10 +268,10 @@ shared/src/
 **Development:**
 
 ```bash
-cd shared && npm run build    # Build TypeScript to dist/
-cd shared && npm run dev      # Watch mode
-cd shared && npm run lint     # ESLint
-cd shared && npm run format   # Prettier
+cd shared && pnpm build     # Build TypeScript to dist/
+cd shared && pnpm dev       # Watch mode
+cd shared && pnpm lint      # ESLint
+cd shared && pnpm format    # Prettier
 ```
 
 **Must build shared/ before app/web changes take effect.**
