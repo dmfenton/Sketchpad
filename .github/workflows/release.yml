@@ -32,11 +32,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
-
       - name: Extract version from tag
         id: version
         run: |
@@ -54,12 +49,13 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          cd shared && pnpm install && pnpm build
-          cd ../web && pnpm install && pnpm build
+          npm ci
+          npm run build -w shared
+          npm run build -w web
           # Write version file for nginx to serve
-          echo "$VERSION" > dist/version.txt
+          echo "$VERSION" > web/dist/version.txt
           echo "Web frontend built successfully (v$VERSION)"
-          ls -la dist/
+          ls -la web/dist/
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
