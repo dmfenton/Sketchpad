@@ -3,12 +3,11 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { AgentMessage, AgentStatus } from '@drawing-agent/shared';
-import { STATUS_LABELS, LIVE_MESSAGE_ID } from '@drawing-agent/shared';
+import type { AgentMessage } from '@drawing-agent/shared';
+import { LIVE_MESSAGE_ID } from '@drawing-agent/shared';
 
 interface MessageStreamProps {
   messages: AgentMessage[];
-  status: AgentStatus;
 }
 
 /**
@@ -117,12 +116,11 @@ function MessageBubble({ message }: MessageBubbleProps): React.ReactElement {
   );
 }
 
-export function MessageStream({ messages, status }: MessageStreamProps): React.ReactElement {
+export function MessageStream({ messages }: MessageStreamProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [showRaw, setShowRaw] = useState(false);
-
-  const isActive = status === 'thinking' || status === 'executing' || status === 'drawing';
+  const [collapsed, setCollapsed] = useState(true); // Start collapsed
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -139,43 +137,52 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.R
   };
 
   return (
-    <div className="message-stream-container">
-      <div className="message-stream-header">
+    <div className={`message-stream-container ${collapsed ? 'collapsed' : ''}`}>
+      <div className="message-stream-header" onClick={() => setCollapsed(!collapsed)}>
         <div className="header-left">
-          <div className={`status-dot ${isActive ? 'active' : ''}`} />
-          <span className="header-title">Artist&apos;s Mind</span>
-          {isActive && <span className="header-status">{STATUS_LABELS[status]}</span>}
+          <span className="collapse-icon">{collapsed ? '▶' : '▼'}</span>
+          <span className="header-title">Thoughts</span>
+          <span className="message-count">{messages.length}</span>
         </div>
-        <button
-          className={`view-toggle ${showRaw ? 'raw' : ''}`}
-          onClick={() => setShowRaw(!showRaw)}
-        >
-          {showRaw ? 'Styled' : 'Raw'}
-        </button>
-      </div>
-
-      <div ref={containerRef} className="message-stream" onScroll={handleScroll}>
-        {messages.length === 0 ? (
-          <div className="empty-state">Awaiting artistic inspiration...</div>
-        ) : showRaw ? (
-          <pre className="raw-messages">{JSON.stringify(messages, null, 2)}</pre>
-        ) : (
-          messages.map((message) => <MessageBubble key={message.id} message={message} />)
+        {!collapsed && (
+          <button
+            className={`view-toggle ${showRaw ? 'raw' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowRaw(!showRaw);
+            }}
+          >
+            {showRaw ? 'Styled' : 'Raw'}
+          </button>
         )}
       </div>
 
-      {!autoScroll && messages.length > 0 && (
-        <button
-          className="scroll-button"
-          onClick={() => {
-            if (containerRef.current) {
-              containerRef.current.scrollTop = containerRef.current.scrollHeight;
-              setAutoScroll(true);
-            }
-          }}
-        >
-          ↓
-        </button>
+      {!collapsed && (
+        <>
+          <div ref={containerRef} className="message-stream" onScroll={handleScroll}>
+            {messages.length === 0 ? (
+              <div className="empty-state">Awaiting artistic inspiration...</div>
+            ) : showRaw ? (
+              <pre className="raw-messages">{JSON.stringify(messages, null, 2)}</pre>
+            ) : (
+              messages.map((message) => <MessageBubble key={message.id} message={message} />)
+            )}
+          </div>
+
+          {!autoScroll && messages.length > 0 && (
+            <button
+              className="scroll-button"
+              onClick={() => {
+                if (containerRef.current) {
+                  containerRef.current.scrollTop = containerRef.current.scrollHeight;
+                  setAutoScroll(true);
+                }
+              }}
+            >
+              ↓
+            </button>
+          )}
+        </>
       )}
 
       <style>{`
@@ -184,6 +191,12 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.R
           flex-direction: column;
           height: 100%;
           position: relative;
+          transition: flex 0.2s ease;
+        }
+
+        .message-stream-container.collapsed {
+          flex: 0 0 auto;
+          height: auto;
         }
 
         .message-stream-header {
@@ -193,6 +206,13 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.R
           align-items: center;
           justify-content: space-between;
           background: var(--bg-primary);
+          cursor: pointer;
+          user-select: none;
+          transition: background 0.2s ease;
+        }
+
+        .message-stream-header:hover {
+          background: var(--bg-secondary);
         }
 
         .header-left {
@@ -201,33 +221,24 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.R
           gap: 10px;
         }
 
-        .status-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: var(--text-muted);
-          transition: all 0.3s ease;
+        .collapse-icon {
+          font-size: 10px;
+          color: var(--text-muted);
+          transition: color 0.2s ease;
         }
 
-        .status-dot.active {
-          background: var(--accent);
-          box-shadow: 0 0 12px rgba(233, 69, 96, 0.5);
-          animation: pulse 1.5s ease-in-out infinite;
+        .message-count {
+          font-size: 11px;
+          color: var(--text-muted);
+          background: var(--bg-tertiary);
+          padding: 2px 8px;
+          border-radius: 10px;
         }
 
         .header-title {
           font-weight: 500;
           font-size: 14px;
           letter-spacing: 0.02em;
-        }
-
-        .header-status {
-          color: var(--accent);
-          font-size: 11px;
-          margin-left: 6px;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
         }
 
         .empty-state {

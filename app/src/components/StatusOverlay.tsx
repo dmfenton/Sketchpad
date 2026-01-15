@@ -205,12 +205,9 @@ export function StatusOverlay({
 
 const styles = StyleSheet.create({
   wrapper: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     alignItems: 'center',
+    minHeight: 40,
+    justifyContent: 'center',
   },
   container: {
     paddingVertical: spacing.sm,

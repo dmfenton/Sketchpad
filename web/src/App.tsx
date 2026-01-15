@@ -85,12 +85,15 @@ function App(): React.ReactElement {
         onToggleDrawing={toggleDrawing}
       />
 
-      <div className="canvas-container">
+      <div className="thinking-strip">
         <StatusOverlay
           status={state.agentStatus}
           thinking={state.thinking}
           messages={state.messages}
         />
+      </div>
+
+      <div className="canvas-container">
         <Canvas
           strokes={state.strokes}
           currentStroke={state.currentStroke}
@@ -105,7 +108,7 @@ function App(): React.ReactElement {
       </div>
 
       <div className="right-panel">
-        <MessageStream messages={state.messages} status={state.agentStatus} />
+        <MessageStream messages={state.messages} />
         <DebugPanel
           agent={debug.agent}
           files={debug.files}

@@ -225,13 +225,15 @@ function MainApp(): React.JSX.Element {
             />
           </View>
 
+          {/* Bionic Reading Strip - Above Canvas */}
+          <StatusOverlay
+            status={canvas.state.agentStatus}
+            thinking={canvas.state.thinking}
+            messages={canvas.state.messages}
+          />
+
           {/* Canvas - Main area */}
           <View style={styles.canvasContainer}>
-            <StatusOverlay
-              status={canvas.state.agentStatus}
-              thinking={canvas.state.thinking}
-              messages={canvas.state.messages}
-            />
             <Canvas
               strokes={canvas.state.strokes}
               currentStroke={canvas.state.currentStroke}
@@ -256,7 +258,7 @@ function MainApp(): React.JSX.Element {
           ) : (
             <>
               {/* Message Stream */}
-              <MessageStream messages={canvas.state.messages} status={canvas.state.agentStatus} />
+              <MessageStream messages={canvas.state.messages} />
 
               {/* Action Bar - Bottom */}
               <ActionBar
