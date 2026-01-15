@@ -31,7 +31,7 @@
   "permissions": {
     "allow": [
       "Bash(make:*)",
-      "Bash(pnpm:*)",
+      "Bash(xcrun:*)",
       "Bash(uv:*)",
       "Bash(npx:*)",
       "Bash(volta:*)",

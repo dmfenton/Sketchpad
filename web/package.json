@@ -15,7 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@drawing-agent/shared": "file:../shared",
+    "@drawing-agent/shared": "*",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
