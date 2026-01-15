@@ -12,6 +12,7 @@ Usage:
 import asyncio
 import secrets
 from pathlib import Path as FilePath
+from typing import Any
 
 import typer
 from rich import box
@@ -202,7 +203,7 @@ async def _list_users_with_workspace_async() -> list[tuple[int, str, str, bool, 
 
 async def _get_workspace_state_async(
     user_id: int,
-) -> dict:
+) -> dict[str, Any]:
     """Get detailed workspace state for a user."""
     from drawing_agent.workspace_state import WorkspaceState
 
@@ -346,14 +347,14 @@ workspace_app = typer.Typer(help="Manage workspace filesystem")
 app.add_typer(workspace_app, name="workspace")
 
 
-async def _list_workspaces_async() -> list[dict]:
+async def _list_workspaces_async() -> list[dict[str, Any]]:
     """List all workspace directories with stats."""
     from drawing_agent.config import settings
 
     server_dir = FilePath(__file__).parent.parent
     base_dir = (server_dir / settings.workspace_base_dir).resolve()
 
-    workspaces: list[dict] = []
+    workspaces: list[dict[str, Any]] = []
 
     if not base_dir.exists():
         return workspaces
