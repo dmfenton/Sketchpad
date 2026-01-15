@@ -1,5 +1,6 @@
 /**
  * Auth Screen Styles
+ * Unified design system based on homepage styling
  */
 
 .auth-screen {
@@ -7,19 +8,59 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+  background: var(--bg-dark);
   padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ambient background effects */
+.auth-screen::before {
+  content: '';
+  position: absolute;
+  top: -200px;
+  left: -100px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(233, 69, 96, 0.15) 0%, transparent 70%);
+  filter: blur(60px);
+  animation: float 20s ease-in-out infinite;
+}
+
+.auth-screen::after {
+  content: '';
+  position: absolute;
+  bottom: -100px;
+  right: -100px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(123, 104, 238, 0.12) 0%, transparent 70%);
+  filter: blur(60px);
+  animation: float 25s ease-in-out infinite reverse;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(30px, -30px);
+  }
 }
 
 .auth-container {
   width: 100%;
-  max-width: 400px;
-  background: rgba(255, 255, 255, 0.03);
+  max-width: 420px;
+  background: var(--bg-primary);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
   border-radius: 24px;
   padding: 2.5rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    0 0 100px rgba(233, 69, 96, 0.08);
+  position: relative;
+  z-index: 1;
 }
 
 .auth-back {
@@ -28,16 +69,16 @@
   gap: 0.5rem;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
   font-size: 0.875rem;
   cursor: pointer;
   padding: 0;
   margin-bottom: 1.5rem;
-  transition: color 0.2s;
+  transition: color 0.3s ease;
 }
 
 .auth-back:hover {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
 }
 
 .auth-back svg {
@@ -51,10 +92,10 @@
 }
 
 .auth-logo {
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 1rem;
-  color: #e94560;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 1.25rem;
+  color: var(--accent);
 }
 
 .auth-logo svg {
@@ -63,17 +104,22 @@
 }
 
 .auth-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #fff;
+  font-size: 1.875rem;
+  font-weight: 300;
+  color: var(--text-primary);
   margin: 0 0 0.5rem;
   letter-spacing: -0.02em;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .auth-subtitle {
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   margin: 0;
+  line-height: 1.6;
 }
 
 .auth-form {
@@ -91,30 +137,28 @@
 .auth-field label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
 }
 
 .auth-field input {
-  height: 48px;
-  padding: 0 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  color: #fff;
+  height: 52px;
+  padding: 0 1.25rem;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text-primary);
   font-size: 1rem;
-  transition:
-    border-color 0.2s,
-    background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .auth-field input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-muted);
 }
 
 .auth-field input:focus {
   outline: none;
-  border-color: #e94560;
-  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
 }
 
 .auth-field input:disabled {
@@ -132,50 +176,49 @@
 
 .auth-field-hint {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 
 .auth-error {
-  padding: 0.875rem 1rem;
-  background: rgba(239, 68, 68, 0.1);
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(255, 107, 107, 0.05));
   border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 12px;
-  color: #ef4444;
+  border-radius: 14px;
+  color: var(--error);
   font-size: 0.875rem;
   text-align: center;
 }
 
 .auth-success {
-  padding: 0.875rem 1rem;
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.2);
-  border-radius: 12px;
-  color: #22c55e;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(95, 224, 208, 0.05));
+  border: 1px solid rgba(78, 205, 196, 0.2);
+  border-radius: 14px;
+  color: var(--success);
   font-size: 0.875rem;
   text-align: center;
 }
 
 .auth-submit {
-  height: 48px;
-  background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
+  height: 52px;
+  background: var(--gradient-primary);
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   color: #fff;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-top: 0.5rem;
+  box-shadow: 0 4px 15px rgba(233, 69, 96, 0.25);
 }
 
 .auth-submit:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 30px -10px rgba(233, 69, 96, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(233, 69, 96, 0.35);
 }
 
 .auth-submit:active:not(:disabled) {
@@ -185,6 +228,8 @@
 .auth-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .auth-spinner {
@@ -203,17 +248,17 @@
 }
 
 .auth-footer {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 1.75rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--border-light);
 }
 
 .auth-note {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
   text-align: center;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* Loading state */
@@ -222,11 +267,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+  background: var(--bg-dark);
 }
 
 .auth-loading .auth-spinner {
   width: 40px;
   height: 40px;
   border-width: 3px;
+  border-color: var(--accent);
+  border-top-color: transparent;
 }
