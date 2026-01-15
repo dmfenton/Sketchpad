@@ -32,6 +32,20 @@ Abort if:
 - Not on Main branch
 - No previous tags exist (use `1.0.0` for first release)
 
+### 1.5. Run E2E Tests (Optional)
+
+If Maestro is installed, run E2E tests to verify the compiled app:
+
+```bash
+make e2e
+```
+
+If tests fail, abort and fix issues before proceeding.
+
+Skip this step if:
+- Maestro is not installed (`make e2e-install` to install)
+- Only server-side changes (no app/ or shared/ changes)
+
 ### 2. Calculate New Version
 
 Based on `$ARGUMENTS`:

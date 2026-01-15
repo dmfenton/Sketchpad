@@ -71,3 +71,4 @@ deploy/.env
 *.tmp
 data/
 .claude/settings.local.json
+screenshots/

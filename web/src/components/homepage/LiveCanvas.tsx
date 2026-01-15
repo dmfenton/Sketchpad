@@ -1,10 +1,11 @@
 /**
  * LiveCanvas - Real-time drawing preview with WebSocket or simulation fallback
+ * Uses Monet-inspired color palette for a warm, artistic aesthetic
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { getWebSocketUrl } from '../../config';
-import { PathData, SimulatedStroke, ALL_COLORS } from './types';
+import { PathData, SimulatedStroke, STROKE_COLORS } from './types';
 import { generateArtisticPath, pointsToPath, pathDataToSvg } from './utils';
 
 export function LiveCanvas(): React.ReactElement {
@@ -70,8 +71,8 @@ export function LiveCanvas(): React.ReactElement {
     const newStroke: SimulatedStroke = {
       id: strokeIdRef.current++,
       points: generateArtisticPath(),
-      color: ALL_COLORS[Math.floor(Math.random() * ALL_COLORS.length)],
-      width: Math.random() * 6 + 2,
+      color: STROKE_COLORS[Math.floor(Math.random() * STROKE_COLORS.length)],
+      width: Math.random() * 4 + 2,
       progress: 0,
     };
     setCurrentStroke(newStroke);
@@ -88,11 +89,11 @@ export function LiveCanvas(): React.ReactElement {
       setCurrentStroke((prev) => {
         if (!prev) return prev;
 
-        const newProgress = prev.progress + 0.02;
+        const newProgress = prev.progress + 0.015; // Slightly slower for elegance
 
         if (newProgress >= 1) {
-          setSimStrokes((s) => [...s.slice(-15), { ...prev, progress: 1 }]);
-          setTimeout(createNewStroke, 500 + Math.random() * 1000);
+          setSimStrokes((s) => [...s.slice(-12), { ...prev, progress: 1 }]);
+          setTimeout(createNewStroke, 800 + Math.random() * 1200);
           return null;
         }
 
@@ -116,13 +117,15 @@ export function LiveCanvas(): React.ReactElement {
   return (
     <svg viewBox="0 0 400 300" className="live-canvas-svg">
       <defs>
-        <filter id="pencilTexture">
-          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" result="noise" />
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="1" />
+        {/* Subtle paper texture filter */}
+        <filter id="paperTexture">
+          <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="0.8" />
         </filter>
       </defs>
 
-      <rect width="400" height="300" fill="#fefefe" />
+      {/* Warm off-white canvas background */}
+      <rect width="400" height="300" fill="#fdfcf8" />
 
       {showReal ? (
         realStrokes
@@ -132,7 +135,7 @@ export function LiveCanvas(): React.ReactElement {
               key={i}
               d={pathDataToSvg(stroke, 0.5)}
               fill="none"
-              stroke={stroke.author === 'human' ? '#3b82f6' : '#2d3436'}
+              stroke={stroke.author === 'human' ? '#6a9fb5' : '#2c3e50'}
               strokeWidth={2}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -150,8 +153,8 @@ export function LiveCanvas(): React.ReactElement {
               strokeWidth={stroke.width}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.85}
-              filter="url(#pencilTexture)"
+              opacity={0.8}
+              filter="url(#paperTexture)"
             />
           ))}
 
@@ -163,26 +166,28 @@ export function LiveCanvas(): React.ReactElement {
               strokeWidth={currentStroke.width}
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter="url(#pencilTexture)"
+              filter="url(#paperTexture)"
             />
           )}
 
+          {/* Brush tip indicator */}
           {currentStroke && currentStroke.progress > 0 && (
             <g
               transform={`translate(${currentStroke.points[Math.floor(currentStroke.points.length * currentStroke.progress)]?.x || 0}, ${currentStroke.points[Math.floor(currentStroke.points.length * currentStroke.progress)]?.y || 0})`}
             >
-              <circle r="4" fill={currentStroke.color} opacity="0.8">
-                <animate attributeName="r" values="4;6;4" dur="0.5s" repeatCount="indefinite" />
+              <circle r="3" fill={currentStroke.color} opacity="0.6">
+                <animate attributeName="r" values="3;4;3" dur="0.8s" repeatCount="indefinite" />
               </circle>
             </g>
           )}
         </>
       )}
 
+      {/* Live indicator - subtle sage green */}
       {showReal && (
-        <g transform="translate(370, 20)">
-          <circle r="6" fill="#4ade80">
-            <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
+        <g transform="translate(380, 16)">
+          <circle r="4" fill="#6b9b6b" opacity="0.8">
+            <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite" />
           </circle>
         </g>
       )}

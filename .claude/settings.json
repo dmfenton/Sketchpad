@@ -2,7 +2,7 @@
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
-    "excludedCommands": ["sudo", "docker", "uv"],
+    "excludedCommands": ["sudo", "docker"],
     "network": {
       "allowLocalBinding": true,
       "allowAllUnixSockets": true,
@@ -31,21 +31,19 @@
   "permissions": {
     "allow": [
       "Bash(make:*)",
-      "Bash(cd server && uv:*)",
-      "Bash(cd app && pnpm:*)",
-      "Bash(cd /home/dmfenton/repos/sketchpad/server && uv:*)",
+      "Bash(xcrun:*)",
+      "Bash(uv:*)",
+      "Bash(npx:*)",
       "Bash(volta:*)",
       "Bash(git:*)",
       "Bash(gh:*)",
       "Bash(ls:*)",
       "Bash(which:*)",
       "Bash(npm:*)",
-      "Bash(npx:*)",
       "Bash(node:*)",
       "Bash(python:*)",
       "Bash(pytest:*)",
       "Bash(ruff:*)",
-      "Bash(uv:*)",
       "Bash(./scripts:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:api.github.com)",
@@ -60,17 +58,10 @@
       "Bash(pkill:*)",
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
-      "Bash(pnpm start --web)",
-      "Bash(EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0 pnpm start:*)",
-      "Bash(pnpm start:*)",
-      "Bash(pnpm add:*)",
-      "Bash(pnpm typecheck:*)",
-      "Bash(pnpm lint:*)",
-      "Bash(uv run ruff:*)",
       "Bash(tail:*)",
       "Bash(nohup:*)",
-      "Edit(/home/dmfenton/.cache/uv/**)",
-      "Edit(/home/dmfenton/.expo/**)"
+      "Edit(/Users/dmfenton/.cache/uv/**)",
+      "Edit(/Users/dmfenton/.expo/**)"
     ],
     "deny": [
       "Read(.env)",

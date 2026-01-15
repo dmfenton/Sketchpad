@@ -63,7 +63,7 @@ export function StatusPill({
     effectiveStatus === 'drawing';
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.surface }, shadows.sm]}>
+    <View style={[styles.container, { backgroundColor: colors.surface }, shadows.sm]} testID="status-pill">
       <Animated.View
         style={[
           styles.dot,

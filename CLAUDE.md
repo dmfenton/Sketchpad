@@ -13,11 +13,56 @@ Drawing Agent is an autonomous AI artist application with:
 - Config loads from both `../.env` and `.env` so it works from any directory
 - Required: `ANTHROPIC_API_KEY`
 
+## Package Management
+
+**This project uses npm workspaces.**
+
+### Workspace Structure
+
+```
+/                    # Root workspace
+├── app/             # React Native app (Expo)
+├── web/             # Vite web app
+├── shared/          # Shared TypeScript library
+└── server/          # Python backend (uses uv, not npm)
+```
+
+### Key Rules
+
+1. **Always use npm** - Run `npm install` from project root
+2. **Build shared after changes** - Run `cd shared && npm run build` after modifying shared/
+3. **Install from root** - Run `npm install` from project root, not subdirectories
+
+### Adding Dependencies
+
+```bash
+# Add to specific workspace
+npm install <package> -w app
+npm install <package> -w web
+npm install <package> -w shared
+
+# Add to root (dev tools, etc.)
+npm install <package>
+```
+
+### Common Issues
+
+**Stale shared library** - Rebuild:
+```bash
+cd shared && npm run build
+```
+
+**Dependency issues** - Clean reinstall:
+```bash
+rm -rf node_modules app/node_modules web/node_modules shared/node_modules package-lock.json
+npm install
+```
+
 ## Claude Code Sandbox
 
 Sandbox configured in `.claude/settings.json`:
 
-- Auto-allows `make`, `uv`, `pnpm`, `git`, `gh`, `curl`, and common dev commands
+- Auto-allows `make`, `uv`, `npm`, `git`, `gh`, `curl`, and common dev commands
 - No permission prompts for standard development workflows
 - Run `make test`, `make dev`, `make lint`, `git commit`, `git push` freely
 
@@ -44,7 +89,7 @@ The `sandbox.network` config in settings.json includes:
 Domains we need for this project:
 
 - `github.com`, `*.github.com` - git operations, GitHub CLI
-- `registry.npmjs.org`, `*.npmjs.org` - npm/pnpm packages
+- `registry.npmjs.org`, `*.npmjs.org` - npm packages
 - `pypi.org`, `files.pythonhosted.org` - Python packages
 - `expo.dev`, `*.expo.dev` - Expo development
 - `api.anthropic.com` - Claude API calls
@@ -56,7 +101,7 @@ There's a path resolution bug where `Edit()` rules for paths outside the working
 Affected commands:
 
 - `make server-bg` / `make server-restart` (uv cache)
-- `pnpm start` in app/ (Expo cache)
+- `npm start` in app/ (Expo cache)
 
 ## Git Workflow
 
@@ -103,6 +148,12 @@ Both have live reload - no restarts needed for code changes.
 - Stale behavior after 5+ seconds post-save
 
 **Stuck ports?** Run `make dev-stop` to force-kill by port, then start again.
+
+### Simulator Screenshots (Debugging)
+
+Use `/screenshot` to capture the iOS simulator screen when debugging mobile issues.
+
+Screenshots are saved to `screenshots/` (gitignored) and displayed for analysis.
 
 ### Debug API Endpoints
 
@@ -154,6 +205,77 @@ The `/debug/agent` endpoint returns:
 - Frontend: Jest + React Native Testing Library
 - All new features need tests
 - Run `make test` before committing
+
+## E2E Testing (Maestro)
+
+E2E tests use [Maestro](https://maestro.mobile.dev/) to test iOS simulator flows.
+
+### Running E2E Tests
+
+```bash
+make e2e              # Run all E2E tests
+make e2e-install      # Install Maestro + Java dependencies
+./scripts/e2e.sh auth.yaml  # Run single test
+```
+
+### Test Structure
+
+```
+app/e2e/
+├── flows/           # Test files
+│   ├── auth.yaml    # Magic link flow (runs first, needs clean state)
+│   ├── action-bar.yaml
+│   ├── canvas.yaml
+│   └── websocket.yaml
+└── helpers/
+    └── inject-auth.yaml  # Shared auth injection helper
+```
+
+### Key Learnings
+
+**Simulator state:**
+- `simctl erase` required before auth test - Keychain persists across app uninstall
+- Auth injection uses `simctl launch` then `simctl openurl` (app must be running for deep links)
+
+**Maestro tips:**
+- Use `testID` props, not text matching (icons break text selectors)
+- Use `optional: true` for dialogs that may or may not appear
+- `extendedWaitUntil` with timeout for async operations
+- Coordinate taps (`point: "95%,52%"`) are fragile - prefer testIDs
+
+**iOS-specific:**
+- "Open in App?" dialog appears on fresh simulator - handle with optional tap
+- `back` command doesn't work for modals - use testID on close button
+- Swipe gestures can interfere with subsequent button taps
+
+### Adding TestIDs
+
+Add `testID` prop to React Native components for E2E selection:
+
+```tsx
+<Pressable testID="my-button" onPress={handlePress}>
+```
+
+**Current testIDs:**
+- AuthScreen: `email-input`, `code-input`, `auth-submit-button`
+- Canvas: `canvas-view`
+- StatusPill: `status-pill`
+- ActionBar: `action-bar`, `action-draw`, `action-nudge`, `action-new`, `action-gallery`, `action-pause`
+- StartPanel: `surprise-me-button`
+- NudgeModal: `nudge-close-button`
+
+### Rebuilding After TestID Changes
+
+TestIDs are compiled into the native app. After adding new testIDs:
+
+```bash
+rm -rf ~/Library/Developer/Xcode/DerivedData/CodeMonet-*
+cd app && npx expo prebuild --platform ios --clean
+xcodebuild -workspace ios/CodeMonet.xcworkspace -scheme CodeMonet \
+  -configuration Debug -sdk iphonesimulator \
+  -destination "platform=iOS Simulator,id=$(xcrun simctl list devices -j | python3 -c "import sys,json; print([d['udid'] for r,devs in json.load(sys.stdin)['devices'].items() if 'iOS-18' in r for d in devs if 'iPhone 16 Pro' in d['name']][0])")" \
+  build
+```
 
 ## Common Tasks
 
@@ -217,10 +339,10 @@ shared/src/
 **Development:**
 
 ```bash
-cd shared && npm run build    # Build TypeScript to dist/
-cd shared && npm run dev      # Watch mode
-cd shared && npm run lint     # ESLint
-cd shared && npm run format   # Prettier
+cd shared && npm run build     # Build TypeScript to dist/
+cd shared && npm run dev       # Watch mode
+cd shared && npm run lint      # ESLint
+cd shared && npm run format    # Prettier
 ```
 
 **Must build shared/ before app/web changes take effect.**

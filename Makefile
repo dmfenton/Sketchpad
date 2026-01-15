@@ -1,9 +1,9 @@
-.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test lint format typecheck clean cli cli-turn cli-status build-shared
+.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test lint format typecheck clean cli cli-turn cli-status build-shared e2e e2e-install
 
 # Install all dependencies
 install:
 	cd server && uv sync
-	pnpm install
+	npm install --legacy-peer-deps
 
 # Run server + Expo app (foreground, Ctrl+C to stop)
 dev:
@@ -62,11 +62,11 @@ cli-status:
 
 # Run app only
 app:
-	cd app && pnpm start
+	cd app && npm start
 
 # Run web dev server only
 web:
-	cd web && pnpm dev
+	cd web && npm run dev
 
 # Run server + Vite web app (foreground, Ctrl+C to stop)
 dev-web:
@@ -83,16 +83,25 @@ test-server:
 	cd server && uv run pytest
 
 test-app:
-	cd app && pnpm test
+	cd app && npm run test
 
 # Run tests with coverage
 coverage:
 	cd server && uv run pytest --cov=drawing_agent --cov-report=html
-	cd app && pnpm test --coverage
+	cd app && npm run test --coverage
+
+# E2E tests (iOS simulator via Maestro)
+e2e:
+	@./scripts/e2e.sh
+
+e2e-install:
+	@echo "Installing Maestro..."
+	@curl -Ls "https://get.maestro.mobile.dev" | bash
+	@echo "Add ~/.maestro/bin to your PATH if not already done"
 
 # Build shared library
 build-shared:
-	cd shared && pnpm build
+	cd shared && npm run build
 
 # Lint all code
 lint: lint-server lint-app lint-shared lint-web
@@ -101,13 +110,13 @@ lint-server:
 	cd server && uv run ruff check .
 
 lint-app:
-	cd app && pnpm lint
+	cd app && npm run lint
 
 lint-shared:
-	cd shared && pnpm lint
+	cd shared && npm run lint
 
 lint-web:
-	cd web && pnpm lint
+	cd web && npm run lint
 
 # Format all code
 format: format-server format-js
@@ -116,7 +125,7 @@ format-server:
 	cd server && uv run ruff format .
 
 format-js:
-	pnpm format
+	npm run format
 
 # Check formatting without writing
 format-check: format-check-server format-check-js
@@ -125,7 +134,7 @@ format-check-server:
 	cd server && uv run ruff format --check .
 
 format-check-js:
-	pnpm format:check
+	npm run format:check
 
 # Type checking
 typecheck: typecheck-server typecheck-app typecheck-shared typecheck-web
@@ -134,13 +143,13 @@ typecheck-server:
 	cd server && uv run mypy drawing_agent
 
 typecheck-app:
-	cd app && pnpm typecheck
+	cd app && npm run typecheck
 
 typecheck-shared:
-	cd shared && pnpm typecheck
+	cd shared && npm run typecheck
 
 typecheck-web:
-	cd web && pnpm typecheck
+	cd web && npm run typecheck
 
 # Clean build artifacts
 clean:

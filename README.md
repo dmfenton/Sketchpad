@@ -12,7 +12,7 @@ A drawing machine with creative agency. It comes up with its own ideas, writes c
 
 - Python 3.11+
 - Node.js 18+
-- pnpm
+- npm (included with Node.js)
 - Anthropic API key
 
 ### Setup
@@ -117,7 +117,7 @@ React Native app with Expo. Run on iOS simulator, Android emulator, or web.
 
 ```bash
 cd app
-pnpm start
+npm start
 ```
 
 ### Pre-commit Hooks

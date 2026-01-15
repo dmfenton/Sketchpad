@@ -56,33 +56,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm'
-          cache-dependency-path: app/pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: app
-        run: pnpm install --frozen-lockfile
+        run: npm ci
+
+      - name: Build shared library
+        run: npm run build -w shared
 
       - name: Lint
-        working-directory: app
-        run: pnpm lint
+        run: npm run lint -w app
 
       - name: Type check
-        working-directory: app
-        run: pnpm typecheck
+        run: npm run typecheck -w app
 
       - name: Run tests
-        working-directory: app
-        run: pnpm test
+        run: npm test -w app
 
   docker:
     name: Docker Build

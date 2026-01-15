@@ -62,7 +62,7 @@ jobs:
           echo "Comparing $PREVIOUS_TAG to $CURRENT_TAG"
 
           # Check for changes in iOS-related paths (code that affects the iOS app)
-          IOS_PATHS="app/ shared/ package.json pnpm-lock.yaml pnpm-workspace.yaml"
+          IOS_PATHS="app/ shared/ package.json package-lock.json"
 
           CHANGED_FILES=$(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG")
           echo "Changed files:"
@@ -115,32 +115,16 @@ jobs:
           echo "Version: $VERSION"
           echo "Build Number: $BUILD_NUMBER"
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --shamefully-hoist
+        run: npm ci
 
       - name: Build shared library
-        working-directory: shared
-        run: pnpm run build
-
-      - name: Copy shared to app node_modules
-        run: |
-          # Metro can't follow pnpm workspace symlinks during Xcode build
-          # Replace the symlink with actual built content
-          rm -rf app/node_modules/@drawing-agent/shared
-          mkdir -p app/node_modules/@drawing-agent
-          cp -r shared app/node_modules/@drawing-agent/shared
+        run: npm run build -w shared
 
       - name: Run prebuild
         working-directory: app

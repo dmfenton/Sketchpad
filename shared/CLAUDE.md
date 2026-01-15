@@ -11,7 +11,7 @@ This library contains code that works identically on React Native and web:
 - Type definitions
 - Animation hooks
 
-**Must build after changes:** `cd shared && pnpm run build`
+**Must build after changes:** `cd shared && npm run build`
 
 ## Type Safety
 
