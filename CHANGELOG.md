@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-01-15
+
 ### Added
 
 - Self-hosted Umami analytics for privacy-friendly web traffic tracking
-- Analytics dashboard at `/analytics/` (requires admin setup after first deploy)
+- Analytics dashboard at `/analytics/` (IP-restricted to admin)
+- `deploy/start-services.sh` for bootstrapping services with SSM secrets
 
 ## [1.14.0] - 2026-01-15
 
@@ -438,7 +441,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.14.0...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.14.1...HEAD
+[1.14.1]: https://github.com/dmfenton/sketchpad/compare/v1.14.0...v1.14.1
 [1.14.0]: https://github.com/dmfenton/sketchpad/compare/v1.13.4...v1.14.0
 [1.13.4]: https://github.com/dmfenton/sketchpad/compare/v1.13.3...v1.13.4
 [1.13.3]: https://github.com/dmfenton/sketchpad/compare/v1.13.2...v1.13.3
