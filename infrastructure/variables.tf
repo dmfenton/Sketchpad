@@ -55,3 +55,13 @@ variable "ses_sender_email" {
   type        = string
   default     = "noreply@dmfenton.net"
 }
+
+variable "admin_ip" {
+  description = "IP address allowed to access /analytics/ dashboard (e.g., '203.0.113.1')"
+  type        = string
+
+  validation {
+    condition     = can(regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$", var.admin_ip))
+    error_message = "admin_ip must be a valid IPv4 address (e.g., '203.0.113.1')"
+  }
+}
