@@ -187,17 +187,18 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.R
         }
 
         .message-stream-header {
-          padding: 12px 16px;
-          border-bottom: 1px solid var(--border);
+          padding: 14px 18px;
+          border-bottom: 1px solid var(--border-light);
           display: flex;
           align-items: center;
           justify-content: space-between;
+          background: var(--bg-primary);
         }
 
         .header-left {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 10px;
         }
 
         .status-dot {
@@ -205,77 +206,96 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.R
           height: 8px;
           border-radius: 50%;
           background: var(--text-muted);
+          transition: all 0.3s ease;
         }
 
         .status-dot.active {
           background: var(--accent);
-          animation: pulse 1s infinite;
+          box-shadow: 0 0 12px rgba(233, 69, 96, 0.5);
+          animation: pulse 1.5s ease-in-out infinite;
         }
 
         .header-title {
-          font-weight: 600;
+          font-weight: 500;
+          font-size: 14px;
+          letter-spacing: 0.02em;
         }
 
         .header-status {
           color: var(--accent);
-          font-size: 12px;
-          margin-left: 4px;
+          font-size: 11px;
+          margin-left: 6px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
 
         .empty-state {
           text-align: center;
-          padding: 40px 20px;
+          padding: 48px 24px;
           color: var(--text-muted);
+          font-style: italic;
         }
 
         .message-text {
-          line-height: 1.5;
+          line-height: 1.6;
         }
 
         .message-time {
           font-size: 11px;
           color: var(--text-muted);
           text-align: right;
-          margin-top: 6px;
+          margin-top: 8px;
         }
 
         .message-time.streaming {
           color: var(--accent);
           font-style: italic;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 6px;
         }
 
         .message-header {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 10px;
         }
 
         .expand-icon {
           font-size: 10px;
           color: var(--text-muted);
+          transition: color 0.2s ease;
+        }
+
+        .message-header:hover .expand-icon {
+          color: var(--text-secondary);
         }
 
         .message-details,
         .code-output,
         .code-preview {
-          margin-top: 8px;
-          padding: 8px;
-          background: var(--bg-primary);
-          border-radius: 4px;
+          margin-top: 10px;
+          padding: 10px 12px;
+          background: var(--bg-dark);
+          border-radius: 8px;
           font-size: 12px;
           overflow-x: auto;
           max-height: 200px;
           overflow-y: auto;
           white-space: pre-wrap;
           word-break: break-word;
+          border: 1px solid var(--border-light);
         }
 
         .code-output.error {
-          background: rgba(239, 68, 68, 0.1);
+          background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(255, 107, 107, 0.05));
+          border-color: rgba(239, 68, 68, 0.2);
         }
 
         .code-preview-section {
-          margin-top: 8px;
+          margin-top: 10px;
         }
 
         .code-preview-header {
@@ -283,52 +303,62 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.R
           align-items: center;
           gap: 6px;
           font-size: 11px;
-          color: var(--text-secondary);
-          margin-bottom: 4px;
+          color: var(--text-muted);
+          margin-bottom: 6px;
           font-weight: 500;
         }
 
         .code-icon {
-          font-size: 12px;
+          font-size: 13px;
         }
 
         .code-preview {
           margin-top: 0;
-          border: 1px solid var(--border);
         }
 
         .scroll-button {
           position: absolute;
-          bottom: 12px;
-          right: 12px;
-          width: 28px;
-          height: 28px;
+          bottom: 14px;
+          right: 14px;
+          width: 32px;
+          height: 32px;
           border-radius: 50%;
-          background: var(--accent);
+          background: var(--gradient-primary);
           color: white;
           border: none;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
+          box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+          transition: all 0.3s ease;
+        }
+
+        .scroll-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(233, 69, 96, 0.4);
         }
 
         .view-toggle {
-          padding: 4px 10px;
+          padding: 6px 12px;
           font-size: 11px;
-          background: var(--bg-tertiary);
-          border: none;
-          border-radius: 4px;
-          color: var(--text-secondary);
+          font-weight: 500;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          color: var(--text-muted);
           cursor: pointer;
+          transition: all 0.2s ease;
         }
 
         .view-toggle:hover {
-          background: var(--bg-primary);
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
         }
 
         .view-toggle.raw {
-          background: var(--accent);
+          background: var(--gradient-primary);
+          border-color: transparent;
           color: white;
         }
 
