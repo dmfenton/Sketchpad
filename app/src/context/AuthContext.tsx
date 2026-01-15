@@ -277,7 +277,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch(`${getApiUrl()}/auth/magic-link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, platform: 'app' }),
       });
 
       if (!response.ok) {

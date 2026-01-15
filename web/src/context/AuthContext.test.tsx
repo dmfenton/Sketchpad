@@ -124,7 +124,7 @@ describe('AuthContext', () => {
           expect.stringContaining('/auth/magic-link'),
           expect.objectContaining({
             method: 'POST',
-            body: JSON.stringify({ email: 'test@example.com' }),
+            body: JSON.stringify({ email: 'test@example.com', platform: 'web' }),
           })
         );
       });
@@ -223,6 +223,52 @@ describe('AuthContext', () => {
 
         expect(response!.success).toBe(false);
         expect(response!.error).toBe('Invalid or expired code');
+        expect(result.current.isAuthenticated).toBe(false);
+      });
+    });
+
+    describe('setTokensFromCallback', () => {
+      it('stores tokens and updates state on valid tokens', async () => {
+        const futureExp = Math.floor(Date.now() / 1000) + 3600;
+        const accessToken = createTestToken({
+          sub: '1',
+          email: 'test@example.com',
+          exp: futureExp,
+        });
+        const refreshToken = 'refresh-token';
+
+        const { result } = renderHook(() => useAuth(), { wrapper });
+
+        await waitFor(() => {
+          expect(result.current.isLoading).toBe(false);
+        });
+
+        let response: { success: boolean; error?: string };
+        act(() => {
+          response = result.current.setTokensFromCallback(accessToken, refreshToken);
+        });
+
+        expect(response!.success).toBe(true);
+        expect(result.current.isAuthenticated).toBe(true);
+        expect(result.current.user?.email).toBe('test@example.com');
+        expect(localStorage.getItem('auth_access_token')).toBe(accessToken);
+        expect(localStorage.getItem('auth_refresh_token')).toBe(refreshToken);
+      });
+
+      it('returns error on invalid token', async () => {
+        const { result } = renderHook(() => useAuth(), { wrapper });
+
+        await waitFor(() => {
+          expect(result.current.isLoading).toBe(false);
+        });
+
+        let response: { success: boolean; error?: string };
+        act(() => {
+          response = result.current.setTokensFromCallback('invalid-token', 'refresh-token');
+        });
+
+        expect(response!.success).toBe(false);
+        expect(response!.error).toBe('Invalid token received');
         expect(result.current.isAuthenticated).toBe(false);
       });
     });

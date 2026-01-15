@@ -28,6 +28,10 @@ export interface AuthContextValue extends AuthState {
     email: string,
     code: string
   ) => Promise<{ success: boolean; error?: string }>;
+  setTokensFromCallback: (
+    accessToken: string,
+    refreshToken: string
+  ) => { success: boolean; error?: string };
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -158,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       const response = await fetch(`${getApiUrl()}/auth/magic-link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, platform: 'web' }),
       });
 
       if (!response.ok) {
@@ -208,14 +212,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     }
   }, []);
 
+  // Set tokens directly from magic link callback URL
+  const setTokensFromCallback = useCallback(
+    (accessToken: string, refreshToken: string): { success: boolean; error?: string } => {
+      try {
+        const decoded = decodeToken(accessToken);
+        if (!decoded) {
+          return { success: false, error: 'Invalid token received' };
+        }
+
+        localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+
+        setState({
+          isLoading: false,
+          isAuthenticated: true,
+          user: { id: parseInt(decoded.sub, 10), email: decoded.email },
+          accessToken,
+        });
+
+        return { success: true };
+      } catch (error) {
+        console.error('[Auth] Set tokens error:', error);
+        return { success: false, error: 'Failed to store tokens' };
+      }
+    },
+    []
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
       signOut,
       requestMagicLink,
       verifyMagicLinkCode,
+      setTokensFromCallback,
     }),
-    [state, signOut, requestMagicLink, verifyMagicLinkCode]
+    [state, signOut, requestMagicLink, verifyMagicLinkCode, setTokensFromCallback]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

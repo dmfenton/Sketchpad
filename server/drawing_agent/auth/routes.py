@@ -210,9 +210,14 @@ async def request_magic_link(request: MagicLinkRequest, http_request: Request) -
             code = f"{secrets.randbelow(1000000):06d}"
             expires_at = datetime.now(UTC) + timedelta(minutes=settings.magic_link_expire_minutes)
 
-            # Store token with code
+            # Store token with code and platform
             await repository.create_magic_link_token(
-                session, token=token, code=code, email=request.email, expires_at=expires_at
+                session,
+                token=token,
+                code=code,
+                email=request.email,
+                expires_at=expires_at,
+                platform=request.platform,
             )
 
             # Build magic link URL
@@ -242,7 +247,9 @@ async def verify_magic_link_web(token: str = Query(...)) -> HTMLResponse:
 
     This endpoint is hit when the magic link is clicked in a browser
     (when iOS Universal Links don't intercept). It verifies the token
-    and returns an HTML page that attempts to open the app.
+    and routes based on the platform that requested the magic link:
+    - web: redirects to the web app with tokens
+    - app: tries to open the iOS app with custom URL scheme
     """
     async with get_session() as session:
         magic_link = await repository.use_magic_link_token(session, token)
@@ -304,14 +311,49 @@ async def verify_magic_link_web(token: str = Query(...)) -> HTMLResponse:
                 status_code=401,
             )
 
-        logger.info(f"User signed in via magic link (web): {user.email} (id={user.id})")
+        # Extract values before session closes
+        platform = magic_link.platform
+        logger.info(f"User signed in via magic link ({platform}): {user.email} (id={user.id})")
 
     # Generate tokens
     access_token = create_access_token(user.id, user.email)
     refresh_token = create_refresh_token(user.id)
 
-    # Return HTML that tries to open the app with the tokens
-    # Uses the custom URL scheme as a fallback for Universal Links
+    # Route based on platform that requested the magic link
+    if platform == "web":
+        # Redirect to web app with tokens in URL fragment (more secure than query params)
+        web_url = f"{settings.magic_link_base_url}/auth/callback#access_token={access_token}&refresh_token={refresh_token}"
+
+        return HTMLResponse(
+            content=f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signed In - Code Monet</title>
+    <style>
+        body {{ font-family: -apple-system, system-ui, sans-serif; padding: 40px 20px; text-align: center; background: #f5f5f5; }}
+        .container {{ max-width: 400px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+        h1 {{ color: #333; font-size: 24px; margin-bottom: 16px; }}
+        p {{ color: #666; line-height: 1.5; margin-bottom: 24px; }}
+    </style>
+    <script>
+        // Redirect to web app
+        window.location.href = "{web_url}";
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Signing you in...</h1>
+        <p>You'll be redirected automatically.</p>
+    </div>
+</body>
+</html>
+"""
+        )
+
+    # Default: app platform - try to open the iOS app with custom URL scheme
     app_url = f"codemonet://auth/callback?access_token={access_token}&refresh_token={refresh_token}"
 
     return HTMLResponse(

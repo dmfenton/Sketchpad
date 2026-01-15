@@ -123,9 +123,12 @@ async def create_magic_link_token(
     code: str,
     email: str,
     expires_at: datetime,
+    platform: str = "app",
 ) -> MagicLinkToken:
     """Create a new magic link token with verification code."""
-    magic_link = MagicLinkToken(token=token, code=code, email=email, expires_at=expires_at)
+    magic_link = MagicLinkToken(
+        token=token, code=code, email=email, expires_at=expires_at, platform=platform
+    )
     session.add(magic_link)
     await session.flush()
     return magic_link

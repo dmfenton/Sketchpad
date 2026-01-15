@@ -62,6 +62,7 @@ class MagicLinkRequest(BaseModel):
     """Request body for magic link signin."""
 
     email: EmailStr
+    platform: str = Field(default="app", pattern=r"^(web|app)$")
 
 
 class MagicLinkVerifyRequest(BaseModel):
