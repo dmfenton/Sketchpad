@@ -41,7 +41,7 @@ Create a git worktree for: $ARGUMENTS
 
    ```bash
    cd server && uv sync --all-extras
-   cd ../app && pnpm install
+   cd .. && npm install --legacy-peer-deps
    ```
 
 6. **Output the `/add-dir` command** so user can add the worktree to Claude Code.
