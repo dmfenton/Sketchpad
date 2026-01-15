@@ -18,5 +18,5 @@ After setup, install dependencies if needed:
 
 ```bash
 cd server && uv sync --all-extras
-cd app && pnpm install
+npm install --legacy-peer-deps
 ```
