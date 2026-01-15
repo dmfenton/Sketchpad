@@ -220,6 +220,7 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
             </Pressable>
 
             <Pressable
+              testID="surprise-me-button"
               style={({ pressed }) => [
                 styles.surpriseButton,
                 { backgroundColor: colors.primary },

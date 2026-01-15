@@ -137,6 +137,7 @@ export function Canvas({
     <View
       style={[styles.container, { backgroundColor: colors.canvasBackground }, shadows.md]}
       onLayout={handleLayout}
+      testID="canvas-view"
     >
       <GestureDetector gesture={panGesture}>
         <View style={styles.canvasWrapper}>

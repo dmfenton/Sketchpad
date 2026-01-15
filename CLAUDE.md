@@ -206,6 +206,77 @@ The `/debug/agent` endpoint returns:
 - All new features need tests
 - Run `make test` before committing
 
+## E2E Testing (Maestro)
+
+E2E tests use [Maestro](https://maestro.mobile.dev/) to test iOS simulator flows.
+
+### Running E2E Tests
+
+```bash
+make e2e              # Run all E2E tests
+make e2e-install      # Install Maestro + Java dependencies
+./scripts/e2e.sh auth.yaml  # Run single test
+```
+
+### Test Structure
+
+```
+app/e2e/
+├── flows/           # Test files
+│   ├── auth.yaml    # Magic link flow (runs first, needs clean state)
+│   ├── action-bar.yaml
+│   ├── canvas.yaml
+│   └── websocket.yaml
+└── helpers/
+    └── inject-auth.yaml  # Shared auth injection helper
+```
+
+### Key Learnings
+
+**Simulator state:**
+- `simctl erase` required before auth test - Keychain persists across app uninstall
+- Auth injection uses `simctl launch` then `simctl openurl` (app must be running for deep links)
+
+**Maestro tips:**
+- Use `testID` props, not text matching (icons break text selectors)
+- Use `optional: true` for dialogs that may or may not appear
+- `extendedWaitUntil` with timeout for async operations
+- Coordinate taps (`point: "95%,52%"`) are fragile - prefer testIDs
+
+**iOS-specific:**
+- "Open in App?" dialog appears on fresh simulator - handle with optional tap
+- `back` command doesn't work for modals - use testID on close button
+- Swipe gestures can interfere with subsequent button taps
+
+### Adding TestIDs
+
+Add `testID` prop to React Native components for E2E selection:
+
+```tsx
+<Pressable testID="my-button" onPress={handlePress}>
+```
+
+**Current testIDs:**
+- AuthScreen: `email-input`, `code-input`, `auth-submit-button`
+- Canvas: `canvas-view`
+- StatusPill: `status-pill`
+- ActionBar: `action-bar`, `action-draw`, `action-nudge`, `action-new`, `action-gallery`, `action-pause`
+- StartPanel: `surprise-me-button`
+- NudgeModal: `nudge-close-button`
+
+### Rebuilding After TestID Changes
+
+TestIDs are compiled into the native app. After adding new testIDs:
+
+```bash
+rm -rf ~/Library/Developer/Xcode/DerivedData/CodeMonet-*
+cd app && npx expo prebuild --platform ios --clean
+xcodebuild -workspace ios/CodeMonet.xcworkspace -scheme CodeMonet \
+  -configuration Debug -sdk iphonesimulator \
+  -destination "platform=iOS Simulator,id=$(xcrun simctl list devices -j | python3 -c "import sys,json; print([d['udid'] for r,devs in json.load(sys.stdin)['devices'].items() if 'iOS-18' in r for d in devs if 'iPhone 16 Pro' in d['name']][0])")" \
+  build
+```
+
 ## Common Tasks
 
 ### Adding a new WebSocket message type
