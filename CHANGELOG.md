@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Self-hosted Umami analytics for privacy-friendly web traffic tracking
+- Analytics dashboard at `/analytics/` (requires admin setup after first deploy)
+
 ## [1.13.3] - 2026-01-14
 
 ### Added

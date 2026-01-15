@@ -14,6 +14,7 @@ services:
       - ./web:/var/www/html:ro
     depends_on:
       - drawing-agent
+      - umami
     restart: unless-stopped
     networks:
       - app-network
@@ -97,13 +98,14 @@ services:
       - app-network
 
   # Analytics - Umami with PostgreSQL
+  # Required env vars: UMAMI_DB_PASSWORD, UMAMI_APP_SECRET
   umami-db:
     image: postgres:15-alpine
     container_name: umami-db
     environment:
       - POSTGRES_DB=umami
       - POSTGRES_USER=umami
-      - POSTGRES_PASSWORD=${UMAMI_DB_PASSWORD:-umami_secret_change_me}
+      - POSTGRES_PASSWORD=${UMAMI_DB_PASSWORD:?UMAMI_DB_PASSWORD is required}
     volumes:
       - ./umami-db:/var/lib/postgresql/data
     restart: unless-stopped
@@ -119,8 +121,8 @@ services:
     image: ghcr.io/umami-software/umami:postgresql-latest
     container_name: umami
     environment:
-      - DATABASE_URL=postgresql://umami:${UMAMI_DB_PASSWORD:-umami_secret_change_me}@umami-db:5432/umami
-      - APP_SECRET=${UMAMI_APP_SECRET:-replace_me_with_random_string}
+      - DATABASE_URL=postgresql://umami:${UMAMI_DB_PASSWORD:?UMAMI_DB_PASSWORD is required}@umami-db:5432/umami
+      - APP_SECRET=${UMAMI_APP_SECRET:?UMAMI_APP_SECRET is required}
       - DISABLE_TELEMETRY=1
     depends_on:
       umami-db:
