@@ -1,8 +1,8 @@
 /**
- * Drawing Agent Web Dev Server
+ * Drawing Agent Web App - Studio View
  */
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback } from 'react';
 import type { PendingStroke, ServerMessage } from '@drawing-agent/shared';
 import { STATUS_LABELS, useStrokeAnimation } from '@drawing-agent/shared';
 import { getApiUrl } from './config';
@@ -15,36 +15,25 @@ import { StatusOverlay } from './components/StatusOverlay';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useDebug } from './hooks/useDebug';
+import { useAuth } from './context/AuthContext';
 
 function App(): React.ReactElement {
   const { state, dispatch, handleMessage, startStroke, addPoint, endStroke, toggleDrawing } =
     useCanvas();
 
-  const { logMessage, ...debug } = useDebug();
-
-  // Token cache for REST API calls
-  const tokenRef = useRef<string | null>(null);
-
-  // Get dev token for REST API calls
-  const getToken = useCallback(async (): Promise<string> => {
-    if (tokenRef.current) return tokenRef.current;
-    const response = await fetch(`${getApiUrl()}/auth/dev-token`);
-    if (!response.ok) throw new Error('Failed to get dev token');
-    const data = await response.json();
-    tokenRef.current = data.access_token as string;
-    return tokenRef.current;
-  }, []);
+  const { accessToken } = useAuth();
+  const { logMessage, ...debug } = useDebug({ token: accessToken });
 
   // Fetch pending strokes from server
   const fetchStrokes = useCallback(async (): Promise<PendingStroke[]> => {
-    const token = await getToken();
+    if (!accessToken) throw new Error('Not authenticated');
     const response = await fetch(`${getApiUrl()}/strokes/pending`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!response.ok) throw new Error('Failed to fetch strokes');
     const data = await response.json();
     return data.strokes as PendingStroke[];
-  }, [getToken]);
+  }, [accessToken]);
 
   // Use shared animation hook
   useStrokeAnimation({
@@ -61,7 +50,7 @@ function App(): React.ReactElement {
     [handleMessage, logMessage]
   );
 
-  const { status: wsStatus, send } = useWebSocket({ onMessage });
+  const { status: wsStatus, send } = useWebSocket({ onMessage, token: accessToken });
 
   const handleStrokeEnd = useCallback(() => {
     const path = endStroke();

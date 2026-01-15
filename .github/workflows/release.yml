@@ -48,6 +48,7 @@ jobs:
       - name: Build web frontend
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          VITE_UMAMI_WEBSITE_ID: ${{ secrets.UMAMI_WEBSITE_ID }}
         run: |
           npm ci
           npm run build -w shared
@@ -94,9 +95,19 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION" >> $GITHUB_OUTPUT
 
       - name: Sync deploy configs and web build to S3
+        env:
+          ADMIN_IP: ${{ secrets.ADMIN_IP }}
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           BUCKET="drawing-agent-config-${ACCOUNT_ID}"
+
+          # Substitute ADMIN_IP in nginx.conf
+          if [ -n "$ADMIN_IP" ]; then
+            echo "Substituting ADMIN_IP in nginx.conf..."
+            sed -i "s/\${ADMIN_IP}/$ADMIN_IP/g" deploy/nginx.conf
+          else
+            echo "Warning: ADMIN_IP secret not set, nginx.conf will have placeholder"
+          fi
 
           echo "Syncing deploy/ to s3://${BUCKET}/deploy/"
           aws s3 sync deploy/ "s3://${BUCKET}/deploy/" --delete
