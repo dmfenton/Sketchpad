@@ -1,4 +1,4 @@
-.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test lint format typecheck clean cli cli-turn cli-status build-shared
+.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test lint format typecheck clean cli cli-turn cli-status build-shared e2e e2e-install
 
 # Install all dependencies
 install:
@@ -89,6 +89,15 @@ test-app:
 coverage:
 	cd server && uv run pytest --cov=drawing_agent --cov-report=html
 	cd app && npm run test --coverage
+
+# E2E tests (iOS simulator via Maestro)
+e2e:
+	@./scripts/e2e.sh
+
+e2e-install:
+	@echo "Installing Maestro..."
+	@curl -Ls "https://get.maestro.mobile.dev" | bash
+	@echo "Add ~/.maestro/bin to your PATH if not already done"
 
 # Build shared library
 build-shared:
