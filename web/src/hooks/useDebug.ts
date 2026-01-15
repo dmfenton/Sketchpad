@@ -6,18 +6,6 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ServerMessage } from '@drawing-agent/shared';
 import { getApiUrl } from '../config';
 
-// Cache the dev token
-let cachedToken: string | null = null;
-
-async function getDevToken(): Promise<string> {
-  if (cachedToken) return cachedToken;
-  const response = await fetch(`${getApiUrl()}/auth/dev-token`);
-  if (!response.ok) throw new Error('Failed to get dev token');
-  const data = await response.json();
-  cachedToken = data.access_token;
-  return data.access_token;
-}
-
 export interface WorkspaceFile {
   name: string;
   path: string;
@@ -41,6 +29,10 @@ export interface DebugState {
   error: string | null;
 }
 
+interface UseDebugOptions {
+  token: string | null;
+}
+
 interface UseDebugReturn extends DebugState {
   refresh: () => Promise<void>;
   logMessage: (message: ServerMessage) => void;
@@ -49,7 +41,7 @@ interface UseDebugReturn extends DebugState {
 
 const MAX_LOG_MESSAGES = 100;
 
-export function useDebug(): UseDebugReturn {
+export function useDebug({ token }: UseDebugOptions): UseDebugReturn {
   const [state, setState] = useState<DebugState>({
     agent: null,
     files: [],
@@ -59,10 +51,14 @@ export function useDebug(): UseDebugReturn {
   });
 
   const refresh = useCallback(async () => {
+    if (!token) {
+      setState((s) => ({ ...s, loading: false, error: 'Not authenticated' }));
+      return;
+    }
+
     setState((s) => ({ ...s, loading: true, error: null }));
 
     try {
-      const token = await getDevToken();
       const headers = { Authorization: `Bearer ${token}` };
 
       const [agentRes, workspaceRes] = await Promise.all([
@@ -90,7 +86,7 @@ export function useDebug(): UseDebugReturn {
         error: error instanceof Error ? error.message : 'Unknown error',
       }));
     }
-  }, []);
+  }, [token]);
 
   const logMessage = useCallback((message: ServerMessage) => {
     setState((s) => ({
