@@ -1,5 +1,8 @@
 /**
- * Chat-like message stream showing agent thoughts as individual bubbles.
+ * MessageStream - Collapsible history of agent messages.
+ *
+ * Shows past thoughts, tool executions, errors, etc.
+ * Live streaming is handled separately by LiveStatus component.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -8,9 +11,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { LIVE_MESSAGE_ID, type AgentMessage, type ToolName } from '@drawing-agent/shared';
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
-
-// Display pacing for thought chunks (ms)
-const CHUNK_DISPLAY_MS = 800;
 
 interface MessageStreamProps {
   messages: AgentMessage[];
@@ -57,37 +57,6 @@ const MessageBubble = React.memo(function MessageBubble({
   const fadeAnim = useRef(new Animated.Value(isNew ? 0 : 1)).current;
   const slideAnim = useRef(new Animated.Value(isNew ? 20 : 0)).current;
   const [expanded, setExpanded] = useState(false);
-
-  // For live messages, buffer incoming text and release it slowly
-  const isLiveMessage = message.id === LIVE_MESSAGE_ID;
-  const [displayedText, setDisplayedText] = useState(isLiveMessage ? '' : message.text);
-  const bufferRef = useRef(message.text);
-  const lastUpdateRef = useRef(Date.now());
-
-  // Buffer new text and release it at a readable pace
-  useEffect(() => {
-    if (!isLiveMessage) {
-      setDisplayedText(message.text);
-      return;
-    }
-
-    // New text arrived - add to buffer
-    bufferRef.current = message.text;
-
-    // If we're behind the buffer, schedule an update
-    if (displayedText.length < bufferRef.current.length) {
-      const timeSinceLastUpdate = Date.now() - lastUpdateRef.current;
-      const delay = Math.max(0, CHUNK_DISPLAY_MS - timeSinceLastUpdate);
-
-      const timer = setTimeout(() => {
-        // Release all buffered text up to this point
-        setDisplayedText(bufferRef.current);
-        lastUpdateRef.current = Date.now();
-      }, delay);
-
-      return () => clearTimeout(timer);
-    }
-  }, [isLiveMessage, message.text, displayedText.length]);
 
   useEffect(() => {
     if (isNew) {
@@ -290,9 +259,6 @@ const MessageBubble = React.memo(function MessageBubble({
   }
 
   // Default thinking/other message
-  // Use buffered text for live messages (released at readable pace)
-  const isBuffering = isLiveMessage && displayedText.length < message.text.length;
-
   return (
     <Animated.View
       style={[
@@ -304,16 +270,10 @@ const MessageBubble = React.memo(function MessageBubble({
         },
       ]}
     >
-      <Text style={[styles.messageText, { color: colors.textPrimary }]}>{displayedText}</Text>
-      {isLiveMessage ? (
-        <Text style={[styles.timestamp, { color: colors.primary, fontStyle: 'italic' }]}>
-          {isBuffering ? 'streaming...' : 'thinking...'}
-        </Text>
-      ) : (
-        <Text style={[styles.timestamp, { color: colors.textMuted }]}>
-          {formatTime(message.timestamp)}
-        </Text>
-      )}
+      <Text style={[styles.messageText, { color: colors.textPrimary }]}>{message.text}</Text>
+      <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+        {formatTime(message.timestamp)}
+      </Text>
     </Animated.View>
   );
 });
@@ -323,21 +283,24 @@ export function MessageStream({ messages }: MessageStreamProps): React.JSX.Eleme
   const [autoScroll, setAutoScroll] = useState(true);
   const [collapsed, setCollapsed] = useState(true); // Start collapsed
   const scrollViewRef = useRef<ScrollView>(null);
-  const lastMessageCount = useRef(messages.length);
+
+  // Filter out live message - it's shown in LiveStatus component
+  const historyMessages = messages.filter((m) => m.id !== LIVE_MESSAGE_ID);
+  const lastMessageCount = useRef(historyMessages.length);
 
   // Track new messages for animation
   const newMessageIds = useRef(new Set<string>());
   const cleanupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (messages.length > lastMessageCount.current) {
-      const newMessages = messages.slice(lastMessageCount.current);
+    if (historyMessages.length > lastMessageCount.current) {
+      const newMessages = historyMessages.slice(lastMessageCount.current);
       newMessages.forEach((m) => newMessageIds.current.add(m.id));
       // Clear after animation - with proper cleanup
       cleanupTimeoutRef.current = setTimeout(() => {
         newMessages.forEach((m) => newMessageIds.current.delete(m.id));
       }, 500);
     }
-    lastMessageCount.current = messages.length;
+    lastMessageCount.current = historyMessages.length;
 
     // Cleanup on unmount or when messages change
     return () => {
@@ -345,7 +308,7 @@ export function MessageStream({ messages }: MessageStreamProps): React.JSX.Eleme
         clearTimeout(cleanupTimeoutRef.current);
       }
     };
-  }, [messages]);
+  }, [historyMessages]);
 
   // Clear refs on unmount
   useEffect(() => {
@@ -363,7 +326,7 @@ export function MessageStream({ messages }: MessageStreamProps): React.JSX.Eleme
       }, 100);
       return () => clearTimeout(timeoutId);
     }
-  }, [messages, autoScroll]);
+  }, [historyMessages, autoScroll]);
 
   const handleScroll = useCallback(
     (event: {
@@ -400,7 +363,7 @@ export function MessageStream({ messages }: MessageStreamProps): React.JSX.Eleme
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Thoughts</Text>
           <View style={[styles.messageCount, { backgroundColor: colors.surfaceElevated }]}>
             <Text style={[styles.messageCountText, { color: colors.textMuted }]}>
-              {messages.length}
+              {historyMessages.length}
             </Text>
           </View>
         </View>
@@ -416,26 +379,26 @@ export function MessageStream({ messages }: MessageStreamProps): React.JSX.Eleme
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
           >
-            {messages.length === 0 ? (
+            {historyMessages.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="color-palette-outline" size={32} color={colors.textMuted} />
                 <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                  Awaiting artistic inspiration...
+                  No thoughts yet...
                 </Text>
               </View>
             ) : (
-              messages.map((message) => (
+              historyMessages.map((message) => (
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  isNew={newMessageIds.current.has(message.id) || message.id === LIVE_MESSAGE_ID}
+                  isNew={newMessageIds.current.has(message.id)}
                   colors={colors}
                 />
               ))
             )}
           </ScrollView>
 
-          {!autoScroll && messages.length > 0 && (
+          {!autoScroll && historyMessages.length > 0 && (
             <Pressable
               style={[styles.scrollButton, { backgroundColor: colors.primary }, shadows.sm]}
               onPress={scrollToBottom}
