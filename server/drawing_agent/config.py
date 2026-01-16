@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     # Auth (required when auth is enabled)
     jwt_secret: str = _ssm("jwt_secret")  # Must be set in production
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+    jwt_access_token_expire_minutes: int = 60 * 24  # 1 day
     jwt_refresh_token_expire_days: int = 365  # 1 year
 
     # Email (SES)
