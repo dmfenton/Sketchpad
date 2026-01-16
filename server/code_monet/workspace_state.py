@@ -13,7 +13,14 @@ import aiofiles
 import aiofiles.os
 
 from code_monet.config import settings
-from code_monet.types import AgentStatus, CanvasState, Path, PendingStrokeDict, SavedCanvas
+from code_monet.types import (
+    AgentStatus,
+    CanvasState,
+    DrawingStyleType,
+    Path,
+    PendingStrokeDict,
+    SavedCanvas,
+)
 
 if TYPE_CHECKING:
     from code_monet.config import Settings
@@ -111,10 +118,19 @@ class WorkspaceState:
                 return
 
             canvas_data = data.get("canvas", {})
+            # Parse drawing_style with fallback to plotter
+            style_str = canvas_data.get("drawing_style", "plotter")
+            try:
+                drawing_style = DrawingStyleType(style_str)
+            except ValueError:
+                logger.warning(f"Invalid drawing_style '{style_str}', defaulting to plotter")
+                drawing_style = DrawingStyleType.PLOTTER
+
             self._canvas = CanvasState(
                 width=canvas_data.get("width", 800),
                 height=canvas_data.get("height", 600),
                 strokes=[Path.model_validate(s) for s in canvas_data.get("strokes", [])],
+                drawing_style=drawing_style,
             )
             self._status = AgentStatus(data.get("status", "paused"))
             self._piece_count = data.get("piece_count", 0)
@@ -339,6 +355,7 @@ class WorkspaceState:
                 "piece_number": self._piece_count,
                 "strokes": [s.model_dump() for s in self._canvas.strokes],
                 "created_at": created_at,
+                "drawing_style": self._canvas.drawing_style.value,
             }
 
             # Atomic write for gallery piece
@@ -356,6 +373,7 @@ class WorkspaceState:
                 "piece_number": self._piece_count,
                 "stroke_count": len(self._canvas.strokes),
                 "created_at": created_at,
+                "drawing_style": self._canvas.drawing_style.value,
             }
 
         # Update gallery index outside the write lock
@@ -437,6 +455,7 @@ class WorkspaceState:
                             "piece_number": piece_number,
                             "stroke_count": len(data.get("strokes", [])),
                             "created_at": data.get("created_at", ""),
+                            "drawing_style": data.get("drawing_style", "plotter"),
                         }
                     )
                 except (json.JSONDecodeError, OSError) as e:
@@ -469,16 +488,26 @@ class WorkspaceState:
 
         # Convert index entries to SavedCanvas (without loading full stroke data)
         # Note: strokes are empty here - load_from_gallery should be used for full data
-        return [
-            SavedCanvas(
-                id=entry["id"],
-                strokes=[],  # Don't load strokes for listing
-                created_at=entry.get("created_at", ""),
-                piece_number=entry["piece_number"],
-                stroke_count=entry.get("stroke_count", 0),  # Use cached count from index
+        result = []
+        for entry in self._gallery_index:
+            # Parse drawing_style with fallback
+            style_str = entry.get("drawing_style", "plotter")
+            try:
+                drawing_style = DrawingStyleType(style_str)
+            except ValueError:
+                drawing_style = DrawingStyleType.PLOTTER
+
+            result.append(
+                SavedCanvas(
+                    id=entry["id"],
+                    strokes=[],  # Don't load strokes for listing
+                    created_at=entry.get("created_at", ""),
+                    piece_number=entry["piece_number"],
+                    stroke_count=entry.get("stroke_count", 0),  # Use cached count from index
+                    drawing_style=drawing_style,
+                )
             )
-            for entry in self._gallery_index
-        ]
+        return result
 
     async def list_gallery_with_strokes(self) -> list[SavedCanvas]:
         """List gallery pieces with full stroke data.
@@ -504,12 +533,20 @@ class WorkspaceState:
                         logger.warning(f"Gallery file {entry} missing piece_number, skipping")
                         continue
 
+                    # Parse drawing_style with fallback
+                    style_str = data.get("drawing_style", "plotter")
+                    try:
+                        drawing_style = DrawingStyleType(style_str)
+                    except ValueError:
+                        drawing_style = DrawingStyleType.PLOTTER
+
                     pieces.append(
                         SavedCanvas(
                             id=f"piece_{piece_number:06d}",
                             strokes=[Path.model_validate(s) for s in data.get("strokes", [])],
                             created_at=data.get("created_at", ""),
                             piece_number=piece_number,
+                            drawing_style=drawing_style,
                         )
                     )
                 except (json.JSONDecodeError, KeyError) as e:
@@ -520,8 +557,13 @@ class WorkspaceState:
         pieces.sort(key=lambda p: p.piece_number)
         return pieces
 
-    async def load_from_gallery(self, piece_number: int) -> list[Path] | None:
-        """Load strokes from a gallery piece."""
+    async def load_from_gallery(
+        self, piece_number: int
+    ) -> tuple[list[Path], DrawingStyleType] | None:
+        """Load strokes and drawing style from a gallery piece.
+
+        Returns (strokes, drawing_style) tuple or None if not found.
+        """
         # Try both 3-digit and 6-digit formats for backwards compatibility
         for fmt in [f"piece_{piece_number:06d}.json", f"piece_{piece_number:03d}.json"]:
             piece_file = self._gallery_dir / fmt
@@ -529,7 +571,17 @@ class WorkspaceState:
                 try:
                     async with aiofiles.open(piece_file) as f:
                         data = json.loads(await f.read())
-                    return [Path.model_validate(s) for s in data.get("strokes", [])]
+
+                    strokes = [Path.model_validate(s) for s in data.get("strokes", [])]
+
+                    # Parse drawing_style with fallback
+                    style_str = data.get("drawing_style", "plotter")
+                    try:
+                        drawing_style = DrawingStyleType(style_str)
+                    except ValueError:
+                        drawing_style = DrawingStyleType.PLOTTER
+
+                    return (strokes, drawing_style)
                 except (json.JSONDecodeError, KeyError) as e:
                     logger.warning(f"Failed to load gallery piece {piece_number}: {e}")
                     return None

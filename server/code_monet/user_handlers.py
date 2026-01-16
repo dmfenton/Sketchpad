@@ -127,15 +127,26 @@ async def handle_load_canvas(workspace: ActiveWorkspace, message: dict[str, Any]
     if canvas_id.startswith("piece_"):
         try:
             piece_num = int(canvas_id.split("_")[1])
-            strokes = await workspace.state.load_from_gallery(piece_num)
+            result = await workspace.state.load_from_gallery(piece_num)
 
-            if strokes:
+            if result:
+                strokes, drawing_style = result
                 workspace.state.canvas.strokes[:] = strokes
+                workspace.state.canvas.drawing_style = drawing_style
                 await workspace.state.save()
+
+                style_config = get_style_config(drawing_style)
                 await workspace.connections.broadcast(
-                    LoadCanvasMessage(strokes=strokes, piece_number=piece_num)
+                    LoadCanvasMessage(
+                        strokes=strokes,
+                        piece_number=piece_num,
+                        drawing_style=drawing_style,
+                        style_config=style_config,
+                    )
                 )
-                logger.info(f"User {workspace.user_id}: loaded canvas {canvas_id}")
+                logger.info(
+                    f"User {workspace.user_id}: loaded canvas {canvas_id} (style: {drawing_style.value})"
+                )
                 return
         except (ValueError, IndexError):
             pass

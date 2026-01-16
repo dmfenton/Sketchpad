@@ -241,6 +241,7 @@ export interface LoadCanvasMessage {
   strokes: Path[];
   piece_number: number;
   drawing_style?: DrawingStyleType;
+  style_config?: DrawingStyleConfig;
 }
 
 export interface InitMessage {

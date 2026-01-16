@@ -326,6 +326,7 @@ class LoadCanvasMessage(BaseModel):
     strokes: list[Path]
     piece_number: int
     drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
+    style_config: DrawingStyleConfig | None = None
 
 
 class ThinkingDeltaMessage(BaseModel):

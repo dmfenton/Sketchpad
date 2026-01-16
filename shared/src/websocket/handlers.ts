@@ -221,6 +221,7 @@ export const handleLoadCanvas: MessageHandler<LoadCanvasMessage> = (message, dis
     strokes: message.strokes,
     pieceNumber: message.piece_number,
     drawingStyle: message.drawing_style,
+    styleConfig: message.style_config,
   });
 };
 
