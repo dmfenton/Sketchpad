@@ -11,3 +11,12 @@ resource "aws_route53_record" "app" {
   ttl     = 300
   records = [aws_eip.main.public_ip]
 }
+
+# A record for analytics subdomain (Umami)
+resource "aws_route53_record" "analytics" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = "analytics.${var.subdomain}.${var.domain_name}"
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.main.public_ip]
+}

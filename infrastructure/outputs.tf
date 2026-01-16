@@ -18,6 +18,11 @@ output "websocket_url" {
   value       = "wss://${aws_route53_record.app.fqdn}/ws"
 }
 
+output "analytics_url" {
+  description = "Analytics dashboard URL (Umami)"
+  value       = "https://${aws_route53_record.analytics.fqdn}"
+}
+
 output "ecr_repository_url" {
   description = "ECR repository URL"
   value       = aws_ecr_repository.main.repository_url
