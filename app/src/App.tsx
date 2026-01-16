@@ -4,7 +4,7 @@
  */
 
 import * as Linking from 'expo-linking';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,8 +18,8 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { PendingStroke } from '@drawing-agent/shared';
-import { deriveAgentStatus, useStrokeAnimation } from '@drawing-agent/shared';
+import type { PendingStroke, ToolName } from '@drawing-agent/shared';
+import { deriveAgentStatus, LIVE_MESSAGE_ID, useStrokeAnimation } from '@drawing-agent/shared';
 
 import { useTokenRefresh } from './hooks/useTokenRefresh';
 import { tracer } from './utils/tracing';
@@ -28,6 +28,7 @@ import {
   ActionBar,
   Canvas,
   GalleryModal,
+  LiveStatus,
   MessageStream,
   NewCanvasModal,
   NudgeModal,
@@ -68,6 +69,23 @@ function MainApp(): React.JSX.Element {
 
   // Derive status from messages (source of truth)
   const agentStatus = deriveAgentStatus(canvas.state);
+
+  // Extract live message for LiveStatus component
+  const liveMessage = useMemo(
+    () => canvas.state.messages.find((m) => m.id === LIVE_MESSAGE_ID) ?? null,
+    [canvas.state.messages]
+  );
+
+  // Get current tool from the last code_execution message
+  const currentTool = useMemo((): ToolName | null => {
+    for (let i = canvas.state.messages.length - 1; i >= 0; i--) {
+      const m = canvas.state.messages[i];
+      if (m && m.type === 'code_execution') {
+        return (m.metadata?.tool_name as ToolName) ?? null;
+      }
+    }
+    return null;
+  }, [canvas.state.messages]);
 
   // Use shared animation hook for agent-drawn strokes
   // Gate on status === 'drawing' (derived when pendingStrokes is set)
@@ -232,7 +250,7 @@ function MainApp(): React.JSX.Element {
             />
           </View>
 
-          {/* Start Panel or Message Stream + Action Bar */}
+          {/* Start Panel or Live Status + Message Stream + Action Bar */}
           {showStartPanel ? (
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -242,7 +260,14 @@ function MainApp(): React.JSX.Element {
             </KeyboardAvoidingView>
           ) : (
             <>
-              {/* Message Stream */}
+              {/* Live Status - Always visible current activity */}
+              <LiveStatus
+                liveMessage={liveMessage}
+                status={agentStatus}
+                currentTool={currentTool}
+              />
+
+              {/* Message History - Collapsible */}
               <MessageStream messages={canvas.state.messages} />
 
               {/* Action Bar - Bottom */}

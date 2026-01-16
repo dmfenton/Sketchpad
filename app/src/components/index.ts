@@ -5,6 +5,7 @@
 export { ActionBar } from './ActionBar';
 export { Canvas } from './Canvas';
 export { GalleryModal } from './GalleryModal';
+export { LiveStatus } from './LiveStatus';
 export { MessageStream } from './MessageStream';
 export { NewCanvasModal } from './NewCanvasModal';
 export { NudgeModal } from './NudgeModal';
