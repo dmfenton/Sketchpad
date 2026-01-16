@@ -2,7 +2,16 @@
  * Canvas state reducer - platform-agnostic state machine.
  */
 
-import type { AgentMessage, AgentStatus, Path, Point, SavedCanvas } from '../types';
+import type {
+  AgentMessage,
+  AgentStatus,
+  DrawingStyleConfig,
+  DrawingStyleType,
+  Path,
+  Point,
+  SavedCanvas,
+} from '../types';
+import { PLOTTER_STYLE, getStyleConfig } from '../types';
 import { boundedPush } from '../utils';
 
 // Max messages to keep in state to prevent memory issues
@@ -33,6 +42,8 @@ export interface CanvasHookState {
   maxIterations: number;
   pendingStrokes: PendingStrokesInfo | null; // Strokes ready to be fetched
   serverStatus: string | null; // Status reported by server (fallback for derivation)
+  drawingStyle: DrawingStyleType; // Current drawing style
+  styleConfig: DrawingStyleConfig; // Full style configuration
 }
 
 /**
@@ -104,20 +115,23 @@ export type CanvasAction =
   | { type: 'TOGGLE_DRAWING' }
   | { type: 'SET_PIECE_COUNT'; count: number }
   | { type: 'SET_GALLERY'; canvases: SavedCanvas[] }
-  | { type: 'LOAD_CANVAS'; strokes: Path[]; pieceNumber: number }
+  | { type: 'LOAD_CANVAS'; strokes: Path[]; pieceNumber: number; drawingStyle?: DrawingStyleType; styleConfig?: DrawingStyleConfig }
   | {
       type: 'INIT';
       strokes: Path[];
       gallery: SavedCanvas[];
       pieceCount: number;
       paused: boolean;
+      drawingStyle?: DrawingStyleType;
+      styleConfig?: DrawingStyleConfig;
     }
   | { type: 'SET_PAUSED'; paused: boolean }
   | { type: 'SET_ITERATION'; current: number; max: number }
   | { type: 'RESET_TURN' }
   | { type: 'STROKES_READY'; count: number; batchId: number }
   | { type: 'CLEAR_PENDING_STROKES' }
-  | { type: 'SET_SERVER_STATUS'; status: string | null };
+  | { type: 'SET_SERVER_STATUS'; status: string | null }
+  | { type: 'SET_STYLE'; drawingStyle: DrawingStyleType; styleConfig: DrawingStyleConfig };
 
 export const initialState: CanvasHookState = {
   strokes: [],
@@ -136,6 +150,8 @@ export const initialState: CanvasHookState = {
   maxIterations: 5,
   pendingStrokes: null,
   serverStatus: null,
+  drawingStyle: 'plotter',
+  styleConfig: PLOTTER_STYLE,
 };
 
 export function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHookState {
@@ -245,16 +261,27 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
     case 'SET_GALLERY':
       return { ...state, gallery: action.canvases };
 
-    case 'LOAD_CANVAS':
+    case 'LOAD_CANVAS': {
+      // If loading a canvas with a different style, update the style config
+      const loadedStyle = action.drawingStyle || state.drawingStyle;
+      // Use provided styleConfig if available, otherwise compute from style type
+      const loadedStyleConfig = action.styleConfig
+        || (action.drawingStyle ? getStyleConfig(action.drawingStyle) : state.styleConfig);
       return {
         ...state,
         strokes: action.strokes,
         currentStroke: [],
         agentStroke: [], // Clear agent stroke to prevent stale drawing
         viewingPiece: action.pieceNumber,
+        drawingStyle: loadedStyle,
+        styleConfig: loadedStyleConfig,
       };
+    }
 
-    case 'INIT':
+    case 'INIT': {
+      // Use provided style or default to plotter
+      const initStyle = action.drawingStyle || 'plotter';
+      const initStyleConfig = action.styleConfig || getStyleConfig(initStyle);
       return {
         ...state,
         strokes: action.strokes,
@@ -262,6 +289,16 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         pieceCount: action.pieceCount,
         paused: action.paused,
         viewingPiece: null, // Init shows current canvas
+        drawingStyle: initStyle,
+        styleConfig: initStyleConfig,
+      };
+    }
+
+    case 'SET_STYLE':
+      return {
+        ...state,
+        drawingStyle: action.drawingStyle,
+        styleConfig: action.styleConfig,
       };
 
     case 'SET_PAUSED':

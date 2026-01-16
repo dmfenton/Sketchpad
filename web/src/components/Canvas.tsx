@@ -3,8 +3,15 @@
  */
 
 import React, { useCallback, useRef, useState } from 'react';
-import type { Path, Point } from '@code-monet/shared';
-import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@code-monet/shared';
+import type { DrawingStyleConfig, Path, Point } from '@code-monet/shared';
+import {
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  getEffectiveStyle,
+  PLOTTER_STYLE,
+  smoothPolylineToPath,
+  createTaperedStrokePath,
+} from '@code-monet/shared';
 
 interface CanvasProps {
   strokes: Path[];
@@ -13,6 +20,7 @@ interface CanvasProps {
   penPosition: Point | null;
   penDown: boolean;
   drawingEnabled: boolean;
+  styleConfig?: DrawingStyleConfig; // Current drawing style (defaults to plotter)
   onStrokeStart: (x: number, y: number) => void;
   onStrokeMove: (x: number, y: number) => void;
   onStrokeEnd: () => void;
@@ -32,8 +40,10 @@ function screenToCanvas(clientX: number, clientY: number, rect: DOMRect): Point 
 
 /**
  * Convert a path to SVG path 'd' attribute.
+ * @param path - The path to convert
+ * @param smooth - If true, use bezier smoothing for polylines (paint mode)
  */
-function pathToSvgD(path: Path): string {
+function pathToSvgD(path: Path, smooth = false): string {
   if (path.type === 'svg') {
     return path.d || '';
   }
@@ -41,6 +51,12 @@ function pathToSvgD(path: Path): string {
   if (path.points.length === 0) return '';
 
   const points = path.points;
+
+  // For polylines in paint mode, use smooth bezier curves
+  if (path.type === 'polyline' && smooth && points.length > 2) {
+    return smoothPolylineToPath(points, 0.5);
+  }
+
   const parts: string[] = [];
 
   switch (path.type) {
@@ -82,9 +98,16 @@ function pathToSvgD(path: Path): string {
 
 /**
  * Convert points to SVG polyline path.
+ * @param points - Array of points
+ * @param smooth - If true, use bezier smoothing (paint mode)
  */
-function pointsToSvgD(points: Point[]): string {
+function pointsToSvgD(points: Point[], smooth = false): string {
   if (points.length === 0) return '';
+
+  // Use smooth bezier curves for paint mode
+  if (smooth && points.length > 2) {
+    return smoothPolylineToPath(points, 0.5);
+  }
 
   const parts = [`M ${points[0]?.x} ${points[0]?.y}`];
   for (let i = 1; i < points.length; i++) {
@@ -100,6 +123,7 @@ export function Canvas({
   penPosition,
   penDown,
   drawingEnabled,
+  styleConfig = PLOTTER_STYLE,
   onStrokeStart,
   onStrokeMove,
   onStrokeEnd,
@@ -173,41 +197,66 @@ export function Canvas({
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
 
-        {/* Completed strokes */}
-        {strokes.map((stroke, index) => (
-          <path
-            key={`stroke-${index}`}
-            d={pathToSvgD(stroke)}
-            stroke="#1a1a2e"
-            strokeWidth={2.5}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        ))}
+        {/* Completed strokes - render with effective style */}
+        {strokes.map((stroke, index) => {
+          const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
+          const isPaintMode = styleConfig.type === 'paint';
+          return (
+            <path
+              key={`stroke-${index}`}
+              d={pathToSvgD(stroke, isPaintMode)}
+              stroke={effectiveStyle.color}
+              strokeWidth={effectiveStyle.stroke_width}
+              fill="none"
+              strokeLinecap={effectiveStyle.stroke_linecap}
+              strokeLinejoin={effectiveStyle.stroke_linejoin}
+              opacity={effectiveStyle.opacity}
+            />
+          );
+        })}
 
         {/* Current stroke in progress (human drawing) */}
         {currentStroke.length > 0 && (
-          <path
-            d={pointsToSvgD(currentStroke)}
-            stroke="#e94560"
-            strokeWidth={2.5}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          styleConfig.type === 'paint' && currentStroke.length > 3 ? (
+            // Paint mode: tapered brush stroke
+            <path
+              d={createTaperedStrokePath(currentStroke, styleConfig.human_stroke.stroke_width * 1.5, 0.7)}
+              fill={styleConfig.human_stroke.color}
+              opacity={styleConfig.human_stroke.opacity * 0.9}
+            />
+          ) : (
+            // Plotter mode: simple polyline
+            <path
+              d={pointsToSvgD(currentStroke)}
+              stroke={styleConfig.human_stroke.color}
+              strokeWidth={styleConfig.human_stroke.stroke_width}
+              fill="none"
+              strokeLinecap={styleConfig.human_stroke.stroke_linecap}
+              strokeLinejoin={styleConfig.human_stroke.stroke_linejoin}
+            />
+          )
         )}
 
         {/* Agent's in-progress stroke */}
         {agentStroke.length > 1 && (
-          <path
-            d={pointsToSvgD(agentStroke)}
-            stroke="#1a1a2e"
-            strokeWidth={2.5}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          styleConfig.type === 'paint' && agentStroke.length > 3 ? (
+            // Paint mode: tapered brush stroke with smooth curves
+            <path
+              d={createTaperedStrokePath(agentStroke, styleConfig.agent_stroke.stroke_width * 1.5, 0.7)}
+              fill={styleConfig.agent_stroke.color}
+              opacity={styleConfig.agent_stroke.opacity * 0.9}
+            />
+          ) : (
+            // Plotter mode: simple polyline
+            <path
+              d={pointsToSvgD(agentStroke)}
+              stroke={styleConfig.agent_stroke.color}
+              strokeWidth={styleConfig.agent_stroke.stroke_width}
+              fill="none"
+              strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
+              strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
+            />
+          )
         )}
 
         {/* Pen position indicator */}
@@ -219,7 +268,7 @@ export function Canvas({
               cy={penPosition.y}
               r={penDown ? 12 : 16}
               fill="none"
-              stroke="#e94560"
+              stroke={styleConfig.human_stroke.color}
               strokeWidth={2}
               opacity={0.5}
             />
@@ -228,8 +277,8 @@ export function Canvas({
               cx={penPosition.x}
               cy={penPosition.y}
               r={penDown ? 6 : 4}
-              fill={penDown ? '#e94560' : 'none'}
-              stroke="#e94560"
+              fill={penDown ? styleConfig.human_stroke.color : 'none'}
+              stroke={styleConfig.human_stroke.color}
               strokeWidth={2}
             />
           </>
@@ -244,7 +293,7 @@ export function Canvas({
             top: 8,
             left: 8,
             padding: '4px 8px',
-            background: '#e94560',
+            background: styleConfig.human_stroke.color,
             color: '#fff',
             borderRadius: 4,
             fontSize: 12,

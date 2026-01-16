@@ -195,6 +195,12 @@ function MainApp(): React.JSX.Element {
     }
   }, [paused, send, canvas]);
 
+  const handleStyleToggle = useCallback(() => {
+    const newStyle = canvas.state.drawingStyle === 'plotter' ? 'paint' : 'plotter';
+    tracer.recordEvent('action.style_change', { from: canvas.state.drawingStyle, to: newStyle });
+    send({ type: 'set_style', drawing_style: newStyle });
+  }, [canvas.state.drawingStyle, send]);
+
   const handleStrokeStart = useCallback(
     (x: number, y: number) => {
       canvas.startStroke(x, y);
@@ -249,6 +255,7 @@ function MainApp(): React.JSX.Element {
               penPosition={canvas.state.penPosition}
               penDown={canvas.state.penDown}
               drawingEnabled={canvas.state.drawingEnabled}
+              styleConfig={canvas.state.styleConfig}
               onStrokeStart={handleStrokeStart}
               onStrokeMove={handleStrokeMove}
               onStrokeEnd={handleStrokeEnd}
@@ -274,12 +281,14 @@ function MainApp(): React.JSX.Element {
                 paused={paused}
                 connected={wsState.connected}
                 galleryCount={canvas.state.gallery.length}
+                drawingStyle={canvas.state.drawingStyle}
                 onDrawToggle={handleDrawToggle}
                 onNudge={handleNudgePress}
                 onClear={handleClear}
                 onPauseToggle={handlePauseToggle}
                 onNewCanvas={handleNewCanvas}
                 onGallery={handleGalleryPress}
+                onStyleToggle={handleStyleToggle}
               />
             </>
           )}

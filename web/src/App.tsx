@@ -83,6 +83,7 @@ function App(): React.ReactElement {
       <ActionBar
         paused={state.paused}
         drawingEnabled={state.drawingEnabled}
+        drawingStyle={state.drawingStyle}
         onSend={send}
         onToggleDrawing={toggleDrawing}
       />
@@ -99,6 +100,7 @@ function App(): React.ReactElement {
           penPosition={state.penPosition}
           penDown={state.penDown}
           drawingEnabled={state.drawingEnabled}
+          styleConfig={state.styleConfig}
           onStrokeStart={startStroke}
           onStrokeMove={addPoint}
           onStrokeEnd={handleStrokeEnd}

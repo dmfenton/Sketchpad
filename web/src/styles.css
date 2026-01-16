@@ -426,6 +426,34 @@ body {
   font-size: 16px;
 }
 
+.action-bar button.style-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-bar button.style-toggle:hover {
+  background: var(--bg-dark);
+  border-color: var(--text-muted);
+}
+
+.action-bar button.style-toggle .icon {
+  font-size: 16px;
+}
+
+.action-bar button.style-toggle .style-label {
+  color: var(--text-secondary);
+}
+
 .action-bar button.text-btn {
   background: transparent;
   color: var(--text-muted);

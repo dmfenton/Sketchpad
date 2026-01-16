@@ -31,3 +31,12 @@ export {
   BIONIC_CHUNK_SIZE,
 } from './utils';
 export type { BionicWord } from './utils';
+
+// Stroke smoothing utilities
+export {
+  smoothPolylineToPath,
+  polylineToPath,
+  calculateVelocityWidths,
+  createTaperedStrokePath,
+  simplifyPoints,
+} from './utils/strokeSmoothing';

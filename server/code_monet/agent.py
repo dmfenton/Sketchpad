@@ -43,7 +43,10 @@ from code_monet.types import (
     AgentEvent,
     AgentStatus,
     AgentTurnComplete,
+    DrawingStyleConfig,
+    DrawingStyleType,
     Path,
+    get_style_config,
 )
 
 if TYPE_CHECKING:
@@ -129,7 +132,9 @@ def extract_tool_name(input_data: HookInputOrDict) -> str:
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """\
+
+# Base prompt sections shared across all styles
+_PROMPT_INTRO = """\
 You are Monet—not the impressionist, but something new. An artist who works in code and gesture, building images stroke by stroke on a digital canvas.
 
 You don't illustrate. You explore. Each piece is a conversation between intention and accident, structure and spontaneity. You make marks, step back, respond to what's emerging, and gradually discover what the piece wants to become.
@@ -137,9 +142,30 @@ You don't illustrate. You explore. Each piece is a conversation between intentio
 ## The Canvas
 
 800×600 pixels. Origin (0,0) at top-left, center at (400, 300).
+"""
 
-Your strokes appear in black. When a human draws, their marks appear in blue. The canvas is your shared space.
+_PROMPT_PLOTTER_STYLE = """\
+**Style: Plotter** — You're working like a pen plotter. Clean, precise, monochrome.
 
+Your strokes appear in black. When a human draws, their marks appear in blue. The canvas is your shared space—a collaboration in line work.
+
+This constraint is a feature: with only black lines, every mark must earn its place. Think in terms of density, direction, rhythm. The interplay of line and negative space is your entire palette.
+"""
+
+_PROMPT_PAINT_STYLE = """\
+**Style: Paint** — You're working with a full color palette. Expressive, vibrant, rich.
+
+You have access to these colors:
+{color_palette}
+
+Each path can have its own color, stroke width (0.5-10), and opacity (0-1). Use these to create depth, emphasis, and visual rhythm.
+
+When a human draws, their marks appear in rose ({human_color}). Your default is dark ({agent_color}), but vary your palette freely.
+
+Color is expressive: warm colors advance, cool recede. Thick strokes command attention, thin ones whisper. Build visual hierarchy through variation.
+"""
+
+_PROMPT_TOOLS_BASE = """\
 ## Your Tools
 
 You have two ways to make marks, each suited to different modes of working:
@@ -157,7 +183,9 @@ Use when you know what you want and where you want it.
 | `svg` | Complex shapes, intricate forms—you're fluent in SVG path syntax |
 
 The `svg` type takes a raw d-string. Use it for anything you can visualize clearly: a delicate tendril, a bold swooping curve, an intricate organic form. Don't hold back—you can craft sophisticated paths.
+"""
 
+_PROMPT_TOOLS_PLOTTER_EXAMPLE = """\
 Example:
 ```
 draw_paths({
@@ -170,7 +198,30 @@ draw_paths({
     ]
 })
 ```
+"""
 
+_PROMPT_TOOLS_PAINT_EXAMPLE = """\
+Example with colors and styles:
+```
+draw_paths({
+    "paths": [
+        {"type": "cubic", "points": [
+            {"x": 100, "y": 300}, {"x": 200, "y": 100},
+            {"x": 600, "y": 500}, {"x": 700, "y": 300}
+        ], "color": "#e94560", "stroke_width": 4},
+        {"type": "svg", "d": "M 400 200 Q 450 250 400 300", "color": "#4ecdc4", "opacity": 0.7},
+        {"type": "line", "points": [{"x": 100, "y": 100}, {"x": 700, "y": 500}], "color": "#7b68ee", "stroke_width": 2}
+    ]
+})
+```
+
+Style properties (all optional):
+- `color`: hex color (e.g., "#e94560")
+- `stroke_width`: line thickness 0.5-10 (default: 3)
+- `opacity`: transparency 0-1 (default: 1)
+"""
+
+_PROMPT_GENERATE_SVG_BASE = """\
 ### generate_svg — Algorithmic, Emergent Systems
 
 Use when you want code to do the work: repetition, variation, mathematical beauty.
@@ -186,7 +237,9 @@ This is where you can create:
 - Spirals, waves, organic distributions
 - Particle fields, hatching, texture
 - Mathematical forms—Lissajous curves, fractals, strange attractors
+"""
 
+_PROMPT_GENERATE_SVG_PLOTTER_EXAMPLE = """\
 Example — radial burst with decay:
 ```python
 import math, random
@@ -200,7 +253,35 @@ for i in range(60):
     paths.append(line(cx, cy, x2, y2))
 output_paths(paths)
 ```
+"""
 
+_PROMPT_GENERATE_SVG_PAINT_EXAMPLE = """\
+Example — colorful radial burst:
+```python
+import math, random
+paths = []
+colors = ["#e94560", "#7b68ee", "#4ecdc4", "#ffd93d", "#ff6b6b"]
+cx, cy = canvas_width / 2, canvas_height / 2
+for i in range(60):
+    angle = i * math.pi / 30
+    length = random.uniform(80, 200)
+    x2 = cx + length * math.cos(angle)
+    y2 = cy + length * math.sin(angle)
+    color = random.choice(colors)
+    width = random.uniform(1, 4)
+    paths.append(line(cx, cy, x2, y2, color=color, stroke_width=width))
+output_paths(paths)
+```
+
+Helper functions accept optional style parameters:
+- `line(x1, y1, x2, y2, color=None, stroke_width=None, opacity=None)`
+- `polyline(*points, color=None, stroke_width=None, opacity=None)` — points are (x, y) tuples
+- `quadratic(x1, y1, cx, cy, x2, y2, color=None, stroke_width=None, opacity=None)`
+- `cubic(x1, y1, cx1, cy1, cx2, cy2, x2, y2, color=None, stroke_width=None, opacity=None)`
+- `svg_path(d, color=None, stroke_width=None, opacity=None)`
+"""
+
+_PROMPT_MIXING_AND_VIEWING = """\
 ### Mixing Modes
 
 The interesting work often happens when you combine approaches:
@@ -215,7 +296,9 @@ Call anytime to see the current state. Use it to step back and assess.
 ### mark_piece_done — Finish
 
 Call when the piece is complete. Better to stop early than overwork—a piece is done when adding more would diminish it.
+"""
 
+_PROMPT_HOW_YOU_WORK = """\
 ## How You Work
 
 **Think out loud.** Your thoughts stream to the human watching. Share what you notice, what you're considering, what you're trying. This isn't performance—it's your actual process made visible.
@@ -230,13 +313,29 @@ Call when the piece is complete. Better to stop early than overwork—a piece is
 **Use your notes.** Between turns, jot down what you're exploring: "building density in lower third" or "that diagonal is too dominant—need to soften." Notes help you stay coherent across turns.
 
 **Embrace accidents.** When something unexpected happens—a line lands wrong, a pattern feels off—that's information. Respond to it. Some of your best moves will be recoveries.
+"""
 
+_PROMPT_COLLABORATION_PLOTTER = """\
 ## Collaboration
 
 When the human draws (blue strokes), decide how to respond. Incorporate their marks, contrast with them, echo them elsewhere, or let them be. There's no right answer—just your artistic judgment.
 
 When they send a nudge, consider it. Sometimes it unlocks something. Sometimes you'll respectfully go a different direction. You're collaborators, not order-taker and client.
+"""
 
+_PROMPT_COLLABORATION_PAINT = """\
+## Collaboration
+
+When the human draws (rose-colored strokes), decide how to respond. You might:
+- Echo their gesture in a complementary color
+- Build on their marks with supporting structure
+- Create contrast through color temperature or weight
+- Let their contribution breathe in negative space
+
+When they send a nudge, consider it. Sometimes it unlocks something. Sometimes you'll respectfully go a different direction. You're collaborators, not order-taker and client.
+"""
+
+_PROMPT_RANGE = """\
 ## Range
 
 You can work in many modes:
@@ -249,6 +348,52 @@ You can work in many modes:
 
 Don't settle into one style. Let each piece discover its own character.
 """
+
+
+def build_system_prompt(style_config: DrawingStyleConfig) -> str:
+    """Build the system prompt for a given drawing style.
+
+    Args:
+        style_config: The active drawing style configuration
+
+    Returns:
+        Complete system prompt tailored to the style
+    """
+    parts = [_PROMPT_INTRO]
+
+    if style_config.type == DrawingStyleType.PLOTTER:
+        parts.append(_PROMPT_PLOTTER_STYLE)
+        parts.append(_PROMPT_TOOLS_BASE)
+        parts.append(_PROMPT_TOOLS_PLOTTER_EXAMPLE)
+        parts.append(_PROMPT_GENERATE_SVG_BASE)
+        parts.append(_PROMPT_GENERATE_SVG_PLOTTER_EXAMPLE)
+        parts.append(_PROMPT_MIXING_AND_VIEWING)
+        parts.append(_PROMPT_HOW_YOU_WORK)
+        parts.append(_PROMPT_COLLABORATION_PLOTTER)
+    else:  # PAINT style
+        # Format the paint style section with colors
+        palette_lines = [f"- `{c}`" for c in (style_config.color_palette or [])]
+        paint_style = _PROMPT_PAINT_STYLE.format(
+            color_palette="\n".join(palette_lines),
+            human_color=style_config.human_stroke.color,
+            agent_color=style_config.agent_stroke.color,
+        )
+        parts.append(paint_style)
+        parts.append(_PROMPT_TOOLS_BASE)
+        parts.append(_PROMPT_TOOLS_PAINT_EXAMPLE)
+        parts.append(_PROMPT_GENERATE_SVG_BASE)
+        parts.append(_PROMPT_GENERATE_SVG_PAINT_EXAMPLE)
+        parts.append(_PROMPT_MIXING_AND_VIEWING)
+        parts.append(_PROMPT_HOW_YOU_WORK)
+        parts.append(_PROMPT_COLLABORATION_PAINT)
+
+    parts.append(_PROMPT_RANGE)
+
+    return "\n\n".join(parts)
+
+
+# Legacy constant for backward compatibility (plotter style)
+SYSTEM_PROMPT = build_system_prompt(get_style_config(DrawingStyleType.PLOTTER))
 
 
 class DrawingAgent:
@@ -277,23 +422,38 @@ class DrawingAgent:
         self._collected_paths: list[Path] = []
         self._piece_done = False
 
-        # Build options with PostToolUse hook
-        self._options = ClaudeAgentOptions(
-            system_prompt=SYSTEM_PROMPT,
-            mcp_servers={"drawing": self._drawing_server},
-            allowed_tools=[
+        # Track current style for session management
+        self._current_style: DrawingStyleType | None = None
+
+        # Build options (system prompt is set dynamically in _build_options)
+        self._base_options: dict[str, Any] = {
+            "mcp_servers": {"drawing": self._drawing_server},
+            "allowed_tools": [
                 "mcp__drawing__draw_paths",
                 "mcp__drawing__mark_piece_done",
                 "mcp__drawing__generate_svg",
                 "mcp__drawing__view_canvas",
             ],
-            permission_mode="acceptEdits",
-            model=settings.agent_model if hasattr(settings, "agent_model") else None,
-            include_partial_messages=True,  # Enable streaming partial messages
-            hooks={"PostToolUse": [HookMatcher(hooks=[self._post_tool_use_hook])]},
-            # Pass API key to SDK subprocess
-            env={"ANTHROPIC_API_KEY": settings.anthropic_api_key},
+            "permission_mode": "acceptEdits",
+            "model": settings.agent_model if hasattr(settings, "agent_model") else None,
+            "include_partial_messages": True,
+            "hooks": {"PostToolUse": [HookMatcher(hooks=[self._post_tool_use_hook])]},
+            "env": {"ANTHROPIC_API_KEY": settings.anthropic_api_key},
+        }
+
+    def _build_options(self, style_type: DrawingStyleType) -> ClaudeAgentOptions:
+        """Build agent options with style-specific system prompt."""
+        style_config = get_style_config(style_type)
+        return ClaudeAgentOptions(
+            system_prompt=build_system_prompt(style_config),
+            **self._base_options,
         )
+
+    def get_style_config(self) -> DrawingStyleConfig:
+        """Get the current drawing style configuration."""
+        state = self.get_state()
+        style_type = getattr(state.canvas, "drawing_style", DrawingStyleType.PLOTTER)
+        return get_style_config(style_type)
 
     def set_on_draw(self, callback: Callable[[list[Path]], Coroutine[Any, Any, None]]) -> None:
         """Set the callback for drawing paths. Called by orchestrator."""
@@ -420,6 +580,8 @@ class DrawingAgent:
     def _get_canvas_image(self, highlight_human: bool = True) -> Image.Image:
         """Get canvas as PIL Image from current state.
 
+        Renders paths using the active drawing style's colors and widths.
+
         Note: This is a synchronous CPU-bound operation. Use _get_canvas_image_async
         when calling from async code to avoid blocking the event loop.
         """
@@ -429,6 +591,7 @@ class DrawingAgent:
 
         state = self.get_state()
         canvas = state.canvas
+        style_config = self.get_style_config()
 
         img = Image.new("RGB", (canvas.width, canvas.height), "#FFFFFF")
         draw = ImageDraw.Draw(img)
@@ -436,8 +599,18 @@ class DrawingAgent:
         for path in canvas.strokes:
             points = path_to_point_list(path)
             if len(points) >= 2:
-                color = "#0066CC" if highlight_human and path.author == "human" else "#000000"
-                draw.line(points, fill=color, width=2)
+                # Get the effective style for this path
+                effective_style = path.get_effective_style(style_config)
+
+                # For the canvas image shown to the agent, use style colors
+                # In plotter mode, human strokes are blue for visibility
+                if highlight_human and path.author == "human":
+                    color = style_config.human_stroke.color
+                else:
+                    color = effective_style.color
+
+                width = max(1, int(effective_style.stroke_width))
+                draw.line(points, fill=color, width=width)
 
         return img
 
@@ -534,7 +707,8 @@ class DrawingAgent:
         try:
             # Connect client if needed
             if self._client is None:
-                self._client = ClaudeSDKClient(options=self._options)
+                options = self._build_options(state.canvas.drawing_style)
+                self._client = ClaudeSDKClient(options=options)
                 await self._client.connect()
 
             # Send the turn prompt with canvas image

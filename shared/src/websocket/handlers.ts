@@ -23,6 +23,7 @@ import type {
   StatusMessage,
   StrokeCompleteMessage,
   StrokesReadyMessage,
+  StyleChangeMessage,
   ThinkingDeltaMessage,
   ThinkingMessage,
 } from '../types';
@@ -219,6 +220,8 @@ export const handleLoadCanvas: MessageHandler<LoadCanvasMessage> = (message, dis
     type: 'LOAD_CANVAS',
     strokes: message.strokes,
     pieceNumber: message.piece_number,
+    drawingStyle: message.drawing_style,
+    styleConfig: message.style_config,
   });
 };
 
@@ -229,6 +232,8 @@ export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
     gallery: message.gallery,
     pieceCount: message.piece_count,
     paused: message.paused,
+    drawingStyle: message.drawing_style,
+    styleConfig: message.style_config,
   });
 
   // Add previous monologue as a message if it exists
@@ -243,6 +248,14 @@ export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
       },
     });
   }
+};
+
+export const handleStyleChange: MessageHandler<StyleChangeMessage> = (message, dispatch) => {
+  dispatch({
+    type: 'SET_STYLE',
+    drawingStyle: message.drawing_style,
+    styleConfig: message.style_config,
+  });
 };
 
 export const handlePieceCount: MessageHandler<PieceCountMessage> = (message, dispatch) => {
@@ -278,6 +291,7 @@ const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessa
   piece_count: handlePieceCount as MessageHandler<ServerMessage>,
   paused: handlePaused as MessageHandler<ServerMessage>,
   strokes_ready: handleStrokesReady as MessageHandler<ServerMessage>,
+  style_change: handleStyleChange as MessageHandler<ServerMessage>,
 };
 
 /**
