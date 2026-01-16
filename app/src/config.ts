@@ -33,8 +33,9 @@ export function getApiUrl(): string {
   if (envUrl) return envUrl;
 
   // Production fallback for TestFlight builds
+  // Must use /api prefix - nginx only proxies /api/* to the backend
   if (__DEV__ === false) {
-    return 'https://monet.dmfenton.net';
+    return 'https://monet.dmfenton.net/api';
   }
 
   return `http://${getHost()}:8000`;
