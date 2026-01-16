@@ -90,7 +90,7 @@ jobs:
     name: Build & Deploy iOS
     needs: check-changes
     if: needs.check-changes.outputs.should_build == 'true'
-    runs-on: macos-15 # Apple Silicon runner with Xcode 16+
+    runs-on: macos-26 # Apple Silicon runner with Xcode 26 (iOS 26 SDK)
 
     steps:
       - name: Checkout code
