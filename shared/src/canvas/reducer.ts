@@ -48,20 +48,22 @@ export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
   const hasLiveMessage = state.messages.some((m) => m.id === LIVE_MESSAGE_ID);
   if (hasLiveMessage) return 'thinking';
 
-  // Pending strokes = drawing phase
-  if (state.pendingStrokes !== null) return 'drawing';
-
-  // Check last message
+  // Check last message for in-progress states (before pendingStrokes)
   const lastMessage = state.messages[state.messages.length - 1];
   if (lastMessage) {
     // Error state
     if (lastMessage.type === 'error') return 'error';
 
     // Code execution started (no return_code yet) = executing
+    // This must be checked BEFORE pendingStrokes so the "executing" state
+    // is shown to the user before drawing begins
     if (lastMessage.type === 'code_execution' && lastMessage.metadata?.return_code === undefined) {
       return 'executing';
     }
   }
+
+  // Pending strokes = drawing phase (only after code_execution completes)
+  if (state.pendingStrokes !== null) return 'drawing';
 
   // Fallback to server-reported status (for 'thinking' before thinking_delta arrives)
   if (state.serverStatus === 'thinking') return 'thinking';
