@@ -36,6 +36,29 @@ export interface CanvasHookState {
 }
 
 /**
+ * Check if any event is still in-progress (started but not completed).
+ *
+ * This is the general gate for drawing - we don't start rendering
+ * until all preceding events have been shown to the user.
+ * Add new event types here as needed.
+ */
+export function hasInProgressEvents(messages: AgentMessage[]): boolean {
+  return messages.some((m) => {
+    // Live thinking = still streaming, not yet finalized
+    if (m.id === LIVE_MESSAGE_ID) return true;
+
+    // Code execution without return_code = still running
+    if (m.type === 'code_execution' && m.metadata?.return_code === undefined) {
+      return true;
+    }
+
+    // Add new in-progress event types here as the protocol evolves
+
+    return false;
+  });
+}
+
+/**
  * Derive agent status from messages and state.
  * Status is computed from messages, with serverStatus as a fallback
  * for states where messages haven't arrived yet.
@@ -44,25 +67,18 @@ export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
   // Paused overrides everything
   if (state.paused) return 'paused';
 
+  // Check for error in last message
+  const lastMessage = state.messages[state.messages.length - 1];
+  if (lastMessage?.type === 'error') return 'error';
+
   // Live message = actively thinking
   const hasLiveMessage = state.messages.some((m) => m.id === LIVE_MESSAGE_ID);
   if (hasLiveMessage) return 'thinking';
 
-  // Check last message for in-progress states (before pendingStrokes)
-  const lastMessage = state.messages[state.messages.length - 1];
-  if (lastMessage) {
-    // Error state
-    if (lastMessage.type === 'error') return 'error';
+  // Any in-progress event blocks drawing and shows as executing
+  if (hasInProgressEvents(state.messages)) return 'executing';
 
-    // Code execution started (no return_code yet) = executing
-    // This must be checked BEFORE pendingStrokes so the "executing" state
-    // is shown to the user before drawing begins
-    if (lastMessage.type === 'code_execution' && lastMessage.metadata?.return_code === undefined) {
-      return 'executing';
-    }
-  }
-
-  // Pending strokes = drawing phase (only after code_execution completes)
+  // Pending strokes = drawing phase (only when no in-progress events)
   if (state.pendingStrokes !== null) return 'drawing';
 
   // Fallback to server-reported status (for 'thinking' before thinking_delta arrives)
