@@ -19,7 +19,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { PendingStroke } from '@drawing-agent/shared';
-import { useStrokeAnimation } from '@drawing-agent/shared';
+import { deriveAgentStatus, useStrokeAnimation } from '@drawing-agent/shared';
 
 import { useTokenRefresh } from './hooks/useTokenRefresh';
 import { tracer } from './utils/tracing';
@@ -33,8 +33,6 @@ import {
   NudgeModal,
   SplashScreen,
   StartPanel,
-  StatusOverlay,
-  StatusPill,
 } from './components';
 import { getApiUrl, getWebSocketUrl } from './config';
 import { useAuth } from './context';
@@ -68,11 +66,16 @@ function MainApp(): React.JSX.Element {
     return data.strokes;
   }, [accessToken]);
 
+  // Derive status from messages (source of truth)
+  const agentStatus = deriveAgentStatus(canvas.state);
+
   // Use shared animation hook for agent-drawn strokes
+  // Gate on status === 'drawing' (derived when pendingStrokes is set)
   useStrokeAnimation({
     pendingStrokes: canvas.state.pendingStrokes,
     dispatch,
     fetchStrokes,
+    canRender: agentStatus === 'drawing',
   });
 
   // Handle auth errors from WebSocket with proper mutex pattern
@@ -214,24 +217,6 @@ function MainApp(): React.JSX.Element {
         edges={['top', 'left', 'right']}
       >
         <View style={styles.content}>
-          {/* Status Pill - Top */}
-          <View style={styles.statusRow}>
-            <StatusPill
-              pieceCount={canvas.state.pieceCount}
-              viewingPiece={canvas.state.viewingPiece}
-              status={canvas.state.agentStatus}
-              connected={wsState.connected}
-              paused={paused}
-            />
-          </View>
-
-          {/* Bionic Reading Strip - Above Canvas */}
-          <StatusOverlay
-            status={canvas.state.agentStatus}
-            thinking={canvas.state.thinking}
-            messages={canvas.state.messages}
-          />
-
           {/* Canvas - Main area */}
           <View style={styles.canvasContainer}>
             <Canvas
@@ -472,11 +457,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingBottom: spacing.sm,
     gap: spacing.sm,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingTop: spacing.xs,
   },
   canvasContainer: {
     flex: 1,

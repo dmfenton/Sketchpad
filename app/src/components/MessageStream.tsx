@@ -9,6 +9,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LIVE_MESSAGE_ID, type AgentMessage, type ToolName } from '@drawing-agent/shared';
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
 
+// Display pacing for thought chunks (ms)
+const CHUNK_DISPLAY_MS = 800;
+
 interface MessageStreamProps {
   messages: AgentMessage[];
 }
@@ -54,6 +57,37 @@ const MessageBubble = React.memo(function MessageBubble({
   const fadeAnim = useRef(new Animated.Value(isNew ? 0 : 1)).current;
   const slideAnim = useRef(new Animated.Value(isNew ? 20 : 0)).current;
   const [expanded, setExpanded] = useState(false);
+
+  // For live messages, buffer incoming text and release it slowly
+  const isLiveMessage = message.id === LIVE_MESSAGE_ID;
+  const [displayedText, setDisplayedText] = useState(isLiveMessage ? '' : message.text);
+  const bufferRef = useRef(message.text);
+  const lastUpdateRef = useRef(Date.now());
+
+  // Buffer new text and release it at a readable pace
+  useEffect(() => {
+    if (!isLiveMessage) {
+      setDisplayedText(message.text);
+      return;
+    }
+
+    // New text arrived - add to buffer
+    bufferRef.current = message.text;
+
+    // If we're behind the buffer, schedule an update
+    if (displayedText.length < bufferRef.current.length) {
+      const timeSinceLastUpdate = Date.now() - lastUpdateRef.current;
+      const delay = Math.max(0, CHUNK_DISPLAY_MS - timeSinceLastUpdate);
+
+      const timer = setTimeout(() => {
+        // Release all buffered text up to this point
+        setDisplayedText(bufferRef.current);
+        lastUpdateRef.current = Date.now();
+      }, delay);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isLiveMessage, message.text, displayedText.length]);
 
   useEffect(() => {
     if (isNew) {
@@ -256,7 +290,9 @@ const MessageBubble = React.memo(function MessageBubble({
   }
 
   // Default thinking/other message
-  const isLive = message.id === LIVE_MESSAGE_ID;
+  // Use buffered text for live messages (released at readable pace)
+  const isBuffering = isLiveMessage && displayedText.length < message.text.length;
+
   return (
     <Animated.View
       style={[
@@ -268,10 +304,10 @@ const MessageBubble = React.memo(function MessageBubble({
         },
       ]}
     >
-      <Text style={[styles.messageText, { color: colors.textPrimary }]}>{message.text}</Text>
-      {isLive ? (
+      <Text style={[styles.messageText, { color: colors.textPrimary }]}>{displayedText}</Text>
+      {isLiveMessage ? (
         <Text style={[styles.timestamp, { color: colors.primary, fontStyle: 'italic' }]}>
-          streaming...
+          {isBuffering ? 'streaming...' : 'thinking...'}
         </Text>
       ) : (
         <Text style={[styles.timestamp, { color: colors.textMuted }]}>
@@ -322,9 +358,10 @@ export function MessageStream({ messages }: MessageStreamProps): React.JSX.Eleme
   // Auto-scroll to bottom
   useEffect(() => {
     if (autoScroll) {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
+      return () => clearTimeout(timeoutId);
     }
   }, [messages, autoScroll]);
 

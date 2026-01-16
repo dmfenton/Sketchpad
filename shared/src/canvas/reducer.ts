@@ -22,7 +22,6 @@ export interface CanvasHookState {
   agentStroke: Point[]; // Agent's in-progress stroke
   penPosition: Point | null;
   penDown: boolean;
-  agentStatus: AgentStatus;
   thinking: string;
   messages: AgentMessage[];
   pieceCount: number;
@@ -35,6 +34,36 @@ export interface CanvasHookState {
   pendingStrokes: PendingStrokesInfo | null; // Strokes ready to be fetched
 }
 
+/**
+ * Derive agent status from messages and state.
+ * Status is computed, not stored - messages are the source of truth.
+ */
+export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
+  // Paused overrides everything
+  if (state.paused) return 'paused';
+
+  // Live message = actively thinking
+  const hasLiveMessage = state.messages.some((m) => m.id === LIVE_MESSAGE_ID);
+  if (hasLiveMessage) return 'thinking';
+
+  // Pending strokes = drawing phase
+  if (state.pendingStrokes !== null) return 'drawing';
+
+  // Check last message
+  const lastMessage = state.messages[state.messages.length - 1];
+  if (lastMessage) {
+    // Error state
+    if (lastMessage.type === 'error') return 'error';
+
+    // Code execution started (no return_code yet) = executing
+    if (lastMessage.type === 'code_execution' && lastMessage.metadata?.return_code === undefined) {
+      return 'executing';
+    }
+  }
+
+  return 'idle';
+}
+
 export type CanvasAction =
   | { type: 'ADD_STROKE'; path: Path }
   | { type: 'SET_STROKES'; strokes: Path[] }
@@ -43,7 +72,6 @@ export type CanvasAction =
   | { type: 'ADD_POINT'; point: Point }
   | { type: 'END_STROKE' }
   | { type: 'SET_PEN'; x: number; y: number; down: boolean }
-  | { type: 'SET_STATUS'; status: AgentStatus }
   | { type: 'SET_THINKING'; text: string }
   | { type: 'APPEND_THINKING'; text: string }
   | { type: 'APPEND_LIVE_MESSAGE'; text: string }
@@ -58,7 +86,6 @@ export type CanvasAction =
       type: 'INIT';
       strokes: Path[];
       gallery: SavedCanvas[];
-      status: AgentStatus;
       pieceCount: number;
       paused: boolean;
     }
@@ -74,14 +101,13 @@ export const initialState: CanvasHookState = {
   agentStroke: [],
   penPosition: null,
   penDown: false,
-  agentStatus: 'paused', // Start paused
   thinking: '',
   messages: [],
   pieceCount: 0,
   viewingPiece: null,
   drawingEnabled: false,
   gallery: [],
-  paused: true, // Start paused
+  paused: true, // Start paused - status derived from this + messages
   currentIteration: 0,
   maxIterations: 5,
   pendingStrokes: null,
@@ -120,9 +146,6 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         agentStroke: newAgentStroke,
       };
     }
-
-    case 'SET_STATUS':
-      return { ...state, agentStatus: action.status };
 
     case 'SET_THINKING':
       return { ...state, thinking: action.text };
@@ -211,7 +234,6 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         ...state,
         strokes: action.strokes,
         gallery: action.gallery,
-        agentStatus: action.status,
         pieceCount: action.pieceCount,
         paused: action.paused,
         viewingPiece: null, // Init shows current canvas
