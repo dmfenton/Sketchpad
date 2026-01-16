@@ -17,8 +17,8 @@ on:
         default: false
 
 env:
-  # Production URLs
-  EXPO_PUBLIC_API_URL: 'https://monet.dmfenton.net'
+  # Production URLs (API uses /api prefix - nginx proxies /api/* to backend)
+  EXPO_PUBLIC_API_URL: 'https://monet.dmfenton.net/api'
   EXPO_PUBLIC_WS_URL: 'wss://monet.dmfenton.net/ws'
   # Sentry
   SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
