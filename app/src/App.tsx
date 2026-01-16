@@ -146,10 +146,14 @@ function MainApp(): React.JSX.Element {
   }, []);
 
   const handleNewCanvasStart = useCallback(
-    (direction?: string) => {
-      tracer.recordEvent('action.new_canvas', { hasDirection: !!direction });
+    (direction?: string, style?: 'plotter' | 'paint') => {
+      tracer.recordEvent('action.new_canvas', { hasDirection: !!direction, style });
       tracer.newSession(); // Start fresh trace for new piece
       send({ type: 'new_canvas', direction });
+      // Set style if specified
+      if (style) {
+        send({ type: 'set_style', drawing_style: style });
+      }
     },
     [send]
   );
@@ -194,12 +198,6 @@ function MainApp(): React.JSX.Element {
       canvas.setPaused(true);
     }
   }, [paused, send, canvas]);
-
-  const handleStyleToggle = useCallback(() => {
-    const newStyle = canvas.state.drawingStyle === 'plotter' ? 'paint' : 'plotter';
-    tracer.recordEvent('action.style_change', { from: canvas.state.drawingStyle, to: newStyle });
-    send({ type: 'set_style', drawing_style: newStyle });
-  }, [canvas.state.drawingStyle, send]);
 
   const handleStrokeStart = useCallback(
     (x: number, y: number) => {
@@ -286,14 +284,12 @@ function MainApp(): React.JSX.Element {
                 paused={paused}
                 connected={wsState.connected}
                 galleryCount={canvas.state.gallery.length}
-                drawingStyle={canvas.state.drawingStyle}
                 onDrawToggle={handleDrawToggle}
                 onNudge={handleNudgePress}
                 onClear={handleClear}
                 onPauseToggle={handlePauseToggle}
                 onNewCanvas={handleNewCanvas}
                 onGallery={handleGalleryPress}
-                onStyleToggle={handleStyleToggle}
               />
             </>
           )}
@@ -309,6 +305,7 @@ function MainApp(): React.JSX.Element {
         {/* New Canvas Modal */}
         <NewCanvasModal
           visible={newCanvasModalVisible}
+          currentStyle={canvas.state.drawingStyle}
           onClose={() => setNewCanvasModalVisible(false)}
           onStart={handleNewCanvasStart}
         />

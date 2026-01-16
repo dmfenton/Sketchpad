@@ -7,21 +7,18 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
-import type { DrawingStyleType } from '@code-monet/shared';
 
 interface ActionBarProps {
   drawingEnabled: boolean;
   paused: boolean;
   connected: boolean;
   galleryCount: number;
-  drawingStyle: DrawingStyleType;
   onDrawToggle: () => void;
   onNudge: () => void;
   onClear: () => void;
   onPauseToggle: () => void;
   onNewCanvas: () => void;
   onGallery: () => void;
-  onStyleToggle: () => void;
 }
 
 interface ActionButtonProps {
@@ -97,14 +94,12 @@ export function ActionBar({
   paused,
   connected,
   galleryCount,
-  drawingStyle,
   onDrawToggle,
   onNudge,
   onClear: _onClear,
   onPauseToggle,
   onNewCanvas,
   onGallery,
-  onStyleToggle,
 }: ActionBarProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   // Note: onClear is still in props for API compatibility but removed from UI
@@ -120,14 +115,6 @@ export function ActionBar({
           onPress={onDrawToggle}
           colors={colors}
           testID="action-draw"
-        />
-        <ActionButton
-          icon={drawingStyle === 'plotter' ? 'create-outline' : 'color-palette-outline'}
-          label={drawingStyle === 'plotter' ? 'Plotter' : 'Paint'}
-          disabled={!connected}
-          onPress={onStyleToggle}
-          colors={colors}
-          testID="action-style"
         />
         <ActionButton
           icon="chatbubble-outline"
