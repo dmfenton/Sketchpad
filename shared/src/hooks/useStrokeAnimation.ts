@@ -1,13 +1,14 @@
 /**
- * Shared hook for fetching and animating pending strokes.
+ * React hook for fetching and animating pending strokes.
  *
- * Works on both web and React Native by using requestAnimationFrame
- * for smooth animations and try/finally for error resilience.
+ * This is a thin wrapper around StrokeRenderer that connects it to React's
+ * lifecycle. The core logic is in StrokeRenderer for testability.
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import type { CanvasAction, PendingStrokesInfo } from '../canvas/reducer';
+import { StrokeRenderer } from '../services/StrokeRenderer';
 import type { PendingStroke } from '../types';
 
 export interface UseStrokeAnimationOptions {
@@ -32,8 +33,8 @@ export interface UseStrokeAnimationOptions {
  * Features:
  * - Uses requestAnimationFrame for smooth 60fps animation
  * - Tracks batch IDs to prevent duplicate fetches
- * - Wraps animation in try/finally to prevent stuck state
- * - Skips if already animating
+ * - Allows retry after failed fetches
+ * - Cleans up properly on unmount
  */
 export function useStrokeAnimation({
   pendingStrokes,
@@ -41,108 +42,35 @@ export function useStrokeAnimation({
   fetchStrokes,
   frameDelayMs = 1000 / 60,
 }: UseStrokeAnimationOptions): void {
-  const animatingRef = useRef(false);
-  const fetchedBatchIdRef = useRef(0);
-  const unmountedRef = useRef(false);
+  // Keep a stable reference to the renderer
+  const rendererRef = useRef<StrokeRenderer | null>(null);
 
-  // Reset refs on unmount to prevent blocking future animations
+  // Track the latest dependencies to avoid stale closures
+  const depsRef = useRef({ dispatch, fetchStrokes, frameDelayMs });
+  depsRef.current = { dispatch, fetchStrokes, frameDelayMs };
+
+  // Initialize renderer on mount
   useEffect(() => {
-    unmountedRef.current = false;
+    rendererRef.current = new StrokeRenderer({
+      fetchStrokes: () => depsRef.current.fetchStrokes(),
+      dispatch: (action) => depsRef.current.dispatch(action),
+      frameDelayMs: depsRef.current.frameDelayMs,
+      log: console.log,
+    });
+
     return () => {
-      unmountedRef.current = true;
-      animatingRef.current = false;
-      fetchedBatchIdRef.current = 0;
+      rendererRef.current?.stop();
+      rendererRef.current = null;
     };
   }, []);
 
-  const animateStrokes = useCallback(
-    async (strokes: PendingStroke[]): Promise<void> => {
-      if (animatingRef.current || unmountedRef.current) return;
-      animatingRef.current = true;
-
-      try {
-        for (const stroke of strokes) {
-          // Check for unmount between strokes
-          if (unmountedRef.current) break;
-
-          const points = stroke.points;
-          if (points.length === 0) continue;
-
-          // Move to start (pen up)
-          dispatch({ type: 'SET_PEN', x: points[0].x, y: points[0].y, down: false });
-
-          // Animate through points using requestAnimationFrame for smoothness
-          for (let i = 0; i < points.length; i++) {
-            // Check for unmount during animation
-            if (unmountedRef.current) break;
-
-            const point = points[i];
-            const isFirst = i === 0;
-
-            await new Promise<void>((resolve) => {
-              requestAnimationFrame(() => {
-                if (!unmountedRef.current) {
-                  dispatch({ type: 'SET_PEN', x: point.x, y: point.y, down: !isFirst });
-                }
-                setTimeout(resolve, frameDelayMs);
-              });
-            });
-          }
-
-          // Lift pen and finalize stroke (only if not unmounted)
-          if (!unmountedRef.current) {
-            const lastPoint = points[points.length - 1];
-            dispatch({ type: 'SET_PEN', x: lastPoint.x, y: lastPoint.y, down: false });
-            dispatch({ type: 'ADD_STROKE', path: stroke.path });
-          }
-        }
-      } finally {
-        animatingRef.current = false;
-      }
-    },
-    [dispatch, frameDelayMs]
-  );
-
+  // Handle pendingStrokes changes
   useEffect(() => {
-    const fetchAndAnimate = async (): Promise<void> => {
-      console.log('[useStrokeAnimation] Effect triggered, pendingStrokes:', pendingStrokes);
-      if (!pendingStrokes) return;
+    if (!pendingStrokes || !rendererRef.current) return;
 
-      // Skip if we've already successfully fetched this batch (prevents race condition)
-      if (pendingStrokes.batchId <= fetchedBatchIdRef.current) {
-        console.log(
-          '[useStrokeAnimation] Skipping batch',
-          pendingStrokes.batchId,
-          '- already fetched (ref:',
-          fetchedBatchIdRef.current,
-          ')'
-        );
-        return;
-      }
-
-      const batchId = pendingStrokes.batchId;
-      console.log('[useStrokeAnimation] Fetching batch', batchId);
-
-      // Clear pending state to prevent duplicate fetch attempts
-      dispatch({ type: 'CLEAR_PENDING_STROKES' });
-
-      try {
-        const strokes = await fetchStrokes();
-        console.log('[useStrokeAnimation] Fetched', strokes.length, 'strokes');
-
-        // Only mark as fetched AFTER successful fetch
-        // This ensures failed fetches can be retried on reconnect
-        fetchedBatchIdRef.current = batchId;
-
-        if (strokes.length > 0) {
-          await animateStrokes(strokes);
-        }
-      } catch (error) {
-        console.error('[useStrokeAnimation] Error fetching/animating strokes:', error);
-        // Don't update fetchedBatchIdRef - allow retry on reconnect
-      }
-    };
-
-    void fetchAndAnimate();
-  }, [pendingStrokes, dispatch, fetchStrokes, animateStrokes]);
+    // Delegate to renderer (fire and forget, errors are logged internally)
+    void rendererRef.current.handleStrokesReady(pendingStrokes.batchId).catch((error) => {
+      console.error('[useStrokeAnimation] Error:', error);
+    });
+  }, [pendingStrokes?.batchId]);
 }
