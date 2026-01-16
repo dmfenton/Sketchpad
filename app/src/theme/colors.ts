@@ -1,100 +1,99 @@
 /**
  * Code Monet - Color Definitions
- * An impressionist art-inspired color palette from Monet's Water Lilies,
- * Garden at Giverny, and Haystacks series.
- * Supports both light and dark modes.
+ * A bold, immersive dark theme with vibrant accent colors.
+ * Designed for an artistic, creative experience.
  */
 
-// Light mode colors - Soft, dreamy tones inspired by Monet's misty landscapes
+// Light mode colors - Clean, modern with artistic accents
 export const lightColors = {
   // Backgrounds
-  background: '#F7F4F0', // Warm ivory, like aged canvas
+  background: '#F5F5F8', // Cool neutral gray
   surface: '#FFFFFF', // Pure white for cards
-  surfaceElevated: '#FBF9F7', // Slightly warm white
+  surfaceElevated: '#FAFAFA', // Slightly elevated
 
-  // Primary palette - Water Lilies inspired
-  primary: '#7B8CDE', // Soft periwinkle blue (water reflections)
-  primaryMuted: '#5E6FBF', // Deeper lavender-blue
-  secondary: '#E8B4BC', // Soft rose pink (water lily petals)
-  secondaryMuted: '#D69AA3', // Deeper rose
+  // Primary palette - Vibrant artistic accents
+  primary: '#e94560', // Rose/crimson (main accent)
+  primaryMuted: '#a83248', // Dimmed rose
+  secondary: '#7b68ee', // Violet (secondary accent)
+  secondaryMuted: '#5a4bc7', // Deeper violet
 
-  // Accent colors - Garden at Giverny
-  accent: '#8FBC8F', // Sage green (lily pads)
-  accentMuted: '#6B9B6B', // Deeper garden green
-  lavender: '#C5B4E3', // Soft lavender (wisteria)
-  gold: '#E8D4A8', // Soft gold (haystacks, sunlight)
-  coral: '#F0A8A0', // Soft coral (garden flowers)
+  // Accent colors - Creative palette
+  accent: '#4ecdc4', // Teal
+  accentMuted: '#3ba89f', // Deeper teal
+  lavender: '#7b68ee', // Violet (alias)
+  gold: '#ffd93d', // Bright gold
+  coral: '#ff6b6b', // Coral/salmon
 
-  // Semantic - Keeping functionality but with softer tones
-  success: '#88B892', // Soft sage green
-  warning: '#E8C088', // Warm amber
-  error: '#D88888', // Soft rose-red
+  // Semantic - Clear, functional
+  success: '#4ade80', // Bright green
+  warning: '#fbbf24', // Amber
+  error: '#ef4444', // Red
 
-  // Text - Elegant, readable contrast
-  textPrimary: '#2D3142', // Deep charcoal-blue
-  textSecondary: '#6B7280', // Muted gray
-  textMuted: '#9CA3AF', // Light gray
+  // Text - High contrast
+  textPrimary: '#1a1a2e', // Dark blue-black
+  textSecondary: '#4a4a6a', // Muted dark
+  textMuted: '#8888a8', // Light muted
   textOnPrimary: '#FFFFFF', // White text on primary buttons
 
-  // Borders & dividers - Subtle, painterly edges
-  border: '#E5E1DC', // Warm light gray
-  borderLight: '#F0EDE8', // Very light warm gray
+  // Borders & dividers
+  border: '#e0e0e8', // Light gray
+  borderLight: '#f0f0f4', // Very light gray
 
-  // Canvas specific - Artist's workspace
-  canvasBackground: '#FFFEF9', // Warm cream, like fine paper
-  stroke: '#2D3142', // Deep charcoal for drawings
-  humanStroke: '#7B8CDE', // Periwinkle for human strokes
-  penIndicator: '#E8B4BC', // Rose pink indicator
+  // Canvas specific - Clean workspace
+  canvasBackground: '#FFFFFF', // Pure white canvas
+  stroke: '#1a1a2e', // Dark strokes
+  humanStroke: '#7b68ee', // Violet for human strokes
+  penIndicator: '#e94560', // Rose indicator
 
-  // Status - Softer indicators
-  connected: '#88B892', // Sage green
-  disconnected: '#D88888', // Soft rose-red
+  // Status
+  connected: '#4ade80', // Green
+  disconnected: '#ef4444', // Red
 } as const;
 
-// Dark mode colors - Night garden, moonlit water lilies
+// Dark mode colors - Immersive, cinematic dark theme
 export const darkColors = {
-  // Backgrounds - Deep, mysterious tones like Monet's evening scenes
-  background: '#1A1B23', // Deep charcoal-blue
-  surface: '#252631', // Elevated dark surface
-  surfaceElevated: '#2D2E3A', // Even more elevated
+  // Backgrounds - Deep, rich darks
+  background: '#0a0a0f', // Near black
+  surface: '#12121a', // Dark surface
+  surfaceElevated: '#1a1a2e', // Elevated dark blue
 
-  // Primary palette - Moonlit Water Lilies
-  primary: '#8B9CE8', // Brighter periwinkle for dark mode
-  primaryMuted: '#6E7FD0', // Slightly muted
-  secondary: '#E8B4BC', // Rose pink stays vibrant
-  secondaryMuted: '#C89AA3', // Muted rose
+  // Primary palette - Vibrant on dark
+  primary: '#e94560', // Rose/crimson
+  primaryMuted: '#a83248', // Dimmed rose
+  secondary: '#7b68ee', // Violet
+  secondaryMuted: '#5a4bc7', // Deeper violet
 
-  // Accent colors - Night garden
-  accent: '#9FCC9F', // Brighter sage for visibility
-  accentMuted: '#7BAB7B', // Muted garden green
-  lavender: '#D5C4F3', // Brighter lavender
-  gold: '#F0DEB8', // Brighter gold
-  coral: '#F0B8B0', // Brighter coral
+  // Accent colors - Pop on dark backgrounds
+  accent: '#4ecdc4', // Teal
+  accentMuted: '#3ba89f', // Deeper teal
+  lavender: '#7b68ee', // Violet
+  gold: '#ffd93d', // Bright gold
+  coral: '#ff6b6b', // Coral
 
-  // Semantic - Visible but soft
-  success: '#98C8A2', // Brighter sage green
-  warning: '#F0D098', // Brighter amber
-  error: '#E89898', // Brighter rose-red
+  // Semantic
+  success: '#4ade80', // Bright green
+  warning: '#fbbf24', // Amber
+  error: '#ef4444', // Red
 
-  // Text - High contrast for readability
-  textPrimary: '#F0EDE8', // Warm white
-  textSecondary: '#A8ADB8', // Muted light gray
-  textMuted: '#6B7080', // Darker muted
+  // Text - High contrast on dark
+  textPrimary: '#ffffff', // Pure white
+  textSecondary: 'rgba(255, 255, 255, 0.7)', // 70% white
+  textMuted: 'rgba(255, 255, 255, 0.4)', // 40% white
   textOnPrimary: '#FFFFFF', // White text on primary buttons
 
-  // Borders & dividers - Subtle dark edges
-  border: '#3A3B48', // Dark gray border
-  borderLight: '#2D2E3A', // Very subtle border
+  // Borders & dividers - Subtle on dark
+  border: '#2a2a3e', // Dark border
+  borderLight: '#1a1a2e', // Very subtle border
 
-  // Canvas specific - Moonlit workspace
-  canvasBackground: '#F8F6F0', // Keep canvas light for drawing visibility
-  stroke: '#2D3142', // Keep stroke dark for visibility
-  humanStroke: '#8B9CE8', // Brighter periwinkle for dark mode
-  penIndicator: '#E8B4BC', // Rose pink indicator
+  // Canvas specific - Light canvas for visibility
+  canvasBackground: '#FFFFFF', // Keep canvas white
+  stroke: '#1a1a2e', // Dark strokes
+  humanStroke: '#7b68ee', // Violet for human strokes
+  penIndicator: '#e94560', // Rose indicator
 
-  // Status - Visible indicators
-  connected: '#98C8A2', // Brighter sage green
-  disconnected: '#E89898', // Brighter rose-red
+  // Status
+  connected: '#4ade80', // Green
+  disconnected: '#ef4444', // Red
 } as const;
 
 // Type that accepts both light and dark color values
@@ -102,81 +101,81 @@ export type ColorScheme = {
   readonly [K in keyof typeof lightColors]: string;
 };
 
-// Light mode shadows
+// Light mode shadows - Clean, subtle
 export const lightShadows = {
   sm: {
-    shadowColor: '#7B8CDE',
+    shadowColor: '#1a1a2e',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
   },
   md: {
-    shadowColor: '#7B8CDE',
+    shadowColor: '#1a1a2e',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
     elevation: 4,
   },
   lg: {
-    shadowColor: '#7B8CDE',
+    shadowColor: '#1a1a2e',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
+    shadowOpacity: 0.18,
     shadowRadius: 24,
     elevation: 8,
   },
   glow: {
-    shadowColor: '#E8B4BC',
+    shadowColor: '#e94560',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 0,
   },
   paper: {
-    shadowColor: '#D0C8C0',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#1a1a2e',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 20,
+    elevation: 4,
   },
 } as const;
 
-// Dark mode shadows
+// Dark mode shadows - Deep, dramatic
 export const darkShadows = {
   sm: {
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 4,
     elevation: 2,
   },
   md: {
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 4,
   },
   lg: {
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.6,
     shadowRadius: 24,
     elevation: 8,
   },
   glow: {
-    shadowColor: '#8B9CE8',
+    shadowColor: '#e94560',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
-    shadowRadius: 16,
+    shadowRadius: 20,
     elevation: 0,
   },
   paper: {
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 4,
   },
 } as const;
 
@@ -193,11 +192,18 @@ export type ShadowScheme = {
   readonly [K in keyof typeof lightShadows]: ShadowStyle;
 };
 
-// Monet-inspired gradients for special elements
+// Vibrant gradients matching web styling
 export const gradients = {
-  waterLilies: ['#B8C5E8', '#E8D4DC', '#C8E0D0'], // Blue to pink to green
-  sunrise: ['#F0D4C8', '#E8C8D0', '#D0D8E8'], // Warm to cool sunrise
-  garden: ['#C8E0D0', '#D8E8C8', '#E8E0B8'], // Fresh greens
-  sunset: ['#E8D4A8', '#E8B4A0', '#C8A8C8'], // Golden hour
-  mist: ['#E8E4F0', '#F0ECF8', '#F8F4FF'], // Soft morning mist
+  // Primary gradients
+  primary: ['#e94560', '#ff6b6b'], // Rose to coral
+  secondary: ['#7b68ee', '#4ecdc4'], // Violet to teal
+  // Artistic gradients
+  sunset: ['#e94560', '#ffd93d'], // Rose to gold
+  ocean: ['#4ecdc4', '#7b68ee'], // Teal to violet
+  aurora: ['#7b68ee', '#e94560', '#4ecdc4'], // Multi-color
+  // Legacy aliases
+  waterLilies: ['#7b68ee', '#e94560', '#4ecdc4'],
+  sunrise: ['#ffd93d', '#ff6b6b', '#e94560'],
+  garden: ['#4ecdc4', '#4ade80', '#ffd93d'],
+  mist: ['#1a1a2e', '#12121a', '#0a0a0f'], // Dark gradient
 } as const;
