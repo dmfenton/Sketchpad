@@ -37,7 +37,7 @@ describe('hasInProgressEvents', () => {
         type: 'code_execution',
         text: 'Running tool',
         timestamp: Date.now(),
-        metadata: { tool_name: 'draw', status: 'started' },
+        metadata: { tool_name: 'draw_paths' },
       },
     ];
     expect(hasInProgressEvents(messages)).toBe(true);
@@ -50,7 +50,7 @@ describe('hasInProgressEvents', () => {
         type: 'code_execution',
         text: 'Tool completed',
         timestamp: Date.now(),
-        metadata: { tool_name: 'draw', status: 'completed', return_code: 0 },
+        metadata: { tool_name: 'draw_paths', return_code: 0 },
       },
     ];
     expect(hasInProgressEvents(messages)).toBe(false);
@@ -64,7 +64,7 @@ describe('hasInProgressEvents', () => {
         type: 'code_execution',
         text: 'Running',
         timestamp: Date.now(),
-        metadata: { tool_name: 'draw', status: 'started' },
+        metadata: { tool_name: 'draw_paths' },
       },
     ];
     expect(hasInProgressEvents(messages)).toBe(true);
@@ -78,7 +78,7 @@ describe('hasInProgressEvents', () => {
         type: 'code_execution',
         text: 'Done',
         timestamp: Date.now(),
-        metadata: { tool_name: 'draw', status: 'completed', return_code: 0 },
+        metadata: { tool_name: 'draw_paths', return_code: 0 },
       },
     ];
     expect(hasInProgressEvents(messages)).toBe(false);
@@ -121,7 +121,7 @@ describe('deriveAgentStatus', () => {
           type: 'code_execution',
           text: 'Running',
           timestamp: Date.now(),
-          metadata: { tool_name: 'draw', status: 'started' },
+          metadata: { tool_name: 'draw_paths' },
         },
       ],
     };
@@ -138,7 +138,7 @@ describe('deriveAgentStatus', () => {
           type: 'code_execution',
           text: 'Done',
           timestamp: Date.now(),
-          metadata: { tool_name: 'draw', status: 'completed', return_code: 0 },
+          metadata: { tool_name: 'draw_paths', return_code: 0 },
         },
       ],
     };
@@ -155,7 +155,7 @@ describe('deriveAgentStatus', () => {
           type: 'code_execution',
           text: 'Running',
           timestamp: Date.now(),
-          metadata: { tool_name: 'draw', status: 'started' },
+          metadata: { tool_name: 'draw_paths' },
         },
       ],
     };
