@@ -1,13 +1,18 @@
 /**
  * Tests for LiveStatus component logic.
  *
- * Tests the status label derivation and display logic without React rendering.
+ * Tests the status label derivation and visibility logic.
+ * Note: We can't import directly from the component due to React Native
+ * dependencies, so we test the same logic inline.
  */
 
 import { TOOL_DISPLAY_NAMES } from '@drawing-agent/shared';
 import type { AgentStatus, ToolName } from '@drawing-agent/shared';
 
-// Helper functions extracted from LiveStatus for testing
+/**
+ * Get human-readable label for agent status.
+ * This mirrors the implementation in LiveStatus.tsx.
+ */
 function getStatusLabel(status: AgentStatus, currentTool?: ToolName | null): string {
   if (status === 'executing' && currentTool) {
     return TOOL_DISPLAY_NAMES[currentTool] ?? 'Running code';
