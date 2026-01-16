@@ -1,0 +1,56 @@
+appId: net.dmfenton.sketchpad
+---
+# Test agent drawing: specify direction for exactly 2 strokes
+# With screenshot storyboard for debugging
+- runFlow:
+    file: ../helpers/inject-auth-only.yaml
+
+- takeScreenshot: 01-after-auth
+
+# Tap "Describe your vision" on StartPanel
+- tapOn:
+    id: "describe-vision-button"
+
+- takeScreenshot: 02-input-visible
+
+# Handle iOS keyboard tutorial if it appears
+- tapOn:
+    text: "Continue"
+    optional: true
+
+# Enter the direction for 2 strokes
+- inputText: "Draw exactly 2 simple strokes only, nothing more"
+
+- takeScreenshot: 03-text-entered
+
+# Tap Start
+- tapOn:
+    id: "start-panel-start-button"
+
+- takeScreenshot: 04-after-start
+
+# Wait a moment then screenshot (swipe dismisses keyboard if open)
+- swipe:
+    direction: DOWN
+    duration: 100
+- takeScreenshot: 05-waiting
+
+# Wait for agent to start working (LiveStatus appears when thinking/drawing)
+- extendedWaitUntil:
+    visible:
+      id: "live-status"
+    timeout: 60000
+
+- takeScreenshot: 06-agent-active
+
+# Wait for agent to complete (LiveStatus disappears when idle)
+- extendedWaitUntil:
+    notVisible:
+      id: "live-status"
+    timeout: 180000
+
+- takeScreenshot: 07-complete
+
+# Verify drawing happened
+- assertVisible:
+    id: "canvas-view"

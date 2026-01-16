@@ -110,6 +110,7 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
           {/* Input */}
           <View style={styles.inputContainer}>
             <TextInput
+              testID="nudge-input"
               style={[
                 styles.input,
                 { backgroundColor: colors.surfaceElevated, color: colors.textPrimary },
@@ -136,6 +137,7 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
           {/* Actions */}
           <View style={styles.actions}>
             <Pressable
+              testID="nudge-send-button"
               style={({ pressed }) => [
                 styles.sendButton,
                 { backgroundColor: text.trim() ? colors.primary : colors.surfaceElevated },

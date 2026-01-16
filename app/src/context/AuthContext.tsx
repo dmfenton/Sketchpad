@@ -129,6 +129,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (refreshed) return;
         }
 
+        // In dev builds, try to auto-authenticate via dev-token endpoint
+        // This enables E2E tests to work without manual auth injection
+        if (__DEV__) {
+          console.log('[Auth] Dev mode - attempting auto-auth');
+          try {
+            const response = await fetch(`${getApiUrl()}/auth/dev-token`);
+            if (response.ok) {
+              const data = (await response.json()) as { access_token: string };
+              await storage.setItem(ACCESS_TOKEN_KEY, data.access_token);
+              await storage.setItem(REFRESH_TOKEN_KEY, data.access_token);
+              const decoded = decodeToken(data.access_token);
+              if (decoded) {
+                console.log('[Auth] Dev auto-auth successful');
+                setState({
+                  isLoading: false,
+                  isAuthenticated: true,
+                  user: { id: parseInt(decoded.sub, 10), email: decoded.email },
+                  accessToken: data.access_token,
+                });
+                return;
+              }
+            }
+          } catch {
+            console.log('[Auth] Dev auto-auth unavailable (server not in dev mode)');
+          }
+        }
+
         // No valid tokens
         setState({
           isLoading: false,

@@ -134,6 +134,7 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
             </Text>
             <View style={styles.inputWrapper}>
               <TextInput
+                testID="start-panel-input"
                 style={[
                   styles.textInput,
                   { backgroundColor: colors.surfaceElevated, color: colors.textPrimary },
@@ -169,6 +170,7 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
                 </Text>
               </Pressable>
               <Pressable
+                testID="start-panel-start-button"
                 style={[
                   styles.startButton,
                   { backgroundColor: customText.trim() ? colors.primary : colors.surfaceElevated },
@@ -195,6 +197,7 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
         ) : (
           <View style={styles.actionButtons}>
             <Pressable
+              testID="describe-vision-button"
               style={({ pressed }) => [
                 styles.customButton,
                 { backgroundColor: colors.surfaceElevated },

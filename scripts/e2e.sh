@@ -79,14 +79,26 @@ fi
 
 log "Dev token acquired"
 
+# Reset workspace state for deterministic testing
+log "Resetting workspace state..."
+curl -s -X POST -H "Authorization: Bearer $DEV_ACCESS_TOKEN" http://localhost:8000/debug/reset > /dev/null
+
 # Check if app is already built
 APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "CodeMonet.app" -path "*Debug-iphonesimulator*" 2>/dev/null | head -1)
 
 # Find available iPhone simulator - get the UUID to avoid name conflicts
-# Prefer iPhone 16 Pro on iOS 18.x
+# Prefer iPhone 17 Pro on iOS 26.x, then iPhone 16 Pro on iOS 18.x
 SIMULATOR_INFO=$(xcrun simctl list devices available -j | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
+# First try iOS 26 with iPhone 17 Pro
+for runtime, devices in data.get('devices', {}).items():
+    if 'iOS-26' in runtime or 'iOS 26' in runtime:
+        for d in devices:
+            if 'iPhone 17 Pro' in d['name'] and d['isAvailable']:
+                print(f\"{d['udid']}|{d['name']}\")
+                sys.exit(0)
+# Then try iOS 18 with iPhone 16 Pro
 for runtime, devices in data.get('devices', {}).items():
     if 'iOS-18' in runtime or 'iOS 18' in runtime:
         for d in devices:
@@ -153,50 +165,24 @@ xcrun simctl bootstatus "$SIMULATOR_UDID" -b > /dev/null 2>&1
 log "Installing app on simulator..."
 xcrun simctl install "$SIMULATOR_UDID" "$APP_PATH"
 
-# Helper: inject auth via simctl (more reliable than Maestro's openLink)
-inject_auth() {
-    log "Injecting auth via deep link..."
-    # Launch app first (iOS needs app to be launched for URL scheme to work)
-    xcrun simctl launch "$SIMULATOR_UDID" net.dmfenton.sketchpad
-    sleep 3  # Wait for app to start
-    # Now open the deep link
-    xcrun simctl openurl "$SIMULATOR_UDID" "codemonet://auth/callback?access_token=${DEV_ACCESS_TOKEN}&refresh_token=${DEV_REFRESH_TOKEN}"
-    sleep 5  # Wait for auth to process
-}
+# Note: Auth injection is now handled automatically by the app in dev mode
+# When no valid token exists and __DEV__ is true, the app auto-fetches from /auth/dev-token
 
 # Run Maestro tests
 log "Running Maestro tests..."
 cd "$APP_DIR"
 
 if [ -n "$1" ]; then
-    # Run specific test
-    # Tests that need auth get it injected first
-    if [[ "$1" != "auth.yaml" ]]; then
-        inject_auth
-    fi
+    # Run specific test (auth handled automatically by app in dev mode)
     maestro --device "$SIMULATOR_UDID" test -e DEV_ACCESS_TOKEN="$DEV_ACCESS_TOKEN" -e DEV_REFRESH_TOKEN="$DEV_REFRESH_TOKEN" "e2e/flows/$1"
 else
-    # Run auth test first (needs unauthenticated state)
-    log "Running auth test..."
-    maestro --device "$SIMULATOR_UDID" test -e DEV_ACCESS_TOKEN="$DEV_ACCESS_TOKEN" -e DEV_REFRESH_TOKEN="$DEV_REFRESH_TOKEN" e2e/flows/auth.yaml
-    AUTH_EXIT=$?
-
-    if [ $AUTH_EXIT -ne 0 ]; then
-        error "Auth test failed"
-        exit $AUTH_EXIT
-    fi
-
-    # Inject auth for remaining tests
-    inject_auth
-
-    # Run remaining tests (excluding auth.yaml)
-    log "Running authenticated tests..."
+    # Run all tests
+    log "Running all E2E tests..."
     for flow in e2e/flows/*.yaml; do
-        if [[ "$(basename "$flow")" != "auth.yaml" ]]; then
-            maestro --device "$SIMULATOR_UDID" test -e DEV_ACCESS_TOKEN="$DEV_ACCESS_TOKEN" -e DEV_REFRESH_TOKEN="$DEV_REFRESH_TOKEN" "$flow"
-            if [ $? -ne 0 ]; then
-                TEST_EXIT_CODE=1
-            fi
+        log "Running $(basename "$flow")..."
+        maestro --device "$SIMULATOR_UDID" test -e DEV_ACCESS_TOKEN="$DEV_ACCESS_TOKEN" -e DEV_REFRESH_TOKEN="$DEV_REFRESH_TOKEN" "$flow"
+        if [ $? -ne 0 ]; then
+            TEST_EXIT_CODE=1
         fi
     done
 fi

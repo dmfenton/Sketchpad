@@ -117,6 +117,7 @@ export function NewCanvasModal({
           {/* Input */}
           <View style={styles.inputContainer}>
             <TextInput
+              testID="new-canvas-input"
               style={[
                 styles.input,
                 { backgroundColor: colors.surfaceElevated, color: colors.textPrimary },
@@ -155,6 +156,7 @@ export function NewCanvasModal({
             </Pressable>
 
             <Pressable
+              testID="new-canvas-start-button"
               style={({ pressed }) => [
                 styles.startButton,
                 { backgroundColor: text.trim() ? colors.primary : colors.surfaceElevated },

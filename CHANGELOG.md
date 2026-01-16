@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Dev auto-auth for E2E testing: app auto-authenticates in dev builds when no valid token exists
+- Agent draw E2E test (`agent-draw.yaml`): validates agent can draw strokes on canvas
+- TestID on `LiveStatus` component for E2E completion detection
+
+### Changed
+
+- Canvas no longer auto-clears after piece completion (strokes remain visible)
+- `save_to_gallery()` saves current canvas without clearing
+
+### Fixed
+
+- Gallery stroke count now uses cached `num_strokes` property instead of empty strokes array
+
 ## [1.17.0] - 2026-01-16
 
 ### Changed

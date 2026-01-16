@@ -1,0 +1,23 @@
+appId: net.dmfenton.sketchpad
+---
+# Dev auto-auth: App automatically authenticates in dev mode when no tokens exist
+# This helper launches the app and waits for canvas after auto-auth completes
+
+# Launch the app
+- launchApp
+
+# Handle "Open in Code Monet?" dialog (appears on fresh simulator)
+- tapOn:
+    text: "Open"
+    optional: true
+
+# Wait for canvas (auto-auth happens during app startup)
+- extendedWaitUntil:
+    visible:
+      id: "canvas-view"
+    timeout: 30000
+
+# Dismiss debugger warning (if shown)
+- tapOn:
+    point: "95%,92%"
+    optional: true
