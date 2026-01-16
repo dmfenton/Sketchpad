@@ -15,11 +15,14 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import type { DrawingStyleType } from '@code-monet/shared';
 
 import { spacing, borderRadius, typography, useTheme } from '../theme';
 
 interface StartPanelProps {
   connected: boolean;
+  drawingStyle: DrawingStyleType;
+  onStyleChange: (style: DrawingStyleType) => void;
   onStart: (direction?: string) => void;
 }
 
@@ -34,7 +37,12 @@ const QUICK_IDEAS = [
 
 const MAX_LENGTH = 200;
 
-export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.Element {
+export function StartPanel({
+  connected,
+  drawingStyle,
+  onStyleChange,
+  onStart,
+}: StartPanelProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const [customText, setCustomText] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -74,6 +82,69 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               Choose an idea or describe your vision
             </Text>
+          </View>
+        )}
+
+        {/* Style Selector - hidden when custom input is shown */}
+        {!showCustomInput && (
+          <View style={styles.styleSection}>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Drawing style</Text>
+            <View style={[styles.styleToggle, { backgroundColor: colors.surfaceElevated }]}>
+              <Pressable
+                testID="style-plotter-button"
+                style={[
+                  styles.styleOption,
+                  drawingStyle === 'plotter' && [
+                    styles.styleOptionActive,
+                    { backgroundColor: colors.surface },
+                  ],
+                ]}
+                onPress={() => onStyleChange('plotter')}
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={18}
+                  color={drawingStyle === 'plotter' ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.styleOptionText,
+                    {
+                      color: drawingStyle === 'plotter' ? colors.primary : colors.textSecondary,
+                    },
+                  ]}
+                >
+                  Plotter
+                </Text>
+              </Pressable>
+              <Pressable
+                testID="style-paint-button"
+                style={[
+                  styles.styleOption,
+                  drawingStyle === 'paint' && [
+                    styles.styleOptionActive,
+                    { backgroundColor: colors.surface },
+                  ],
+                ]}
+                onPress={() => onStyleChange('paint')}
+              >
+                <Ionicons
+                  name="color-palette-outline"
+                  size={18}
+                  color={drawingStyle === 'paint' ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.styleOptionText,
+                    {
+                      color: drawingStyle === 'paint' ? colors.primary : colors.textSecondary,
+                    },
+                  ]}
+                >
+                  Paint
+                </Text>
+              </Pressable>
+            </View>
           </View>
         )}
 
@@ -289,6 +360,34 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     textAlign: 'center',
+  },
+  styleSection: {
+    gap: spacing.sm,
+  },
+  styleToggle: {
+    flexDirection: 'row',
+    borderRadius: borderRadius.lg,
+    padding: spacing.xs,
+  },
+  styleOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+  },
+  styleOptionActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  styleOptionText: {
+    ...typography.body,
+    fontWeight: '600',
   },
   ideasSection: {
     gap: spacing.sm,

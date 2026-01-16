@@ -268,7 +268,12 @@ function MainApp(): React.JSX.Element {
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
               keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
             >
-              <StartPanel connected={wsState.connected} onStart={handleStartFromPanel} />
+              <StartPanel
+                connected={wsState.connected}
+                drawingStyle={canvas.state.drawingStyle}
+                onStyleChange={(style) => send({ type: 'set_style', drawing_style: style })}
+                onStart={handleStartFromPanel}
+              />
             </KeyboardAvoidingView>
           ) : (
             <>
