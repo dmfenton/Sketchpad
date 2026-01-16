@@ -727,6 +727,12 @@ async def websocket_endpoint(
             for p in gallery_pieces
         ]
 
+        # Get the current drawing style config
+        from code_monet.types import get_style_config
+
+        drawing_style = workspace.state.canvas.drawing_style
+        style_config = get_style_config(drawing_style)
+
         await workspace.connections.send_to(
             websocket,
             {
@@ -737,6 +743,8 @@ async def websocket_endpoint(
                 "paused": workspace.agent.paused,
                 "piece_count": workspace.state.piece_count,
                 "monologue": workspace.state.monologue or "",
+                "drawing_style": drawing_style.value,
+                "style_config": style_config.model_dump(),
             },
         )
         logger.info(

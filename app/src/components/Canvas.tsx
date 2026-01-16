@@ -8,8 +8,14 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Circle, Defs, Line, Pattern, Path as SvgPath, Rect } from 'react-native-svg';
 
 import { screenToCanvas } from '../hooks/useCanvas';
-import type { Path, Point } from '@code-monet/shared';
-import { CANVAS_ASPECT_RATIO, CANVAS_HEIGHT, CANVAS_WIDTH } from '@code-monet/shared';
+import type { DrawingStyleConfig, Path, Point, StrokeStyle } from '@code-monet/shared';
+import {
+  CANVAS_ASPECT_RATIO,
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  getEffectiveStyle,
+  PLOTTER_STYLE,
+} from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
 
 interface CanvasProps {
@@ -19,6 +25,7 @@ interface CanvasProps {
   penPosition: Point | null;
   penDown: boolean;
   drawingEnabled: boolean;
+  styleConfig?: DrawingStyleConfig; // Current drawing style (defaults to plotter)
   onStrokeStart: (x: number, y: number) => void;
   onStrokeMove: (x: number, y: number) => void;
   onStrokeEnd: () => void;
@@ -95,6 +102,7 @@ export function Canvas({
   penPosition,
   penDown,
   drawingEnabled,
+  styleConfig = PLOTTER_STYLE,
   onStrokeStart,
   onStrokeMove,
   onStrokeEnd,
@@ -156,28 +164,32 @@ export function Canvas({
             </Defs>
             <Rect width="100%" height="100%" fill="url(#grid)" />
 
-            {/* Completed strokes */}
-            {strokes.map((stroke, index) => (
-              <SvgPath
-                key={`stroke-${index}`}
-                d={pathToSvgD(stroke)}
-                stroke={colors.stroke}
-                strokeWidth={2.5}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ))}
+            {/* Completed strokes - render with effective style */}
+            {strokes.map((stroke, index) => {
+              const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
+              return (
+                <SvgPath
+                  key={`stroke-${index}`}
+                  d={pathToSvgD(stroke)}
+                  stroke={effectiveStyle.color}
+                  strokeWidth={effectiveStyle.stroke_width}
+                  fill="none"
+                  strokeLinecap={effectiveStyle.stroke_linecap}
+                  strokeLinejoin={effectiveStyle.stroke_linejoin}
+                  opacity={effectiveStyle.opacity}
+                />
+              );
+            })}
 
             {/* Current stroke in progress (human drawing) */}
             {currentStroke.length > 0 && (
               <SvgPath
                 d={pointsToSvgD(currentStroke)}
-                stroke={colors.secondary}
-                strokeWidth={2.5}
+                stroke={styleConfig.human_stroke.color}
+                strokeWidth={styleConfig.human_stroke.stroke_width}
                 fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                strokeLinecap={styleConfig.human_stroke.stroke_linecap}
+                strokeLinejoin={styleConfig.human_stroke.stroke_linejoin}
               />
             )}
 
@@ -185,11 +197,11 @@ export function Canvas({
             {agentStroke.length > 1 && (
               <SvgPath
                 d={pointsToSvgD(agentStroke)}
-                stroke={colors.stroke}
-                strokeWidth={2.5}
+                stroke={styleConfig.agent_stroke.color}
+                strokeWidth={styleConfig.agent_stroke.stroke_width}
                 fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
+                strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
               />
             )}
 

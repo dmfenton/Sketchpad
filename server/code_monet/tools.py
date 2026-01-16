@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 
 
 def parse_path_data(path_data: dict[str, Any]) -> Path | None:
-    """Parse a path dictionary into a Path object."""
+    """Parse a path dictionary into a Path object.
+
+    Supports optional style properties: color, stroke_width, opacity.
+    """
     try:
         path_type_str = path_data.get("type", "")
         points_data = path_data.get("points", [])
@@ -27,12 +30,42 @@ def parse_path_data(path_data: dict[str, Any]) -> Path | None:
         except ValueError:
             return None
 
+        # Extract optional style properties
+        color = path_data.get("color")
+        stroke_width = path_data.get("stroke_width")
+        opacity = path_data.get("opacity")
+
+        # Validate style properties
+        if color is not None and not isinstance(color, str):
+            color = None
+        if stroke_width is not None:
+            try:
+                stroke_width = float(stroke_width)
+                # Clamp to reasonable range
+                stroke_width = max(0.5, min(10.0, stroke_width))
+            except (TypeError, ValueError):
+                stroke_width = None
+        if opacity is not None:
+            try:
+                opacity = float(opacity)
+                # Clamp to 0-1
+                opacity = max(0.0, min(1.0, opacity))
+            except (TypeError, ValueError):
+                opacity = None
+
         # Handle SVG path type (raw d-string)
         if path_type == PathType.SVG:
             d_string = path_data.get("d", "")
             if not d_string or not isinstance(d_string, str):
                 return None
-            return Path(type=PathType.SVG, points=[], d=d_string)
+            return Path(
+                type=PathType.SVG,
+                points=[],
+                d=d_string,
+                color=color,
+                stroke_width=stroke_width,
+                opacity=opacity,
+            )
 
         # Parse points for other path types
         points = []
@@ -52,7 +85,13 @@ def parse_path_data(path_data: dict[str, Any]) -> Path | None:
         if len(points) < min_points.get(path_type, 2):
             return None
 
-        return Path(type=path_type, points=points)
+        return Path(
+            type=path_type,
+            points=points,
+            color=color,
+            stroke_width=stroke_width,
+            opacity=opacity,
+        )
     except (TypeError, ValueError):
         return None
 
@@ -69,6 +108,7 @@ async def run_python_code(code: str, canvas_width: int, canvas_height: int) -> d
     2. {"svg_paths": [...]} - array of SVG d-strings
 
     The code has access to canvas_width and canvas_height variables.
+    Helper functions support optional style parameters: color, stroke_width, opacity.
 
     Returns dict with stdout, stderr, return_code, and parsed paths.
     """
@@ -82,30 +122,53 @@ import json
 canvas_width = {canvas_width}
 canvas_height = {canvas_height}
 
-# Helper functions for generating paths
-def svg_path(d: str) -> dict:
-    \"\"\"Create an SVG path dict.\"\"\"
-    return {{"type": "svg", "d": d}}
+# Helper function to add style properties to a path dict
+def _add_style(path_dict: dict, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Add optional style properties to a path dict.\"\"\"
+    if color is not None:
+        path_dict["color"] = color
+    if stroke_width is not None:
+        path_dict["stroke_width"] = stroke_width
+    if opacity is not None:
+        path_dict["opacity"] = opacity
+    return path_dict
 
-def line(x1: float, y1: float, x2: float, y2: float) -> dict:
-    \"\"\"Create a line path.\"\"\"
-    return {{"type": "line", "points": [{{"x": x1, "y": y1}}, {{"x": x2, "y": y2}}]}}
+# Helper functions for generating paths (all support optional style parameters)
+def svg_path(d: str, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Create an SVG path dict with optional style.\"\"\"
+    return _add_style({{"type": "svg", "d": d}}, color, stroke_width, opacity)
 
-def polyline(*points) -> dict:
-    \"\"\"Create a polyline from (x, y) tuples.\"\"\"
-    return {{"type": "polyline", "points": [{{"x": p[0], "y": p[1]}} for p in points]}}
+def line(x1: float, y1: float, x2: float, y2: float, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Create a line path with optional style.\"\"\"
+    return _add_style(
+        {{"type": "line", "points": [{{"x": x1, "y": y1}}, {{"x": x2, "y": y2}}]}},
+        color, stroke_width, opacity
+    )
 
-def quadratic(x1: float, y1: float, cx: float, cy: float, x2: float, y2: float) -> dict:
-    \"\"\"Create a quadratic bezier curve.\"\"\"
-    return {{"type": "quadratic", "points": [
-        {{"x": x1, "y": y1}}, {{"x": cx, "y": cy}}, {{"x": x2, "y": y2}}
-    ]}}
+def polyline(*points, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Create a polyline from (x, y) tuples with optional style.\"\"\"
+    return _add_style(
+        {{"type": "polyline", "points": [{{"x": p[0], "y": p[1]}} for p in points]}},
+        color, stroke_width, opacity
+    )
 
-def cubic(x1: float, y1: float, cx1: float, cy1: float, cx2: float, cy2: float, x2: float, y2: float) -> dict:
-    \"\"\"Create a cubic bezier curve.\"\"\"
-    return {{"type": "cubic", "points": [
-        {{"x": x1, "y": y1}}, {{"x": cx1, "y": cy1}}, {{"x": cx2, "y": cy2}}, {{"x": x2, "y": y2}}
-    ]}}
+def quadratic(x1: float, y1: float, cx: float, cy: float, x2: float, y2: float, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Create a quadratic bezier curve with optional style.\"\"\"
+    return _add_style(
+        {{"type": "quadratic", "points": [
+            {{"x": x1, "y": y1}}, {{"x": cx, "y": cy}}, {{"x": x2, "y": y2}}
+        ]}},
+        color, stroke_width, opacity
+    )
+
+def cubic(x1: float, y1: float, cx1: float, cy1: float, cx2: float, cy2: float, x2: float, y2: float, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Create a cubic bezier curve with optional style.\"\"\"
+    return _add_style(
+        {{"type": "cubic", "points": [
+            {{"x": x1, "y": y1}}, {{"x": cx1, "y": cy1}}, {{"x": cx2, "y": cy2}}, {{"x": x2, "y": y2}}
+        ]}},
+        color, stroke_width, opacity
+    )
 
 def output_paths(paths: list):
     \"\"\"Output paths as JSON to stdout.\"\"\"
@@ -416,7 +479,7 @@ async def handle_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "draw_paths",
-    "Draw paths on the canvas (800x600). Coordinates must be within bounds: X 0-800, Y 0-600. Each path has a type (line, polyline, quadratic, cubic, svg) and either points or a d-string.",
+    "Draw paths on the canvas (800x600). Coordinates must be within bounds: X 0-800, Y 0-600. Each path has a type (line, polyline, quadratic, cubic, svg) and either points or a d-string. In Paint mode, paths can have color, stroke_width, and opacity.",
     {
         "type": "object",
         "properties": {
@@ -443,6 +506,18 @@ async def handle_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
                         "d": {
                             "type": "string",
                             "description": "SVG path d-string (for type=svg). Coordinates must be within canvas bounds (0-800, 0-600). Example: 'M 100 100 L 400 300 C 500 200 600 400 700 300'",
+                        },
+                        "color": {
+                            "type": "string",
+                            "description": "Hex color for the path (Paint mode only). Example: '#e94560'",
+                        },
+                        "stroke_width": {
+                            "type": "number",
+                            "description": "Stroke width 0.5-10 (Paint mode only). Default: 3",
+                        },
+                        "opacity": {
+                            "type": "number",
+                            "description": "Opacity 0-1 (Paint mode only). Default: 1",
                         },
                     },
                     "required": ["type"],
@@ -481,12 +556,12 @@ IMPORTANT: Canvas is 800x600. All coordinates must be within X: 0-800, Y: 0-600.
 The code has access to:
 - canvas_width (800), canvas_height (600): Use for positioning within bounds
 - math, random, json: Standard library modules
-- Helper functions:
-  - line(x1, y1, x2, y2) -> path dict
-  - polyline((x1,y1), (x2,y2), ...) -> path dict
-  - quadratic(x1, y1, cx, cy, x2, y2) -> path dict
-  - cubic(x1, y1, cx1, cy1, cx2, cy2, x2, y2) -> path dict
-  - svg_path(d_string) -> path dict
+- Helper functions (all accept optional color, stroke_width, opacity kwargs for Paint mode):
+  - line(x1, y1, x2, y2, color=None, stroke_width=None, opacity=None) -> path dict
+  - polyline(*points, color=None, stroke_width=None, opacity=None) -> path dict (points are (x,y) tuples)
+  - quadratic(x1, y1, cx, cy, x2, y2, color=None, stroke_width=None, opacity=None) -> path dict
+  - cubic(x1, y1, cx1, cy1, cx2, cy2, x2, y2, color=None, stroke_width=None, opacity=None) -> path dict
+  - svg_path(d_string, color=None, stroke_width=None, opacity=None) -> path dict
   - output_paths(paths_list) -> prints JSON to stdout
   - output_svg_paths(d_strings_list) -> prints JSON to stdout
 
@@ -503,12 +578,18 @@ for i in range(100):
 output_paths(paths)
 ```
 
-Example - draw using raw SVG d-strings:
+Example - colorful spiral (Paint mode):
 ```python
-output_svg_paths([
-    "M 200 200 C 300 100 500 400 600 300",
-    "M 200 400 Q 400 300 600 400"
-])
+colors = ["#e94560", "#7b68ee", "#4ecdc4", "#ffd93d"]
+paths = []
+cx, cy = canvas_width / 2, canvas_height / 2
+for i in range(100):
+    t = i * 0.1
+    r = 10 + t * 5
+    x1, y1 = cx + r * math.cos(t), cy + r * math.sin(t)
+    x2, y2 = cx + (r+5) * math.cos(t+0.1), cy + (r+5) * math.sin(t+0.1)
+    paths.append(line(x1, y1, x2, y2, color=colors[i % len(colors)], stroke_width=2))
+output_paths(paths)
 ```""",
     {
         "type": "object",

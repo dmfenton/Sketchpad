@@ -3,8 +3,13 @@
  */
 
 import React, { useCallback, useRef, useState } from 'react';
-import type { Path, Point } from '@code-monet/shared';
-import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@code-monet/shared';
+import type { DrawingStyleConfig, Path, Point } from '@code-monet/shared';
+import {
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  getEffectiveStyle,
+  PLOTTER_STYLE,
+} from '@code-monet/shared';
 
 interface CanvasProps {
   strokes: Path[];
@@ -13,6 +18,7 @@ interface CanvasProps {
   penPosition: Point | null;
   penDown: boolean;
   drawingEnabled: boolean;
+  styleConfig?: DrawingStyleConfig; // Current drawing style (defaults to plotter)
   onStrokeStart: (x: number, y: number) => void;
   onStrokeMove: (x: number, y: number) => void;
   onStrokeEnd: () => void;
@@ -100,6 +106,7 @@ export function Canvas({
   penPosition,
   penDown,
   drawingEnabled,
+  styleConfig = PLOTTER_STYLE,
   onStrokeStart,
   onStrokeMove,
   onStrokeEnd,
@@ -173,28 +180,32 @@ export function Canvas({
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
 
-        {/* Completed strokes */}
-        {strokes.map((stroke, index) => (
-          <path
-            key={`stroke-${index}`}
-            d={pathToSvgD(stroke)}
-            stroke="#1a1a2e"
-            strokeWidth={2.5}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        ))}
+        {/* Completed strokes - render with effective style */}
+        {strokes.map((stroke, index) => {
+          const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
+          return (
+            <path
+              key={`stroke-${index}`}
+              d={pathToSvgD(stroke)}
+              stroke={effectiveStyle.color}
+              strokeWidth={effectiveStyle.stroke_width}
+              fill="none"
+              strokeLinecap={effectiveStyle.stroke_linecap}
+              strokeLinejoin={effectiveStyle.stroke_linejoin}
+              opacity={effectiveStyle.opacity}
+            />
+          );
+        })}
 
         {/* Current stroke in progress (human drawing) */}
         {currentStroke.length > 0 && (
           <path
             d={pointsToSvgD(currentStroke)}
-            stroke="#e94560"
-            strokeWidth={2.5}
+            stroke={styleConfig.human_stroke.color}
+            strokeWidth={styleConfig.human_stroke.stroke_width}
             fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            strokeLinecap={styleConfig.human_stroke.stroke_linecap}
+            strokeLinejoin={styleConfig.human_stroke.stroke_linejoin}
           />
         )}
 
@@ -202,11 +213,11 @@ export function Canvas({
         {agentStroke.length > 1 && (
           <path
             d={pointsToSvgD(agentStroke)}
-            stroke="#1a1a2e"
-            strokeWidth={2.5}
+            stroke={styleConfig.agent_stroke.color}
+            strokeWidth={styleConfig.agent_stroke.stroke_width}
             fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
+            strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
           />
         )}
 
@@ -219,7 +230,7 @@ export function Canvas({
               cy={penPosition.y}
               r={penDown ? 12 : 16}
               fill="none"
-              stroke="#e94560"
+              stroke={styleConfig.human_stroke.color}
               strokeWidth={2}
               opacity={0.5}
             />
@@ -228,8 +239,8 @@ export function Canvas({
               cx={penPosition.x}
               cy={penPosition.y}
               r={penDown ? 6 : 4}
-              fill={penDown ? '#e94560' : 'none'}
-              stroke="#e94560"
+              fill={penDown ? styleConfig.human_stroke.color : 'none'}
+              stroke={styleConfig.human_stroke.color}
               strokeWidth={2}
             />
           </>
@@ -244,7 +255,7 @@ export function Canvas({
             top: 8,
             left: 8,
             padding: '4px 8px',
-            background: '#e94560',
+            background: styleConfig.human_stroke.color,
             color: '#fff',
             borderRadius: 4,
             fontSize: 12,
