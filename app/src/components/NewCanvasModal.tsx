@@ -16,12 +16,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import type { DrawingStyleType } from '@code-monet/shared';
 import { spacing, borderRadius, typography, useTheme } from '../theme';
 
 interface NewCanvasModalProps {
   visible: boolean;
+  currentStyle: DrawingStyleType;
   onClose: () => void;
-  onStart: (direction?: string) => void;
+  onStart: (direction?: string, style?: DrawingStyleType) => void;
 }
 
 const DIRECTION_SUGGESTIONS = [
@@ -37,21 +39,30 @@ const MAX_LENGTH = 200;
 
 export function NewCanvasModal({
   visible,
+  currentStyle,
   onClose,
   onStart,
 }: NewCanvasModalProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const [text, setText] = useState('');
+  const [selectedStyle, setSelectedStyle] = useState<DrawingStyleType>(currentStyle);
+
+  // Reset style when modal opens with current style
+  React.useEffect(() => {
+    if (visible) {
+      setSelectedStyle(currentStyle);
+    }
+  }, [visible, currentStyle]);
 
   const handleStart = () => {
     const direction = text.trim() || undefined;
-    onStart(direction);
+    onStart(direction, selectedStyle);
     setText('');
     onClose();
   };
 
   const handleSkip = () => {
-    onStart(undefined);
+    onStart(undefined, selectedStyle);
     setText('');
     onClose();
   };
@@ -113,6 +124,57 @@ export function NewCanvasModal({
               </Pressable>
             ))}
           </ScrollView>
+
+          {/* Style Picker */}
+          <View style={styles.stylePickerContainer}>
+            <Text style={[styles.styleLabel, { color: colors.textSecondary }]}>Style</Text>
+            <View style={styles.stylePicker}>
+              <Pressable
+                style={[
+                  styles.styleOption,
+                  { backgroundColor: colors.surfaceElevated },
+                  selectedStyle === 'plotter' && { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setSelectedStyle('plotter')}
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={18}
+                  color={selectedStyle === 'plotter' ? colors.textOnPrimary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.styleOptionText,
+                    { color: selectedStyle === 'plotter' ? colors.textOnPrimary : colors.textSecondary },
+                  ]}
+                >
+                  Plotter
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.styleOption,
+                  { backgroundColor: colors.surfaceElevated },
+                  selectedStyle === 'paint' && { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setSelectedStyle('paint')}
+              >
+                <Ionicons
+                  name="color-palette-outline"
+                  size={18}
+                  color={selectedStyle === 'paint' ? colors.textOnPrimary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.styleOptionText,
+                    { color: selectedStyle === 'paint' ? colors.textOnPrimary : colors.textSecondary },
+                  ]}
+                >
+                  Paint
+                </Text>
+              </Pressable>
+            </View>
+          </View>
 
           {/* Input */}
           <View style={styles.inputContainer}>
@@ -293,5 +355,30 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.8,
     transform: [{ scale: 0.98 }],
+  },
+  stylePickerContainer: {
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  styleLabel: {
+    ...typography.caption,
+    marginBottom: spacing.sm,
+  },
+  stylePicker: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  styleOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+  },
+  styleOptionText: {
+    ...typography.body,
+    fontWeight: '500',
   },
 });
