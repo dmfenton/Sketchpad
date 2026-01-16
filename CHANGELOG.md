@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Redesigned mobile app color palette to match web homepage aesthetic
+- Updated theme from soft impressionist tones to bold, vibrant accents (rose, violet, teal)
+- Splash screen redesigned with gradient orbs and floating animations
 - StatusOverlay (bionic reading) moved from canvas overlay to dedicated strip above canvas
 - "Thoughts" panel now collapsible, starts collapsed by default
 - Added message count badge to collapsed thoughts panel header

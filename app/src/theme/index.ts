@@ -1,7 +1,7 @@
 /**
  * Code Monet - Design System
- * An impressionist art-inspired theme with colors from Monet's Water Lilies,
- * Garden at Giverny, and Haystacks series.
+ * A bold, immersive theme with vibrant accent colors (rose, violet, teal).
+ * Designed for an artistic, creative experience.
  * Supports both light and dark modes.
  */
 
