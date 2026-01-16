@@ -667,8 +667,8 @@ asyncio.run(create_user('admin@example.com', 'ChangeMe123!'))
 
 ### JWT Tokens
 
-- Access token (30 min) for API calls
-- Refresh token (7 days) to get new access token
+- Access token (1 day) for API calls
+- Refresh token (1 year) to get new access token
 - WebSocket auth via `?token=<jwt>` query param
 
 ### Magic Link API

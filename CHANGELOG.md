@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Extended login session durations: access tokens now last 1 day (was 30 min), refresh tokens last 1 year (was 90 days)
 - Split agent message display into two areas: LiveStatus (always visible) shows streaming thoughts and current action; MessageStream (collapsible) shows message history
 
 ## [1.15.0] - 2026-01-16
