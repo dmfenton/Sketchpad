@@ -52,8 +52,8 @@ export function useStrokeAnimation({
   const rendererRef = useRef<StrokeRenderer | null>(null);
 
   // Track the latest dependencies to avoid stale closures
-  const depsRef = useRef({ dispatch, fetchStrokes, frameDelayMs });
-  depsRef.current = { dispatch, fetchStrokes, frameDelayMs };
+  const depsRef = useRef({ dispatch, fetchStrokes, frameDelayMs, renderDelayMs });
+  depsRef.current = { dispatch, fetchStrokes, frameDelayMs, renderDelayMs };
 
   // Track if we're waiting to render (pendingStrokes set but canRender is false)
   const waitingToRenderRef = useRef<number | null>(null);
@@ -79,7 +79,7 @@ export function useStrokeAnimation({
     };
   }, []);
 
-  // Helper to start rendering with delay
+  // Helper to start rendering with delay (uses depsRef to avoid stale closures)
   const startRenderWithDelay = (batchId: number) => {
     // Clear any existing delay
     if (delayTimeoutRef.current) {
@@ -94,7 +94,7 @@ export function useStrokeAnimation({
           console.error('[useStrokeAnimation] Error:', error);
         });
       }
-    }, renderDelayMs);
+    }, depsRef.current.renderDelayMs);
   };
 
   // Handle pendingStrokes changes - but wait for canRender
@@ -113,7 +113,7 @@ export function useStrokeAnimation({
     // We can render now - clear waiting state and render after delay
     waitingToRenderRef.current = null;
     startRenderWithDelay(pendingStrokes.batchId);
-  }, [pendingStrokes?.batchId, canRender, renderDelayMs]);
+  }, [pendingStrokes?.batchId, canRender]);
 
   // When canRender becomes true, check if we have a waiting batch
   useEffect(() => {
@@ -122,5 +122,5 @@ export function useStrokeAnimation({
       waitingToRenderRef.current = null;
       startRenderWithDelay(batchId);
     }
-  }, [canRender, renderDelayMs]);
+  }, [canRender]);
 }

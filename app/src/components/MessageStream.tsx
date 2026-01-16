@@ -358,9 +358,10 @@ export function MessageStream({ messages }: MessageStreamProps): React.JSX.Eleme
   // Auto-scroll to bottom
   useEffect(() => {
     if (autoScroll) {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
+      return () => clearTimeout(timeoutId);
     }
   }, [messages, autoScroll]);
 
