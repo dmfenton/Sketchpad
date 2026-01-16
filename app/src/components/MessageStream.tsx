@@ -9,12 +9,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { LIVE_MESSAGE_ID, type AgentMessage, type ToolName } from '@drawing-agent/shared';
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
 
-// Minimum time (ms) to display each thought chunk before showing the next
-// Higher = slower, more readable
-const CHUNK_DISPLAY_MS = 800;
+// Display pacing for thought chunks (ms)
+const NORMAL_CHUNK_MS = 800; // Normal reading pace
+const FAST_CHUNK_MS = 150; // Speed up when drawing is waiting
 
 interface MessageStreamProps {
   messages: AgentMessage[];
+  hasPendingDrawing?: boolean; // Speed up when drawing is waiting
+  onThoughtsCaughtUp?: () => void; // Called when live message display catches up to buffer
 }
 
 function formatTime(timestamp: number): string {
@@ -48,12 +50,16 @@ interface MessageBubbleProps {
   message: AgentMessage;
   isNew: boolean;
   colors: ColorScheme;
+  chunkDelayMs: number; // Pacing for live message display
+  onCaughtUp?: () => void; // Called when live message catches up to buffer
 }
 
 const MessageBubble = React.memo(function MessageBubble({
   message,
   isNew,
   colors,
+  chunkDelayMs,
+  onCaughtUp,
 }: MessageBubbleProps): React.JSX.Element {
   const fadeAnim = useRef(new Animated.Value(isNew ? 0 : 1)).current;
   const slideAnim = useRef(new Animated.Value(isNew ? 20 : 0)).current;
@@ -78,7 +84,7 @@ const MessageBubble = React.memo(function MessageBubble({
     // If we're behind the buffer, schedule an update
     if (displayedText.length < bufferRef.current.length) {
       const timeSinceLastUpdate = Date.now() - lastUpdateRef.current;
-      const delay = Math.max(0, CHUNK_DISPLAY_MS - timeSinceLastUpdate);
+      const delay = Math.max(0, chunkDelayMs - timeSinceLastUpdate);
 
       const timer = setTimeout(() => {
         // Release all buffered text up to this point
@@ -87,8 +93,11 @@ const MessageBubble = React.memo(function MessageBubble({
       }, delay);
 
       return () => clearTimeout(timer);
+    } else {
+      // We've caught up - notify parent
+      onCaughtUp?.();
     }
-  }, [isLiveMessage, message.text, displayedText.length]);
+  }, [isLiveMessage, message.text, displayedText.length, chunkDelayMs, onCaughtUp]);
 
   useEffect(() => {
     if (isNew) {
@@ -319,12 +328,24 @@ const MessageBubble = React.memo(function MessageBubble({
   );
 });
 
-export function MessageStream({ messages }: MessageStreamProps): React.JSX.Element {
+export function MessageStream({
+  messages,
+  hasPendingDrawing = false,
+  onThoughtsCaughtUp,
+}: MessageStreamProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const [autoScroll, setAutoScroll] = useState(true);
   const [collapsed, setCollapsed] = useState(true); // Start collapsed
   const scrollViewRef = useRef<ScrollView>(null);
   const lastMessageCount = useRef(messages.length);
+
+  // Speed up display when drawing is waiting
+  const chunkDelayMs = hasPendingDrawing ? FAST_CHUNK_MS : NORMAL_CHUNK_MS;
+
+  // Stable callback for when thoughts catch up
+  const handleThoughtsCaughtUp = useCallback(() => {
+    onThoughtsCaughtUp?.();
+  }, [onThoughtsCaughtUp]);
 
   // Track new messages for animation
   const newMessageIds = useRef(new Set<string>());
@@ -430,6 +451,8 @@ export function MessageStream({ messages }: MessageStreamProps): React.JSX.Eleme
                   message={message}
                   isNew={newMessageIds.current.has(message.id) || message.id === LIVE_MESSAGE_ID}
                   colors={colors}
+                  chunkDelayMs={chunkDelayMs}
+                  onCaughtUp={message.id === LIVE_MESSAGE_ID ? handleThoughtsCaughtUp : undefined}
                 />
               ))
             )}

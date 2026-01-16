@@ -54,6 +54,9 @@ function MainApp(): React.JSX.Element {
   const canvas = useCanvas();
   const paused = canvas.state.paused;
 
+  // Track whether thoughts have caught up to buffer (for display pacing)
+  const [thoughtsCaughtUp, setThoughtsCaughtUp] = useState(true);
+
   // canvas.handleMessage is already stable (useCallback with [])
   const { handleMessage, dispatch } = canvas;
 
@@ -68,11 +71,26 @@ function MainApp(): React.JSX.Element {
     return data.strokes;
   }, [accessToken]);
 
+  // When drawing is pending, we're not caught up
+  const hasPendingDrawing = canvas.state.pendingStrokes !== null;
+  useEffect(() => {
+    if (hasPendingDrawing) {
+      setThoughtsCaughtUp(false);
+    }
+  }, [hasPendingDrawing]);
+
+  // Callback when thought display catches up to buffer
+  const handleThoughtsCaughtUp = useCallback(() => {
+    setThoughtsCaughtUp(true);
+  }, []);
+
   // Use shared animation hook for agent-drawn strokes
+  // Gate on thoughtsCaughtUp so drawing waits for thoughts to display
   useStrokeAnimation({
     pendingStrokes: canvas.state.pendingStrokes,
     dispatch,
     fetchStrokes,
+    canRender: thoughtsCaughtUp,
   });
 
   // Handle auth errors from WebSocket with proper mutex pattern
@@ -258,7 +276,11 @@ function MainApp(): React.JSX.Element {
           ) : (
             <>
               {/* Message Stream */}
-              <MessageStream messages={canvas.state.messages} />
+              <MessageStream
+                messages={canvas.state.messages}
+                hasPendingDrawing={hasPendingDrawing}
+                onThoughtsCaughtUp={handleThoughtsCaughtUp}
+              />
 
               {/* Action Bar - Bottom */}
               <ActionBar
