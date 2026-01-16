@@ -63,12 +63,14 @@ export const handleStatus: MessageHandler<StatusMessage> = (message, dispatch) =
   // Status 'paused' means agent is paused, any other status means it's running
   dispatch({ type: 'SET_PAUSED', paused: message.status === 'paused' });
 
+  // Store server status for fallback derivation (e.g., 'thinking' before thinking_delta arrives)
+  dispatch({ type: 'SET_SERVER_STATUS', status: message.status });
+
   // Reset thinking when starting a new turn
   if (message.status === 'thinking') {
     dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
     dispatch({ type: 'RESET_TURN' });
   }
-  // Status is derived from messages - no need to store separately
 };
 
 export const handleIteration: MessageHandler<IterationMessage> = (message, dispatch) => {
@@ -179,6 +181,8 @@ export const handleError: MessageHandler<ErrorMessage> = (message, dispatch) => 
 export const handlePieceComplete: MessageHandler<PieceCompleteMessage> = (message, dispatch) => {
   // Finalize any streaming thinking before showing piece complete
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
+  // Clear server status since turn is complete
+  dispatch({ type: 'SET_SERVER_STATUS', status: null });
   dispatch({ type: 'SET_PIECE_COUNT', count: message.piece_number });
   dispatch({
     type: 'ADD_MESSAGE',
@@ -197,11 +201,13 @@ export const handlePieceComplete: MessageHandler<PieceCompleteMessage> = (messag
 export const handleClear: MessageHandler<ClearMessage> = (_message, dispatch) => {
   dispatch({ type: 'CLEAR' });
   dispatch({ type: 'CLEAR_MESSAGES' });
+  dispatch({ type: 'SET_SERVER_STATUS', status: null });
 };
 
 export const handleNewCanvas: MessageHandler<NewCanvasMessage> = (_message, dispatch) => {
   dispatch({ type: 'CLEAR' });
   dispatch({ type: 'CLEAR_MESSAGES' });
+  dispatch({ type: 'SET_SERVER_STATUS', status: null });
 };
 
 export const handleGalleryUpdate: MessageHandler<GalleryUpdateMessage> = (message, dispatch) => {

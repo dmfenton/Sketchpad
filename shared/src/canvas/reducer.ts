@@ -32,11 +32,13 @@ export interface CanvasHookState {
   currentIteration: number;
   maxIterations: number;
   pendingStrokes: PendingStrokesInfo | null; // Strokes ready to be fetched
+  serverStatus: string | null; // Status reported by server (fallback for derivation)
 }
 
 /**
  * Derive agent status from messages and state.
- * Status is computed, not stored - messages are the source of truth.
+ * Status is computed from messages, with serverStatus as a fallback
+ * for states where messages haven't arrived yet.
  */
 export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
   // Paused overrides everything
@@ -60,6 +62,9 @@ export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
       return 'executing';
     }
   }
+
+  // Fallback to server-reported status (for 'thinking' before thinking_delta arrives)
+  if (state.serverStatus === 'thinking') return 'thinking';
 
   return 'idle';
 }
@@ -93,7 +98,8 @@ export type CanvasAction =
   | { type: 'SET_ITERATION'; current: number; max: number }
   | { type: 'RESET_TURN' }
   | { type: 'STROKES_READY'; count: number; batchId: number }
-  | { type: 'CLEAR_PENDING_STROKES' };
+  | { type: 'CLEAR_PENDING_STROKES' }
+  | { type: 'SET_SERVER_STATUS'; status: string | null };
 
 export const initialState: CanvasHookState = {
   strokes: [],
@@ -111,6 +117,7 @@ export const initialState: CanvasHookState = {
   currentIteration: 0,
   maxIterations: 5,
   pendingStrokes: null,
+  serverStatus: null,
 };
 
 export function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHookState {
@@ -256,6 +263,9 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
 
     case 'CLEAR_PENDING_STROKES':
       return { ...state, pendingStrokes: null };
+
+    case 'SET_SERVER_STATUS':
+      return { ...state, serverStatus: action.status };
 
     default:
       return state;
