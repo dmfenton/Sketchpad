@@ -43,6 +43,7 @@ make e2e
 If tests fail, abort and fix issues before proceeding.
 
 Skip this step if:
+
 - Maestro is not installed (`make e2e-install` to install)
 - Only server-side changes (no app/ or shared/ changes)
 

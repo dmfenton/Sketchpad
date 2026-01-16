@@ -48,11 +48,13 @@ npm install <package>
 ### Common Issues
 
 **Stale shared library** - Rebuild:
+
 ```bash
 cd shared && npm run build
 ```
 
 **Dependency issues** - Clean reinstall:
+
 ```bash
 rm -rf node_modules app/node_modules web/node_modules shared/node_modules package-lock.json
 npm install
@@ -234,16 +236,19 @@ app/e2e/
 ### Key Learnings
 
 **Simulator state:**
+
 - `simctl erase` required before auth test - Keychain persists across app uninstall
 - Auth injection uses `simctl launch` then `simctl openurl` (app must be running for deep links)
 
 **Maestro tips:**
+
 - Use `testID` props, not text matching (icons break text selectors)
 - Use `optional: true` for dialogs that may or may not appear
 - `extendedWaitUntil` with timeout for async operations
 - Coordinate taps (`point: "95%,52%"`) are fragile - prefer testIDs
 
 **iOS-specific:**
+
 - "Open in App?" dialog appears on fresh simulator - handle with optional tap
 - `back` command doesn't work for modals - use testID on close button
 - Swipe gestures can interfere with subsequent button taps
@@ -257,6 +262,7 @@ Add `testID` prop to React Native components for E2E selection:
 ```
 
 **Current testIDs:**
+
 - AuthScreen: `email-input`, `code-input`, `auth-submit-button`
 - Canvas: `canvas-view`
 - StatusPill: `status-pill`
@@ -888,8 +894,8 @@ UMAMI_APP_SECRET=<generate with: openssl rand -hex 32>
 
 **GitHub Secrets:**
 
-| Secret | Description |
-|--------|-------------|
+| Secret             | Description                                        |
+| ------------------ | -------------------------------------------------- |
 | `UMAMI_WEBSITE_ID` | UUID from Umami dashboard (after creating website) |
 
 ### Viewing Analytics

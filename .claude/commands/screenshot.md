@@ -31,6 +31,7 @@ After running the command, use the Read tool to view the screenshot file.
 ```
 
 This will:
+
 1. Capture the current iOS simulator screen
 2. Save it as `screenshots/sim-20240115-123456.png`
 3. Display the image for analysis

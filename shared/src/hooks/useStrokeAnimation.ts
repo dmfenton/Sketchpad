@@ -108,7 +108,7 @@ export function useStrokeAnimation({
       console.log('[useStrokeAnimation] Effect triggered, pendingStrokes:', pendingStrokes);
       if (!pendingStrokes) return;
 
-      // Skip if we've already fetched this batch (prevents race condition)
+      // Skip if we've already successfully fetched this batch (prevents race condition)
       if (pendingStrokes.batchId <= fetchedBatchIdRef.current) {
         console.log(
           '[useStrokeAnimation] Skipping batch',
@@ -119,20 +119,27 @@ export function useStrokeAnimation({
         );
         return;
       }
-      console.log('[useStrokeAnimation] Fetching batch', pendingStrokes.batchId);
-      fetchedBatchIdRef.current = pendingStrokes.batchId;
 
-      // Clear pending state to prevent re-fetch
+      const batchId = pendingStrokes.batchId;
+      console.log('[useStrokeAnimation] Fetching batch', batchId);
+
+      // Clear pending state to prevent duplicate fetch attempts
       dispatch({ type: 'CLEAR_PENDING_STROKES' });
 
       try {
         const strokes = await fetchStrokes();
         console.log('[useStrokeAnimation] Fetched', strokes.length, 'strokes');
+
+        // Only mark as fetched AFTER successful fetch
+        // This ensures failed fetches can be retried on reconnect
+        fetchedBatchIdRef.current = batchId;
+
         if (strokes.length > 0) {
           await animateStrokes(strokes);
         }
       } catch (error) {
         console.error('[useStrokeAnimation] Error fetching/animating strokes:', error);
+        // Don't update fetchedBatchIdRef - allow retry on reconnect
       }
     };
 
