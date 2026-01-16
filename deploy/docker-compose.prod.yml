@@ -7,7 +7,6 @@ services:
     ports:
       - '80:80'
       - '443:443'
-      - '3001:3001'
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certbot/conf:/etc/letsencrypt:ro
@@ -124,6 +123,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://umami:${UMAMI_DB_PASSWORD:?UMAMI_DB_PASSWORD is required}@umami-db:5432/umami
       - APP_SECRET=${UMAMI_APP_SECRET:?UMAMI_APP_SECRET is required}
+      - BASE_PATH=/analytics
       - DISABLE_TELEMETRY=1
     depends_on:
       umami-db:
