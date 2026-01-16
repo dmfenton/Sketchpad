@@ -107,23 +107,28 @@ export function ActionBar({
   return (
     <View style={styles.container} testID="action-bar">
       <View style={[styles.bar, { backgroundColor: colors.surface }, shadows.lg]}>
-        <ActionButton
-          icon={drawingEnabled ? 'pencil' : 'pencil-outline'}
-          label="Draw"
-          active={drawingEnabled}
-          disabled={!connected}
-          onPress={onDrawToggle}
-          colors={colors}
-          testID="action-draw"
-        />
-        <ActionButton
-          icon="chatbubble-outline"
-          label="Nudge"
-          disabled={!connected}
-          onPress={onNudge}
-          colors={colors}
-          testID="action-nudge"
-        />
+        {/* Contextual actions - only show when agent is active */}
+        {!paused && (
+          <>
+            <ActionButton
+              icon={drawingEnabled ? 'pencil' : 'pencil-outline'}
+              label="Draw"
+              active={drawingEnabled}
+              disabled={!connected}
+              onPress={onDrawToggle}
+              colors={colors}
+              testID="action-draw"
+            />
+            <ActionButton
+              icon="chatbubble-outline"
+              label="Nudge"
+              disabled={!connected}
+              onPress={onNudge}
+              colors={colors}
+              testID="action-nudge"
+            />
+          </>
+        )}
         <ActionButton
           icon="add-circle-outline"
           label="New"
