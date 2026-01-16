@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.1] - 2026-01-16
+
+### Fixed
+
+- SSM environment variable name mismatch: docker-compose now uses `CODE_MONET_ENV` (was `DRAWING_AGENT_ENV`)
+
 ## [1.18.0] - 2026-01-16
 
 ### Added
@@ -486,7 +492,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.17.0...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.18.1...HEAD
+[1.18.1]: https://github.com/dmfenton/sketchpad/compare/v1.18.0...v1.18.1
+[1.18.0]: https://github.com/dmfenton/sketchpad/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/dmfenton/sketchpad/compare/v1.16.0...v1.17.0
 [1.14.1]: https://github.com/dmfenton/sketchpad/compare/v1.14.0...v1.14.1
 [1.14.0]: https://github.com/dmfenton/sketchpad/compare/v1.13.4...v1.14.0
