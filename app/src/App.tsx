@@ -19,7 +19,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { PendingStroke } from '@drawing-agent/shared';
-import { useStrokeAnimation } from '@drawing-agent/shared';
+import { LIVE_MESSAGE_ID, useStrokeAnimation } from '@drawing-agent/shared';
 
 import { useTokenRefresh } from './hooks/useTokenRefresh';
 import { tracer } from './utils/tracing';
@@ -54,9 +54,6 @@ function MainApp(): React.JSX.Element {
   const canvas = useCanvas();
   const paused = canvas.state.paused;
 
-  // Track whether thoughts have caught up to buffer (for display pacing)
-  const [thoughtsCaughtUp, setThoughtsCaughtUp] = useState(true);
-
   // canvas.handleMessage is already stable (useCallback with [])
   const { handleMessage, dispatch } = canvas;
 
@@ -71,26 +68,17 @@ function MainApp(): React.JSX.Element {
     return data.strokes;
   }, [accessToken]);
 
-  // When drawing is pending, we're not caught up
-  const hasPendingDrawing = canvas.state.pendingStrokes !== null;
-  useEffect(() => {
-    if (hasPendingDrawing) {
-      setThoughtsCaughtUp(false);
-    }
-  }, [hasPendingDrawing]);
-
-  // Callback when thought display catches up to buffer
-  const handleThoughtsCaughtUp = useCallback(() => {
-    setThoughtsCaughtUp(true);
-  }, []);
+  // Thoughts are sequential before drawing - only draw once thoughts are done
+  // A live message means thoughts are still streaming
+  const hasLiveMessage = canvas.state.messages.some((m) => m.id === LIVE_MESSAGE_ID);
 
   // Use shared animation hook for agent-drawn strokes
-  // Gate on thoughtsCaughtUp so drawing waits for thoughts to display
+  // Gate on !hasLiveMessage so drawing waits for thoughts to finish
   useStrokeAnimation({
     pendingStrokes: canvas.state.pendingStrokes,
     dispatch,
     fetchStrokes,
-    canRender: thoughtsCaughtUp,
+    canRender: !hasLiveMessage,
   });
 
   // Handle auth errors from WebSocket with proper mutex pattern
@@ -276,10 +264,7 @@ function MainApp(): React.JSX.Element {
           ) : (
             <>
               {/* Message Stream */}
-              <MessageStream
-                messages={canvas.state.messages}
-                onThoughtsCaughtUp={handleThoughtsCaughtUp}
-              />
+              <MessageStream messages={canvas.state.messages} />
 
               {/* Action Bar - Bottom */}
               <ActionBar

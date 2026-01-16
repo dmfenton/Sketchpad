@@ -14,7 +14,6 @@ const CHUNK_DISPLAY_MS = 800;
 
 interface MessageStreamProps {
   messages: AgentMessage[];
-  onThoughtsCaughtUp?: () => void; // Called when live message display catches up to buffer
 }
 
 function formatTime(timestamp: number): string {
@@ -48,14 +47,12 @@ interface MessageBubbleProps {
   message: AgentMessage;
   isNew: boolean;
   colors: ColorScheme;
-  onCaughtUp?: () => void; // Called when live message catches up to buffer
 }
 
 const MessageBubble = React.memo(function MessageBubble({
   message,
   isNew,
   colors,
-  onCaughtUp,
 }: MessageBubbleProps): React.JSX.Element {
   const fadeAnim = useRef(new Animated.Value(isNew ? 0 : 1)).current;
   const slideAnim = useRef(new Animated.Value(isNew ? 20 : 0)).current;
@@ -89,11 +86,8 @@ const MessageBubble = React.memo(function MessageBubble({
       }, delay);
 
       return () => clearTimeout(timer);
-    } else {
-      // We've caught up - notify parent
-      onCaughtUp?.();
     }
-  }, [isLiveMessage, message.text, displayedText.length, onCaughtUp]);
+  }, [isLiveMessage, message.text, displayedText.length]);
 
   useEffect(() => {
     if (isNew) {
@@ -324,20 +318,12 @@ const MessageBubble = React.memo(function MessageBubble({
   );
 });
 
-export function MessageStream({
-  messages,
-  onThoughtsCaughtUp,
-}: MessageStreamProps): React.JSX.Element {
+export function MessageStream({ messages }: MessageStreamProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const [autoScroll, setAutoScroll] = useState(true);
   const [collapsed, setCollapsed] = useState(true); // Start collapsed
   const scrollViewRef = useRef<ScrollView>(null);
   const lastMessageCount = useRef(messages.length);
-
-  // Stable callback for when thoughts catch up
-  const handleThoughtsCaughtUp = useCallback(() => {
-    onThoughtsCaughtUp?.();
-  }, [onThoughtsCaughtUp]);
 
   // Track new messages for animation
   const newMessageIds = useRef(new Set<string>());
@@ -443,7 +429,6 @@ export function MessageStream({
                   message={message}
                   isNew={newMessageIds.current.has(message.id) || message.id === LIVE_MESSAGE_ID}
                   colors={colors}
-                  onCaughtUp={message.id === LIVE_MESSAGE_ID ? handleThoughtsCaughtUp : undefined}
                 />
               ))
             )}
