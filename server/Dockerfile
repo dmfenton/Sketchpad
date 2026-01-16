@@ -9,7 +9,7 @@ ARG APP_BUILD_TIME=unknown
 LABEL org.opencontainers.image.version="${APP_VERSION}"
 LABEL org.opencontainers.image.revision="${APP_COMMIT}"
 LABEL org.opencontainers.image.created="${APP_BUILD_TIME}"
-LABEL org.opencontainers.image.title="drawing-agent"
+LABEL org.opencontainers.image.title="code-monet"
 LABEL org.opencontainers.image.description="Code Monet - Autonomous AI artist"
 
 WORKDIR /app
@@ -19,7 +19,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Copy project files
 COPY pyproject.toml uv.lock alembic.ini ./
-COPY drawing_agent/ drawing_agent/
+COPY code_monet/ code_monet/
 COPY alembic/ alembic/
 
 # Install dependencies
@@ -40,4 +40,4 @@ ENV APP_COMMIT=${APP_COMMIT}
 ENV APP_BUILD_TIME=${APP_BUILD_TIME}
 
 # Run uvicorn directly (no reload in production)
-CMD ["uv", "run", "uvicorn", "drawing_agent.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "code_monet.main:app", "--host", "0.0.0.0", "--port", "8000"]

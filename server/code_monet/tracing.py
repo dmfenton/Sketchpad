@@ -14,7 +14,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from drawing_agent.config import settings
+from code_monet.config import settings
 
 logger = logging.getLogger(__name__)
 

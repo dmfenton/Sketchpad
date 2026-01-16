@@ -15,20 +15,20 @@ from fastapi.responses import JSONResponse, Response
 from PIL import Image, ImageDraw
 from pydantic import BaseModel
 
-from drawing_agent.auth import auth_router
-from drawing_agent.auth.dependencies import CurrentUser
-from drawing_agent.auth.jwt import TokenError, get_user_id_from_token
-from drawing_agent.auth.rate_limit import TRACES_BY_IP, rate_limiter
-from drawing_agent.canvas import path_to_point_list
-from drawing_agent.config import settings
-from drawing_agent.db import User, get_session, repository
-from drawing_agent.registry import workspace_registry
-from drawing_agent.share import share_router
-from drawing_agent.shutdown import shutdown_manager
-from drawing_agent.tracing import get_current_trace_id, record_client_spans, setup_tracing
-from drawing_agent.types import AgentStatus
-from drawing_agent.user_handlers import handle_user_message
-from drawing_agent.workspace_state import WorkspaceState
+from code_monet.auth import auth_router
+from code_monet.auth.dependencies import CurrentUser
+from code_monet.auth.jwt import TokenError, get_user_id_from_token
+from code_monet.auth.rate_limit import TRACES_BY_IP, rate_limiter
+from code_monet.canvas import path_to_point_list
+from code_monet.config import settings
+from code_monet.db import User, get_session, repository
+from code_monet.registry import workspace_registry
+from code_monet.share import share_router
+from code_monet.shutdown import shutdown_manager
+from code_monet.tracing import get_current_trace_id, record_client_spans, setup_tracing
+from code_monet.types import AgentStatus
+from code_monet.user_handlers import handle_user_message
+from code_monet.workspace_state import WorkspaceState
 
 # Configure logging with clean format
 logging.basicConfig(
@@ -304,7 +304,7 @@ async def get_canvas_svg(user: CurrentUser) -> Response:
     """Get user's canvas as SVG image."""
     from xml.etree import ElementTree as ET
 
-    from drawing_agent.canvas import render_path_to_svg_d
+    from code_monet.canvas import render_path_to_svg_d
 
     state = await get_user_state(user)
     canvas = state.canvas
@@ -477,14 +477,14 @@ async def get_dev_token() -> dict[str, str]:
     if not settings.dev_mode:
         raise HTTPException(status_code=403, detail="Dev tokens only available in dev mode")
 
-    from drawing_agent.auth.jwt import create_access_token
+    from code_monet.auth.jwt import create_access_token
 
     # Get or create a dev user
     async with get_session() as session:
         dev_email = "dev@local.test"
         dev_user = await repository.get_user_by_email(session, dev_email)
         if not dev_user:
-            from drawing_agent.auth.password import hash_password
+            from code_monet.auth.password import hash_password
 
             dev_user = await repository.create_user(
                 session, dev_email, hash_password("devpassword")
@@ -623,7 +623,7 @@ async def get_agent_logs(
         If filename provided: Dict with single log file content
         Otherwise: Dict with list of recent log files and their content
     """
-    from drawing_agent.agent_logger import AgentFileLogger
+    from code_monet.agent_logger import AgentFileLogger
 
     state = await get_user_state(user)
     file_logger = AgentFileLogger(user_dir=state._user_dir)
@@ -794,7 +794,7 @@ async def websocket_endpoint(
 
 if __name__ == "__main__":
     uvicorn.run(
-        "drawing_agent.main:app",
+        "code_monet.main:app",
         host=settings.host,
         port=settings.port,
         reload=True,

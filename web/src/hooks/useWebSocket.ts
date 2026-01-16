@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClientMessage, ServerMessage } from '@drawing-agent/shared';
+import type { ClientMessage, ServerMessage } from '@code-monet/shared';
 import { getWebSocketUrl } from '../config';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';

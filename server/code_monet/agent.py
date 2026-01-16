@@ -31,15 +31,15 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import StreamEvent, SyncHookJSONOutput
 from PIL import Image
 
-from drawing_agent.config import settings
-from drawing_agent.tools import (
+from code_monet.config import settings
+from code_monet.tools import (
     create_drawing_server,
     set_add_strokes_callback,
     set_canvas_dimensions,
     set_draw_callback,
     set_get_canvas_callback,
 )
-from drawing_agent.types import (
+from code_monet.types import (
     AgentEvent,
     AgentStatus,
     AgentTurnComplete,
@@ -47,7 +47,7 @@ from drawing_agent.types import (
 )
 
 if TYPE_CHECKING:
-    from drawing_agent.workspace_state import WorkspaceState
+    from code_monet.workspace_state import WorkspaceState
 
 
 @dataclass
@@ -425,7 +425,7 @@ class DrawingAgent:
         """
         from PIL import ImageDraw
 
-        from drawing_agent.canvas import path_to_point_list
+        from code_monet.canvas import path_to_point_list
 
         state = self.get_state()
         canvas = state.canvas

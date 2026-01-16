@@ -2,8 +2,8 @@
 
 import pytest
 
-from drawing_agent.executor import apply_easing, ease_in_out, interpolate_travel
-from drawing_agent.interpolation import (
+from code_monet.executor import apply_easing, ease_in_out, interpolate_travel
+from code_monet.interpolation import (
     cubic_bezier,
     estimate_path_length,
     interpolate_path,
@@ -11,7 +11,7 @@ from drawing_agent.interpolation import (
     lerp_point,
     quadratic_bezier,
 )
-from drawing_agent.types import Path, PathType, Point
+from code_monet.types import Path, PathType, Point
 
 
 class TestLerp:

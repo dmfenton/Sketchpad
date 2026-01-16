@@ -1,5 +1,5 @@
 {
-  "name": "drawing-agent-app",
+  "name": "code-monet-app",
   "version": "0.1.0",
   "main": "expo-router/entry",
   "scripts": {
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",
-    "@drawing-agent/shared": "*",
+    "@code-monet/shared": "*",
     "@expo/metro-runtime": "^6.1.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",

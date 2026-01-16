@@ -5,7 +5,7 @@ from typing import Any
 
 from jose import JWTError, jwt
 
-from drawing_agent.config import settings
+from code_monet.config import settings
 
 
 class TokenError(Exception):

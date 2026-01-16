@@ -4,8 +4,8 @@
  * Tests the message filtering and history display logic.
  */
 
-import { LIVE_MESSAGE_ID } from '@drawing-agent/shared';
-import type { AgentMessage } from '@drawing-agent/shared';
+import { LIVE_MESSAGE_ID } from '@code-monet/shared';
+import type { AgentMessage } from '@code-monet/shared';
 
 describe('MessageStream', () => {
   describe('message filtering', () => {

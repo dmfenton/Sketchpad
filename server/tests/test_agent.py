@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from PIL import Image
 
-from drawing_agent.agent import DrawingAgent, extract_tool_name
-from drawing_agent.types import AgentTurnComplete, Path, Point
+from code_monet.agent import DrawingAgent, extract_tool_name
+from code_monet.types import AgentTurnComplete, Path, Point
 
 
 class TestDrawingAgentPauseResume:

@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from drawing_agent.db.models import CanvasShare, InviteCode, MagicLinkToken, User
+from code_monet.db.models import CanvasShare, InviteCode, MagicLinkToken, User
 
 
 def _ensure_utc(dt: datetime) -> datetime:

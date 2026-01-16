@@ -3,8 +3,8 @@
 Pure functions for path conversion - no state access.
 """
 
-from drawing_agent.interpolation import interpolate_svg_path
-from drawing_agent.types import Path, PathType
+from code_monet.interpolation import interpolate_svg_path
+from code_monet.types import Path, PathType
 
 
 def render_path_to_svg_d(path: Path) -> str:

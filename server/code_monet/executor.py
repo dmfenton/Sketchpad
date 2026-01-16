@@ -15,9 +15,9 @@ import math
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
-from drawing_agent.config import settings
-from drawing_agent.interpolation import distance, interpolate_path, lerp_point
-from drawing_agent.types import (
+from code_monet.config import settings
+from code_monet.interpolation import distance, interpolate_path, lerp_point
+from code_monet.types import (
     AgentStatus,
     Path,
     PenMessage,
@@ -26,7 +26,7 @@ from drawing_agent.types import (
 )
 
 if TYPE_CHECKING:
-    from drawing_agent.workspace_state import WorkspaceState
+    from code_monet.workspace_state import WorkspaceState
 
 
 def ease_in_out(t: float) -> float:

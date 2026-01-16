@@ -1,4 +1,4 @@
-# Drawing Agent
+# Code Monet
 
 An autonomous AI artist that creates ink drawings, observes its own work, and iterates.
 
@@ -19,7 +19,7 @@ A drawing machine with creative agency. It comes up with its own ideas, writes c
 
 ```bash
 # Clone and enter directory
-cd Sketchpad
+cd CodeMonet
 
 # Copy environment template
 cp .env.example .env
@@ -69,7 +69,7 @@ make typecheck
 
 ```
 ├── server/                 # Python backend
-│   ├── drawing_agent/      # Main package
+│   ├── code_monet/      # Main package
 │   │   ├── main.py         # FastAPI app, WebSocket handling
 │   │   ├── agent.py        # Claude SDK integration
 │   │   ├── executor.py     # Path execution, interpolation
@@ -108,7 +108,7 @@ The backend uses FastAPI with WebSocket support. Key files:
 
 ```bash
 cd server
-uv run python -m drawing_agent.main
+uv run python -m code_monet.main
 ```
 
 ### App

@@ -9,7 +9,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { AgentMessage, AgentStatus } from '@drawing-agent/shared';
+import type { AgentMessage, AgentStatus } from '@code-monet/shared';
 import {
   bionicWord,
   chunkWords,
@@ -17,7 +17,7 @@ import {
   TOOL_DISPLAY_NAMES,
   BIONIC_CHUNK_INTERVAL_MS,
   BIONIC_CHUNK_SIZE,
-} from '@drawing-agent/shared';
+} from '@code-monet/shared';
 
 interface StatusOverlayProps {
   status: AgentStatus;

@@ -6,10 +6,10 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
-from drawing_agent.agent import AgentCallbacks, CodeExecutionResult, ToolCallInfo
-from drawing_agent.agent_logger import AgentFileLogger
-from drawing_agent.config import settings
-from drawing_agent.types import (
+from code_monet.agent import AgentCallbacks, CodeExecutionResult, ToolCallInfo
+from code_monet.agent_logger import AgentFileLogger
+from code_monet.config import settings
+from code_monet.types import (
     AgentStatus,
     AgentTurnComplete,
     CodeExecutionMessage,
@@ -24,7 +24,7 @@ from drawing_agent.types import (
 )
 
 if TYPE_CHECKING:
-    from drawing_agent.agent import DrawingAgent
+    from code_monet.agent import DrawingAgent
 
 logger = logging.getLogger(__name__)
 

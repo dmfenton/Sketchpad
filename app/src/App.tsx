@@ -18,8 +18,8 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { PendingStroke, ToolName } from '@drawing-agent/shared';
-import { deriveAgentStatus, LIVE_MESSAGE_ID, useStrokeAnimation } from '@drawing-agent/shared';
+import type { PendingStroke, ToolName } from '@code-monet/shared';
+import { deriveAgentStatus, LIVE_MESSAGE_ID, useStrokeAnimation } from '@code-monet/shared';
 
 import { useTokenRefresh } from './hooks/useTokenRefresh';
 import { tracer } from './utils/tracing';

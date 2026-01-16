@@ -5,8 +5,8 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from drawing_agent.auth.jwt import TokenError, get_user_id_from_token
-from drawing_agent.db import User, get_session, repository
+from code_monet.auth.jwt import TokenError, get_user_id_from_token
+from code_monet.db import User, get_session, repository
 
 # HTTP Bearer token security scheme
 security = HTTPBearer()

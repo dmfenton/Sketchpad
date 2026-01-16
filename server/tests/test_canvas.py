@@ -1,7 +1,7 @@
 """Tests for canvas rendering."""
 
-from drawing_agent.canvas import render_path_to_svg_d
-from drawing_agent.types import Path, PathType, Point
+from code_monet.canvas import render_path_to_svg_d
+from code_monet.types import Path, PathType, Point
 
 
 class TestSvgPathRendering:

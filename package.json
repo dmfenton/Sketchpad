@@ -1,5 +1,5 @@
 {
-  "name": "drawing-agent",
+  "name": "code-monet",
   "private": true,
   "workspaces": [
     "shared",

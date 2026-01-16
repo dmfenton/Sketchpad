@@ -1,5 +1,5 @@
 {
-  "name": "@drawing-agent/web",
+  "name": "@code-monet/web",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -15,7 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@drawing-agent/shared": "*",
+    "@code-monet/shared": "*",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

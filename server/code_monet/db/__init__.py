@@ -1,8 +1,8 @@
 """Database module for Drawing Agent."""
 
-from drawing_agent.db import repository
-from drawing_agent.db.engine import async_session_factory, engine, get_session
-from drawing_agent.db.models import Base, CanvasShare, InviteCode, User
+from code_monet.db import repository
+from code_monet.db.engine import async_session_factory, engine, get_session
+from code_monet.db.models import Base, CanvasShare, InviteCode, User
 
 __all__ = [
     "Base",

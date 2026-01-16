@@ -3,7 +3,7 @@
  */
 
 import React, { useState } from 'react';
-import type { ServerMessage } from '@drawing-agent/shared';
+import type { ServerMessage } from '@code-monet/shared';
 
 interface DebugPanelProps {
   agent: {

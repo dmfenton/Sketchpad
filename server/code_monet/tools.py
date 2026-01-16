@@ -10,7 +10,7 @@ from typing import Any
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
-from drawing_agent.types import Path, PathType, Point
+from code_monet.types import Path, PathType, Point
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import type { ClientMessage } from '@drawing-agent/shared';
+import type { ClientMessage } from '@code-monet/shared';
 
 interface ActionBarProps {
   paused: boolean;

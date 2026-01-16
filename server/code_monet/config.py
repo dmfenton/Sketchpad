@@ -15,7 +15,7 @@ def _get_ssm_params() -> dict[str, str]:
 
     Returns empty dict if SSM is unavailable (e.g., missing credentials).
     """
-    env = os.getenv("DRAWING_AGENT_ENV", "dev")
+    env = os.getenv("CODE_MONET_ENV", "dev")
     region = os.getenv("AWS_REGION", "us-east-1")
     path = f"/drawing-agent/{env}/"
 
@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = _ssm("anthropic_api_key")
 
     # Database
-    database_url: str = _ssm("database_url", "sqlite+aiosqlite:///./data/drawing_agent.db")
+    database_url: str = _ssm("database_url", "sqlite+aiosqlite:///./data/code_monet.db")
     database_echo: bool = False
 
     # Auth (required when auth is enabled)

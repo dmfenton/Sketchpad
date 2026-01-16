@@ -10,7 +10,7 @@ import re
 from collections.abc import Callable
 from functools import reduce
 
-from drawing_agent.types import Path, PathType, Point
+from code_monet.types import Path, PathType, Point
 
 # SVG path command regex
 SVG_COMMAND_RE = re.compile(r"([MmLlHhVvCcSsQqTtAaZz])|(-?[\d.]+)")

@@ -3,8 +3,8 @@
  */
 
 import React, { useCallback, useRef, useState } from 'react';
-import type { Path, Point } from '@drawing-agent/shared';
-import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@drawing-agent/shared';
+import type { Path, Point } from '@code-monet/shared';
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@code-monet/shared';
 
 interface CanvasProps {
   strokes: Path[];

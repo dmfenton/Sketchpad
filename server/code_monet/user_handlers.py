@@ -6,10 +6,10 @@ Each handler receives the ActiveWorkspace context for the authenticated user.
 import logging
 from typing import Any
 
-from drawing_agent.config import settings
-from drawing_agent.rate_limiter import RateLimiter, RateLimiterConfig
-from drawing_agent.registry import ActiveWorkspace
-from drawing_agent.types import (
+from code_monet.config import settings
+from code_monet.rate_limiter import RateLimiter, RateLimiterConfig
+from code_monet.registry import ActiveWorkspace
+from code_monet.types import (
     AgentStatus,
     ClearMessage,
     LoadCanvasMessage,

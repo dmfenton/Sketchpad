@@ -1,6 +1,6 @@
 # Server - Python Standards
 
-Backend-specific guidance for the Drawing Agent server.
+Backend-specific guidance for the Code Monet server.
 
 ## Type Safety
 

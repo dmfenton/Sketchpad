@@ -1,12 +1,12 @@
 """CLI for Drawing Agent - user and workspace management.
 
 Usage:
-    python -m drawing_agent.cli invite create
-    python -m drawing_agent.cli invite list
-    python -m drawing_agent.cli invite revoke CODE
-    python -m drawing_agent.cli user list
-    python -m drawing_agent.cli user workspace USER_ID
-    python -m drawing_agent.cli workspace list
+    python -m code_monet.cli invite create
+    python -m code_monet.cli invite list
+    python -m code_monet.cli invite revoke CODE
+    python -m code_monet.cli user list
+    python -m code_monet.cli user workspace USER_ID
+    python -m code_monet.cli workspace list
 """
 
 import asyncio
@@ -41,7 +41,7 @@ def _generate_invite_code() -> str:
 
 async def _create_invites_async(count: int) -> list[str]:
     """Create invite codes in the database."""
-    from drawing_agent.db import get_session, repository
+    from code_monet.db import get_session, repository
 
     codes: list[str] = []
     async with get_session() as session:
@@ -54,7 +54,7 @@ async def _create_invites_async(count: int) -> list[str]:
 
 async def _list_invites_async() -> list[tuple[str, str, str | None, int | None]]:
     """List all invite codes from the database."""
-    from drawing_agent.db import get_session, repository
+    from code_monet.db import get_session, repository
 
     async with get_session() as session:
         invites = await repository.list_invite_codes(session)
@@ -71,7 +71,7 @@ async def _list_invites_async() -> list[tuple[str, str, str | None, int | None]]
 
 async def _revoke_invite_async(code: str) -> bool:
     """Revoke an invite code."""
-    from drawing_agent.db import get_session, repository
+    from code_monet.db import get_session, repository
 
     async with get_session() as session:
         return await repository.revoke_invite_code(session, code)
@@ -164,8 +164,8 @@ app.add_typer(user_app, name="user")
 
 async def _list_users_with_workspace_async() -> list[tuple[int, str, str, bool, int, int, str]]:
     """List users with workspace summary."""
-    from drawing_agent.db import get_session, repository
-    from drawing_agent.workspace_state import WorkspaceState
+    from code_monet.db import get_session, repository
+    from code_monet.workspace_state import WorkspaceState
 
     results: list[tuple[int, str, str, bool, int, int, str]] = []
 
@@ -205,7 +205,7 @@ async def _get_workspace_state_async(
     user_id: int,
 ) -> dict[str, Any]:
     """Get detailed workspace state for a user."""
-    from drawing_agent.workspace_state import WorkspaceState
+    from code_monet.workspace_state import WorkspaceState
 
     state = await WorkspaceState.load_for_user(user_id)
     gallery = await state.list_gallery()
@@ -349,7 +349,7 @@ app.add_typer(workspace_app, name="workspace")
 
 async def _list_workspaces_async() -> list[dict[str, Any]]:
     """List all workspace directories with stats."""
-    from drawing_agent.config import settings
+    from code_monet.config import settings
 
     server_dir = FilePath(__file__).parent.parent
     base_dir = (server_dir / settings.workspace_base_dir).resolve()

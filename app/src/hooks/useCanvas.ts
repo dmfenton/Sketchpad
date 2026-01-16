@@ -1,20 +1,20 @@
 /**
  * Canvas state and touch handling hook.
- * Uses shared reducer from @drawing-agent/shared.
+ * Uses shared reducer from @code-monet/shared.
  */
 
 import { useCallback, useReducer } from 'react';
 
-import type { CanvasAction, Path, ServerMessage } from '@drawing-agent/shared';
+import type { CanvasAction, Path, ServerMessage } from '@code-monet/shared';
 import {
   canvasReducer,
   initialState,
   routeMessage,
   type CanvasHookState,
-} from '@drawing-agent/shared';
+} from '@code-monet/shared';
 
 // Re-export types and constants from shared for backwards compatibility
-export { LIVE_MESSAGE_ID, type CanvasAction, type CanvasHookState } from '@drawing-agent/shared';
+export { LIVE_MESSAGE_ID, type CanvasAction, type CanvasHookState } from '@code-monet/shared';
 
 export interface UseCanvasReturn {
   state: CanvasHookState;

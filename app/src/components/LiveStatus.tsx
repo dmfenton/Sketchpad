@@ -10,8 +10,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import type { AgentMessage, AgentStatus, ToolName } from '@drawing-agent/shared';
-import { TOOL_DISPLAY_NAMES } from '@drawing-agent/shared';
+import type { AgentMessage, AgentStatus, ToolName } from '@code-monet/shared';
+import { TOOL_DISPLAY_NAMES } from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
 
 // Display pacing for thought chunks (ms)

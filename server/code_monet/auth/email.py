@@ -6,7 +6,7 @@ from typing import Any
 import boto3
 from botocore.exceptions import ClientError
 
-from drawing_agent.config import settings
+from code_monet.config import settings
 
 logger = logging.getLogger(__name__)
 

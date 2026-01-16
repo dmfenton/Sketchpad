@@ -10,12 +10,12 @@ from fastapi.responses import HTMLResponse, Response
 from PIL import Image, ImageDraw
 from pydantic import BaseModel
 
-from drawing_agent.auth.dependencies import CurrentUser
-from drawing_agent.canvas import path_to_point_list, render_path_to_svg_d
-from drawing_agent.config import settings
-from drawing_agent.db import CanvasShare, get_session, repository
-from drawing_agent.types import Path
-from drawing_agent.workspace_state import WorkspaceState
+from code_monet.auth.dependencies import CurrentUser
+from code_monet.canvas import path_to_point_list, render_path_to_svg_d
+from code_monet.config import settings
+from code_monet.db import CanvasShare, get_session, repository
+from code_monet.types import Path
+from code_monet.workspace_state import WorkspaceState
 
 router = APIRouter(prefix="/s", tags=["share"])
 

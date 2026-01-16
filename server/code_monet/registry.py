@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import WebSocket
 
-from drawing_agent.workspace_state import WorkspaceState
+from code_monet.workspace_state import WorkspaceState
 
 logger = logging.getLogger(__name__)
 
@@ -214,10 +214,10 @@ class WorkspaceRegistry:
     async def _activate_workspace(self, user_id: int) -> ActiveWorkspace:
         """Create and initialize a new active workspace."""
         # Lazy imports to avoid circular dependencies
-        from drawing_agent.agent import DrawingAgent
-        from drawing_agent.agent_logger import AgentFileLogger
-        from drawing_agent.config import settings
-        from drawing_agent.orchestrator import AgentOrchestrator
+        from code_monet.agent import DrawingAgent
+        from code_monet.agent_logger import AgentFileLogger
+        from code_monet.config import settings
+        from code_monet.orchestrator import AgentOrchestrator
 
         logger.info(f"Activating workspace for user {user_id}")
 

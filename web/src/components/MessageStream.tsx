@@ -3,8 +3,8 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { AgentMessage } from '@drawing-agent/shared';
-import { LIVE_MESSAGE_ID } from '@drawing-agent/shared';
+import type { AgentMessage } from '@code-monet/shared';
+import { LIVE_MESSAGE_ID } from '@code-monet/shared';
 
 interface MessageStreamProps {
   messages: AgentMessage[];

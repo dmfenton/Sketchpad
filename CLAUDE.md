@@ -1,8 +1,8 @@
-# Drawing Agent - Development Instructions
+# Code Monet - Development Instructions
 
 ## Project Overview
 
-Drawing Agent is an autonomous AI artist application with:
+Code Monet is an autonomous AI artist application with:
 
 - **Backend**: Python 3.11+ with FastAPI, Claude Agent SDK, WebSocket support
 - **Frontend**: React Native with Expo, TypeScript, react-native-svg
@@ -287,8 +287,8 @@ xcodebuild -workspace ios/CodeMonet.xcworkspace -scheme CodeMonet \
 
 ### Adding a new WebSocket message type
 
-1. Add type to `server/drawing_agent/types.py`
-2. Add handler function in `server/drawing_agent/handlers.py`
+1. Add type to `server/code_monet/types.py`
+2. Add handler function in `server/code_monet/handlers.py`
 3. Add to `HANDLERS` dict in `handlers.py`
 4. Add type to `shared/src/types.ts`
 5. Add handler in `shared/src/websocket/handlers.ts`
@@ -296,17 +296,17 @@ xcodebuild -workspace ios/CodeMonet.xcworkspace -scheme CodeMonet \
 
 ### Modifying the agent prompt
 
-Edit `server/drawing_agent/agent.py` - the `SYSTEM_PROMPT` constant
+Edit `server/code_monet/agent.py` - the `SYSTEM_PROMPT` constant
 
 ### Adding new path types
 
-1. Add type to `PathType` enum in `server/drawing_agent/types.py`
-2. Add interpolation in `server/drawing_agent/interpolation.py`
+1. Add type to `PathType` enum in `server/code_monet/types.py`
+2. Add interpolation in `server/code_monet/interpolation.py`
 3. Add SVG rendering in `app/src/components/Canvas.tsx`
 
 ## File Locations
 
-### Backend (server/drawing_agent/)
+### Backend (server/code_monet/)
 
 - `main.py` - FastAPI app, routes, WebSocket endpoint
 - `agent.py` - Claude agent with streaming turn execution
@@ -532,7 +532,7 @@ uv run python scripts/remote.py shell "command"
 **Note:** Commands that start Python inside the container can be slow (~30s) due to `uv run` overhead. For direct database access, use sqlite3 on the host:
 
 ```bash
-uv run python scripts/remote.py shell "sqlite3 /home/ec2-user/data/drawing_agent.db '.tables'"
+uv run python scripts/remote.py shell "sqlite3 /home/ec2-user/data/code_monet.db '.tables'"
 ```
 
 ### SSH Access (if needed)
@@ -563,7 +563,7 @@ gh secret set AWS_SECRET_ACCESS_KEY --body "$(terraform output -raw github_actio
 | `AWS_ACCESS_KEY_ID`     | IAM user access key for ECR push |
 | `AWS_SECRET_ACCESS_KEY` | IAM user secret key for ECR push |
 
-Add at: https://github.com/dmfenton/Sketchpad/settings/secrets/actions
+Add at: https://github.com/dmfenton/CodeMonet/settings/secrets/actions
 
 ---
 
@@ -576,9 +576,9 @@ Add at: https://github.com/dmfenton/Sketchpad/settings/secrets/actions
 
 ### Database Location
 
-- Dev: `server/data/drawing_agent.db`
-- Prod (container): `/app/data/drawing_agent.db`
-- Prod (host): `/home/ec2-user/data/drawing_agent.db` (on EBS volume)
+- Dev: `server/data/code_monet.db`
+- Prod (container): `/app/data/code_monet.db`
+- Prod (host): `/home/ec2-user/data/code_monet.db` (on EBS volume)
 
 ### Migrations
 
@@ -608,18 +608,18 @@ agent_workspace/users/{user_id}/
 
 ```bash
 # Invite code management
-uv run python -m drawing_agent.cli invite create      # Create invite code
-uv run python -m drawing_agent.cli invite create -c 5 # Create 5 codes
-uv run python -m drawing_agent.cli invite list        # List all invite codes
-uv run python -m drawing_agent.cli invite revoke CODE # Revoke unused code
+uv run python -m code_monet.cli invite create      # Create invite code
+uv run python -m code_monet.cli invite create -c 5 # Create 5 codes
+uv run python -m code_monet.cli invite list        # List all invite codes
+uv run python -m code_monet.cli invite revoke CODE # Revoke unused code
 
 # User management
-uv run python -m drawing_agent.cli user list          # List users with workspace summary
-uv run python -m drawing_agent.cli user list --all    # Include inactive users
-uv run python -m drawing_agent.cli user workspace 1   # Show workspace details for user ID 1
+uv run python -m code_monet.cli user list          # List users with workspace summary
+uv run python -m code_monet.cli user list --all    # Include inactive users
+uv run python -m code_monet.cli user workspace 1   # Show workspace details for user ID 1
 
 # Workspace filesystem
-uv run python -m drawing_agent.cli workspace list     # List all workspace directories
+uv run python -m code_monet.cli workspace list     # List all workspace directories
 ```
 
 ### Creating Users Directly
@@ -630,8 +630,8 @@ To create a user without an invite code (e.g., admin):
 # Run from server/ directory
 uv run python -c "
 import asyncio
-from drawing_agent.db import get_session, repository
-from drawing_agent.auth.password import hash_password
+from code_monet.db import get_session, repository
+from code_monet.auth.password import hash_password
 
 async def create_user(email: str, password: str):
     async with get_session() as session:
@@ -944,7 +944,7 @@ If `scripts/remote.py` commands timeout:
 `uv run` inside the container is slow (~30s) because it syncs the venv. For quick DB operations, use sqlite3 directly:
 
 ```bash
-uv run python scripts/remote.py shell "sqlite3 /home/ec2-user/data/drawing_agent.db 'SELECT * FROM users;'"
+uv run python scripts/remote.py shell "sqlite3 /home/ec2-user/data/code_monet.db 'SELECT * FROM users;'"
 ```
 
 ### Missing tools in slim image

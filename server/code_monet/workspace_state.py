@@ -12,11 +12,11 @@ from typing import TYPE_CHECKING, Any
 import aiofiles
 import aiofiles.os
 
-from drawing_agent.config import settings
-from drawing_agent.types import AgentStatus, CanvasState, Path, PendingStrokeDict, SavedCanvas
+from code_monet.config import settings
+from code_monet.types import AgentStatus, CanvasState, Path, PendingStrokeDict, SavedCanvas
 
 if TYPE_CHECKING:
-    from drawing_agent.config import Settings
+    from code_monet.config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ class WorkspaceState:
 
         Enforces max_workspace_size_bytes limit to prevent disk exhaustion.
         """
-        from drawing_agent.config import settings as app_settings
+        from code_monet.config import settings as app_settings
 
         if debounce_ms > 0:
             # Debounced save - schedule and return immediately
@@ -154,7 +154,7 @@ class WorkspaceState:
 
     async def _debounced_save(self, debounce_ms: int) -> None:
         """Wait for debounce period then save if still pending."""
-        from drawing_agent.config import settings as app_settings
+        from code_monet.config import settings as app_settings
 
         await asyncio.sleep(debounce_ms / 1000.0)
         if self._save_pending:
@@ -262,8 +262,8 @@ class WorkspaceState:
         Thread-safe: uses stroke lock to prevent race conditions.
         Enforces max_pending_strokes limit to prevent memory exhaustion.
         """
-        from drawing_agent.config import settings
-        from drawing_agent.interpolation import interpolate_path
+        from code_monet.config import settings
+        from code_monet.interpolation import interpolate_path
 
         total_points = 0
 

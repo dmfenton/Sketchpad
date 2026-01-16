@@ -1,5 +1,5 @@
 {
-  "name": "@drawing-agent/shared",
+  "name": "@code-monet/shared",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",

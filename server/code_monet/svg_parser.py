@@ -15,7 +15,7 @@ from svgpathtools import (
     Path as SVGPath,
 )
 
-from drawing_agent.types import Path, PathType, Point
+from code_monet.types import Path, PathType, Point
 
 logger = logging.getLogger(__name__)
 

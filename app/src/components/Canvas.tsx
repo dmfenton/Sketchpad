@@ -8,8 +8,8 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Circle, Defs, Line, Pattern, Path as SvgPath, Rect } from 'react-native-svg';
 
 import { screenToCanvas } from '../hooks/useCanvas';
-import type { Path, Point } from '@drawing-agent/shared';
-import { CANVAS_ASPECT_RATIO, CANVAS_HEIGHT, CANVAS_WIDTH } from '@drawing-agent/shared';
+import type { Path, Point } from '@code-monet/shared';
+import { CANVAS_ASPECT_RATIO, CANVAS_HEIGHT, CANVAS_WIDTH } from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
 
 interface CanvasProps {

@@ -8,8 +8,8 @@
  * - Stop/reset functionality
  */
 
-import { StrokeRenderer } from '@drawing-agent/shared';
-import type { CanvasAction, Path, PendingStroke } from '@drawing-agent/shared';
+import { StrokeRenderer } from '@code-monet/shared';
+import type { CanvasAction, Path, PendingStroke } from '@code-monet/shared';
 
 // Mock stroke data
 const createMockStroke = (

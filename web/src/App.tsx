@@ -3,8 +3,8 @@
  */
 
 import React, { useCallback } from 'react';
-import type { PendingStroke, ServerMessage } from '@drawing-agent/shared';
-import { deriveAgentStatus, STATUS_LABELS, useStrokeAnimation } from '@drawing-agent/shared';
+import type { PendingStroke, ServerMessage } from '@code-monet/shared';
+import { deriveAgentStatus, STATUS_LABELS, useStrokeAnimation } from '@code-monet/shared';
 import { getApiUrl } from './config';
 
 import { Canvas } from './components/Canvas';

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import StaticPool
 
-from drawing_agent.config import settings
+from code_monet.config import settings
 
 
 def create_engine_instance() -> AsyncEngine:

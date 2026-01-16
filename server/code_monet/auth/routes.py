@@ -7,21 +7,21 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse
 
-from drawing_agent.auth.dependencies import CurrentUser
-from drawing_agent.auth.email import send_magic_link_email
-from drawing_agent.auth.jwt import (
+from code_monet.auth.dependencies import CurrentUser
+from code_monet.auth.email import send_magic_link_email
+from code_monet.auth.jwt import (
     TokenError,
     create_access_token,
     create_refresh_token,
     get_user_id_from_token,
 )
-from drawing_agent.auth.password import hash_password, verify_password
-from drawing_agent.auth.rate_limit import (
+from code_monet.auth.password import hash_password, verify_password
+from code_monet.auth.rate_limit import (
     MAGIC_LINK_BY_EMAIL,
     MAGIC_LINK_BY_IP,
     rate_limiter,
 )
-from drawing_agent.auth.schemas import (
+from code_monet.auth.schemas import (
     MagicLinkCodeVerifyRequest,
     MagicLinkRequest,
     MagicLinkVerifyRequest,
@@ -32,8 +32,8 @@ from drawing_agent.auth.schemas import (
     TokenResponse,
     UserResponse,
 )
-from drawing_agent.config import settings
-from drawing_agent.db import get_session, repository
+from code_monet.config import settings
+from code_monet.db import get_session, repository
 
 logger = logging.getLogger(__name__)
 

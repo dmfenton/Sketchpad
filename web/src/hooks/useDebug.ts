@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import type { ServerMessage } from '@drawing-agent/shared';
+import type { ServerMessage } from '@code-monet/shared';
 import { getApiUrl } from '../config';
 
 export interface WorkspaceFile {

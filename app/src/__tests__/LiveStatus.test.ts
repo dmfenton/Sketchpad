@@ -6,8 +6,8 @@
  * dependencies, so we test the same logic inline.
  */
 
-import { TOOL_DISPLAY_NAMES } from '@drawing-agent/shared';
-import type { AgentStatus, ToolName } from '@drawing-agent/shared';
+import { TOOL_DISPLAY_NAMES } from '@code-monet/shared';
+import type { AgentStatus, ToolName } from '@code-monet/shared';
 
 /**
  * Get human-readable label for agent status.
