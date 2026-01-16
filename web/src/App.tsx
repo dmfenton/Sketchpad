@@ -4,7 +4,7 @@
 
 import React, { useCallback } from 'react';
 import type { PendingStroke, ServerMessage } from '@drawing-agent/shared';
-import { STATUS_LABELS, useStrokeAnimation } from '@drawing-agent/shared';
+import { deriveAgentStatus, STATUS_LABELS, useStrokeAnimation } from '@drawing-agent/shared';
 import { getApiUrl } from './config';
 
 import { Canvas } from './components/Canvas';
@@ -35,11 +35,15 @@ function App(): React.ReactElement {
     return data.strokes as PendingStroke[];
   }, [accessToken]);
 
-  // Use shared animation hook
+  // Derive status from messages
+  const agentStatus = deriveAgentStatus(state);
+
+  // Use shared animation hook - gate on drawing status
   useStrokeAnimation({
     pendingStrokes: state.pendingStrokes,
     dispatch,
     fetchStrokes,
+    canRender: agentStatus === 'drawing',
   });
 
   const onMessage = useCallback(
@@ -69,8 +73,8 @@ function App(): React.ReactElement {
           </div>
         </div>
         <div className="header-center">
-          <div className={`status-pill ${state.agentStatus}`}>
-            {STATUS_LABELS[state.agentStatus]}
+          <div className={`status-pill ${agentStatus}`}>
+            {STATUS_LABELS[agentStatus]}
           </div>
         </div>
         <div className="header-right">
@@ -87,7 +91,7 @@ function App(): React.ReactElement {
 
       <div className="thinking-strip">
         <StatusOverlay
-          status={state.agentStatus}
+          status={agentStatus}
           thinking={state.thinking}
           messages={state.messages}
         />

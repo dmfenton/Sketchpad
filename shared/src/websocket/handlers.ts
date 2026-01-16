@@ -59,8 +59,6 @@ export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (messag
 };
 
 export const handleStatus: MessageHandler<StatusMessage> = (message, dispatch) => {
-  dispatch({ type: 'SET_STATUS', status: message.status });
-
   // Update paused state based on status
   // Status 'paused' means agent is paused, any other status means it's running
   dispatch({ type: 'SET_PAUSED', paused: message.status === 'paused' });
@@ -70,7 +68,7 @@ export const handleStatus: MessageHandler<StatusMessage> = (message, dispatch) =
     dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
     dispatch({ type: 'RESET_TURN' });
   }
-  // Status is shown by StatusPill - no need to add to message stream
+  // Status is derived from messages - no need to store separately
 };
 
 export const handleIteration: MessageHandler<IterationMessage> = (message, dispatch) => {
@@ -223,7 +221,6 @@ export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
     type: 'INIT',
     strokes: message.strokes,
     gallery: message.gallery,
-    status: message.status,
     pieceCount: message.piece_count,
     paused: message.paused,
   });
