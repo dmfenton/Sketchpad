@@ -9,6 +9,8 @@ import {
   CANVAS_WIDTH,
   getEffectiveStyle,
   PLOTTER_STYLE,
+  smoothPolylineToPath,
+  createTaperedStrokePath,
 } from '@code-monet/shared';
 
 interface CanvasProps {
@@ -38,8 +40,10 @@ function screenToCanvas(clientX: number, clientY: number, rect: DOMRect): Point 
 
 /**
  * Convert a path to SVG path 'd' attribute.
+ * @param path - The path to convert
+ * @param smooth - If true, use bezier smoothing for polylines (paint mode)
  */
-function pathToSvgD(path: Path): string {
+function pathToSvgD(path: Path, smooth = false): string {
   if (path.type === 'svg') {
     return path.d || '';
   }
@@ -47,6 +51,12 @@ function pathToSvgD(path: Path): string {
   if (path.points.length === 0) return '';
 
   const points = path.points;
+
+  // For polylines in paint mode, use smooth bezier curves
+  if (path.type === 'polyline' && smooth && points.length > 2) {
+    return smoothPolylineToPath(points, 0.5);
+  }
+
   const parts: string[] = [];
 
   switch (path.type) {
@@ -88,9 +98,16 @@ function pathToSvgD(path: Path): string {
 
 /**
  * Convert points to SVG polyline path.
+ * @param points - Array of points
+ * @param smooth - If true, use bezier smoothing (paint mode)
  */
-function pointsToSvgD(points: Point[]): string {
+function pointsToSvgD(points: Point[], smooth = false): string {
   if (points.length === 0) return '';
+
+  // Use smooth bezier curves for paint mode
+  if (smooth && points.length > 2) {
+    return smoothPolylineToPath(points, 0.5);
+  }
 
   const parts = [`M ${points[0]?.x} ${points[0]?.y}`];
   for (let i = 1; i < points.length; i++) {
@@ -183,10 +200,11 @@ export function Canvas({
         {/* Completed strokes - render with effective style */}
         {strokes.map((stroke, index) => {
           const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
+          const isPaintMode = styleConfig.type === 'paint';
           return (
             <path
               key={`stroke-${index}`}
-              d={pathToSvgD(stroke)}
+              d={pathToSvgD(stroke, isPaintMode)}
               stroke={effectiveStyle.color}
               strokeWidth={effectiveStyle.stroke_width}
               fill="none"
@@ -199,26 +217,46 @@ export function Canvas({
 
         {/* Current stroke in progress (human drawing) */}
         {currentStroke.length > 0 && (
-          <path
-            d={pointsToSvgD(currentStroke)}
-            stroke={styleConfig.human_stroke.color}
-            strokeWidth={styleConfig.human_stroke.stroke_width}
-            fill="none"
-            strokeLinecap={styleConfig.human_stroke.stroke_linecap}
-            strokeLinejoin={styleConfig.human_stroke.stroke_linejoin}
-          />
+          styleConfig.type === 'paint' && currentStroke.length > 3 ? (
+            // Paint mode: tapered brush stroke
+            <path
+              d={createTaperedStrokePath(currentStroke, styleConfig.human_stroke.stroke_width * 1.5, 0.7)}
+              fill={styleConfig.human_stroke.color}
+              opacity={styleConfig.human_stroke.opacity * 0.9}
+            />
+          ) : (
+            // Plotter mode: simple polyline
+            <path
+              d={pointsToSvgD(currentStroke)}
+              stroke={styleConfig.human_stroke.color}
+              strokeWidth={styleConfig.human_stroke.stroke_width}
+              fill="none"
+              strokeLinecap={styleConfig.human_stroke.stroke_linecap}
+              strokeLinejoin={styleConfig.human_stroke.stroke_linejoin}
+            />
+          )
         )}
 
         {/* Agent's in-progress stroke */}
         {agentStroke.length > 1 && (
-          <path
-            d={pointsToSvgD(agentStroke)}
-            stroke={styleConfig.agent_stroke.color}
-            strokeWidth={styleConfig.agent_stroke.stroke_width}
-            fill="none"
-            strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
-            strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
-          />
+          styleConfig.type === 'paint' && agentStroke.length > 3 ? (
+            // Paint mode: tapered brush stroke with smooth curves
+            <path
+              d={createTaperedStrokePath(agentStroke, styleConfig.agent_stroke.stroke_width * 1.5, 0.7)}
+              fill={styleConfig.agent_stroke.color}
+              opacity={styleConfig.agent_stroke.opacity * 0.9}
+            />
+          ) : (
+            // Plotter mode: simple polyline
+            <path
+              d={pointsToSvgD(agentStroke)}
+              stroke={styleConfig.agent_stroke.color}
+              strokeWidth={styleConfig.agent_stroke.stroke_width}
+              fill="none"
+              strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
+              strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
+            />
+          )
         )}
 
         {/* Pen position indicator */}

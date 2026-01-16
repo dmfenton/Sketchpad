@@ -62,18 +62,18 @@ export const PLOTTER_STYLE: DrawingStyleConfig = {
 export const PAINT_STYLE: DrawingStyleConfig = {
   type: 'paint',
   name: 'Paint',
-  description: 'Full color painting style with expressive marks',
+  description: 'Full color painting style with expressive brush strokes',
   agent_stroke: {
     color: '#1a1a2e',
-    stroke_width: 3.0,
-    opacity: 1.0,
+    stroke_width: 8.0,  // Thicker for brush effect
+    opacity: 0.85,
     stroke_linecap: 'round',
     stroke_linejoin: 'round',
   },
   human_stroke: {
     color: '#e94560',
-    stroke_width: 3.0,
-    opacity: 1.0,
+    stroke_width: 8.0,  // Thicker for brush effect
+    opacity: 0.85,
     stroke_linecap: 'round',
     stroke_linejoin: 'round',
   },

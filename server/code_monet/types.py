@@ -104,16 +104,16 @@ PLOTTER_STYLE = DrawingStyleConfig(
 PAINT_STYLE = DrawingStyleConfig(
     type=DrawingStyleType.PAINT,
     name="Paint",
-    description="Full color painting style with expressive marks",
+    description="Full color painting style with expressive brush strokes",
     agent_stroke=StrokeStyle(
         color="#1a1a2e",  # Default dark, but can be overridden
-        stroke_width=3.0,
-        opacity=1.0,
+        stroke_width=8.0,  # Thicker for brush effect
+        opacity=0.85,
     ),
     human_stroke=StrokeStyle(
         color="#e94560",  # Rose
-        stroke_width=3.0,
-        opacity=1.0,
+        stroke_width=8.0,  # Thicker for brush effect
+        opacity=0.85,
     ),
     supports_color=True,
     supports_variable_width=True,
