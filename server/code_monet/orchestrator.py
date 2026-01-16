@@ -57,6 +57,9 @@ class AgentOrchestrator:
     # Event-driven wake-up (replaces polling)
     _wake_event: asyncio.Event = field(default_factory=asyncio.Event)
 
+    # Track piece completion - prevents auto-starting new turns
+    _piece_completed: bool = field(default=False)
+
     def __post_init__(self) -> None:
         # Set up the agent's draw callback to use our _draw_paths method
         self.agent.set_on_draw(self._draw_paths)
@@ -236,19 +239,18 @@ class AgentOrchestrator:
         await self.broadcast_status(AgentStatus.IDLE)
 
         if done:
-            # Auto-save completed piece to gallery (but keep strokes visible)
             state = self.agent.get_state()
             piece_num = state.piece_count
-            logger.info(f"Piece {piece_num} complete - saving to gallery")
+            logger.info(f"Piece {piece_num} complete")
 
             # Broadcast piece complete
             await self.broadcaster.broadcast(PieceCompleteMessage(piece_number=piece_num))
 
-            # Save to gallery without clearing canvas
+            # Save to gallery (keep canvas visible)
             saved_id = await state.save_to_gallery()
             logger.info(f"Saved piece {piece_num} as {saved_id}")
 
-            # Send gallery update with metadata only (not full strokes)
+            # Send gallery update
             gallery_pieces = await state.list_gallery()
             gallery_data = [
                 {
@@ -261,7 +263,17 @@ class AgentOrchestrator:
             ]
             await self.broadcaster.broadcast({"type": "gallery_update", "canvases": gallery_data})
 
+            # Mark piece as completed - orchestrator won't auto-start new turns
+            self._piece_completed = True
+
         return done
+
+    def clear_piece_completed(self) -> None:
+        """Clear the piece_completed flag to allow new turns.
+
+        Call this when user requests a new canvas or provides a nudge.
+        """
+        self._piece_completed = False
 
     async def run_loop(self) -> None:
         """Main agent loop that runs continuously.
@@ -291,6 +303,10 @@ class AgentOrchestrator:
 
                 if self.agent.paused:
                     logger.debug("[ORCH] skip: agent paused")
+                    continue
+
+                if self._piece_completed:
+                    logger.debug("[ORCH] skip: piece completed, waiting for user action")
                     continue
 
                 logger.info("[ORCH] running turn...")

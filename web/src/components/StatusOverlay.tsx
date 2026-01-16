@@ -40,8 +40,15 @@ function BionicWord({ word }: { word: string }): React.ReactElement {
 
 /**
  * Thinking display with bionic reading animation.
+ * When isAnimating is false, shows the last chunk statically.
  */
-function ThinkingDisplay({ text }: { text: string }): React.ReactElement {
+function ThinkingDisplay({
+  text,
+  isAnimating = true,
+}: {
+  text: string;
+  isAnimating?: boolean;
+}): React.ReactElement {
   const [chunkIndex, setChunkIndex] = useState(0);
   const [opacity, setOpacity] = useState(1);
   const prevTextRef = useRef(text);
@@ -58,9 +65,9 @@ function ThinkingDisplay({ text }: { text: string }): React.ReactElement {
     prevTextRef.current = text;
   }, [text]);
 
-  // Cycle through chunks
+  // Cycle through chunks (only when animating)
   useEffect(() => {
-    if (chunks.length === 0) return;
+    if (chunks.length === 0 || !isAnimating) return;
 
     let timeoutId: ReturnType<typeof setTimeout>;
 
@@ -81,7 +88,15 @@ function ThinkingDisplay({ text }: { text: string }): React.ReactElement {
       clearInterval(interval);
       clearTimeout(timeoutId);
     };
-  }, [chunks.length]);
+  }, [chunks.length, isAnimating]);
+
+  // When animation stops, jump to last chunk
+  useEffect(() => {
+    if (!isAnimating && chunks.length > 0) {
+      setChunkIndex(chunks.length - 1);
+      setOpacity(1);
+    }
+  }, [isAnimating, chunks.length]);
 
   // Clamp index if chunks changed
   const safeIndex = Math.min(chunkIndex, Math.max(0, chunks.length - 1));
@@ -110,54 +125,68 @@ export function StatusOverlay({
 }: StatusOverlayProps): React.ReactElement | null {
   const lastTool = getLastToolCall(messages);
 
-  // Determine what to show based on status
-  const renderContent = (): React.ReactElement | null => {
+  // Show status indicator for non-thinking active states
+  const renderStatusBadge = (): React.ReactElement | null => {
     switch (status) {
-      case 'thinking':
-        return <ThinkingDisplay text={thinking} />;
-
       case 'executing': {
         const toolLabel = lastTool ? TOOL_DISPLAY_NAMES[lastTool] : 'executing';
         return (
-          <div className="executing-display">
+          <div className="status-badge executing">
             <span className="spinner" />
-            <span className="status-text">Running {toolLabel}...</span>
+            <span>{toolLabel}</span>
           </div>
         );
       }
-
       case 'drawing':
         return (
-          <div className="drawing-display">
+          <div className="status-badge drawing">
             <span className="drawing-icon">✏</span>
-            <span className="status-text">Drawing...</span>
+            <span>Drawing</span>
           </div>
         );
-
-      case 'paused':
-        return (
-          <div className="paused-display">
-            <span className="status-text muted">Paused</span>
-          </div>
-        );
-
-      case 'idle':
-        return null; // Nothing to show when idle
-
-      case 'error':
-        return (
-          <div className="error-display">
-            <span className="status-text error">Error</span>
-          </div>
-        );
-
       default:
         return null;
     }
   };
 
-  const content = renderContent();
-  if (!content) return null;
+  // Active states that should show thinking (if available) + status badge
+  const isActiveState = status === 'thinking' || status === 'executing' || status === 'drawing';
 
-  return <div className="status-overlay">{content}</div>;
+  if (!isActiveState) {
+    // Paused, idle, error - show simple status
+    if (status === 'paused') {
+      return (
+        <div className="status-overlay">
+          <div className="paused-display">
+            <span className="status-text muted">Paused</span>
+          </div>
+        </div>
+      );
+    }
+    if (status === 'error') {
+      return (
+        <div className="status-overlay">
+          <div className="error-display">
+            <span className="status-text error">Error</span>
+          </div>
+        </div>
+      );
+    }
+    return null; // idle
+  }
+
+  // Active state: show thinking text (if any) with status badge
+  const statusBadge = renderStatusBadge();
+  const isThinking = status === 'thinking';
+
+  return (
+    <div className="status-overlay">
+      {thinking ? (
+        <ThinkingDisplay text={thinking} isAnimating={isThinking} />
+      ) : (
+        <span className="status-text">Thinking...</span>
+      )}
+      {statusBadge}
+    </div>
+  );
 }
