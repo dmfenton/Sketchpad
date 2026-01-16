@@ -63,8 +63,8 @@ class Settings(BaseSettings):
     # Auth (required when auth is enabled)
     jwt_secret: str = _ssm("jwt_secret")  # Must be set in production
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 30
-    jwt_refresh_token_expire_days: int = 90  # Long duration for mobile; access tokens still 30min
+    jwt_access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+    jwt_refresh_token_expire_days: int = 365  # 1 year
 
     # Email (SES)
     ses_sender_email: str = "noreply@dmfenton.net"
