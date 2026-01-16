@@ -185,12 +185,15 @@ async def handle_user_message(workspace: ActiveWorkspace, message: dict[str, Any
     msg_type = message.get("type")
     handler = HANDLERS.get(msg_type) if msg_type else None
 
+    logger.info(f"[MSG] User {workspace.user_id}: received type={msg_type}")
+
     if handler:
         # Handlers that need the message get it, others don't
         if msg_type in ("stroke", "nudge", "load_canvas", "new_canvas", "resume"):
             await handler(workspace, message)
         else:
             await handler(workspace)
+        logger.info(f"[MSG] User {workspace.user_id}: {msg_type} handled OK")
         return True
 
     if msg_type:

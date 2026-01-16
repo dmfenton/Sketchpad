@@ -15,7 +15,6 @@ from drawing_agent.types import (
     CodeExecutionMessage,
     ErrorMessage,
     IterationMessage,
-    NewCanvasMessage,
     Path,
     PieceCompleteMessage,
     StatusMessage,
@@ -70,6 +69,7 @@ class AgentOrchestrator:
         - Agent is resumed
         - A nudge is received
         """
+        logger.info("[ORCH] wake() called")
         self._wake_event.set()
 
     async def _draw_paths(self, paths: list[Path]) -> None:
@@ -236,20 +236,17 @@ class AgentOrchestrator:
         await self.broadcast_status(AgentStatus.IDLE)
 
         if done:
-            # Auto-save completed piece to gallery
+            # Auto-save completed piece to gallery (but keep strokes visible)
             state = self.agent.get_state()
             piece_num = state.piece_count
-            logger.info(f"Piece {piece_num} complete - auto-saving to gallery")
+            logger.info(f"Piece {piece_num} complete - saving to gallery")
 
-            # Broadcast piece complete first (before incrementing piece_count)
+            # Broadcast piece complete
             await self.broadcaster.broadcast(PieceCompleteMessage(piece_number=piece_num))
 
-            # Save to gallery and start fresh canvas
-            saved_id = await state.new_canvas()
+            # Save to gallery without clearing canvas
+            saved_id = await state.save_to_gallery()
             logger.info(f"Saved piece {piece_num} as {saved_id}")
-
-            # Broadcast updates
-            await self.broadcaster.broadcast(NewCanvasMessage(saved_id=saved_id))
 
             # Send gallery update with metadata only (not full strokes)
             gallery_pieces = await state.list_gallery()
@@ -258,15 +255,11 @@ class AgentOrchestrator:
                     "id": p.id,
                     "created_at": p.created_at,
                     "piece_number": p.piece_number,
-                    "stroke_count": len(p.strokes),
+                    "stroke_count": p.num_strokes,
                 }
                 for p in gallery_pieces
             ]
             await self.broadcaster.broadcast({"type": "gallery_update", "canvases": gallery_data})
-            await self.broadcaster.broadcast({"type": "piece_count", "count": state.piece_count})
-
-            # Reset agent container for next piece
-            self.agent.reset_container()
 
         return done
 
@@ -277,6 +270,7 @@ class AgentOrchestrator:
         - Wakes immediately when signaled (client connect, resume, nudge)
         - Falls back to interval timeout for safety
         """
+        logger.info("[ORCH] run_loop started")
         while True:
             try:
                 # Wait for wake signal or timeout
@@ -288,14 +282,18 @@ class AgentOrchestrator:
 
                 # Clear event for next wait cycle
                 self._wake_event.clear()
+                logger.debug("[ORCH] woke up")
 
                 # Only run when clients are connected (cost control)
                 if not self.broadcaster.active_connections:
+                    logger.debug("[ORCH] skip: no active connections")
                     continue
 
                 if self.agent.paused:
+                    logger.debug("[ORCH] skip: agent paused")
                     continue
 
+                logger.info("[ORCH] running turn...")
                 await self.run_turn()
 
             except Exception as e:

@@ -326,52 +326,57 @@ class WorkspaceState:
             self._canvas.strokes = []
         await self.save()
 
+    async def save_to_gallery(self) -> str | None:
+        """Save current canvas to gallery without clearing. Returns saved ID."""
+        async with self._write_lock:
+            if not self._canvas.strokes:
+                return None
+
+            # Save to gallery as JSON file (use 6 digits for scalability)
+            piece_file = self._gallery_dir / f"piece_{self._piece_count:06d}.json"
+            created_at = datetime.now(UTC).isoformat()
+            piece_data = {
+                "piece_number": self._piece_count,
+                "strokes": [s.model_dump() for s in self._canvas.strokes],
+                "created_at": created_at,
+            }
+
+            # Atomic write for gallery piece
+            temp_file = piece_file.with_suffix(".json.tmp")
+            async with aiofiles.open(temp_file, "w") as f:
+                await f.write(json.dumps(piece_data, indent=2))
+            await aiofiles.os.replace(temp_file, piece_file)
+
+            saved_id = f"piece_{self._piece_count:06d}"
+            logger.info(f"Saved piece {self._piece_count} to gallery as {saved_id}")
+
+            # Prepare and update gallery index
+            index_entry = {
+                "id": saved_id,
+                "piece_number": self._piece_count,
+                "stroke_count": len(self._canvas.strokes),
+                "created_at": created_at,
+            }
+
+        # Update gallery index outside the write lock
+        await self._update_gallery_index(index_entry)
+        await self.save()
+
+        return saved_id
+
     async def new_canvas(self) -> str | None:
         """Save current canvas to gallery and start fresh. Returns saved ID."""
+        # First save to gallery
+        saved_id = await self.save_to_gallery()
+
+        # Then clear for new canvas
         async with self._write_lock:
-            saved_id = None
-            index_entry = None
-
-            if self._canvas.strokes:
-                # Save to gallery as JSON file (use 6 digits for scalability)
-                piece_file = self._gallery_dir / f"piece_{self._piece_count:06d}.json"
-                created_at = datetime.now(UTC).isoformat()
-                piece_data = {
-                    "piece_number": self._piece_count,
-                    "strokes": [s.model_dump() for s in self._canvas.strokes],
-                    "created_at": created_at,
-                }
-
-                # Atomic write for gallery piece
-                temp_file = piece_file.with_suffix(".json.tmp")
-                async with aiofiles.open(temp_file, "w") as f:
-                    await f.write(json.dumps(piece_data, indent=2))
-                await aiofiles.os.replace(temp_file, piece_file)
-
-                saved_id = f"piece_{self._piece_count:06d}"
-                logger.info(f"Saved piece {self._piece_count} to gallery as {saved_id}")
-
-                # Prepare index entry
-                index_entry = {
-                    "id": saved_id,
-                    "piece_number": self._piece_count,
-                    "stroke_count": len(self._canvas.strokes),
-                    "created_at": created_at,
-                }
-
-            # Start fresh
             self._canvas.strokes = []
             self._piece_count += 1
             self._monologue = ""  # Clear thinking for new piece
             self._notes = ""  # Clear notes for new piece
 
-        # Update gallery index if we saved a piece
-        if index_entry:
-            await self._update_gallery_index(index_entry)
-
-        # Save outside the lock (save() has its own lock)
         await self.save()
-
         return saved_id
 
     async def _update_gallery_index(self, new_entry: dict[str, Any]) -> None:

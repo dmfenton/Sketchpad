@@ -26,6 +26,7 @@ from drawing_agent.registry import workspace_registry
 from drawing_agent.share import share_router
 from drawing_agent.shutdown import shutdown_manager
 from drawing_agent.tracing import get_current_trace_id, record_client_spans, setup_tracing
+from drawing_agent.types import AgentStatus
 from drawing_agent.user_handlers import handle_user_message
 from drawing_agent.workspace_state import WorkspaceState
 
@@ -546,6 +547,37 @@ async def get_workspace_debug(user: CurrentUser) -> dict[str, Any]:
     return {"files": files}
 
 
+@app.post("/debug/reset")
+async def reset_workspace_debug(user: CurrentUser) -> dict[str, Any]:
+    """Reset workspace state for testing. Only available in DEV_MODE."""
+    if not settings.dev_mode:
+        raise HTTPException(status_code=403, detail="Only available in dev mode")
+
+    workspace = await workspace_registry.get_or_activate(user.id)
+    state = workspace.state
+    agent = workspace.agent
+
+    # Clear canvas, notes, and agent state
+    state.canvas.strokes.clear()
+    state.notes = ""
+    state.monologue = ""
+    state.piece_count = 0
+    state.status = AgentStatus.PAUSED
+    if agent:
+        agent.pending_nudges.clear()
+        await agent.pause()
+        agent.reset_container()
+
+    # Persist the cleared state
+    await state.save()
+
+    # Broadcast updates to all connected clients
+    await workspace.connections.broadcast({"type": "clear"})
+    await workspace.connections.broadcast({"type": "paused", "paused": True})
+
+    return {"status": "reset", "piece_count": 0, "paused": True}
+
+
 @app.get("/debug/logs")
 async def get_debug_logs(_user: CurrentUser, lines: int = 100) -> dict[str, Any]:
     """Get recent server logs."""
@@ -630,8 +662,10 @@ async def websocket_endpoint(
     The optional trace_id parameter allows distributed tracing correlation
     with mobile client spans.
     """
+    logger.info(f"[WS] New connection attempt, token={'present' if token else 'missing'}")
     # Must accept before any operations per ASGI spec
     await websocket.accept()
+    logger.info("[WS] Connection accepted")
 
     # Reject during shutdown
     if shutdown_manager.is_shutting_down:
