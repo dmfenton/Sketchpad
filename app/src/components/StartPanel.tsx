@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { DrawingStyleType } from '@code-monet/shared';
 
 import { spacing, borderRadius, typography, useTheme } from '../theme';
+import { StylePicker } from './StylePicker';
 
 interface StartPanelProps {
   connected: boolean;
@@ -87,65 +88,12 @@ export function StartPanel({
 
         {/* Style Selector - hidden when custom input is shown */}
         {!showCustomInput && (
-          <View style={styles.styleSection}>
-            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Drawing style</Text>
-            <View style={[styles.styleToggle, { backgroundColor: colors.surfaceElevated }]}>
-              <Pressable
-                testID="style-plotter-button"
-                style={[
-                  styles.styleOption,
-                  drawingStyle === 'plotter' && [
-                    styles.styleOptionActive,
-                    { backgroundColor: colors.surface },
-                  ],
-                ]}
-                onPress={() => onStyleChange('plotter')}
-              >
-                <Ionicons
-                  name="create-outline"
-                  size={18}
-                  color={drawingStyle === 'plotter' ? colors.primary : colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.styleOptionText,
-                    {
-                      color: drawingStyle === 'plotter' ? colors.primary : colors.textSecondary,
-                    },
-                  ]}
-                >
-                  Plotter
-                </Text>
-              </Pressable>
-              <Pressable
-                testID="style-paint-button"
-                style={[
-                  styles.styleOption,
-                  drawingStyle === 'paint' && [
-                    styles.styleOptionActive,
-                    { backgroundColor: colors.surface },
-                  ],
-                ]}
-                onPress={() => onStyleChange('paint')}
-              >
-                <Ionicons
-                  name="color-palette-outline"
-                  size={18}
-                  color={drawingStyle === 'paint' ? colors.primary : colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.styleOptionText,
-                    {
-                      color: drawingStyle === 'paint' ? colors.primary : colors.textSecondary,
-                    },
-                  ]}
-                >
-                  Paint
-                </Text>
-              </Pressable>
-            </View>
-          </View>
+          <StylePicker
+            value={drawingStyle}
+            onChange={onStyleChange}
+            variant="segmented"
+            label="Drawing style"
+          />
         )}
 
         {/* Quick Ideas Grid - hidden when custom input is shown */}
@@ -360,34 +308,6 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     textAlign: 'center',
-  },
-  styleSection: {
-    gap: spacing.sm,
-  },
-  styleToggle: {
-    flexDirection: 'row',
-    borderRadius: borderRadius.lg,
-    padding: spacing.xs,
-  },
-  styleOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-  },
-  styleOptionActive: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  styleOptionText: {
-    ...typography.body,
-    fontWeight: '600',
   },
   ideasSection: {
     gap: spacing.sm,

@@ -428,6 +428,7 @@ class ClientNewCanvasMessage(BaseModel):
 
     type: Literal["new_canvas"] = "new_canvas"
     direction: str | None = None  # Optional direction for the agent
+    drawing_style: DrawingStyleType | None = None  # Optional style for the new canvas
 
 
 ServerMessage = (

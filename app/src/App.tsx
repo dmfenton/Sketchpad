@@ -149,11 +149,8 @@ function MainApp(): React.JSX.Element {
     (direction?: string, style?: 'plotter' | 'paint') => {
       tracer.recordEvent('action.new_canvas', { hasDirection: !!direction, style });
       tracer.newSession(); // Start fresh trace for new piece
-      send({ type: 'new_canvas', direction });
-      // Set style if specified
-      if (style) {
-        send({ type: 'set_style', drawing_style: style });
-      }
+      // Send style atomically with new_canvas to avoid race condition
+      send({ type: 'new_canvas', direction, drawing_style: style });
     },
     [send]
   );

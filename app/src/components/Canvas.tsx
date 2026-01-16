@@ -200,11 +200,15 @@ export function Canvas({
             })}
 
             {/* Current stroke in progress (human drawing) */}
-            {currentStroke.length > 0 && (
-              styleConfig.type === 'paint' && currentStroke.length > 3 ? (
+            {currentStroke.length > 0 &&
+              (styleConfig.type === 'paint' && currentStroke.length > 3 ? (
                 // Paint mode: tapered brush stroke
                 <SvgPath
-                  d={createTaperedStrokePath(currentStroke, styleConfig.human_stroke.stroke_width * 1.5, 0.7)}
+                  d={createTaperedStrokePath(
+                    currentStroke,
+                    styleConfig.human_stroke.stroke_width * 1.5,
+                    0.7
+                  )}
                   fill={styleConfig.human_stroke.color}
                   opacity={styleConfig.human_stroke.opacity * 0.9}
                 />
@@ -218,15 +222,18 @@ export function Canvas({
                   strokeLinecap={styleConfig.human_stroke.stroke_linecap}
                   strokeLinejoin={styleConfig.human_stroke.stroke_linejoin}
                 />
-              )
-            )}
+              ))}
 
             {/* Agent's in-progress stroke */}
-            {agentStroke.length > 1 && (
-              styleConfig.type === 'paint' && agentStroke.length > 3 ? (
+            {agentStroke.length > 1 &&
+              (styleConfig.type === 'paint' && agentStroke.length > 3 ? (
                 // Paint mode: tapered brush stroke
                 <SvgPath
-                  d={createTaperedStrokePath(agentStroke, styleConfig.agent_stroke.stroke_width * 1.5, 0.7)}
+                  d={createTaperedStrokePath(
+                    agentStroke,
+                    styleConfig.agent_stroke.stroke_width * 1.5,
+                    0.7
+                  )}
                   fill={styleConfig.agent_stroke.color}
                   opacity={styleConfig.agent_stroke.opacity * 0.9}
                 />
@@ -240,8 +247,7 @@ export function Canvas({
                   strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
                   strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
                 />
-              )
-            )}
+              ))}
 
             {/* Pen position indicator - larger and more visible */}
             {penPosition && (

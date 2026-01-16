@@ -65,14 +65,14 @@ export const PAINT_STYLE: DrawingStyleConfig = {
   description: 'Full color painting style with expressive brush strokes',
   agent_stroke: {
     color: '#1a1a2e',
-    stroke_width: 8.0,  // Thicker for brush effect
+    stroke_width: 8.0, // Thicker for brush effect
     opacity: 0.85,
     stroke_linecap: 'round',
     stroke_linejoin: 'round',
   },
   human_stroke: {
     color: '#e94560',
-    stroke_width: 8.0,  // Thicker for brush effect
+    stroke_width: 8.0, // Thicker for brush effect
     opacity: 0.85,
     stroke_linecap: 'round',
     stroke_linejoin: 'round',
@@ -118,13 +118,9 @@ export interface Path {
 /**
  * Get the effective style for a path, merging with style defaults.
  */
-export function getEffectiveStyle(
-  path: Path,
-  styleConfig: DrawingStyleConfig
-): StrokeStyle {
+export function getEffectiveStyle(path: Path, styleConfig: DrawingStyleConfig): StrokeStyle {
   const author = path.author || 'agent';
-  const defaultStyle =
-    author === 'agent' ? styleConfig.agent_stroke : styleConfig.human_stroke;
+  const defaultStyle = author === 'agent' ? styleConfig.agent_stroke : styleConfig.human_stroke;
 
   // In plotter mode, always use defaults
   if (styleConfig.type === 'plotter') {
@@ -133,8 +129,7 @@ export function getEffectiveStyle(
 
   // In paint mode, allow overrides
   return {
-    color:
-      path.color && styleConfig.supports_color ? path.color : defaultStyle.color,
+    color: path.color && styleConfig.supports_color ? path.color : defaultStyle.color,
     stroke_width:
       path.stroke_width && styleConfig.supports_variable_width
         ? path.stroke_width
@@ -382,6 +377,7 @@ export interface ClientResumeMessage {
 export interface ClientNewCanvasMessage {
   type: 'new_canvas';
   direction?: string; // Optional direction for the agent
+  drawing_style?: DrawingStyleType; // Optional style for the new canvas
 }
 
 export interface ClientLoadCanvasMessage {
