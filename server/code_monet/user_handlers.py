@@ -86,6 +86,21 @@ async def handle_new_canvas(
         workspace.agent.add_nudge(direction)
         logger.info(f"User {workspace.user_id}: new canvas with direction: {direction}")
 
+    # If drawing_style provided, set it atomically with the new canvas
+    style_str = message.get("drawing_style") if message else None
+    if style_str:
+        try:
+            new_style = DrawingStyleType(style_str)
+            workspace.state.canvas.drawing_style = new_style
+            await workspace.state.save()
+            style_config = get_style_config(new_style)
+            await workspace.connections.broadcast(
+                StyleChangeMessage(drawing_style=new_style, style_config=style_config)
+            )
+            logger.info(f"User {workspace.user_id}: new canvas with style: {new_style.value}")
+        except ValueError:
+            logger.warning(f"User {workspace.user_id}: invalid style in new_canvas: {style_str}")
+
     await workspace.connections.broadcast(NewCanvasMessage(saved_id=saved_id))
 
     # Send updated gallery

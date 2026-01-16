@@ -11,3 +11,5 @@ export { NewCanvasModal } from './NewCanvasModal';
 export { NudgeModal } from './NudgeModal';
 export { SplashScreen } from './SplashScreen';
 export { StartPanel } from './StartPanel';
+export { StylePicker } from './StylePicker';
+export type { StylePickerVariant } from './StylePicker';

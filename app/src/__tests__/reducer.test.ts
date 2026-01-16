@@ -107,7 +107,9 @@ describe('deriveAgentStatus', () => {
   it('returns thinking when live message exists', () => {
     const state: CanvasHookState = {
       ...baseState,
-      messages: [{ id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Thinking...', timestamp: Date.now() }],
+      messages: [
+        { id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Thinking...', timestamp: Date.now() },
+      ],
     };
     expect(deriveAgentStatus(state)).toBe('thinking');
   });

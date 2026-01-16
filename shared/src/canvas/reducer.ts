@@ -115,7 +115,13 @@ export type CanvasAction =
   | { type: 'TOGGLE_DRAWING' }
   | { type: 'SET_PIECE_COUNT'; count: number }
   | { type: 'SET_GALLERY'; canvases: SavedCanvas[] }
-  | { type: 'LOAD_CANVAS'; strokes: Path[]; pieceNumber: number; drawingStyle?: DrawingStyleType; styleConfig?: DrawingStyleConfig }
+  | {
+      type: 'LOAD_CANVAS';
+      strokes: Path[];
+      pieceNumber: number;
+      drawingStyle?: DrawingStyleType;
+      styleConfig?: DrawingStyleConfig;
+    }
   | {
       type: 'INIT';
       strokes: Path[];
@@ -265,8 +271,9 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
       // If loading a canvas with a different style, update the style config
       const loadedStyle = action.drawingStyle || state.drawingStyle;
       // Use provided styleConfig if available, otherwise compute from style type
-      const loadedStyleConfig = action.styleConfig
-        || (action.drawingStyle ? getStyleConfig(action.drawingStyle) : state.styleConfig);
+      const loadedStyleConfig =
+        action.styleConfig ||
+        (action.drawingStyle ? getStyleConfig(action.drawingStyle) : state.styleConfig);
       return {
         ...state,
         strokes: action.strokes,

@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import type { DrawingStyleType } from '@code-monet/shared';
 import { spacing, borderRadius, typography, useTheme } from '../theme';
+import { StylePicker } from './StylePicker';
 
 interface NewCanvasModalProps {
   visible: boolean;
@@ -127,53 +128,13 @@ export function NewCanvasModal({
 
           {/* Style Picker */}
           <View style={styles.stylePickerContainer}>
-            <Text style={[styles.styleLabel, { color: colors.textSecondary }]}>Style</Text>
-            <View style={styles.stylePicker}>
-              <Pressable
-                style={[
-                  styles.styleOption,
-                  { backgroundColor: colors.surfaceElevated },
-                  selectedStyle === 'plotter' && { backgroundColor: colors.primary },
-                ]}
-                onPress={() => setSelectedStyle('plotter')}
-              >
-                <Ionicons
-                  name="create-outline"
-                  size={18}
-                  color={selectedStyle === 'plotter' ? colors.textOnPrimary : colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.styleOptionText,
-                    { color: selectedStyle === 'plotter' ? colors.textOnPrimary : colors.textSecondary },
-                  ]}
-                >
-                  Plotter
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.styleOption,
-                  { backgroundColor: colors.surfaceElevated },
-                  selectedStyle === 'paint' && { backgroundColor: colors.primary },
-                ]}
-                onPress={() => setSelectedStyle('paint')}
-              >
-                <Ionicons
-                  name="color-palette-outline"
-                  size={18}
-                  color={selectedStyle === 'paint' ? colors.textOnPrimary : colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.styleOptionText,
-                    { color: selectedStyle === 'paint' ? colors.textOnPrimary : colors.textSecondary },
-                  ]}
-                >
-                  Paint
-                </Text>
-              </Pressable>
-            </View>
+            <StylePicker
+              value={selectedStyle}
+              onChange={setSelectedStyle}
+              variant="pills"
+              label="Style"
+              testIDPrefix="new-canvas-style"
+            />
           </View>
 
           {/* Input */}
@@ -359,26 +320,5 @@ const styles = StyleSheet.create({
   stylePickerContainer: {
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.lg,
-  },
-  styleLabel: {
-    ...typography.caption,
-    marginBottom: spacing.sm,
-  },
-  stylePicker: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  styleOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    gap: spacing.xs,
-  },
-  styleOptionText: {
-    ...typography.body,
-    fontWeight: '500',
   },
 });
