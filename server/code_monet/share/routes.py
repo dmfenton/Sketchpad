@@ -130,10 +130,11 @@ async def load_shared_canvas(token: str) -> tuple[CanvasShare, list[Path]]:
 
         # Load the piece from user's gallery
         state = await WorkspaceState.load_for_user(share.user_id)
-        strokes = await state.load_from_gallery(share.piece_number)
-        if strokes is None:
+        result = await state.load_from_gallery(share.piece_number)
+        if result is None:
             raise HTTPException(status_code=404, detail="Artwork no longer exists")
 
+        strokes, _drawing_style = result
         return share, strokes
 
 
