@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.2] - 2026-01-16
+
+### Changed
+
+- Upgraded TestFlight CI to macOS 26 with Xcode 26 (iOS 26 SDK)
+
 ## [1.18.1] - 2026-01-16
 
 ### Fixed
@@ -492,7 +498,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.18.1...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.18.2...HEAD
+[1.18.2]: https://github.com/dmfenton/sketchpad/compare/v1.18.1...v1.18.2
 [1.18.1]: https://github.com/dmfenton/sketchpad/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/dmfenton/sketchpad/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/dmfenton/sketchpad/compare/v1.16.0...v1.17.0
