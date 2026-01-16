@@ -216,6 +216,13 @@ class PieceCompleteMessage(BaseModel):
     piece_number: int
 
 
+class PieceCountMessage(BaseModel):
+    """Current piece count update."""
+
+    type: Literal["piece_count"] = "piece_count"
+    count: int
+
+
 class IterationMessage(BaseModel):
     """Agent iteration update."""
 

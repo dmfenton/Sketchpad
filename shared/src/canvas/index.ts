@@ -5,6 +5,7 @@
 export {
   canvasReducer,
   deriveAgentStatus,
+  hasInProgressEvents,
   initialState,
   LIVE_MESSAGE_ID,
   MAX_MESSAGES,

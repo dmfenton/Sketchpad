@@ -56,8 +56,9 @@ async def handle_nudge(workspace: ActiveWorkspace, message: dict[str, Any]) -> N
     text = message.get("text", "")
     if text:
         workspace.agent.add_nudge(text)
-        # Wake the orchestrator immediately to process the nudge
+        # Clear piece_completed flag and wake the orchestrator
         if workspace.orchestrator:
+            workspace.orchestrator.clear_piece_completed()
             workspace.orchestrator.wake()
         logger.info(f"User {workspace.user_id} nudge: {text}")
 
@@ -107,8 +108,9 @@ async def handle_new_canvas(
     await workspace.state.save()
     await workspace.connections.broadcast(StatusMessage(status=AgentStatus.IDLE))
     await workspace.connections.broadcast({"type": "paused", "paused": False})
-    # Wake the orchestrator immediately to start working
+    # Clear piece_completed flag and wake the orchestrator
     if workspace.orchestrator:
+        workspace.orchestrator.clear_piece_completed()
         workspace.orchestrator.wake()
 
     logger.info(
