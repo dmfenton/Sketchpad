@@ -40,6 +40,7 @@ export class StrokeRenderer {
   private fetchedBatchId = 0;
   private animating = false;
   private stopped = false;
+  private activeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   private readonly fetchStrokes: () => Promise<PendingStroke[]>;
   private readonly dispatch: (action: CanvasAction) => void;
@@ -145,7 +146,10 @@ export class StrokeRenderer {
     return new Promise<void>((resolve) => {
       this.requestFrame(() => {
         callback();
-        setTimeout(resolve, this.frameDelayMs);
+        this.activeTimeoutId = setTimeout(() => {
+          this.activeTimeoutId = null;
+          resolve();
+        }, this.frameDelayMs);
       });
     });
   }
@@ -157,6 +161,10 @@ export class StrokeRenderer {
   stop(): void {
     this.stopped = true;
     this.animating = false;
+    if (this.activeTimeoutId) {
+      clearTimeout(this.activeTimeoutId);
+      this.activeTimeoutId = null;
+    }
   }
 
   /**
@@ -166,6 +174,10 @@ export class StrokeRenderer {
     this.fetchedBatchId = 0;
     this.animating = false;
     this.stopped = false;
+    if (this.activeTimeoutId) {
+      clearTimeout(this.activeTimeoutId);
+      this.activeTimeoutId = null;
+    }
   }
 
   /**

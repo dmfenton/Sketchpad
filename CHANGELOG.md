@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - StatusOverlay (bionic reading) moved from canvas overlay to dedicated strip above canvas
 - "Thoughts" panel now collapsible, starts collapsed by default
 - Added message count badge to collapsed thoughts panel header
+- Extracted `StrokeRenderer` class from `useStrokeAnimation` hook for testability
+- Added 19 unit tests covering stroke rendering logic (batch tracking, retry, animation sequence)
 
 ## [1.14.1] - 2026-01-15
 
