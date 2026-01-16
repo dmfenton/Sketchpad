@@ -168,9 +168,7 @@ class Path(BaseModel):
         Returns:
             Complete stroke style with all properties resolved
         """
-        default = (
-            style_config.agent_stroke if self.author == "agent" else style_config.human_stroke
-        )
+        default = style_config.agent_stroke if self.author == "agent" else style_config.human_stroke
 
         # In plotter mode, always use defaults (ignore path-level styles)
         if style_config.type == DrawingStyleType.PLOTTER:
@@ -185,7 +183,9 @@ class Path(BaseModel):
                 else default.stroke_width
             ),
             opacity=(
-                self.opacity if self.opacity is not None and style_config.supports_opacity else default.opacity
+                self.opacity
+                if self.opacity is not None and style_config.supports_opacity
+                else default.opacity
             ),
             stroke_linecap=default.stroke_linecap,
             stroke_linejoin=default.stroke_linejoin,

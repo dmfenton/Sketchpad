@@ -221,7 +221,9 @@ async def handle_set_style(workspace: ActiveWorkspace, message: dict[str, Any]) 
     # Reset the agent session so it gets the new style-specific prompt
     workspace.agent.reset_container()
 
-    logger.info(f"User {workspace.user_id}: style changed from {old_style.value} to {new_style.value}")
+    logger.info(
+        f"User {workspace.user_id}: style changed from {old_style.value} to {new_style.value}"
+    )
 
 
 # Dispatch table
