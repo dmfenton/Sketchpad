@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-01-16
+
+### Added
+
+- Swappable drawing styles: plotter (monochrome pen) and paint (full color palette)
+- DrawingStyleType enum and DrawingStyleConfig for style management
+- Path model extended with optional color, stroke_width, opacity properties
+- Style-aware code helpers (line(), polyline(), etc.) with style kwargs
+- set_style WebSocket handler for runtime style switching
+- Drawing style persisted in workspace and included in init/load_canvas messages
+- robots.txt for web crawler control
+
+### Changed
+
+- Agent prompts dynamically generated based on active drawing style
+- draw_paths and generate_svg tools support style parameters
+- Canvas components render strokes with effective style (color, width, opacity)
+- General `hasInProgressEvents()` function gates drawing until all preceding events complete
+
+### Fixed
+
+- Agent no longer auto-continues after piece completion (respects user intent)
+- StatusOverlay keeps thinking text visible during executing/drawing states
+- Drawing waits for tool execution to complete before starting animation
+- Jest moduleNameMapper updated for @code-monet/shared
+
 ## [1.18.2] - 2026-01-16
 
 ### Changed
