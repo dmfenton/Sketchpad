@@ -425,8 +425,8 @@ class DrawingAgent:
         # Track current style for session management
         self._current_style: DrawingStyleType | None = None
 
-        # Build options (system prompt is set dynamically in _get_or_create_client)
-        self._base_options = {
+        # Build options (system prompt is set dynamically in _build_options)
+        self._base_options: dict[str, Any] = {
             "mcp_servers": {"drawing": self._drawing_server},
             "allowed_tools": [
                 "mcp__drawing__draw_paths",
@@ -707,7 +707,8 @@ class DrawingAgent:
         try:
             # Connect client if needed
             if self._client is None:
-                self._client = ClaudeSDKClient(options=self._options)
+                options = self._build_options(state.canvas.drawing_style)
+                self._client = ClaudeSDKClient(options=options)
                 await self._client.connect()
 
             # Send the turn prompt with canvas image
