@@ -16,6 +16,9 @@ export * from './websocket';
 // React hooks
 export * from './hooks';
 
+// Services (testable business logic)
+export * from './services';
+
 // Utilities
 export {
   boundedConcat,
