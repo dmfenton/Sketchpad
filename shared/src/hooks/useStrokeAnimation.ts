@@ -22,6 +22,8 @@ export interface UseStrokeAnimationOptions {
   frameDelayMs?: number;
   /** Gate for rendering - strokes wait until this is true (default: true) */
   canRender?: boolean;
+  /** Delay before starting to render after canRender becomes true (default: 800ms) */
+  renderDelayMs?: number;
 }
 
 /**
@@ -44,6 +46,7 @@ export function useStrokeAnimation({
   fetchStrokes,
   frameDelayMs = 1000 / 60,
   canRender = true,
+  renderDelayMs = 800,
 }: UseStrokeAnimationOptions): void {
   // Keep a stable reference to the renderer
   const rendererRef = useRef<StrokeRenderer | null>(null);
@@ -54,6 +57,9 @@ export function useStrokeAnimation({
 
   // Track if we're waiting to render (pendingStrokes set but canRender is false)
   const waitingToRenderRef = useRef<number | null>(null);
+
+  // Track pending render delay timeout
+  const delayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initialize renderer on mount
   useEffect(() => {
@@ -67,8 +73,29 @@ export function useStrokeAnimation({
     return () => {
       rendererRef.current?.stop();
       rendererRef.current = null;
+      if (delayTimeoutRef.current) {
+        clearTimeout(delayTimeoutRef.current);
+      }
     };
   }, []);
+
+  // Helper to start rendering with delay
+  const startRenderWithDelay = (batchId: number) => {
+    // Clear any existing delay
+    if (delayTimeoutRef.current) {
+      clearTimeout(delayTimeoutRef.current);
+    }
+
+    // Delay rendering so preceding messages (tool calls) are visible
+    delayTimeoutRef.current = setTimeout(() => {
+      delayTimeoutRef.current = null;
+      if (rendererRef.current) {
+        void rendererRef.current.handleStrokesReady(batchId).catch((error) => {
+          console.error('[useStrokeAnimation] Error:', error);
+        });
+      }
+    }, renderDelayMs);
+  };
 
   // Handle pendingStrokes changes - but wait for canRender
   useEffect(() => {
@@ -83,24 +110,17 @@ export function useStrokeAnimation({
       return;
     }
 
-    // We can render now - clear waiting state and render
+    // We can render now - clear waiting state and render after delay
     waitingToRenderRef.current = null;
-
-    // Delegate to renderer (fire and forget, errors are logged internally)
-    void rendererRef.current.handleStrokesReady(pendingStrokes.batchId).catch((error) => {
-      console.error('[useStrokeAnimation] Error:', error);
-    });
-  }, [pendingStrokes?.batchId, canRender]);
+    startRenderWithDelay(pendingStrokes.batchId);
+  }, [pendingStrokes?.batchId, canRender, renderDelayMs]);
 
   // When canRender becomes true, check if we have a waiting batch
   useEffect(() => {
     if (canRender && waitingToRenderRef.current !== null && rendererRef.current) {
       const batchId = waitingToRenderRef.current;
       waitingToRenderRef.current = null;
-
-      void rendererRef.current.handleStrokesReady(batchId).catch((error) => {
-        console.error('[useStrokeAnimation] Error:', error);
-      });
+      startRenderWithDelay(batchId);
     }
-  }, [canRender]);
+  }, [canRender, renderDelayMs]);
 }
