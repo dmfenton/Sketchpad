@@ -64,7 +64,11 @@ function getStatusLabel(status: AgentStatus, currentTool?: ToolName | null): str
   }
 }
 
-export function LiveStatus({ liveMessage, status, currentTool }: LiveStatusProps): React.JSX.Element | null {
+export function LiveStatus({
+  liveMessage,
+  status,
+  currentTool,
+}: LiveStatusProps): React.JSX.Element | null {
   const { colors, shadows } = useTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -118,7 +122,7 @@ export function LiveStatus({ liveMessage, status, currentTool }: LiveStatusProps
 
       return () => clearTimeout(timer);
     }
-  }, [liveMessage, displayedText.length]);
+  }, [liveMessage?.text, displayedText.length]);
 
   // Don't show anything when idle
   if (status === 'idle' && !liveMessage) {
@@ -128,7 +132,7 @@ export function LiveStatus({ liveMessage, status, currentTool }: LiveStatusProps
   const statusLabel = getStatusLabel(status, currentTool);
   const statusIcon = getStatusIcon(status);
   const isActive = status === 'thinking' || status === 'drawing' || status === 'executing';
-  const isBuffering = liveMessage && displayedText.length < (liveMessage.text?.length ?? 0);
+  const isBuffering = liveMessage && displayedText.length < liveMessage.text.length;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }, shadows.sm]}>
@@ -141,12 +145,7 @@ export function LiveStatus({ liveMessage, status, currentTool }: LiveStatusProps
             color={isActive ? colors.primary : colors.textMuted}
           />
         </Animated.View>
-        <Text
-          style={[
-            styles.statusText,
-            { color: isActive ? colors.primary : colors.textMuted },
-          ]}
-        >
+        <Text style={[styles.statusText, { color: isActive ? colors.primary : colors.textMuted }]}>
           {statusLabel}
           {isActive && '...'}
         </Text>
@@ -154,14 +153,9 @@ export function LiveStatus({ liveMessage, status, currentTool }: LiveStatusProps
 
       {/* Live thought text */}
       {displayedText.length > 0 && (
-        <Text
-          style={[styles.thoughtText, { color: colors.textPrimary }]}
-          numberOfLines={3}
-        >
+        <Text style={[styles.thoughtText, { color: colors.textPrimary }]} numberOfLines={3}>
           {displayedText}
-          {isBuffering && (
-            <Text style={{ color: colors.textMuted }}> ▍</Text>
-          )}
+          {isBuffering && <Text style={{ color: colors.textMuted }}> ▍</Text>}
         </Text>
       )}
     </View>

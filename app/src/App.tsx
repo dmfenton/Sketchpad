@@ -78,10 +78,13 @@ function MainApp(): React.JSX.Element {
 
   // Get current tool from the last code_execution message
   const currentTool = useMemo((): ToolName | null => {
-    const lastExecution = [...canvas.state.messages]
-      .reverse()
-      .find((m) => m.type === 'code_execution');
-    return (lastExecution?.metadata?.tool_name as ToolName) ?? null;
+    for (let i = canvas.state.messages.length - 1; i >= 0; i--) {
+      const m = canvas.state.messages[i];
+      if (m && m.type === 'code_execution') {
+        return (m.metadata?.tool_name as ToolName) ?? null;
+      }
+    }
+    return null;
   }, [canvas.state.messages]);
 
   // Use shared animation hook for agent-drawn strokes
