@@ -235,6 +235,15 @@ function MainApp(): React.JSX.Element {
         edges={['top', 'left', 'right']}
       >
         <View style={styles.content}>
+          {/* Live Status - Above canvas for visibility */}
+          {!showStartPanel && (
+            <LiveStatus
+              liveMessage={liveMessage}
+              status={agentStatus}
+              currentTool={currentTool}
+            />
+          )}
+
           {/* Canvas - Main area */}
           <View style={styles.canvasContainer}>
             <Canvas
@@ -250,7 +259,7 @@ function MainApp(): React.JSX.Element {
             />
           </View>
 
-          {/* Start Panel or Live Status + Message Stream + Action Bar */}
+          {/* Start Panel or Message Stream + Action Bar */}
           {showStartPanel ? (
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -260,13 +269,6 @@ function MainApp(): React.JSX.Element {
             </KeyboardAvoidingView>
           ) : (
             <>
-              {/* Live Status - Always visible current activity */}
-              <LiveStatus
-                liveMessage={liveMessage}
-                status={agentStatus}
-                currentTool={currentTool}
-              />
-
               {/* Message History - Collapsible */}
               <MessageStream messages={canvas.state.messages} />
 
