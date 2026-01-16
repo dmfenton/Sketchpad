@@ -10,12 +10,10 @@ import { LIVE_MESSAGE_ID, type AgentMessage, type ToolName } from '@drawing-agen
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
 
 // Display pacing for thought chunks (ms)
-const NORMAL_CHUNK_MS = 800; // Normal reading pace
-const FAST_CHUNK_MS = 150; // Speed up when drawing is waiting
+const CHUNK_DISPLAY_MS = 800;
 
 interface MessageStreamProps {
   messages: AgentMessage[];
-  hasPendingDrawing?: boolean; // Speed up when drawing is waiting
   onThoughtsCaughtUp?: () => void; // Called when live message display catches up to buffer
 }
 
@@ -50,7 +48,6 @@ interface MessageBubbleProps {
   message: AgentMessage;
   isNew: boolean;
   colors: ColorScheme;
-  chunkDelayMs: number; // Pacing for live message display
   onCaughtUp?: () => void; // Called when live message catches up to buffer
 }
 
@@ -58,7 +55,6 @@ const MessageBubble = React.memo(function MessageBubble({
   message,
   isNew,
   colors,
-  chunkDelayMs,
   onCaughtUp,
 }: MessageBubbleProps): React.JSX.Element {
   const fadeAnim = useRef(new Animated.Value(isNew ? 0 : 1)).current;
@@ -84,7 +80,7 @@ const MessageBubble = React.memo(function MessageBubble({
     // If we're behind the buffer, schedule an update
     if (displayedText.length < bufferRef.current.length) {
       const timeSinceLastUpdate = Date.now() - lastUpdateRef.current;
-      const delay = Math.max(0, chunkDelayMs - timeSinceLastUpdate);
+      const delay = Math.max(0, CHUNK_DISPLAY_MS - timeSinceLastUpdate);
 
       const timer = setTimeout(() => {
         // Release all buffered text up to this point
@@ -97,7 +93,7 @@ const MessageBubble = React.memo(function MessageBubble({
       // We've caught up - notify parent
       onCaughtUp?.();
     }
-  }, [isLiveMessage, message.text, displayedText.length, chunkDelayMs, onCaughtUp]);
+  }, [isLiveMessage, message.text, displayedText.length, onCaughtUp]);
 
   useEffect(() => {
     if (isNew) {
@@ -330,7 +326,6 @@ const MessageBubble = React.memo(function MessageBubble({
 
 export function MessageStream({
   messages,
-  hasPendingDrawing = false,
   onThoughtsCaughtUp,
 }: MessageStreamProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
@@ -338,9 +333,6 @@ export function MessageStream({
   const [collapsed, setCollapsed] = useState(true); // Start collapsed
   const scrollViewRef = useRef<ScrollView>(null);
   const lastMessageCount = useRef(messages.length);
-
-  // Speed up display when drawing is waiting
-  const chunkDelayMs = hasPendingDrawing ? FAST_CHUNK_MS : NORMAL_CHUNK_MS;
 
   // Stable callback for when thoughts catch up
   const handleThoughtsCaughtUp = useCallback(() => {
@@ -451,7 +443,6 @@ export function MessageStream({
                   message={message}
                   isNew={newMessageIds.current.has(message.id) || message.id === LIVE_MESSAGE_ID}
                   colors={colors}
-                  chunkDelayMs={chunkDelayMs}
                   onCaughtUp={message.id === LIVE_MESSAGE_ID ? handleThoughtsCaughtUp : undefined}
                 />
               ))

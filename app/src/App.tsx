@@ -278,7 +278,6 @@ function MainApp(): React.JSX.Element {
               {/* Message Stream */}
               <MessageStream
                 messages={canvas.state.messages}
-                hasPendingDrawing={hasPendingDrawing}
                 onThoughtsCaughtUp={handleThoughtsCaughtUp}
               />
 
