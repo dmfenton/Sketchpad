@@ -237,11 +237,7 @@ function MainApp(): React.JSX.Element {
         <View style={styles.content}>
           {/* Live Status - Above canvas for visibility */}
           {!showStartPanel && (
-            <LiveStatus
-              liveMessage={liveMessage}
-              status={agentStatus}
-              currentTool={currentTool}
-            />
+            <LiveStatus liveMessage={liveMessage} status={agentStatus} currentTool={currentTool} />
           )}
 
           {/* Canvas - Main area */}

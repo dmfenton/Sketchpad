@@ -4,18 +4,18 @@ appId: net.dmfenton.sketchpad
 - launchApp:
     clearState: true
 
-- assertVisible: "Code Monet"
+- assertVisible: 'Code Monet'
 
 - assertVisible:
-    id: "email-input"
+    id: 'email-input'
 
 - tapOn:
-    id: "email-input"
+    id: 'email-input'
 
-- inputText: "test@example.com"
+- inputText: 'test@example.com'
 
 - tapOn:
-    id: "auth-submit-button"
+    id: 'auth-submit-button'
 
 # Success shows code input and "Verify Code" button
-- assertVisible: "Verify Code"
+- assertVisible: 'Verify Code'

@@ -5,16 +5,15 @@ appId: net.dmfenton.sketchpad
     file: ../helpers/inject-auth.yaml
 
 - assertVisible:
-    id: "canvas-view"
+    id: 'canvas-view'
 
 # Status pill should show connected state
 - assertVisible:
-    id: "status-pill"
+    id: 'status-pill'
 
 # Look for connected indicator - StatusPill shows "Ready" when connected
 - extendedWaitUntil:
-    visible: "Ready"
+    visible: 'Ready'
     timeout: 10000
-
 # WebSocket is connected - test complete
 # Note: Pause/resume test skipped due to worklet bug in Canvas.tsx

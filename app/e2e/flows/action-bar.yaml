@@ -5,32 +5,31 @@ appId: net.dmfenton.sketchpad
     file: ../helpers/inject-auth.yaml
 
 - assertVisible:
-    id: "action-bar"
+    id: 'action-bar'
 
 # Test Draw toggle
 - tapOn:
-    id: "action-draw"
+    id: 'action-draw'
 
-- assertVisible: "Drawing Mode"
+- assertVisible: 'Drawing Mode'
 
 - tapOn:
-    id: "action-draw"
+    id: 'action-draw'
 
-- assertNotVisible: "Drawing Mode"
+- assertNotVisible: 'Drawing Mode'
 
 # Test Nudge modal
 - tapOn:
-    id: "action-nudge"
+    id: 'action-nudge'
 
-- assertVisible: "Send a nudge"
+- assertVisible: 'Send a nudge'
 
 # Close nudge modal
 - tapOn:
-    id: "nudge-close-button"
+    id: 'nudge-close-button'
 
 # Test Pause button is tappable
 # Note: Tapping pause when no strokes shows StartPanel modal, so we just verify the tap works
 - tapOn:
-    id: "action-pause"
-
+    id: 'action-pause'
 # Test complete - all action bar buttons verified

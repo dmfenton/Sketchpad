@@ -8,16 +8,16 @@ appId: net.dmfenton.sketchpad
 
 # Handle "Open in Code Monet?" dialog (appears on fresh simulator)
 - tapOn:
-    text: "Open"
+    text: 'Open'
     optional: true
 
 # Wait for canvas (auto-auth happens during app startup)
 - extendedWaitUntil:
     visible:
-      id: "canvas-view"
+      id: 'canvas-view'
     timeout: 30000
 
 # Dismiss debugger warning (if shown)
 - tapOn:
-    point: "95%,92%"
+    point: '95%,92%'
     optional: true

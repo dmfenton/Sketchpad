@@ -5,16 +5,16 @@ appId: net.dmfenton.sketchpad
     file: ../helpers/inject-auth.yaml
 
 - assertVisible:
-    id: "canvas-view"
+    id: 'canvas-view'
 
 - assertVisible:
-    id: "status-pill"
+    id: 'status-pill'
 
 # Enter draw mode
 - tapOn:
-    id: "action-draw"
+    id: 'action-draw'
 
-- assertVisible: "Drawing Mode"
+- assertVisible: 'Drawing Mode'
 
 # Draw a stroke on canvas
 - swipe:
@@ -23,6 +23,5 @@ appId: net.dmfenton.sketchpad
     duration: 500
 
 # Verify still in drawing mode (stroke was captured)
-- assertVisible: "Drawing Mode"
-
+- assertVisible: 'Drawing Mode'
 # Test complete - canvas accepts touch input in draw mode

@@ -135,7 +135,10 @@ export function LiveStatus({
   const isBuffering = liveMessage && displayedText.length < liveMessage.text.length;
 
   return (
-    <View testID="live-status" style={[styles.container, { backgroundColor: colors.surface }, shadows.sm]}>
+    <View
+      testID="live-status"
+      style={[styles.container, { backgroundColor: colors.surface }, shadows.sm]}
+    >
       {/* Status indicator */}
       <View style={styles.statusRow}>
         <Animated.View style={{ opacity: pulseAnim }}>
