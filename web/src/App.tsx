@@ -73,9 +73,7 @@ function App(): React.ReactElement {
           </div>
         </div>
         <div className="header-center">
-          <div className={`status-pill ${agentStatus}`}>
-            {STATUS_LABELS[agentStatus]}
-          </div>
+          <div className={`status-pill ${agentStatus}`}>{STATUS_LABELS[agentStatus]}</div>
         </div>
         <div className="header-right">
           <span className="piece-count">Piece #{state.pieceCount}</span>
@@ -90,11 +88,7 @@ function App(): React.ReactElement {
       />
 
       <div className="thinking-strip">
-        <StatusOverlay
-          status={agentStatus}
-          thinking={state.thinking}
-          messages={state.messages}
-        />
+        <StatusOverlay status={agentStatus} thinking={state.thinking} messages={state.messages} />
       </div>
 
       <div className="canvas-container">

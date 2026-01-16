@@ -9,23 +9,23 @@ appId: net.dmfenton.sketchpad
 
 # Tap "Describe your vision" on StartPanel
 - tapOn:
-    id: "describe-vision-button"
+    id: 'describe-vision-button'
 
 - takeScreenshot: 02-input-visible
 
 # Handle iOS keyboard tutorial if it appears
 - tapOn:
-    text: "Continue"
+    text: 'Continue'
     optional: true
 
 # Enter the direction for 2 strokes
-- inputText: "Draw exactly 2 simple strokes only, nothing more"
+- inputText: 'Draw exactly 2 simple strokes only, nothing more'
 
 - takeScreenshot: 03-text-entered
 
 # Tap Start
 - tapOn:
-    id: "start-panel-start-button"
+    id: 'start-panel-start-button'
 
 - takeScreenshot: 04-after-start
 
@@ -38,7 +38,7 @@ appId: net.dmfenton.sketchpad
 # Wait for agent to start working (LiveStatus appears when thinking/drawing)
 - extendedWaitUntil:
     visible:
-      id: "live-status"
+      id: 'live-status'
     timeout: 60000
 
 - takeScreenshot: 06-agent-active
@@ -46,11 +46,11 @@ appId: net.dmfenton.sketchpad
 # Wait for agent to complete (LiveStatus disappears when idle)
 - extendedWaitUntil:
     notVisible:
-      id: "live-status"
+      id: 'live-status'
     timeout: 180000
 
 - takeScreenshot: 07-complete
 
 # Verify drawing happened
 - assertVisible:
-    id: "canvas-view"
+    id: 'canvas-view'
