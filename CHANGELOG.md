@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-01-17
+
 ### Added
 
 - Floating particles animation on empty canvas (idle state visual enhancement)
@@ -559,7 +561,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.20.0...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.21.0...HEAD
+[1.21.0]: https://github.com/dmfenton/sketchpad/compare/v1.20.0...v1.21.0
 [1.20.0]: https://github.com/dmfenton/sketchpad/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/dmfenton/sketchpad/compare/v1.18.2...v1.19.0
 [1.18.2]: https://github.com/dmfenton/sketchpad/compare/v1.18.1...v1.18.2
