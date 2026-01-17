@@ -3,7 +3,7 @@
  */
 
 import React, { useCallback, useRef, useState } from 'react';
-import type { DrawingStyleConfig, Path, Point } from '@code-monet/shared';
+import type { DrawingStyleConfig, Path, Point, StrokeStyle } from '@code-monet/shared';
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
@@ -18,6 +18,7 @@ interface CanvasProps {
   strokes: Path[];
   currentStroke: Point[];
   agentStroke: Point[];
+  agentStrokeStyle?: Partial<StrokeStyle> | null; // Style override for in-progress agent stroke
   penPosition: Point | null;
   penDown: boolean;
   drawingEnabled: boolean;
@@ -121,6 +122,7 @@ export function Canvas({
   strokes,
   currentStroke,
   agentStroke,
+  agentStrokeStyle,
   penPosition,
   penDown,
   drawingEnabled,
@@ -239,28 +241,40 @@ export function Canvas({
 
         {/* Agent's in-progress stroke */}
         {agentStroke.length > 1 &&
-          (styleConfig.type === 'paint' && agentStroke.length > 3 ? (
-            // Paint mode: tapered brush stroke with smooth curves
-            <path
-              d={createTaperedStrokePath(
-                agentStroke,
-                styleConfig.agent_stroke.stroke_width * 1.5,
-                0.7
-              )}
-              fill={styleConfig.agent_stroke.color}
-              opacity={styleConfig.agent_stroke.opacity * 0.9}
-            />
-          ) : (
-            // Plotter mode: simple polyline
-            <path
-              d={pointsToSvgD(agentStroke)}
-              stroke={styleConfig.agent_stroke.color}
-              strokeWidth={styleConfig.agent_stroke.stroke_width}
-              fill="none"
-              strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
-              strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
-            />
-          ))}
+          (() => {
+            // Get effective style - use agentStrokeStyle overrides in paint mode
+            const effectiveColor =
+              styleConfig.supports_color && agentStrokeStyle?.color
+                ? agentStrokeStyle.color
+                : styleConfig.agent_stroke.color;
+            const effectiveWidth =
+              styleConfig.supports_variable_width && agentStrokeStyle?.stroke_width
+                ? agentStrokeStyle.stroke_width
+                : styleConfig.agent_stroke.stroke_width;
+            const effectiveOpacity =
+              styleConfig.supports_opacity && agentStrokeStyle?.opacity !== undefined
+                ? agentStrokeStyle.opacity
+                : styleConfig.agent_stroke.opacity;
+
+            return styleConfig.type === 'paint' && agentStroke.length > 3 ? (
+              // Paint mode: tapered brush stroke with smooth curves
+              <path
+                d={createTaperedStrokePath(agentStroke, effectiveWidth * 1.5, 0.7)}
+                fill={effectiveColor}
+                opacity={effectiveOpacity * 0.9}
+              />
+            ) : (
+              // Plotter mode: simple polyline
+              <path
+                d={pointsToSvgD(agentStroke)}
+                stroke={effectiveColor}
+                strokeWidth={effectiveWidth}
+                fill="none"
+                strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
+                strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
+              />
+            );
+          })()}
 
         {/* Pen position indicator */}
         {penPosition && (

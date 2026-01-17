@@ -122,7 +122,23 @@ export class StrokeRenderer {
 
           await this.animateFrame(() => {
             if (!this.stopped) {
-              this.dispatch({ type: 'SET_PEN', x: point.x, y: point.y, down: !isFirst });
+              // On first point going down, include style info from the path
+              if (isFirst) {
+                this.dispatch({
+                  type: 'SET_PEN',
+                  x: point.x,
+                  y: point.y,
+                  down: true,
+                  // Pass style properties if they exist on the path
+                  ...(stroke.path.color !== undefined && { color: stroke.path.color }),
+                  ...(stroke.path.stroke_width !== undefined && {
+                    stroke_width: stroke.path.stroke_width,
+                  }),
+                  ...(stroke.path.opacity !== undefined && { opacity: stroke.path.opacity }),
+                });
+              } else {
+                this.dispatch({ type: 'SET_PEN', x: point.x, y: point.y, down: true });
+              }
             }
           });
         }

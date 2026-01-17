@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed redundant `thinking` message (content already streamed via `thinking_delta`)
 - Removed unused code: `executor.py`, `PenMessage`, `ExecutionState`
 
+### Fixed
+
+- In-progress agent strokes now render with their actual color, width, and opacity in paint mode
+
 ## [1.20.0] - 2026-01-16
 
 ### Fixed

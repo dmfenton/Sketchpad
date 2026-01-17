@@ -10,6 +10,7 @@ import type {
   GalleryEntry,
   Path,
   Point,
+  StrokeStyle,
 } from '../types';
 import { PLOTTER_STYLE, getStyleConfig } from '../types';
 import { boundedPush } from '../utils';
@@ -29,6 +30,7 @@ export interface CanvasHookState {
   strokes: Path[];
   currentStroke: Point[];
   agentStroke: Point[]; // Agent's in-progress stroke
+  agentStrokeStyle: Partial<StrokeStyle> | null; // Style for in-progress agent stroke
   penPosition: Point | null;
   penDown: boolean;
   thinking: string;
@@ -112,7 +114,16 @@ export type CanvasAction =
   | { type: 'START_STROKE'; point: Point }
   | { type: 'ADD_POINT'; point: Point }
   | { type: 'END_STROKE' }
-  | { type: 'SET_PEN'; x: number; y: number; down: boolean }
+  | {
+      type: 'SET_PEN';
+      x: number;
+      y: number;
+      down: boolean;
+      // Optional style for in-progress stroke (paint mode)
+      color?: string;
+      stroke_width?: number;
+      opacity?: number;
+    }
   | { type: 'SET_THINKING'; text: string }
   | { type: 'APPEND_THINKING'; text: string }
   | { type: 'APPEND_LIVE_MESSAGE'; text: string }
@@ -149,6 +160,7 @@ export const initialState: CanvasHookState = {
   strokes: [],
   currentStroke: [],
   agentStroke: [],
+  agentStrokeStyle: null,
   penPosition: null,
   penDown: false,
   thinking: '',
@@ -168,14 +180,26 @@ export const initialState: CanvasHookState = {
 export function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHookState {
   switch (action.type) {
     case 'ADD_STROKE':
-      // Clear agentStroke when stroke is finalized
-      return { ...state, strokes: [...state.strokes, action.path], agentStroke: [] };
+      // Clear agentStroke and agentStrokeStyle when stroke is finalized
+      return {
+        ...state,
+        strokes: [...state.strokes, action.path],
+        agentStroke: [],
+        agentStrokeStyle: null,
+      };
 
     case 'SET_STROKES':
       return { ...state, strokes: action.strokes };
 
     case 'CLEAR':
-      return { ...state, strokes: [], currentStroke: [], agentStroke: [], viewingPiece: null };
+      return {
+        ...state,
+        strokes: [],
+        currentStroke: [],
+        agentStroke: [],
+        agentStrokeStyle: null,
+        viewingPiece: null,
+      };
 
     case 'START_STROKE':
       return { ...state, currentStroke: [action.point] };
@@ -191,11 +215,31 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
       // Accumulate points when pen is down for live stroke preview
       // Don't clear on pen up - wait for ADD_STROKE to clear
       const newAgentStroke = action.down ? [...state.agentStroke, newPoint] : state.agentStroke;
+
+      // Capture stroke style when pen first goes down with style info
+      // Only update style when starting a new stroke (agentStroke was empty)
+      let newAgentStrokeStyle = state.agentStrokeStyle;
+      if (action.down && state.agentStroke.length === 0) {
+        // Starting a new stroke - capture style if provided
+        const hasStyleInfo =
+          action.color !== undefined ||
+          action.stroke_width !== undefined ||
+          action.opacity !== undefined;
+        if (hasStyleInfo) {
+          newAgentStrokeStyle = {
+            ...(action.color !== undefined && { color: action.color }),
+            ...(action.stroke_width !== undefined && { stroke_width: action.stroke_width }),
+            ...(action.opacity !== undefined && { opacity: action.opacity }),
+          };
+        }
+      }
+
       return {
         ...state,
         penPosition: newPoint,
         penDown: action.down,
         agentStroke: newAgentStroke,
+        agentStrokeStyle: newAgentStrokeStyle,
       };
     }
 
@@ -284,6 +328,7 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         strokes: action.strokes,
         currentStroke: [],
         agentStroke: [], // Clear agent stroke to prevent stale drawing
+        agentStrokeStyle: null, // Clear agent stroke style too
         viewingPiece: action.pieceNumber,
         drawingStyle: loadedStyle,
         styleConfig: loadedStyleConfig,
