@@ -201,6 +201,39 @@ The `/debug/agent` endpoint returns:
 3. **Path-based drawing**: Agent writes code that outputs path definitions, not pixel data
 4. **Stateless agent turns**: Each agent turn receives full context (canvas image + notes)
 
+## Agent Tools
+
+The drawing agent has 6 tools available, defined in `server/code_monet/tools.py`:
+
+| Tool                   | Purpose                              | UI Status        |
+| ---------------------- | ------------------------------------ | ---------------- |
+| `draw_paths`           | Draw predefined paths on canvas      | "drawing paths"  |
+| `generate_svg`         | Generate paths via Python code       | "generating SVG" |
+| `view_canvas`          | View current canvas state            | "viewing canvas" |
+| `mark_piece_done`      | Signal piece completion              | "marking done"   |
+| `generate_image`       | Generate AI reference image (Gemini) | "imagining"      |
+| `view_reference_image` | View saved reference images          | "viewing reference" |
+
+### Tool Events
+
+All tools emit `code_execution` WebSocket events:
+- `status: "started"` when tool begins
+- `status: "completed"` when tool finishes (includes `return_code`)
+
+TypeScript types in `shared/src/types.ts`:
+- `ToolName` union type lists all tool names
+- `TOOL_DISPLAY_NAMES` maps tool names to UI-friendly strings
+
+### Adding New Tools
+
+1. Add handler + `@tool` decorator in `server/code_monet/tools.py`
+2. Register in `create_drawing_server()` tools list
+3. Add to `ToolName` type in `shared/src/types.ts`
+4. Add to `TOOL_DISPLAY_NAMES` in `shared/src/types.ts`
+5. Rebuild shared: `cd shared && npm run build`
+
+See `docs/agent-tools.md` for full tool documentation.
+
 ## Testing Requirements
 
 - Backend: pytest with async support
