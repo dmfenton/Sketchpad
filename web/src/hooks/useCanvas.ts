@@ -3,14 +3,14 @@
  */
 
 import { useCallback, useReducer } from 'react';
-import type { Path, ServerMessage } from '@drawing-agent/shared';
+import type { Path, ServerMessage } from '@code-monet/shared';
 import {
   canvasReducer,
   initialState,
   routeMessage,
   type CanvasAction,
   type CanvasHookState,
-} from '@drawing-agent/shared';
+} from '@code-monet/shared';
 
 export interface UseCanvasReturn {
   state: CanvasHookState;

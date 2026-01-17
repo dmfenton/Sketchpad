@@ -2,8 +2,8 @@
 
 import pytest
 
-from drawing_agent.types import Path, PathType, Point
-from drawing_agent.workspace_state import WorkspaceState
+from code_monet.types import Path, PathType, Point
+from code_monet.workspace_state import WorkspaceState
 
 
 @pytest.fixture

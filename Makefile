@@ -1,9 +1,9 @@
-.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test lint format typecheck clean cli cli-turn cli-status build-shared
+.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test test-e2e test-e2e-sdk test-record-fixture test-replay lint format typecheck clean cli cli-turn cli-status build-shared e2e e2e-install
 
 # Install all dependencies
 install:
 	cd server && uv sync
-	pnpm install
+	npm install --legacy-peer-deps
 
 # Run server + Expo app (foreground, Ctrl+C to stop)
 dev:
@@ -11,7 +11,7 @@ dev:
 
 # Run server only (foreground)
 server:
-	cd server && uv run python -m drawing_agent.main
+	cd server && uv run python -m code_monet.main
 
 # Run server in background with logging (for Claude debugging)
 server-bg:
@@ -19,10 +19,10 @@ server-bg:
 	@if curl -s localhost:8000/debug/agent > /dev/null 2>&1; then \
 		echo "Server already running"; \
 	else \
-		cd server && nohup uv run python -m drawing_agent.main > logs/server.log 2>&1 & \
+		cd server && nohup uv run python -m code_monet.main > logs/server.log 2>&1 & \
 		sleep 2; \
 		if curl -s localhost:8000/debug/agent > /dev/null 2>&1; then \
-			pgrep -f "drawing_agent.main" | head -1 > server/logs/server.pid; \
+			pgrep -f "code_monet.main" | head -1 > server/logs/server.pid; \
 			echo "Server started (PID $$(cat server/logs/server.pid)). Logs: server/logs/server.log"; \
 		else \
 			echo "Server failed to start. Check server/logs/server.log"; \
@@ -35,7 +35,7 @@ server-logs:
 
 # Stop server
 server-stop:
-	@PID=$$(pgrep -f "drawing_agent.main" | head -1); \
+	@PID=$$(pgrep -f "code_monet.main" | head -1); \
 	if [ -n "$$PID" ]; then \
 		kill $$PID 2>/dev/null; \
 		sleep 1; \
@@ -52,21 +52,21 @@ server-restart: server-stop
 
 # CLI commands for testing agent
 cli:
-	cd server && uv run python -m drawing_agent.cli --help
+	cd server && uv run python -m code_monet.cli --help
 
 cli-turn:
-	cd server && uv run python -m drawing_agent.cli run-turn
+	cd server && uv run python -m code_monet.cli run-turn
 
 cli-status:
-	cd server && uv run python -m drawing_agent.cli status
+	cd server && uv run python -m code_monet.cli status
 
 # Run app only
 app:
-	cd app && pnpm start
+	cd app && npm start
 
 # Run web dev server only
 web:
-	cd web && pnpm dev
+	cd web && npm run dev
 
 # Run server + Vite web app (foreground, Ctrl+C to stop)
 dev-web:
@@ -83,16 +83,40 @@ test-server:
 	cd server && uv run pytest
 
 test-app:
-	cd app && pnpm test
+	cd app && npm run test
+
+# E2E SDK integration tests (API key from SSM or .env)
+test-e2e-sdk:
+	cd server && uv run pytest tests/test_e2e_sdk.py -v
+
+# Record WebSocket message fixtures (requires API key)
+test-record-fixture:
+	cd server && uv run pytest tests/test_e2e_websocket_recording.py -v -k "test_record"
+
+# Run app reducer replay tests (fast, no API)
+test-replay:
+	npm run test -w app -- --testPathPattern=reducer.replay
+
+# Run all integration/E2E tests (excluding Maestro iOS simulator tests)
+test-e2e: test-e2e-sdk test-replay
 
 # Run tests with coverage
 coverage:
 	cd server && uv run pytest --cov=drawing_agent --cov-report=html
-	cd app && pnpm test --coverage
+	cd app && npm run test --coverage
+
+# E2E tests (iOS simulator via Maestro)
+e2e:
+	@./scripts/e2e.sh
+
+e2e-install:
+	@echo "Installing Maestro..."
+	@curl -Ls "https://get.maestro.mobile.dev" | bash
+	@echo "Add ~/.maestro/bin to your PATH if not already done"
 
 # Build shared library
 build-shared:
-	cd shared && pnpm build
+	cd shared && npm run build
 
 # Lint all code
 lint: lint-server lint-app lint-shared lint-web
@@ -101,13 +125,13 @@ lint-server:
 	cd server && uv run ruff check .
 
 lint-app:
-	cd app && pnpm lint
+	cd app && npm run lint
 
 lint-shared:
-	cd shared && pnpm lint
+	cd shared && npm run lint
 
 lint-web:
-	cd web && pnpm lint
+	cd web && npm run lint
 
 # Format all code
 format: format-server format-js
@@ -116,7 +140,7 @@ format-server:
 	cd server && uv run ruff format .
 
 format-js:
-	pnpm format
+	npm run format
 
 # Check formatting without writing
 format-check: format-check-server format-check-js
@@ -125,22 +149,22 @@ format-check-server:
 	cd server && uv run ruff format --check .
 
 format-check-js:
-	pnpm format:check
+	npm run format:check
 
 # Type checking
 typecheck: typecheck-server typecheck-app typecheck-shared typecheck-web
 
 typecheck-server:
-	cd server && uv run mypy drawing_agent
+	cd server && uv run python -m mypy code_monet
 
 typecheck-app:
-	cd app && pnpm typecheck
+	cd app && npm run typecheck
 
 typecheck-shared:
-	cd shared && pnpm typecheck
+	cd shared && npm run typecheck
 
 typecheck-web:
-	cd web && pnpm typecheck
+	cd web && npm run typecheck
 
 # Clean build artifacts
 clean:

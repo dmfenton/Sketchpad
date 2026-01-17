@@ -18,7 +18,7 @@ import boto3
 
 # Configuration
 REGION = "us-east-1"
-INSTANCE_ID = "i-08716821d3f11725a"
+INSTANCE_ID = "i-03b732d0f345beb3e"
 CONTAINER = "drawing-agent"
 
 

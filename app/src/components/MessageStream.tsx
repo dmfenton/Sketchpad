@@ -1,24 +1,19 @@
 /**
- * Chat-like message stream showing agent thoughts as individual bubbles.
+ * MessageStream - Collapsible history of agent messages.
+ *
+ * Shows past thoughts, tool executions, errors, etc.
+ * Live streaming is handled separately by LiveStatus component.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import {
-  LIVE_MESSAGE_ID,
-  PULSE_DURATION_MS,
-  STATUS_LABELS,
-  type AgentMessage,
-  type AgentStatus,
-  type ToolName,
-} from '@drawing-agent/shared';
+import { LIVE_MESSAGE_ID, type AgentMessage, type ToolName } from '@code-monet/shared';
 import { spacing, borderRadius, typography, useTheme, type ColorScheme } from '../theme';
 
 interface MessageStreamProps {
   messages: AgentMessage[];
-  status: AgentStatus;
 }
 
 function formatTime(timestamp: number): string {
@@ -35,6 +30,7 @@ const TOOL_ICONS: Record<
   generate_svg: { name: 'code-slash', activeIcon: 'code-working' },
   view_canvas: { name: 'eye', activeIcon: 'eye-outline' },
   mark_piece_done: { name: 'checkmark-done', activeIcon: 'checkmark-done-outline' },
+  imagine: { name: 'sparkles', activeIcon: 'sparkles-outline' },
   unknown: { name: 'help-circle', activeIcon: 'help-circle-outline' },
 };
 
@@ -179,7 +175,9 @@ const MessageBubble = React.memo(function MessageBubble({
             ? colors.textMuted
             : toolName === 'mark_piece_done'
               ? colors.success
-              : colors.primary;
+              : toolName === 'imagine'
+                ? '#F59E0B' // amber for imagination
+                : colors.primary;
 
     return (
       <Animated.View
@@ -264,7 +262,6 @@ const MessageBubble = React.memo(function MessageBubble({
   }
 
   // Default thinking/other message
-  const isLive = message.id === LIVE_MESSAGE_ID;
   return (
     <Animated.View
       style={[
@@ -277,41 +274,36 @@ const MessageBubble = React.memo(function MessageBubble({
       ]}
     >
       <Text style={[styles.messageText, { color: colors.textPrimary }]}>{message.text}</Text>
-      {isLive ? (
-        <Text style={[styles.timestamp, { color: colors.primary, fontStyle: 'italic' }]}>
-          streaming...
-        </Text>
-      ) : (
-        <Text style={[styles.timestamp, { color: colors.textMuted }]}>
-          {formatTime(message.timestamp)}
-        </Text>
-      )}
+      <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+        {formatTime(message.timestamp)}
+      </Text>
     </Animated.View>
   );
 });
 
-export function MessageStream({ messages, status }: MessageStreamProps): React.JSX.Element {
+export function MessageStream({ messages }: MessageStreamProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const [autoScroll, setAutoScroll] = useState(true);
+  const [collapsed, setCollapsed] = useState(true); // Start collapsed
   const scrollViewRef = useRef<ScrollView>(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const lastMessageCount = useRef(messages.length);
 
-  const isActive = status === 'thinking' || status === 'executing' || status === 'drawing';
+  // Filter out live message - it's shown in LiveStatus component
+  const historyMessages = messages.filter((m) => m.id !== LIVE_MESSAGE_ID);
+  const lastMessageCount = useRef(historyMessages.length);
 
   // Track new messages for animation
   const newMessageIds = useRef(new Set<string>());
   const cleanupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (messages.length > lastMessageCount.current) {
-      const newMessages = messages.slice(lastMessageCount.current);
+    if (historyMessages.length > lastMessageCount.current) {
+      const newMessages = historyMessages.slice(lastMessageCount.current);
       newMessages.forEach((m) => newMessageIds.current.add(m.id));
       // Clear after animation - with proper cleanup
       cleanupTimeoutRef.current = setTimeout(() => {
         newMessages.forEach((m) => newMessageIds.current.delete(m.id));
       }, 500);
     }
-    lastMessageCount.current = messages.length;
+    lastMessageCount.current = historyMessages.length;
 
     // Cleanup on unmount or when messages change
     return () => {
@@ -319,7 +311,7 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
         clearTimeout(cleanupTimeoutRef.current);
       }
     };
-  }, [messages]);
+  }, [historyMessages]);
 
   // Clear refs on unmount
   useEffect(() => {
@@ -329,38 +321,15 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
     };
   }, []);
 
-  // Pulse animation when active (thinking, executing, drawing)
-  useEffect(() => {
-    if (isActive) {
-      const animation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 0.4,
-            duration: PULSE_DURATION_MS,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: PULSE_DURATION_MS,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      animation.start();
-      return () => animation.stop();
-    } else {
-      pulseAnim.setValue(1);
-    }
-  }, [isActive, pulseAnim]);
-
   // Auto-scroll to bottom
   useEffect(() => {
     if (autoScroll) {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
+      return () => clearTimeout(timeoutId);
     }
-  }, [messages, autoScroll]);
+  }, [historyMessages, autoScroll]);
 
   const handleScroll = useCallback(
     (event: {
@@ -384,63 +353,64 @@ export function MessageStream({ messages, status }: MessageStreamProps): React.J
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }, shadows.md]}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <Pressable
+        style={[styles.header, { borderBottomColor: collapsed ? 'transparent' : colors.border }]}
+        onPress={() => setCollapsed(!collapsed)}
+      >
         <View style={styles.headerLeft}>
-          <Animated.View
-            style={[
-              styles.statusIndicator,
-              { backgroundColor: isActive ? colors.primary : colors.textMuted },
-              { opacity: isActive ? pulseAnim : 1 },
-            ]}
+          <Ionicons
+            name={collapsed ? 'chevron-forward' : 'chevron-down'}
+            size={14}
+            color={colors.textMuted}
           />
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-            Artist&apos;s Mind
-          </Text>
-          {isActive && (
-            <Text style={[styles.headerStatus, { color: colors.primary }]}>
-              {STATUS_LABELS[status]}
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Thoughts</Text>
+          <View style={[styles.messageCount, { backgroundColor: colors.surfaceElevated }]}>
+            <Text style={[styles.messageCountText, { color: colors.textMuted }]}>
+              {historyMessages.length}
             </Text>
+          </View>
+        </View>
+      </Pressable>
+
+      {!collapsed && (
+        <View style={styles.content}>
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={false}
+          >
+            {historyMessages.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="color-palette-outline" size={32} color={colors.textMuted} />
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                  No thoughts yet...
+                </Text>
+              </View>
+            ) : (
+              historyMessages.map((message) => (
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  isNew={newMessageIds.current.has(message.id)}
+                  colors={colors}
+                />
+              ))
+            )}
+          </ScrollView>
+
+          {!autoScroll && historyMessages.length > 0 && (
+            <Pressable
+              style={[styles.scrollButton, { backgroundColor: colors.primary }, shadows.sm]}
+              onPress={scrollToBottom}
+            >
+              <Ionicons name="arrow-down" size={16} color={colors.textOnPrimary} />
+            </Pressable>
           )}
         </View>
-      </View>
-
-      <View style={styles.content}>
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={false}
-        >
-          {messages.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="color-palette-outline" size={32} color={colors.textMuted} />
-              <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                Awaiting artistic inspiration...
-              </Text>
-            </View>
-          ) : (
-            messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                isNew={newMessageIds.current.has(message.id) || message.id === LIVE_MESSAGE_ID}
-                colors={colors}
-              />
-            ))
-          )}
-        </ScrollView>
-
-        {!autoScroll && messages.length > 0 && (
-          <Pressable
-            style={[styles.scrollButton, { backgroundColor: colors.primary }, shadows.sm]}
-            onPress={scrollToBottom}
-          >
-            <Ionicons name="arrow-down" size={16} color={colors.textOnPrimary} />
-          </Pressable>
-        )}
-      </View>
+      )}
     </View>
   );
 }
@@ -463,18 +433,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
   headerTitle: {
     ...typography.body,
     fontWeight: '600',
   },
-  headerStatus: {
+  messageCount: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
+  },
+  messageCountText: {
     ...typography.small,
-    marginLeft: spacing.xs,
+    fontWeight: '500',
   },
   content: {
     position: 'relative',

@@ -1,13 +1,14 @@
 /**
- * Shared hook for fetching and animating pending strokes.
+ * React hook for fetching and animating pending strokes.
  *
- * Works on both web and React Native by using requestAnimationFrame
- * for smooth animations and try/finally for error resilience.
+ * This is a thin wrapper around StrokeRenderer that connects it to React's
+ * lifecycle. The core logic is in StrokeRenderer for testability.
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import type { CanvasAction, PendingStrokesInfo } from '../canvas/reducer';
+import { StrokeRenderer } from '../services/StrokeRenderer';
 import type { PendingStroke } from '../types';
 
 export interface UseStrokeAnimationOptions {
@@ -19,6 +20,10 @@ export interface UseStrokeAnimationOptions {
   fetchStrokes: () => Promise<PendingStroke[]>;
   /** Delay between animation frames in ms (default: 16.67ms / 60fps) */
   frameDelayMs?: number;
+  /** Gate for rendering - strokes wait until this is true (default: true) */
+  canRender?: boolean;
+  /** Delay before starting to render after canRender becomes true (default: 800ms) */
+  renderDelayMs?: number;
 }
 
 /**
@@ -32,110 +37,96 @@ export interface UseStrokeAnimationOptions {
  * Features:
  * - Uses requestAnimationFrame for smooth 60fps animation
  * - Tracks batch IDs to prevent duplicate fetches
- * - Wraps animation in try/finally to prevent stuck state
- * - Skips if already animating
+ * - Allows retry after failed fetches
+ * - Cleans up properly on unmount
  */
 export function useStrokeAnimation({
   pendingStrokes,
   dispatch,
   fetchStrokes,
   frameDelayMs = 1000 / 60,
+  canRender = true,
+  renderDelayMs = 800,
 }: UseStrokeAnimationOptions): void {
-  const animatingRef = useRef(false);
-  const fetchedBatchIdRef = useRef(0);
-  const unmountedRef = useRef(false);
+  // Keep a stable reference to the renderer
+  const rendererRef = useRef<StrokeRenderer | null>(null);
 
-  // Reset refs on unmount to prevent blocking future animations
+  // Track the latest dependencies to avoid stale closures
+  const depsRef = useRef({ dispatch, fetchStrokes, frameDelayMs, renderDelayMs });
+  depsRef.current = { dispatch, fetchStrokes, frameDelayMs, renderDelayMs };
+
+  // Track if we're waiting to render (pendingStrokes set but canRender is false)
+  const waitingToRenderRef = useRef<number | null>(null);
+
+  // Track pending render delay timeout
+  const delayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Initialize renderer on mount
   useEffect(() => {
-    unmountedRef.current = false;
+    rendererRef.current = new StrokeRenderer({
+      fetchStrokes: () => depsRef.current.fetchStrokes(),
+      dispatch: (action) => depsRef.current.dispatch(action),
+      frameDelayMs: depsRef.current.frameDelayMs,
+      log: console.log,
+    });
+
     return () => {
-      unmountedRef.current = true;
-      animatingRef.current = false;
-      fetchedBatchIdRef.current = 0;
+      rendererRef.current?.stop();
+      rendererRef.current = null;
+      if (delayTimeoutRef.current) {
+        clearTimeout(delayTimeoutRef.current);
+      }
     };
   }, []);
 
-  const animateStrokes = useCallback(
-    async (strokes: PendingStroke[]): Promise<void> => {
-      if (animatingRef.current || unmountedRef.current) return;
-      animatingRef.current = true;
+  // Helper to start rendering with delay (uses depsRef to avoid stale closures)
+  const startRenderWithDelay = (batchId: number) => {
+    // Clear any existing delay
+    if (delayTimeoutRef.current) {
+      clearTimeout(delayTimeoutRef.current);
+    }
 
-      try {
-        for (const stroke of strokes) {
-          // Check for unmount between strokes
-          if (unmountedRef.current) break;
-
-          const points = stroke.points;
-          if (points.length === 0) continue;
-
-          // Move to start (pen up)
-          dispatch({ type: 'SET_PEN', x: points[0].x, y: points[0].y, down: false });
-
-          // Animate through points using requestAnimationFrame for smoothness
-          for (let i = 0; i < points.length; i++) {
-            // Check for unmount during animation
-            if (unmountedRef.current) break;
-
-            const point = points[i];
-            const isFirst = i === 0;
-
-            await new Promise<void>((resolve) => {
-              requestAnimationFrame(() => {
-                if (!unmountedRef.current) {
-                  dispatch({ type: 'SET_PEN', x: point.x, y: point.y, down: !isFirst });
-                }
-                setTimeout(resolve, frameDelayMs);
-              });
-            });
-          }
-
-          // Lift pen and finalize stroke (only if not unmounted)
-          if (!unmountedRef.current) {
-            const lastPoint = points[points.length - 1];
-            dispatch({ type: 'SET_PEN', x: lastPoint.x, y: lastPoint.y, down: false });
-            dispatch({ type: 'ADD_STROKE', path: stroke.path });
-          }
-        }
-      } finally {
-        animatingRef.current = false;
+    // Delay rendering so preceding messages (tool calls) are visible
+    delayTimeoutRef.current = setTimeout(() => {
+      delayTimeoutRef.current = null;
+      if (rendererRef.current) {
+        void rendererRef.current.handleStrokesReady(batchId).catch((error) => {
+          console.error('[useStrokeAnimation] Error:', error);
+        });
       }
-    },
-    [dispatch, frameDelayMs]
-  );
+    }, depsRef.current.renderDelayMs);
+  };
 
+  // Handle pendingStrokes changes - but wait for canRender
   useEffect(() => {
-    const fetchAndAnimate = async (): Promise<void> => {
-      console.log('[useStrokeAnimation] Effect triggered, pendingStrokes:', pendingStrokes);
-      if (!pendingStrokes) return;
+    console.log('[useStrokeAnimation] Effect triggered: pendingStrokes=', pendingStrokes, 'canRender=', canRender, 'renderer=', !!rendererRef.current);
 
-      // Skip if we've already fetched this batch (prevents race condition)
-      if (pendingStrokes.batchId <= fetchedBatchIdRef.current) {
-        console.log(
-          '[useStrokeAnimation] Skipping batch',
-          pendingStrokes.batchId,
-          '- already fetched (ref:',
-          fetchedBatchIdRef.current,
-          ')'
-        );
-        return;
-      }
-      console.log('[useStrokeAnimation] Fetching batch', pendingStrokes.batchId);
-      fetchedBatchIdRef.current = pendingStrokes.batchId;
+    if (!pendingStrokes || !rendererRef.current) {
+      waitingToRenderRef.current = null;
+      return;
+    }
 
-      // Clear pending state to prevent re-fetch
-      dispatch({ type: 'CLEAR_PENDING_STROKES' });
+    if (!canRender) {
+      // Remember we need to render this batch when canRender becomes true
+      console.log('[useStrokeAnimation] canRender is false, storing batchId:', pendingStrokes.batchId);
+      waitingToRenderRef.current = pendingStrokes.batchId;
+      return;
+    }
 
-      try {
-        const strokes = await fetchStrokes();
-        console.log('[useStrokeAnimation] Fetched', strokes.length, 'strokes');
-        if (strokes.length > 0) {
-          await animateStrokes(strokes);
-        }
-      } catch (error) {
-        console.error('[useStrokeAnimation] Error fetching/animating strokes:', error);
-      }
-    };
+    // We can render now - clear waiting state and render after delay
+    console.log('[useStrokeAnimation] canRender is true, starting render for batchId:', pendingStrokes.batchId);
+    waitingToRenderRef.current = null;
+    startRenderWithDelay(pendingStrokes.batchId);
+  }, [pendingStrokes?.batchId, canRender]);
 
-    void fetchAndAnimate();
-  }, [pendingStrokes, dispatch, fetchStrokes, animateStrokes]);
+  // When canRender becomes true, check if we have a waiting batch
+  useEffect(() => {
+    console.log('[useStrokeAnimation] canRender changed:', canRender, 'waitingBatch:', waitingToRenderRef.current);
+    if (canRender && waitingToRenderRef.current !== null && rendererRef.current) {
+      const batchId = waitingToRenderRef.current;
+      console.log('[useStrokeAnimation] canRender now true, triggering render for waiting batch:', batchId);
+      waitingToRenderRef.current = null;
+      startRenderWithDelay(batchId);
+    }
+  }, [canRender]);
 }

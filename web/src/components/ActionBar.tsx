@@ -4,11 +4,12 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import type { ClientMessage } from '@drawing-agent/shared';
+import type { ClientMessage, DrawingStyleType } from '@code-monet/shared';
 
 interface ActionBarProps {
   paused: boolean;
   drawingEnabled: boolean;
+  drawingStyle: DrawingStyleType;
   onSend: (message: ClientMessage) => void;
   onToggleDrawing: () => void;
 }
@@ -16,6 +17,7 @@ interface ActionBarProps {
 export function ActionBar({
   paused,
   drawingEnabled,
+  drawingStyle,
   onSend,
   onToggleDrawing,
 }: ActionBarProps): React.ReactElement {
@@ -23,6 +25,11 @@ export function ActionBar({
   const [showModal, setShowModal] = useState(false);
   const [modalDirection, setModalDirection] = useState('');
   const modalInputRef = useRef<HTMLInputElement>(null);
+
+  const handleStyleToggle = useCallback(() => {
+    const newStyle: DrawingStyleType = drawingStyle === 'plotter' ? 'paint' : 'plotter';
+    onSend({ type: 'set_style', drawing_style: newStyle });
+  }, [drawingStyle, onSend]);
 
   // Focus modal input when opened
   useEffect(() => {
@@ -99,6 +106,14 @@ export function ActionBar({
             title={drawingEnabled ? 'Drawing mode on' : 'Enable drawing'}
           >
             <span className="icon">✏️</span>
+          </button>
+          <button
+            className="style-toggle"
+            onClick={handleStyleToggle}
+            title={`Style: ${drawingStyle === 'plotter' ? 'Plotter (monochrome)' : 'Paint (color)'}`}
+          >
+            <span className="icon">{drawingStyle === 'plotter' ? '🖊️' : '🎨'}</span>
+            <span className="style-label">{drawingStyle === 'plotter' ? 'Plotter' : 'Paint'}</span>
           </button>
         </div>
 

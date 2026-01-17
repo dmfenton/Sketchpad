@@ -3,7 +3,7 @@
  */
 
 import React, { useState } from 'react';
-import type { ServerMessage } from '@drawing-agent/shared';
+import type { ServerMessage } from '@code-monet/shared';
 
 interface DebugPanelProps {
   agent: {
@@ -149,22 +149,25 @@ export function DebugPanel({
         .debug-row {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 4px 0;
+          gap: 10px;
+          padding: 6px 0;
         }
 
         .debug-section {
-          margin-top: 12px;
+          margin-top: 14px;
         }
 
         .debug-section .label {
           display: block;
-          margin-bottom: 4px;
+          margin-bottom: 6px;
         }
 
         .label {
           color: var(--text-muted);
           min-width: 100px;
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
 
         .value {
@@ -173,23 +176,25 @@ export function DebugPanel({
 
         .value.notes,
         .value.monologue {
-          background: var(--bg-secondary);
-          padding: 8px;
-          border-radius: 4px;
+          background: var(--bg-primary);
+          padding: 10px 12px;
+          border-radius: 8px;
           max-height: 100px;
           overflow-y: auto;
           white-space: pre-wrap;
           word-break: break-word;
           font-size: 11px;
+          border: 1px solid var(--border-light);
         }
 
         .badge {
-          padding: 2px 6px;
-          background: var(--warning);
+          padding: 3px 8px;
+          background: linear-gradient(135deg, var(--warning), #ffaa00);
           color: #000;
-          border-radius: 4px;
+          border-radius: 6px;
           font-size: 10px;
-          font-weight: bold;
+          font-weight: 600;
+          letter-spacing: 0.05em;
         }
 
         .status-idle { color: var(--text-muted); }
@@ -202,19 +207,21 @@ export function DebugPanel({
         .files-list {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 6px;
         }
 
         .file-row {
           display: flex;
           justify-content: space-between;
-          padding: 4px 8px;
-          background: var(--bg-secondary);
-          border-radius: 4px;
+          padding: 8px 12px;
+          background: var(--bg-primary);
+          border-radius: 8px;
+          border: 1px solid var(--border-light);
         }
 
         .file-name {
           color: var(--text-primary);
+          font-size: 12px;
         }
 
         .file-size {
@@ -232,19 +239,25 @@ export function DebugPanel({
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding-bottom: 8px;
-          border-bottom: 1px solid var(--border);
-          margin-bottom: 8px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid var(--border-light);
+          margin-bottom: 10px;
         }
 
         .log-header button {
-          padding: 2px 8px;
-          background: var(--bg-tertiary);
-          border: none;
-          border-radius: 4px;
-          color: var(--text-secondary);
+          padding: 4px 10px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          color: var(--text-muted);
           cursor: pointer;
           font-size: 11px;
+          transition: all 0.2s ease;
+        }
+
+        .log-header button:hover {
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
         }
 
         .log-entries {
@@ -252,39 +265,41 @@ export function DebugPanel({
           overflow-y: auto;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 6px;
         }
 
         .log-entry {
           display: flex;
           flex-wrap: wrap;
           gap: 8px;
-          padding: 4px 8px;
-          background: var(--bg-secondary);
-          border-radius: 4px;
+          padding: 8px 10px;
+          background: var(--bg-primary);
+          border-radius: 8px;
           font-size: 11px;
+          border: 1px solid var(--border-light);
         }
 
         .log-time {
           color: var(--text-muted);
-          font-family: monospace;
+          font-family: 'SF Mono', 'Fira Code', monospace;
         }
 
         .log-type {
-          padding: 1px 6px;
-          border-radius: 3px;
+          padding: 2px 8px;
+          border-radius: 6px;
           font-weight: 500;
+          font-size: 10px;
         }
 
-        .type-pen { background: rgba(74, 222, 128, 0.2); color: var(--success); }
-        .type-thinking_delta { background: rgba(233, 69, 96, 0.2); color: var(--accent); }
-        .type-status { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
-        .type-stroke_complete { background: rgba(74, 222, 128, 0.2); color: var(--success); }
-        .type-init { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+        .type-pen { background: rgba(78, 205, 196, 0.15); color: var(--success); }
+        .type-thinking_delta { background: rgba(233, 69, 96, 0.15); color: var(--accent); }
+        .type-status { background: rgba(255, 217, 61, 0.15); color: var(--warning); }
+        .type-stroke_complete { background: rgba(78, 205, 196, 0.15); color: var(--success); }
+        .type-init { background: rgba(123, 104, 238, 0.15); color: var(--accent-violet); }
 
         .log-data {
           width: 100%;
-          color: var(--text-secondary);
+          color: var(--text-muted);
           font-size: 10px;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -295,11 +310,16 @@ export function DebugPanel({
         .loading {
           color: var(--text-muted);
           text-align: center;
-          padding: 20px;
+          padding: 24px;
+          font-style: italic;
         }
 
         .debug-tab.refresh {
-          padding: 8px 12px;
+          padding: 10px 14px;
+        }
+
+        .debug-tab.refresh:hover {
+          color: var(--accent);
         }
       `}</style>
     </div>

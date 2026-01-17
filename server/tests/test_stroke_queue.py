@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from drawing_agent.types import Path as DrawPath
-from drawing_agent.types import Point
-from drawing_agent.workspace_state import WorkspaceState
+from code_monet.types import Path as DrawPath
+from code_monet.types import Point
+from code_monet.workspace_state import WorkspaceState
 
 
 class TestWorkspaceStateStrokeQueue:

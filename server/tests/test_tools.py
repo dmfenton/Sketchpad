@@ -2,7 +2,7 @@
 
 import pytest
 
-from drawing_agent.tools import (
+from code_monet.tools import (
     _inject_canvas_image,
     handle_draw_paths,
     handle_mark_piece_done,
@@ -11,7 +11,7 @@ from drawing_agent.tools import (
     set_draw_callback,
     set_get_canvas_callback,
 )
-from drawing_agent.types import Path, PathType
+from code_monet.types import Path, PathType
 
 
 class TestParsePathData:

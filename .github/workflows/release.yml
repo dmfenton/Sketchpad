@@ -32,11 +32,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
-
       - name: Extract version from tag
         id: version
         run: |
@@ -50,16 +45,37 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
 
+      # Run E2E SDK tests before deploying to catch breaking changes
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 'latest'
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install server dependencies
+        working-directory: server
+        run: uv sync --extra dev
+
+      - name: Run E2E SDK tests
+        working-directory: server
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uv run pytest tests/test_e2e_sdk.py -v
+
       - name: Build web frontend
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          VITE_UMAMI_WEBSITE_ID: ${{ secrets.UMAMI_WEBSITE_ID }}
         run: |
-          cd shared && pnpm install && pnpm build
-          cd ../web && pnpm install && pnpm build
+          npm ci
+          npm run build -w shared
+          npm run build -w web
           # Write version file for nginx to serve
-          echo "$VERSION" > dist/version.txt
+          echo "$VERSION" > web/dist/version.txt
           echo "Web frontend built successfully (v$VERSION)"
-          ls -la dist/
+          ls -la web/dist/
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -98,9 +114,19 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION" >> $GITHUB_OUTPUT
 
       - name: Sync deploy configs and web build to S3
+        env:
+          ADMIN_IP: ${{ secrets.ADMIN_IP }}
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           BUCKET="drawing-agent-config-${ACCOUNT_ID}"
+
+          # Substitute ADMIN_IP in nginx.conf
+          if [ -n "$ADMIN_IP" ]; then
+            echo "Substituting ADMIN_IP in nginx.conf..."
+            sed -i "s/\${ADMIN_IP}/$ADMIN_IP/g" deploy/nginx.conf
+          else
+            echo "Warning: ADMIN_IP secret not set, nginx.conf will have placeholder"
+          fi
 
           echo "Syncing deploy/ to s3://${BUCKET}/deploy/"
           aws s3 sync deploy/ "s3://${BUCKET}/deploy/" --delete

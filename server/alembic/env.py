@@ -8,8 +8,8 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from drawing_agent.config import settings
-from drawing_agent.db.models import Base
+from code_monet.config import settings
+from code_monet.db.models import Base
 
 # Alembic Config object
 config = context.config

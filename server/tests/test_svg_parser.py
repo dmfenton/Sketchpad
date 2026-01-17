@@ -2,13 +2,13 @@
 
 import json
 
-from drawing_agent.svg_parser import (
+from code_monet.svg_parser import (
     extract_paths_from_output,
     parse_json_paths,
     parse_svg_path_d,
     parse_svg_string,
 )
-from drawing_agent.types import PathType
+from code_monet.types import PathType
 
 
 class TestParseSvgPathD:

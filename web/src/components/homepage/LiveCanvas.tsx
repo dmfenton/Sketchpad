@@ -187,7 +187,12 @@ export function LiveCanvas(): React.ReactElement {
       {showReal && (
         <g transform="translate(380, 16)">
           <circle r="4" fill="#6b9b6b" opacity="0.8">
-            <animate attributeName="opacity" values="0.8;0.4;0.8" dur="3s" repeatCount="indefinite" />
+            <animate
+              attributeName="opacity"
+              values="0.8;0.4;0.8"
+              dur="3s"
+              repeatCount="indefinite"
+            />
           </circle>
         </g>
       )}

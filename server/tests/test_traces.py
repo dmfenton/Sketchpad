@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from drawing_agent.auth.rate_limit import rate_limiter
+from code_monet.auth.rate_limit import rate_limiter
 
 
 class TestTracesEndpoint:
@@ -14,10 +14,10 @@ class TestTracesEndpoint:
     @pytest.fixture
     def client(self):
         """Create test client with mocked tracing."""
-        with patch("drawing_agent.main.record_client_spans") as mock_record:
+        with patch("code_monet.main.record_client_spans") as mock_record:
             mock_record.return_value = 1
             # Import app after patching
-            from drawing_agent.main import app
+            from code_monet.main import app
 
             yield TestClient(app), mock_record
 
@@ -154,9 +154,9 @@ class TestTracesRateLimiting:
     @pytest.fixture
     def client(self):
         """Create test client with mocked tracing."""
-        with patch("drawing_agent.main.record_client_spans") as mock_record:
+        with patch("code_monet.main.record_client_spans") as mock_record:
             mock_record.return_value = 1
-            from drawing_agent.main import app
+            from code_monet.main import app
 
             yield TestClient(app)
 

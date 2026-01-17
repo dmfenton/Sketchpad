@@ -4,7 +4,7 @@
  */
 
 import * as Linking from 'expo-linking';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,8 +18,8 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { PendingStroke } from '@drawing-agent/shared';
-import { useStrokeAnimation } from '@drawing-agent/shared';
+import type { PendingStroke, ToolName } from '@code-monet/shared';
+import { deriveAgentStatus, LIVE_MESSAGE_ID, useStrokeAnimation } from '@code-monet/shared';
 
 import { useTokenRefresh } from './hooks/useTokenRefresh';
 import { tracer } from './utils/tracing';
@@ -28,13 +28,12 @@ import {
   ActionBar,
   Canvas,
   GalleryModal,
+  LiveStatus,
   MessageStream,
   NewCanvasModal,
   NudgeModal,
   SplashScreen,
   StartPanel,
-  StatusOverlay,
-  StatusPill,
 } from './components';
 import { getApiUrl, getWebSocketUrl } from './config';
 import { useAuth } from './context';
@@ -68,11 +67,33 @@ function MainApp(): React.JSX.Element {
     return data.strokes;
   }, [accessToken]);
 
+  // Derive status from messages (source of truth)
+  const agentStatus = deriveAgentStatus(canvas.state);
+
+  // Extract live message for LiveStatus component
+  const liveMessage = useMemo(
+    () => canvas.state.messages.find((m) => m.id === LIVE_MESSAGE_ID) ?? null,
+    [canvas.state.messages]
+  );
+
+  // Get current tool from the last code_execution message
+  const currentTool = useMemo((): ToolName | null => {
+    for (let i = canvas.state.messages.length - 1; i >= 0; i--) {
+      const m = canvas.state.messages[i];
+      if (m && m.type === 'code_execution') {
+        return (m.metadata?.tool_name as ToolName) ?? null;
+      }
+    }
+    return null;
+  }, [canvas.state.messages]);
+
   // Use shared animation hook for agent-drawn strokes
+  // Gate on status === 'drawing' (derived when pendingStrokes is set)
   useStrokeAnimation({
     pendingStrokes: canvas.state.pendingStrokes,
     dispatch,
     fetchStrokes,
+    canRender: agentStatus === 'drawing',
   });
 
   // Handle auth errors from WebSocket with proper mutex pattern
@@ -125,10 +146,11 @@ function MainApp(): React.JSX.Element {
   }, []);
 
   const handleNewCanvasStart = useCallback(
-    (direction?: string) => {
-      tracer.recordEvent('action.new_canvas', { hasDirection: !!direction });
+    (direction?: string, style?: 'plotter' | 'paint') => {
+      tracer.recordEvent('action.new_canvas', { hasDirection: !!direction, style });
       tracer.newSession(); // Start fresh trace for new piece
-      send({ type: 'new_canvas', direction });
+      // Send style atomically with new_canvas to avoid race condition
+      send({ type: 'new_canvas', direction, drawing_style: style });
     },
     [send]
   );
@@ -214,31 +236,22 @@ function MainApp(): React.JSX.Element {
         edges={['top', 'left', 'right']}
       >
         <View style={styles.content}>
-          {/* Status Pill - Top */}
-          <View style={styles.statusRow}>
-            <StatusPill
-              pieceCount={canvas.state.pieceCount}
-              viewingPiece={canvas.state.viewingPiece}
-              status={canvas.state.agentStatus}
-              connected={wsState.connected}
-              paused={paused}
-            />
-          </View>
+          {/* Live Status - Above canvas for visibility */}
+          {!showStartPanel && (
+            <LiveStatus liveMessage={liveMessage} status={agentStatus} currentTool={currentTool} />
+          )}
 
           {/* Canvas - Main area */}
           <View style={styles.canvasContainer}>
-            <StatusOverlay
-              status={canvas.state.agentStatus}
-              thinking={canvas.state.thinking}
-              messages={canvas.state.messages}
-            />
             <Canvas
               strokes={canvas.state.strokes}
               currentStroke={canvas.state.currentStroke}
               agentStroke={canvas.state.agentStroke}
+              agentStrokeStyle={canvas.state.agentStrokeStyle}
               penPosition={canvas.state.penPosition}
               penDown={canvas.state.penDown}
               drawingEnabled={canvas.state.drawingEnabled}
+              styleConfig={canvas.state.styleConfig}
               onStrokeStart={handleStrokeStart}
               onStrokeMove={handleStrokeMove}
               onStrokeEnd={handleStrokeEnd}
@@ -251,12 +264,17 @@ function MainApp(): React.JSX.Element {
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
               keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
             >
-              <StartPanel connected={wsState.connected} onStart={handleStartFromPanel} />
+              <StartPanel
+                connected={wsState.connected}
+                drawingStyle={canvas.state.drawingStyle}
+                onStyleChange={(style) => send({ type: 'set_style', drawing_style: style })}
+                onStart={handleStartFromPanel}
+              />
             </KeyboardAvoidingView>
           ) : (
             <>
-              {/* Message Stream */}
-              <MessageStream messages={canvas.state.messages} status={canvas.state.agentStatus} />
+              {/* Message History - Collapsible */}
+              <MessageStream messages={canvas.state.messages} />
 
               {/* Action Bar - Bottom */}
               <ActionBar
@@ -285,6 +303,7 @@ function MainApp(): React.JSX.Element {
         {/* New Canvas Modal */}
         <NewCanvasModal
           visible={newCanvasModalVisible}
+          currentStyle={canvas.state.drawingStyle}
           onClose={() => setNewCanvasModalVisible(false)}
           onStart={handleNewCanvasStart}
         />
@@ -470,11 +489,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingBottom: spacing.sm,
     gap: spacing.sm,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingTop: spacing.xs,
   },
   canvasContainer: {
     flex: 1,

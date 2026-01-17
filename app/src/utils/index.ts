@@ -3,7 +3,7 @@
  */
 
 // Re-export from shared library
-export { boundedConcat, boundedPush, generateMessageId, routeMessage } from '@drawing-agent/shared';
+export { boundedConcat, boundedPush, generateMessageId, routeMessage } from '@code-monet/shared';
 
 // Keep RN-specific canvas utilities
 export { canvasToScreen, pathToSvgD, pointsToPolylineD, screenToCanvas } from './canvas';

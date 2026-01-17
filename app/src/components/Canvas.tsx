@@ -5,20 +5,31 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Circle, Defs, Line, Pattern, Path as SvgPath, Rect } from 'react-native-svg';
+import Svg, { Circle, Path as SvgPath } from 'react-native-svg';
 
 import { screenToCanvas } from '../hooks/useCanvas';
-import type { Path, Point } from '@drawing-agent/shared';
-import { CANVAS_ASPECT_RATIO, CANVAS_HEIGHT, CANVAS_WIDTH } from '@drawing-agent/shared';
+import { IdleParticles } from './IdleParticles';
+import type { DrawingStyleConfig, Path, Point, StrokeStyle } from '@code-monet/shared';
+import {
+  CANVAS_ASPECT_RATIO,
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  getEffectiveStyle,
+  PLOTTER_STYLE,
+  smoothPolylineToPath,
+  createTaperedStrokePath,
+} from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
 
 interface CanvasProps {
   strokes: Path[];
   currentStroke: Point[];
   agentStroke: Point[]; // Agent's in-progress stroke
+  agentStrokeStyle?: Partial<StrokeStyle> | null; // Style override for in-progress agent stroke
   penPosition: Point | null;
   penDown: boolean;
   drawingEnabled: boolean;
+  styleConfig?: DrawingStyleConfig; // Current drawing style (defaults to plotter)
   onStrokeStart: (x: number, y: number) => void;
   onStrokeMove: (x: number, y: number) => void;
   onStrokeEnd: () => void;
@@ -26,8 +37,10 @@ interface CanvasProps {
 
 /**
  * Convert a path to SVG path 'd' attribute.
+ * @param path - The path to convert
+ * @param smooth - If true, use bezier smoothing for polylines (paint mode)
  */
-function pathToSvgD(path: Path): string {
+function pathToSvgD(path: Path, smooth = false): string {
   // SVG paths already have their d-string
   if (path.type === 'svg') {
     return path.d || '';
@@ -36,6 +49,12 @@ function pathToSvgD(path: Path): string {
   if (path.points.length === 0) return '';
 
   const points = path.points;
+
+  // For polylines in paint mode, use smooth bezier curves
+  if (path.type === 'polyline' && smooth && points.length > 2) {
+    return smoothPolylineToPath(points, 0.5);
+  }
+
   const parts: string[] = [];
 
   switch (path.type) {
@@ -77,9 +96,16 @@ function pathToSvgD(path: Path): string {
 
 /**
  * Convert current stroke points to SVG path 'd' attribute.
+ * @param points - Array of points
+ * @param smooth - If true, use bezier smoothing (paint mode)
  */
-function pointsToSvgD(points: Point[]): string {
+function pointsToSvgD(points: Point[], smooth = false): string {
   if (points.length === 0) return '';
+
+  // Use smooth bezier curves for paint mode
+  if (smooth && points.length > 2) {
+    return smoothPolylineToPath(points, 0.5);
+  }
 
   const parts = [`M ${points[0]?.x} ${points[0]?.y}`];
   for (let i = 1; i < points.length; i++) {
@@ -92,9 +118,11 @@ export function Canvas({
   strokes,
   currentStroke,
   agentStroke,
+  agentStrokeStyle,
   penPosition,
   penDown,
   drawingEnabled,
+  styleConfig = PLOTTER_STYLE,
   onStrokeStart,
   onStrokeMove,
   onStrokeEnd,
@@ -137,6 +165,7 @@ export function Canvas({
     <View
       style={[styles.container, { backgroundColor: colors.canvasBackground }, shadows.md]}
       onLayout={handleLayout}
+      testID="canvas-view"
     >
       <GestureDetector gesture={panGesture}>
         <View style={styles.canvasWrapper}>
@@ -146,51 +175,92 @@ export function Canvas({
             viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
             preserveAspectRatio="xMidYMid meet"
           >
-            {/* Grid pattern */}
-            <Defs>
-              <Pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <Line x1="40" y1="0" x2="40" y2="40" stroke={colors.border} strokeWidth="0.5" />
-                <Line x1="0" y1="40" x2="40" y2="40" stroke={colors.border} strokeWidth="0.5" />
-              </Pattern>
-            </Defs>
-            <Rect width="100%" height="100%" fill="url(#grid)" />
+            {/* Idle animation - floating particles when canvas is empty */}
+            <IdleParticles
+              visible={
+                strokes.length === 0 && currentStroke.length === 0 && agentStroke.length === 0
+              }
+            />
 
-            {/* Completed strokes */}
-            {strokes.map((stroke, index) => (
-              <SvgPath
-                key={`stroke-${index}`}
-                d={pathToSvgD(stroke)}
-                stroke={colors.stroke}
-                strokeWidth={2.5}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ))}
+            {/* Completed strokes - render with effective style */}
+            {strokes.map((stroke, index) => {
+              const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
+              const isPaintMode = styleConfig.type === 'paint';
+              return (
+                <SvgPath
+                  key={`stroke-${index}`}
+                  d={pathToSvgD(stroke, isPaintMode)}
+                  stroke={effectiveStyle.color}
+                  strokeWidth={effectiveStyle.stroke_width}
+                  fill="none"
+                  strokeLinecap={effectiveStyle.stroke_linecap}
+                  strokeLinejoin={effectiveStyle.stroke_linejoin}
+                  opacity={effectiveStyle.opacity}
+                />
+              );
+            })}
 
             {/* Current stroke in progress (human drawing) */}
-            {currentStroke.length > 0 && (
-              <SvgPath
-                d={pointsToSvgD(currentStroke)}
-                stroke={colors.secondary}
-                strokeWidth={2.5}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            )}
+            {currentStroke.length > 0 &&
+              (styleConfig.type === 'paint' && currentStroke.length > 3 ? (
+                // Paint mode: tapered brush stroke
+                <SvgPath
+                  d={createTaperedStrokePath(
+                    currentStroke,
+                    styleConfig.human_stroke.stroke_width * 1.5,
+                    0.7
+                  )}
+                  fill={styleConfig.human_stroke.color}
+                  opacity={styleConfig.human_stroke.opacity * 0.9}
+                />
+              ) : (
+                // Plotter mode: simple polyline
+                <SvgPath
+                  d={pointsToSvgD(currentStroke)}
+                  stroke={styleConfig.human_stroke.color}
+                  strokeWidth={styleConfig.human_stroke.stroke_width}
+                  fill="none"
+                  strokeLinecap={styleConfig.human_stroke.stroke_linecap}
+                  strokeLinejoin={styleConfig.human_stroke.stroke_linejoin}
+                />
+              ))}
 
             {/* Agent's in-progress stroke */}
-            {agentStroke.length > 1 && (
-              <SvgPath
-                d={pointsToSvgD(agentStroke)}
-                stroke={colors.stroke}
-                strokeWidth={2.5}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            )}
+            {agentStroke.length > 1 &&
+              (() => {
+                // Get effective style - use agentStrokeStyle overrides in paint mode
+                const effectiveColor =
+                  styleConfig.supports_color && agentStrokeStyle?.color
+                    ? agentStrokeStyle.color
+                    : styleConfig.agent_stroke.color;
+                const effectiveWidth =
+                  styleConfig.supports_variable_width && agentStrokeStyle?.stroke_width
+                    ? agentStrokeStyle.stroke_width
+                    : styleConfig.agent_stroke.stroke_width;
+                const effectiveOpacity =
+                  styleConfig.supports_opacity && agentStrokeStyle?.opacity !== undefined
+                    ? agentStrokeStyle.opacity
+                    : styleConfig.agent_stroke.opacity;
+
+                return styleConfig.type === 'paint' && agentStroke.length > 3 ? (
+                  // Paint mode: tapered brush stroke
+                  <SvgPath
+                    d={createTaperedStrokePath(agentStroke, effectiveWidth * 1.5, 0.7)}
+                    fill={effectiveColor}
+                    opacity={effectiveOpacity * 0.9}
+                  />
+                ) : (
+                  // Plotter mode: simple polyline
+                  <SvgPath
+                    d={pointsToSvgD(agentStroke)}
+                    stroke={effectiveColor}
+                    strokeWidth={effectiveWidth}
+                    fill="none"
+                    strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
+                    strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
+                  />
+                );
+              })()}
 
             {/* Pen position indicator - larger and more visible */}
             {penPosition && (

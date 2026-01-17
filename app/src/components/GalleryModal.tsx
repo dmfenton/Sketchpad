@@ -6,7 +6,7 @@ import React from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import type { SavedCanvas } from '@drawing-agent/shared';
+import type { SavedCanvas } from '@code-monet/shared';
 import {
   spacing,
   borderRadius,

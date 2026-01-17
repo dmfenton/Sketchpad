@@ -69,23 +69,42 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes gentleBreathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.02); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
 }
 
 @keyframes inkWrite {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 @keyframes floatGentle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 /* ============================================
@@ -248,7 +267,12 @@
   left: 0;
   width: 100%;
   height: 3px;
-  background: linear-gradient(90deg, var(--atelier-gold), var(--atelier-rose), var(--atelier-lavender));
+  background: linear-gradient(
+    90deg,
+    var(--atelier-gold),
+    var(--atelier-rose),
+    var(--atelier-lavender)
+  );
   border-radius: 2px;
   transform: scaleX(0);
   transform-origin: left;
@@ -418,13 +442,14 @@
   inset: -12px;
   border: 12px solid;
   border-image: linear-gradient(
-    135deg,
-    #8b7355 0%,
-    #a08060 25%,
-    #8b7355 50%,
-    #6b5545 75%,
-    #8b7355 100%
-  ) 1;
+      135deg,
+      #8b7355 0%,
+      #a08060 25%,
+      #8b7355 50%,
+      #6b5545 75%,
+      #8b7355 100%
+    )
+    1;
   pointer-events: none;
   z-index: 10;
   border-radius: 2px;
@@ -846,7 +871,9 @@
   box-shadow:
     0 4px 12px rgba(44, 36, 22, 0.08),
     0 12px 32px rgba(44, 36, 22, 0.1);
-  transition: transform 0.5s ease, box-shadow 0.5s ease;
+  transition:
+    transform 0.5s ease,
+    box-shadow 0.5s ease;
 }
 
 /* Frame border */
@@ -855,12 +882,7 @@
   position: absolute;
   inset: -8px;
   border: 8px solid;
-  border-image: linear-gradient(
-    135deg,
-    #7a6550 0%,
-    #9a8570 50%,
-    #7a6550 100%
-  ) 1;
+  border-image: linear-gradient(135deg, #7a6550 0%, #9a8570 50%, #7a6550 100%) 1;
   pointer-events: none;
   z-index: 10;
 }
