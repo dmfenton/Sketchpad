@@ -5,7 +5,7 @@ import logging
 import re
 from xml.etree import ElementTree as ET
 
-from svgpathtools import (  # type: ignore[import-untyped]
+from svgpathtools import (
     CubicBezier,
     Line,
     QuadraticBezier,

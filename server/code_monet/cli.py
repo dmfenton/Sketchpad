@@ -224,7 +224,7 @@ async def _get_workspace_state_async(
             {
                 "id": p.id,
                 "piece_number": p.piece_number,
-                "stroke_count": len(p.strokes),
+                "stroke_count": p.stroke_count,
                 "created_at": p.created_at,
             }
             for p in gallery

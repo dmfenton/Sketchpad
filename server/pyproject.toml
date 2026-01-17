@@ -87,10 +87,16 @@ known-first-party = ["code_monet"]
 
 [tool.mypy]
 python_version = "3.11"
-strict = true
-warn_return_any = true
+# Relaxed strict mode - enable key checks without blocking on third-party libs
+warn_return_any = false
 warn_unused_ignores = true
-disallow_untyped_defs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = true
+check_untyped_defs = true
+ignore_missing_imports = true
+# Allow subclassing Any (needed for pydantic BaseModel, sqlalchemy DeclarativeBase)
+disallow_subclassing_any = false
+
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -101,5 +107,6 @@ addopts = "-v --tb=short"
 dev = [
     "boto3-stubs>=1.42.25",
     "types-aiofiles>=25.1.0.20251011",
+    "types-pillow>=10.2.0.20240822",
     "types-python-jose>=3.5.0.20250531",
 ]

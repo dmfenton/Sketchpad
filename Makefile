@@ -140,7 +140,7 @@ format-check-js:
 typecheck: typecheck-server typecheck-app typecheck-shared typecheck-web
 
 typecheck-server:
-	cd server && uv run mypy drawing_agent
+	cd server && uv run python -m mypy code_monet
 
 typecheck-app:
 	cd app && npm run typecheck
