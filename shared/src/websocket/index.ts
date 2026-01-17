@@ -15,7 +15,6 @@ export {
   handlePieceState,
   handleStrokeComplete,
   handleStrokesReady,
-  handleThinking,
   handleThinkingDelta,
   routeMessage,
 } from './handlers';

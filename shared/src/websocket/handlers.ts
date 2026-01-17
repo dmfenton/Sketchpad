@@ -22,7 +22,6 @@ import type {
   StrokesReadyMessage,
   StyleChangeMessage,
   ThinkingDeltaMessage,
-  ThinkingMessage,
 } from '../types';
 
 import type { CanvasAction } from '../canvas/reducer';
@@ -37,13 +36,6 @@ type MessageHandler<T extends ServerMessage> = (message: T, dispatch: DispatchFn
 // Individual handlers
 export const handleStrokeComplete: MessageHandler<StrokeCompleteMessage> = (message, dispatch) => {
   dispatch({ type: 'ADD_STROKE', path: message.path });
-};
-
-export const handleThinking: MessageHandler<ThinkingMessage> = (message, dispatch) => {
-  // Finalize any live message (converts it to permanent, keeping streamed content)
-  // Don't add a new message since content was already streamed via thinking_delta
-  dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
-  dispatch({ type: 'SET_THINKING', text: message.text });
 };
 
 export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (message, dispatch) => {
@@ -264,7 +256,6 @@ export const handleStrokesReady: MessageHandler<StrokesReadyMessage> = (message,
 // Handler registry
 const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessage>>> = {
   stroke_complete: handleStrokeComplete as MessageHandler<ServerMessage>,
-  thinking: handleThinking as MessageHandler<ServerMessage>,
   thinking_delta: handleThinkingDelta as MessageHandler<ServerMessage>,
   agent_state: handleAgentState as MessageHandler<ServerMessage>,
   iteration: handleIteration as MessageHandler<ServerMessage>,
