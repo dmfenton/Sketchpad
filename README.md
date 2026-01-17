@@ -16,8 +16,9 @@ A drawing machine with genuine creative agency. The AI comes up with its own ide
 
 Built on **Anthropic's Claude Agent SDK** with a custom tool ecosystem:
 
-- **Sandboxed code execution**: Drawing commands run in isolated MCP (Model Context Protocol) servers
+- **In-process MCP tools**: Drawing tools are defined using SDK decorators and registered as an MCP server that runs in the same process as the agent
 - **Multi-turn reasoning loops**: Agent sees canvas state, generates paths, observes results, iterates
+- **Subprocess code execution**: The `generate_svg` tool runs agent-authored Python in a subprocess with timeout protection
 - **Streaming thought process**: Real-time delivery of agent thinking to clients—full transparency into creative decisions
 - **Style-aware generation**: Two distinct modes (pen plotter vs. expressive paint) with different constraints and palettes
 
@@ -93,7 +94,7 @@ The agent generates **path commands** (SVG paths, cubic beziers, polylines) rath
 │  (iOS / Web)        │◄── WebSocket (60fps) ──►│   (FastAPI)         │
 │                     │                         │                     │
 │  • SVG canvas       │    stroke events        │  • Claude Agent SDK │
-│  • Touch gestures   │    thinking stream      │  • MCP tool servers │
+│  • Touch gestures   │    thinking stream      │  • In-process tools │
 │  • Real-time render │    state sync           │  • Path interpolation│
 └─────────────────────┘                         └─────────────────────┘
          │                                               │
@@ -108,15 +109,15 @@ The agent generates **path commands** (SVG paths, cubic beziers, polylines) rath
 
 ## Tech Stack
 
-| Layer          | Technologies                                       |
-| -------------- | -------------------------------------------------- |
-| AI             | Claude Agent SDK, MCP servers, sandboxed execution |
-| Backend        | Python 3.11+, FastAPI, SQLAlchemy async, Pydantic  |
-| Frontend       | React Native, Expo, TypeScript, react-native-svg   |
-| Shared         | TypeScript monorepo with npm workspaces            |
-| Infrastructure | Terraform, AWS (EC2, ECR, SES, Route 53, X-Ray)    |
-| CI/CD          | GitHub Actions, Fastlane, Watchtower               |
-| Observability  | OpenTelemetry, AWS X-Ray, structured logging       |
+| Layer          | Technologies                                            |
+| -------------- | ------------------------------------------------------- |
+| AI             | Claude Agent SDK, in-process MCP tools, subprocess exec |
+| Backend        | Python 3.11+, FastAPI, SQLAlchemy async, Pydantic       |
+| Frontend       | React Native, Expo, TypeScript, react-native-svg        |
+| Shared         | TypeScript monorepo with npm workspaces                 |
+| Infrastructure | Terraform, AWS (EC2, ECR, SES, Route 53, X-Ray)         |
+| CI/CD          | GitHub Actions, Fastlane, Watchtower                    |
+| Observability  | OpenTelemetry, AWS X-Ray, structured logging            |
 
 ---
 

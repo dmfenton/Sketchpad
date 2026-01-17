@@ -139,7 +139,7 @@ export function ActionBar({
         />
         <ActionButton
           icon="images-outline"
-          label={galleryCount > 0 ? `Gallery (${galleryCount})` : 'Gallery'}
+          label="Gallery"
           disabled={!connected || galleryCount === 0}
           onPress={onGallery}
           colors={colors}
