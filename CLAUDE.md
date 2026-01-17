@@ -467,6 +467,19 @@ make web        # Starts Vite dev server only
 
 ## Server Deployment (AWS)
 
+### Changelog
+
+**Location:** `CHANGELOG.md` at project root
+
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Update the `[Unreleased]` section when making changes:
+
+- **Added** - New features
+- **Changed** - Changes in existing functionality
+- **Fixed** - Bug fixes
+- **Security** - Vulnerability fixes
+
+Before cutting a release, move `[Unreleased]` items to a new version heading with the release date.
+
 ### Cutting a Release
 
 Deploy to production by creating a version tag:
