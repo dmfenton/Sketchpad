@@ -205,22 +205,23 @@ The `/debug/agent` endpoint returns:
 
 The drawing agent has 6 tools available, defined in `server/code_monet/tools.py`:
 
-| Tool                   | Purpose                              | UI Status        |
-| ---------------------- | ------------------------------------ | ---------------- |
-| `draw_paths`           | Draw predefined paths on canvas      | "drawing paths"  |
-| `generate_svg`         | Generate paths via Python code       | "generating SVG" |
-| `view_canvas`          | View current canvas state            | "viewing canvas" |
-| `mark_piece_done`      | Signal piece completion              | "marking done"   |
-| `generate_image`       | Generate AI reference image (Gemini) | "imagining"      |
-| `view_reference_image` | View saved reference images          | "viewing reference" |
+| Tool              | Purpose                              | UI Status        |
+| ----------------- | ------------------------------------ | ---------------- |
+| `draw_paths`      | Draw predefined paths on canvas      | "drawing paths"  |
+| `generate_svg`    | Generate paths via Python code       | "generating SVG" |
+| `view_canvas`     | View current canvas state            | "viewing canvas" |
+| `mark_piece_done` | Signal piece completion              | "marking done"   |
+| `imagine`         | Generate AI reference image (Gemini) | "imagining"      |
 
 ### Tool Events
 
 All tools emit `code_execution` WebSocket events:
+
 - `status: "started"` when tool begins
 - `status: "completed"` when tool finishes (includes `return_code`)
 
 TypeScript types in `shared/src/types.ts`:
+
 - `ToolName` union type lists all tool names
 - `TOOL_DISPLAY_NAMES` maps tool names to UI-friendly strings
 

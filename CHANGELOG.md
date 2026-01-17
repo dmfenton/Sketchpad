@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Floating particles animation on empty canvas (idle state visual enhancement)
-- Image generation tools (`generate_image`, `view_reference_image`) using Google Gemini API
+- Image generation tool (`imagine`) using Google Gemini API
 - Filesystem and bash tools for agent workspace operations (Read, Write, Glob, Grep, Bash)
 - `GOOGLE_API_KEY` config setting (optional, enables image generation tools)
 

@@ -294,7 +294,7 @@ The interesting work often happens when you combine approaches:
 
 Call anytime to see the current state. Use it to step back and assess.
 
-### generate_image — Create Reference Images
+### imagine — Create Reference Images
 
 Generate AI images for visual inspiration and reference. **When starting a new piece on a blank canvas, use this first** to create a visual target that guides your drawing. The reference image becomes your north star—you don't need to copy it exactly, but it gives you a clear direction.
 
@@ -303,7 +303,7 @@ Use it to:
 - Create a style reference to guide your strokes
 - Get unstuck by seeing a visual interpretation of an idea
 
-The images are saved to your workspace. You can refer back to them anytime with view_reference_image—useful when you want to check if you're staying true to your vision.
+The images are saved to your workspace in the `references/` subdirectory. You can refer back to them anytime with the Read tool.
 
 ### Filesystem Access — Your Workspace
 
@@ -311,8 +311,7 @@ You have full access to your workspace directory via Read, Write, Glob, Grep, an
 - Read and write files (notes, scripts, data)
 - List and search files in your workspace
 - Run shell commands for any scripting needs
-
-Your reference images are saved in the `references/` subdirectory. You can access them directly with Read or through view_reference_image.
+- View your reference images in `references/`
 
 ### mark_piece_done — Finish
 
@@ -324,13 +323,13 @@ _PROMPT_HOW_YOU_WORK = """\
 
 **Think out loud.** Your thoughts stream to the human watching. Share what you notice, what you're considering, what you're trying. This isn't performance—it's your actual process made visible.
 
-**When the canvas is blank, generate a reference first.** Use generate_image to visualize what you want to create. Describe the subject, mood, composition, and style you're aiming for. This reference becomes your guide—you'll interpret it through your drawing, not copy it literally. Having a clear vision from the start leads to stronger, more coherent pieces.
+**When the canvas is blank, generate a reference first.** Use imagine to visualize what you want to create. Describe the subject, mood, composition, and style you're aiming for. This reference becomes your guide—you'll interpret it through your drawing, not copy it literally. Having a clear vision from the start leads to stronger, more coherent pieces.
 
 **Look before you draw.** When you receive the canvas image, really see it:
 - Where is the energy? Where does it feel static?
 - What does the composition need—weight, counterpoint, breathing room?
 - Is something emerging that you can amplify or subvert?
-- Does it still feel aligned with your reference? Check with view_reference_image if unsure.
+- Does it still feel aligned with your reference? Use Read on `references/` to check.
 
 **Start simply.** A few marks establish a conversation. You don't need to fill the canvas—negative space is as important as strokes. Some of the best pieces are sparse.
 
@@ -458,8 +457,7 @@ class DrawingAgent:
                 "mcp__drawing__mark_piece_done",
                 "mcp__drawing__generate_svg",
                 "mcp__drawing__view_canvas",
-                "mcp__drawing__generate_image",
-                "mcp__drawing__view_reference_image",
+                "mcp__drawing__imagine",
                 # Filesystem tools (scoped to workspace via working_directory)
                 "Read",
                 "Write",

@@ -666,8 +666,8 @@ async def view_canvas(_args: dict[str, Any]) -> dict[str, Any]:
 IMAGE_GEN_TIMEOUT = 60
 
 
-async def handle_generate_image(args: dict[str, Any]) -> dict[str, Any]:
-    """Handle generate_image tool call.
+async def handle_imagine(args: dict[str, Any]) -> dict[str, Any]:
+    """Handle imagine tool call.
 
     Generates an image using Google's Nano Banana (Gemini image generation),
     saves it to the workspace, and returns it to the agent.
@@ -801,7 +801,7 @@ async def handle_generate_image(args: dict[str, Any]) -> dict[str, Any]:
             {
                 "type": "text",
                 "text": f"Generated image saved to references/{filename}. "
-                f"You can view this image anytime using view_reference_image.",
+                f"You can view it anytime using the Read tool.",
             }
         ]
 
@@ -832,14 +832,14 @@ async def handle_generate_image(args: dict[str, Any]) -> dict[str, Any]:
 
 
 @tool(
-    "generate_image",
+    "imagine",
     """Generate a reference image using AI (Nano Banana / Google Gemini).
 
 Use this to create reference images for your drawings - visual inspiration, style references,
 or to visualize what you're trying to create before drawing it.
 
 The generated image is saved to your workspace and returned so you can see it immediately.
-You can view saved reference images later using view_reference_image.
+You can view saved reference images later using the Read tool on the references/ directory.
 
 Tips for good prompts:
 - Be specific about subject, style, composition, and mood
@@ -866,147 +866,9 @@ Example prompts:
         "required": ["prompt"],
     },
 )
-async def generate_image(args: dict[str, Any]) -> dict[str, Any]:
+async def imagine(args: dict[str, Any]) -> dict[str, Any]:
     """Generate a reference image using AI."""
-    return await handle_generate_image(args)
-
-
-async def handle_view_reference_image(args: dict[str, Any]) -> dict[str, Any]:
-    """Handle view_reference_image tool call.
-
-    Args:
-        args: Dictionary with optional 'name' to view a specific image
-
-    Returns:
-        Tool result with the image(s)
-    """
-    name = args.get("name", "")
-
-    if _get_workspace_dir_callback is None:
-        return {
-            "content": [{"type": "text", "text": "Error: Workspace not available"}],
-            "is_error": True,
-        }
-
-    workspace_dir = _get_workspace_dir_callback()
-    references_dir = FilePath(workspace_dir) / "references"
-
-    if not references_dir.exists():
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "No reference images found. Use generate_image to create some.",
-                }
-            ],
-        }
-
-    content: list[dict[str, Any]] = []
-
-    if name:
-        # View specific image
-        # Try with and without extension
-        filepath = references_dir / name
-        if not filepath.exists() and not name.endswith(".png"):
-            filepath = references_dir / f"{name}.png"
-
-        if not filepath.exists():
-            available = [f.name for f in references_dir.glob("*.png")]
-            return {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": f"Image '{name}' not found. Available: {', '.join(available) or 'none'}",
-                    }
-                ],
-                "is_error": True,
-            }
-
-        # Read and return the image
-        with open(filepath, "rb") as f:
-            image_data = f.read()
-        image_b64 = base64.standard_b64encode(image_data).decode("utf-8")
-
-        content.append({"type": "text", "text": f"Reference image: {filepath.name}"})
-        content.append(
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": image_b64,
-                },
-            }
-        )
-    else:
-        # List all available images
-        images = list(references_dir.glob("*.png"))
-        if not images:
-            return {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "No reference images found. Use generate_image to create some.",
-                    }
-                ],
-            }
-
-        # Sort by modification time (newest first)
-        images.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-
-        # Show the most recent image
-        latest = images[0]
-        with open(latest, "rb") as f:
-            image_data = f.read()
-        image_b64 = base64.standard_b64encode(image_data).decode("utf-8")
-
-        available_list = ", ".join(f.stem for f in images[:10])
-        if len(images) > 10:
-            available_list += f" (and {len(images) - 10} more)"
-
-        content.append(
-            {
-                "type": "text",
-                "text": f"Showing most recent: {latest.name}\nAvailable references: {available_list}",
-            }
-        )
-        content.append(
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": image_b64,
-                },
-            }
-        )
-
-    return {"content": content}
-
-
-@tool(
-    "view_reference_image",
-    """View a previously generated reference image from your workspace.
-
-Call without arguments to see the most recent image and list all available references.
-Call with a name to view a specific image.
-
-Example: view_reference_image(name="japanese_garden")
-""",
-    {
-        "type": "object",
-        "properties": {
-            "name": {
-                "type": "string",
-                "description": "Name of the reference image to view (without .png extension). Leave empty to see the most recent and list all available.",
-            },
-        },
-        "required": [],
-    },
-)
-async def view_reference_image(args: dict[str, Any]) -> dict[str, Any]:
-    """View a reference image from the workspace."""
-    return await handle_view_reference_image(args)
+    return await handle_imagine(args)
 
 
 def create_drawing_server() -> Any:
@@ -1019,7 +881,6 @@ def create_drawing_server() -> Any:
             mark_piece_done,
             generate_svg,
             view_canvas,
-            generate_image,
-            view_reference_image,
+            imagine,
         ],
     )
