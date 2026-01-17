@@ -5,6 +5,7 @@ import base64
 import json
 import logging
 import tempfile
+import time
 from pathlib import Path as FilePath
 from typing import Any
 
@@ -256,6 +257,7 @@ def output_svg_paths(svg_d_strings: list):
 _draw_callback: Any = None
 _get_canvas_callback: Any = None
 _add_strokes_callback: Any = None
+_get_workspace_dir_callback: Any = None
 
 
 def set_draw_callback(callback: Any) -> None:
@@ -278,6 +280,15 @@ def set_add_strokes_callback(callback: Any) -> None:
     """
     global _add_strokes_callback
     _add_strokes_callback = callback
+
+
+def set_workspace_dir_callback(callback: Any) -> None:
+    """Set the callback function for getting the workspace directory.
+
+    Used by generate_image to save reference images.
+    """
+    global _get_workspace_dir_callback
+    _get_workspace_dir_callback = callback
 
 
 def _inject_canvas_image(content: list[dict[str, Any]]) -> None:
@@ -651,10 +662,364 @@ async def view_canvas(_args: dict[str, Any]) -> dict[str, Any]:
     return await handle_view_canvas()
 
 
+# Image generation timeout (seconds)
+IMAGE_GEN_TIMEOUT = 60
+
+
+async def handle_generate_image(args: dict[str, Any]) -> dict[str, Any]:
+    """Handle generate_image tool call.
+
+    Generates an image using Google's Nano Banana (Gemini image generation),
+    saves it to the workspace, and returns it to the agent.
+
+    Args:
+        args: Dictionary with 'prompt' (required) and optional 'name' for the file
+
+    Returns:
+        Tool result with the generated image and file path
+    """
+    from code_monet.config import settings
+
+    prompt = args.get("prompt", "")
+    name = args.get("name", "")
+
+    if not prompt or not isinstance(prompt, str):
+        return {
+            "content": [{"type": "text", "text": "Error: prompt must be a non-empty string"}],
+            "is_error": True,
+        }
+
+    if not settings.google_api_key:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Error: Image generation not available. GOOGLE_API_KEY not configured.",
+                }
+            ],
+            "is_error": True,
+        }
+
+    if _get_workspace_dir_callback is None:
+        return {
+            "content": [{"type": "text", "text": "Error: Workspace not available"}],
+            "is_error": True,
+        }
+
+    try:
+        from io import BytesIO
+
+        from google import genai
+        from PIL import Image
+
+        # Initialize client with API key
+        client = genai.Client(api_key=settings.google_api_key)
+
+        # Generate image using Nano Banana (Flash model)
+        logger.info(f"Generating image with prompt: {prompt[:100]}...")
+
+        try:
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    client.models.generate_content,
+                    model="gemini-2.5-flash-preview-05-20",
+                    contents=[prompt],
+                ),
+                timeout=IMAGE_GEN_TIMEOUT,
+            )
+        except TimeoutError:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"Error: Image generation timed out after {IMAGE_GEN_TIMEOUT}s",
+                    }
+                ],
+                "is_error": True,
+            }
+
+        # Check for valid response
+        if not response.candidates or len(response.candidates) == 0:
+            return {
+                "content": [
+                    {"type": "text", "text": "Error: No response from image generation API"}
+                ],
+                "is_error": True,
+            }
+
+        candidate = response.candidates[0]
+        if not candidate.content or not candidate.content.parts:
+            return {
+                "content": [{"type": "text", "text": "Error: Empty response from API"}],
+                "is_error": True,
+            }
+
+        # Process response
+        image_data = None
+        text_response = None
+
+        for part in candidate.content.parts:
+            if part.text is not None:
+                text_response = part.text
+            elif part.inline_data is not None:
+                image_data = part.inline_data.data
+
+        if image_data is None:
+            error_msg = "No image generated."
+            if text_response:
+                error_msg += f" Model response: {text_response}"
+            return {
+                "content": [{"type": "text", "text": f"Error: {error_msg}"}],
+                "is_error": True,
+            }
+
+        # Load image and save to workspace
+        image = Image.open(BytesIO(image_data))
+        workspace_dir = _get_workspace_dir_callback()
+        references_dir = FilePath(workspace_dir) / "references"
+        references_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate filename
+        if name:
+            # Sanitize the name
+            safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+            filename = f"{safe_name}.png"
+        else:
+            # Generate a unique name based on timestamp
+            filename = f"reference_{int(time.time())}.png"
+
+        filepath = references_dir / filename
+        image.save(filepath, "PNG")
+
+        logger.info(f"Saved generated image to {filepath}")
+
+        # Convert to base64 for response
+        image_b64 = base64.standard_b64encode(image_data).decode("utf-8")
+
+        # Build response
+        content: list[dict[str, Any]] = [
+            {
+                "type": "text",
+                "text": f"Generated image saved to references/{filename}. "
+                f"You can view this image anytime using view_reference_image.",
+            }
+        ]
+
+        # Add model's text response if any
+        if text_response:
+            content.append({"type": "text", "text": f"Model notes: {text_response}"})
+
+        # Include the image in response
+        content.append(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": image_b64,
+                },
+            }
+        )
+
+        return {"content": content}
+
+    except Exception as e:
+        logger.exception(f"Image generation failed: {e}")
+        return {
+            "content": [{"type": "text", "text": f"Error generating image: {e!s}"}],
+            "is_error": True,
+        }
+
+
+@tool(
+    "generate_image",
+    """Generate a reference image using AI (Nano Banana / Google Gemini).
+
+Use this to create reference images for your drawings - visual inspiration, style references,
+or to visualize what you're trying to create before drawing it.
+
+The generated image is saved to your workspace and returned so you can see it immediately.
+You can view saved reference images later using view_reference_image.
+
+Tips for good prompts:
+- Be specific about subject, style, composition, and mood
+- Use photographic terms like "wide angle", "close-up", "soft lighting"
+- Specify art styles if relevant: "watercolor style", "line art", "minimalist"
+
+Example prompts:
+- "A serene Japanese garden with cherry blossoms at sunset, soft lighting"
+- "Simple line drawing of a cat sitting, minimal black lines on white"
+- "Abstract geometric pattern with overlapping circles in blue and orange"
+""",
+    {
+        "type": "object",
+        "properties": {
+            "prompt": {
+                "type": "string",
+                "description": "Detailed description of the image to generate",
+            },
+            "name": {
+                "type": "string",
+                "description": "Optional name for the image file (without extension). If not provided, a timestamp-based name is used.",
+            },
+        },
+        "required": ["prompt"],
+    },
+)
+async def generate_image(args: dict[str, Any]) -> dict[str, Any]:
+    """Generate a reference image using AI."""
+    return await handle_generate_image(args)
+
+
+async def handle_view_reference_image(args: dict[str, Any]) -> dict[str, Any]:
+    """Handle view_reference_image tool call.
+
+    Args:
+        args: Dictionary with optional 'name' to view a specific image
+
+    Returns:
+        Tool result with the image(s)
+    """
+    name = args.get("name", "")
+
+    if _get_workspace_dir_callback is None:
+        return {
+            "content": [{"type": "text", "text": "Error: Workspace not available"}],
+            "is_error": True,
+        }
+
+    workspace_dir = _get_workspace_dir_callback()
+    references_dir = FilePath(workspace_dir) / "references"
+
+    if not references_dir.exists():
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "No reference images found. Use generate_image to create some.",
+                }
+            ],
+        }
+
+    content: list[dict[str, Any]] = []
+
+    if name:
+        # View specific image
+        # Try with and without extension
+        filepath = references_dir / name
+        if not filepath.exists() and not name.endswith(".png"):
+            filepath = references_dir / f"{name}.png"
+
+        if not filepath.exists():
+            available = [f.name for f in references_dir.glob("*.png")]
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"Image '{name}' not found. Available: {', '.join(available) or 'none'}",
+                    }
+                ],
+                "is_error": True,
+            }
+
+        # Read and return the image
+        with open(filepath, "rb") as f:
+            image_data = f.read()
+        image_b64 = base64.standard_b64encode(image_data).decode("utf-8")
+
+        content.append({"type": "text", "text": f"Reference image: {filepath.name}"})
+        content.append(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": image_b64,
+                },
+            }
+        )
+    else:
+        # List all available images
+        images = list(references_dir.glob("*.png"))
+        if not images:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "No reference images found. Use generate_image to create some.",
+                    }
+                ],
+            }
+
+        # Sort by modification time (newest first)
+        images.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+        # Show the most recent image
+        latest = images[0]
+        with open(latest, "rb") as f:
+            image_data = f.read()
+        image_b64 = base64.standard_b64encode(image_data).decode("utf-8")
+
+        available_list = ", ".join(f.stem for f in images[:10])
+        if len(images) > 10:
+            available_list += f" (and {len(images) - 10} more)"
+
+        content.append(
+            {
+                "type": "text",
+                "text": f"Showing most recent: {latest.name}\nAvailable references: {available_list}",
+            }
+        )
+        content.append(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": image_b64,
+                },
+            }
+        )
+
+    return {"content": content}
+
+
+@tool(
+    "view_reference_image",
+    """View a previously generated reference image from your workspace.
+
+Call without arguments to see the most recent image and list all available references.
+Call with a name to view a specific image.
+
+Example: view_reference_image(name="japanese_garden")
+""",
+    {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+                "description": "Name of the reference image to view (without .png extension). Leave empty to see the most recent and list all available.",
+            },
+        },
+        "required": [],
+    },
+)
+async def view_reference_image(args: dict[str, Any]) -> dict[str, Any]:
+    """View a reference image from the workspace."""
+    return await handle_view_reference_image(args)
+
+
 def create_drawing_server() -> Any:
     """Create the MCP server with drawing tools."""
     return create_sdk_mcp_server(
         name="drawing",
         version="1.0.0",
-        tools=[draw_paths, mark_piece_done, generate_svg, view_canvas],
+        tools=[
+            draw_paths,
+            mark_piece_done,
+            generate_svg,
+            view_canvas,
+            generate_image,
+            view_reference_image,
+        ],
     )
