@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-01-17
+
+### Fixed
+
+- Recovered missing commits from PRs #106 and #107 that were lost during branch reconciliation
+- Removed gallery count badge from action bar button
+
+### Documentation
+
+- Corrected README architecture description (sandboxed → in-process MCP tools)
+- Clarified branch strategy in CLAUDE.md (main is source of truth, release branches are temporary)
+
 ## [1.21.6] - 2026-01-17
 
 ### Fixed
