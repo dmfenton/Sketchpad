@@ -448,10 +448,12 @@ async def get_pending_strokes(user: CurrentUser) -> dict[str, Any]:
     The client should animate these strokes locally.
 
     Strokes are cleared after fetching - each stroke is only returned once.
+    Includes piece_id so client can verify strokes belong to current canvas.
     """
     state = await get_user_state(user)
+    piece_id = state.piece_count
     strokes = await state.pop_strokes()
-    return {"strokes": strokes, "count": len(strokes)}
+    return {"strokes": strokes, "count": len(strokes), "piece_id": piece_id}
 
 
 @app.post("/piece_count/{count}")
