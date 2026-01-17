@@ -26,7 +26,7 @@ class UserConnectionManager:
     to that user's connections.
     """
 
-    def __init__(self, user_id: int) -> None:
+    def __init__(self, user_id: str) -> None:
         self.user_id = user_id
         self.connections: list[WebSocket] = []
 
@@ -113,7 +113,7 @@ class ActiveWorkspace:
     Created when a user connects, destroyed after idle timeout.
     """
 
-    user_id: int
+    user_id: str
     state: WorkspaceState
     connections: UserConnectionManager
     agent: Any = None  # DrawingAgent - set after creation to avoid circular import
@@ -149,11 +149,11 @@ class WorkspaceRegistry:
     """
 
     def __init__(self) -> None:
-        self._workspaces: dict[int, ActiveWorkspace] = {}
+        self._workspaces: dict[str, ActiveWorkspace] = {}
         self._lock = asyncio.Lock()
-        self._loading: set[int] = set()  # Users currently being loaded
+        self._loading: set[str] = set()  # Users currently being loaded
 
-    async def get_or_activate(self, user_id: int) -> ActiveWorkspace:
+    async def get_or_activate(self, user_id: str) -> ActiveWorkspace:
         """Get existing workspace or activate a new one.
 
         Uses double-check pattern to avoid holding lock during I/O.
@@ -211,7 +211,7 @@ class WorkspaceRegistry:
         # Fallback: load ourselves (shouldn't normally reach here)
         return await self.get_or_activate(user_id)
 
-    async def _activate_workspace(self, user_id: int) -> ActiveWorkspace:
+    async def _activate_workspace(self, user_id: str) -> ActiveWorkspace:
         """Create and initialize a new active workspace."""
         # Lazy imports to avoid circular dependencies
         from code_monet.agent import DrawingAgent
@@ -255,7 +255,7 @@ class WorkspaceRegistry:
 
         return workspace
 
-    async def on_disconnect(self, user_id: int, websocket: WebSocket) -> None:
+    async def on_disconnect(self, user_id: str, websocket: WebSocket) -> None:
         """Handle user disconnect - schedule deactivation if no connections remain."""
         async with self._lock:
             if user_id not in self._workspaces:
@@ -270,7 +270,7 @@ class WorkspaceRegistry:
                     self._deactivate_after_delay(user_id, IDLE_GRACE_PERIOD)
                 )
 
-    async def _deactivate_after_delay(self, user_id: int, delay: float) -> None:
+    async def _deactivate_after_delay(self, user_id: str, delay: float) -> None:
         """Deactivate workspace after delay if still idle."""
         await asyncio.sleep(delay)
 
@@ -284,7 +284,7 @@ class WorkspaceRegistry:
             if ws.connections.is_empty:
                 await self._deactivate_workspace(user_id)
 
-    async def _deactivate_workspace(self, user_id: int) -> None:
+    async def _deactivate_workspace(self, user_id: str) -> None:
         """Deactivate and remove a workspace."""
         if user_id not in self._workspaces:
             return
@@ -311,7 +311,7 @@ class WorkspaceRegistry:
 
         logger.info("All workspaces deactivated")
 
-    def get(self, user_id: int) -> ActiveWorkspace | None:
+    def get(self, user_id: str) -> ActiveWorkspace | None:
         """Get workspace by user ID without activating."""
         return self._workspaces.get(user_id)
 

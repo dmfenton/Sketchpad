@@ -19,7 +19,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 import type { SavedCanvas } from '@code-monet/shared';
 import { getApiUrl } from '../config';
-import { useAuth } from '../context';
 import {
   spacing,
   borderRadius,
@@ -128,7 +127,6 @@ export function GalleryModal({
   onSelect,
 }: GalleryModalProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
-  const { accessToken } = useAuth();
   const { width: screenWidth } = useWindowDimensions();
 
   // Calculate thumbnail size based on screen width (reactive to rotation)
@@ -138,25 +136,21 @@ export function GalleryModal({
   // Reverse the order so newest is first
   const sortedCanvases = useMemo(() => [...canvases].reverse(), [canvases]);
 
-  // Build thumbnail URL with auth token
-  const getThumbnailUrl = useCallback(
-    (pieceNumber: number) => {
-      const baseUrl = getApiUrl();
-      const url = `${baseUrl}/gallery/${pieceNumber}/thumbnail.png`;
-      if (accessToken) {
-        return `${url}?token=${encodeURIComponent(accessToken)}`;
-      }
-      return url;
-    },
-    [accessToken]
-  );
+  // Build thumbnail URL using capability token (no auth required)
+  const getThumbnailUrl = useCallback((thumbnailToken: string | undefined) => {
+    if (!thumbnailToken) {
+      return '';
+    }
+    const baseUrl = getApiUrl();
+    return `${baseUrl}/gallery/thumbnail/${thumbnailToken}.png`;
+  }, []);
 
   const renderItem = useCallback(
     ({ item }: { item: SavedCanvas }) => (
       <GalleryItem
         canvas={item}
         thumbnailSize={thumbnailSize}
-        thumbnailUrl={getThumbnailUrl(item.piece_number)}
+        thumbnailUrl={getThumbnailUrl(item.thumbnail_token)}
         onPress={() => onSelect(item.id)}
         colors={colors}
         shadows={shadows}

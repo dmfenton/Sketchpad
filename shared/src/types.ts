@@ -199,6 +199,7 @@ export interface GalleryEntry {
   created_at: string;
   piece_number: number;
   drawing_style?: DrawingStyleType; // Style used for this piece (defaults to plotter)
+  thumbnail_token?: string; // Capability token for thumbnail access
 }
 
 // Backwards compatibility alias

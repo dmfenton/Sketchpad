@@ -52,7 +52,7 @@ async def _create_invites_async(count: int) -> list[str]:
     return codes
 
 
-async def _list_invites_async() -> list[tuple[str, str, str | None, int | None]]:
+async def _list_invites_async() -> list[tuple[str, str, str | None, str | None]]:
     """List all invite codes from the database."""
     from code_monet.db import get_session, repository
 
@@ -162,12 +162,12 @@ user_app = typer.Typer(help="Manage users and view workspace state")
 app.add_typer(user_app, name="user")
 
 
-async def _list_users_with_workspace_async() -> list[tuple[int, str, str, bool, int, int, str]]:
+async def _list_users_with_workspace_async() -> list[tuple[str, str, str, bool, int, int, str]]:
     """List users with workspace summary."""
     from code_monet.db import get_session, repository
     from code_monet.workspace_state import WorkspaceState
 
-    results: list[tuple[int, str, str, bool, int, int, str]] = []
+    results: list[tuple[str, str, str, bool, int, int, str]] = []
 
     async with get_session() as session:
         users = await repository.list_users(session, active_only=False)
@@ -202,7 +202,7 @@ async def _list_users_with_workspace_async() -> list[tuple[int, str, str, bool, 
 
 
 async def _get_workspace_state_async(
-    user_id: int,
+    user_id: str,
 ) -> dict[str, Any]:
     """Get detailed workspace state for a user."""
     from code_monet.workspace_state import WorkspaceState
@@ -280,7 +280,7 @@ def user_list(
 
 @user_app.command("workspace")
 def user_workspace(
-    user_id: int = typer.Argument(..., help="The user ID to inspect"),
+    user_id: str = typer.Argument(..., help="The user ID (UUID) to inspect"),
 ) -> None:
     """Show detailed workspace state for a user.
 
@@ -349,6 +349,8 @@ app.add_typer(workspace_app, name="workspace")
 
 async def _list_workspaces_async() -> list[dict[str, Any]]:
     """List all workspace directories with stats."""
+    import re
+
     from code_monet.config import settings
 
     server_dir = FilePath(__file__).parent.parent
@@ -359,14 +361,20 @@ async def _list_workspaces_async() -> list[dict[str, Any]]:
     if not base_dir.exists():
         return workspaces
 
+    # UUID pattern for valid user directories
+    uuid_pattern = re.compile(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+    )
+
     for user_dir in sorted(base_dir.iterdir()):
         if not user_dir.is_dir():
             continue
 
-        try:
-            user_id = int(user_dir.name)
-        except ValueError:
+        # Validate directory name is a valid UUID
+        if not uuid_pattern.match(user_dir.name):
             continue
+
+        user_id = user_dir.name
 
         workspace_file = user_dir / "workspace.json"
         gallery_dir = user_dir / "gallery"

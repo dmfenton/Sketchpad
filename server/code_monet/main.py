@@ -382,16 +382,71 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
     return [p.to_api_dict() for p in pieces]
 
 
-@app.get("/gallery/{piece_number}/thumbnail.png")
-async def get_gallery_thumbnail(piece_number: int, user: CurrentUser) -> Response:
-    """Get a gallery piece as a PNG thumbnail image.
+async def _find_piece_by_thumbnail_token(
+    token: str,
+) -> tuple[list[Path], DrawingStyleType] | None:
+    """Find a gallery piece by its thumbnail token across all user workspaces.
 
+    Returns (strokes, drawing_style) tuple or None if not found.
+    """
+    import re
+    from pathlib import Path as FilePath
+
+    import aiofiles
+    import aiofiles.os
+
+    # UUID pattern for valid user directories
+    uuid_pattern = re.compile(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+    )
+
+    # Get workspace base directory
+    server_dir = FilePath(__file__).parent.parent
+    base_dir = (server_dir / settings.workspace_base_dir).resolve()
+
+    if not base_dir.exists():
+        return None
+
+    # Scan all user directories
+    for user_dir in base_dir.iterdir():
+        if not user_dir.is_dir() or not uuid_pattern.match(user_dir.name):
+            continue
+
+        # Check gallery index for this user
+        index_file = user_dir / "gallery" / "_index.json"
+        if not await aiofiles.os.path.exists(index_file):
+            continue
+
+        try:
+            async with aiofiles.open(index_file) as f:
+                index = json.loads(await f.read())
+
+            for entry in index:
+                if entry.get("thumbnail_token") == token:
+                    # Found it! Load the actual piece
+                    piece_number = entry["piece_number"]
+                    state = await WorkspaceState.load_for_user(user_dir.name)
+                    return await state.load_from_gallery(piece_number)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    return None
+
+
+@app.get("/gallery/thumbnail/{token}.png")
+async def get_gallery_thumbnail_by_token(token: str) -> Response:
+    """Get a gallery piece thumbnail by its capability token.
+
+    This is a public endpoint - the token itself is the authorization.
     Thumbnails are immutable (pieces don't change after saving), so we cache aggressively.
     """
-    state = await get_user_state(user)
-    result = await state.load_from_gallery(piece_number)
+    # Validate token format (url-safe base64, ~22 chars for 16 bytes)
+    if not token or len(token) < 10 or len(token) > 30:
+        raise HTTPException(status_code=400, detail="Invalid token format")
+
+    result = await _find_piece_by_thumbnail_token(token)
     if result is None:
-        raise HTTPException(status_code=404, detail="Piece not found")
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
 
     strokes, drawing_style = result
     png_bytes = await render_strokes_to_png(strokes, drawing_style)
@@ -422,7 +477,7 @@ async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict
         return []
 
     # Look up the featured user's ID from their email
-    featured_user_id: int | None = None
+    featured_user_id: str | None = None
     if settings.homepage_featured_email:
         async with get_session() as session:
             featured_user = await repository.get_user_by_email(

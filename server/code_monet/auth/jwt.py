@@ -14,14 +14,14 @@ class TokenError(Exception):
     pass
 
 
-def create_access_token(user_id: int, email: str) -> str:
+def create_access_token(user_id: str, email: str) -> str:
     """Create a short-lived access token."""
     if not settings.jwt_secret:
         raise TokenError("JWT_SECRET not configured")
 
     expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
     payload = {
-        "sub": str(user_id),
+        "sub": user_id,
         "email": email,
         "type": "access",
         "exp": expire,
@@ -30,14 +30,14 @@ def create_access_token(user_id: int, email: str) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def create_refresh_token(user_id: int) -> str:
+def create_refresh_token(user_id: str) -> str:
     """Create a long-lived refresh token."""
     if not settings.jwt_secret:
         raise TokenError("JWT_SECRET not configured")
 
     expire = datetime.now(UTC) + timedelta(days=settings.jwt_refresh_token_expire_days)
     payload = {
-        "sub": str(user_id),
+        "sub": user_id,
         "type": "refresh",
         "exp": expire,
         "iat": datetime.now(UTC),
@@ -61,7 +61,7 @@ def decode_token(token: str) -> dict[str, Any]:
         raise TokenError(f"Invalid token: {e}") from e
 
 
-def get_user_id_from_token(token: str, expected_type: str = "access") -> int:
+def get_user_id_from_token(token: str, expected_type: str = "access") -> str:
     """Extract user ID from token after validation.
 
     Args:
@@ -69,7 +69,7 @@ def get_user_id_from_token(token: str, expected_type: str = "access") -> int:
         expected_type: Expected token type ("access" or "refresh")
 
     Returns:
-        The user ID from the token
+        The user ID (UUID string) from the token
 
     Raises:
         TokenError: If token is invalid or wrong type
@@ -80,11 +80,8 @@ def get_user_id_from_token(token: str, expected_type: str = "access") -> int:
     if token_type != expected_type:
         raise TokenError(f"Expected {expected_type} token, got {token_type}")
 
-    user_id_str = payload.get("sub")
-    if not user_id_str:
+    user_id = payload.get("sub")
+    if not user_id:
         raise TokenError("Token missing user ID")
 
-    try:
-        return int(user_id_str)
-    except ValueError as e:
-        raise TokenError("Invalid user ID in token") from e
+    return user_id
