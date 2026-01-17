@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Floating particles animation on empty canvas (idle state visual enhancement)
+
 ### Changed
 
 - Consolidated WebSocket message types from 18 to 13 for cleaner architecture:

@@ -8,6 +8,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Circle, Path as SvgPath } from 'react-native-svg';
 
 import { screenToCanvas } from '../hooks/useCanvas';
+import { IdleParticles } from './IdleParticles';
 import type { DrawingStyleConfig, Path, Point } from '@code-monet/shared';
 import {
   CANVAS_ASPECT_RATIO,
@@ -172,6 +173,13 @@ export function Canvas({
             viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
             preserveAspectRatio="xMidYMid meet"
           >
+            {/* Idle animation - floating particles when canvas is empty */}
+            <IdleParticles
+              visible={
+                strokes.length === 0 && currentStroke.length === 0 && agentStroke.length === 0
+              }
+            />
+
             {/* Completed strokes - render with effective style */}
             {strokes.map((stroke, index) => {
               const effectiveStyle = getEffectiveStyle(stroke, styleConfig);

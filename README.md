@@ -33,6 +33,7 @@ The agent generates **path commands** (SVG paths, cubic beziers, polylines) rath
 - JWT authentication with distributed tracing correlation
 
 **Path interpolation engine**:
+
 - Trapezoidal velocity profiles with easing (accelerate → cruise → decelerate)
 - Pen plotter motion simulation (pen-up travel, servo settling delays)
 - Client-side animation decoupled from agent execution
@@ -41,16 +42,17 @@ The agent generates **path commands** (SVG paths, cubic beziers, polylines) rath
 
 **Terraform-managed AWS deployment**:
 
-| Resource | Purpose |
-|----------|---------|
-| EC2 + EBS | Compute with persistent storage, automated snapshots |
-| ECR | Container registry with lifecycle policies |
-| SES | Magic link auth with DKIM, SPF, DMARC |
-| Route 53 | DNS management |
-| X-Ray | Distributed tracing with client span correlation |
-| CloudWatch | Alarms and monitoring |
+| Resource   | Purpose                                              |
+| ---------- | ---------------------------------------------------- |
+| EC2 + EBS  | Compute with persistent storage, automated snapshots |
+| ECR        | Container registry with lifecycle policies           |
+| SES        | Magic link auth with DKIM, SPF, DMARC                |
+| Route 53   | DNS management                                       |
+| X-Ray      | Distributed tracing with client span correlation     |
+| CloudWatch | Alarms and monitoring                                |
 
 **CI/CD pipeline**:
+
 - Tag-based releases via GitHub Actions
 - Docker builds with multi-stage optimization
 - Watchtower auto-deployment (30-second rollouts)
@@ -106,15 +108,15 @@ The agent generates **path commands** (SVG paths, cubic beziers, polylines) rath
 
 ## Tech Stack
 
-| Layer | Technologies |
-|-------|--------------|
-| AI | Claude Agent SDK, MCP servers, sandboxed execution |
-| Backend | Python 3.11+, FastAPI, SQLAlchemy async, Pydantic |
-| Frontend | React Native, Expo, TypeScript, react-native-svg |
-| Shared | TypeScript monorepo with npm workspaces |
-| Infrastructure | Terraform, AWS (EC2, ECR, SES, Route 53, X-Ray) |
-| CI/CD | GitHub Actions, Fastlane, Watchtower |
-| Observability | OpenTelemetry, AWS X-Ray, structured logging |
+| Layer          | Technologies                                       |
+| -------------- | -------------------------------------------------- |
+| AI             | Claude Agent SDK, MCP servers, sandboxed execution |
+| Backend        | Python 3.11+, FastAPI, SQLAlchemy async, Pydantic  |
+| Frontend       | React Native, Expo, TypeScript, react-native-svg   |
+| Shared         | TypeScript monorepo with npm workspaces            |
+| Infrastructure | Terraform, AWS (EC2, ECR, SES, Route 53, X-Ray)    |
+| CI/CD          | GitHub Actions, Fastlane, Watchtower               |
+| Observability  | OpenTelemetry, AWS X-Ray, structured logging       |
 
 ---
 

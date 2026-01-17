@@ -12,6 +12,7 @@ import {
   smoothPolylineToPath,
   createTaperedStrokePath,
 } from '@code-monet/shared';
+import { IdleParticles } from './IdleParticles';
 
 interface CanvasProps {
   strokes: Path[];
@@ -188,6 +189,11 @@ export function Canvas({
         onMouseLeave={handleMouseLeave}
         style={{ cursor: drawingEnabled ? 'crosshair' : 'default' }}
       >
+        {/* Idle animation - floating particles when canvas is empty */}
+        <IdleParticles
+          visible={strokes.length === 0 && currentStroke.length === 0 && agentStroke.length === 0}
+        />
+
         {/* Completed strokes - render with effective style */}
         {strokes.map((stroke, index) => {
           const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
