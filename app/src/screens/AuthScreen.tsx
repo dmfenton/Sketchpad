@@ -160,6 +160,7 @@ export function AuthScreen({ magicLinkError, onClearError }: AuthScreenProps): R
               keyboardType="email-address"
               textContentType="emailAddress"
               accessibilityLabel="Email address"
+              testID="email-input"
               editable={!loading}
             />
 
@@ -182,6 +183,7 @@ export function AuthScreen({ magicLinkError, onClearError }: AuthScreenProps): R
                 textContentType="oneTimeCode"
                 autoComplete="one-time-code"
                 accessibilityLabel="6-digit verification code"
+                testID="code-input"
                 maxLength={6}
                 editable={!loading}
                 autoFocus
@@ -247,6 +249,7 @@ export function AuthScreen({ magicLinkError, onClearError }: AuthScreenProps): R
               ]}
               onPress={handleSubmit}
               disabled={loading}
+              testID="auth-submit-button"
             >
               {loading ? (
                 <ActivityIndicator color={colors.background} />

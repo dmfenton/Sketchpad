@@ -29,6 +29,7 @@ interface ActionButtonProps {
   variant?: 'default' | 'danger';
   onPress: () => void;
   colors: ColorScheme;
+  testID?: string;
 }
 
 function ActionButton({
@@ -39,6 +40,7 @@ function ActionButton({
   variant = 'default',
   onPress,
   colors,
+  testID,
 }: ActionButtonProps): React.JSX.Element {
   const handlePress = useCallback(() => {
     if (!disabled) {
@@ -57,6 +59,7 @@ function ActionButton({
       ]}
       onPress={handlePress}
       disabled={disabled}
+      testID={testID}
     >
       <Ionicons
         name={icon}
@@ -102,29 +105,37 @@ export function ActionBar({
   // Note: onClear is still in props for API compatibility but removed from UI
   void _onClear;
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="action-bar">
       <View style={[styles.bar, { backgroundColor: colors.surface }, shadows.lg]}>
-        <ActionButton
-          icon={drawingEnabled ? 'pencil' : 'pencil-outline'}
-          label="Draw"
-          active={drawingEnabled}
-          disabled={!connected}
-          onPress={onDrawToggle}
-          colors={colors}
-        />
-        <ActionButton
-          icon="chatbubble-outline"
-          label="Nudge"
-          disabled={!connected}
-          onPress={onNudge}
-          colors={colors}
-        />
+        {/* Contextual actions - only show when agent is active */}
+        {!paused && (
+          <>
+            <ActionButton
+              icon={drawingEnabled ? 'pencil' : 'pencil-outline'}
+              label="Draw"
+              active={drawingEnabled}
+              disabled={!connected}
+              onPress={onDrawToggle}
+              colors={colors}
+              testID="action-draw"
+            />
+            <ActionButton
+              icon="chatbubble-outline"
+              label="Nudge"
+              disabled={!connected}
+              onPress={onNudge}
+              colors={colors}
+              testID="action-nudge"
+            />
+          </>
+        )}
         <ActionButton
           icon="add-circle-outline"
           label="New"
           disabled={!connected}
           onPress={onNewCanvas}
           colors={colors}
+          testID="action-new"
         />
         <ActionButton
           icon="images-outline"
@@ -132,6 +143,7 @@ export function ActionBar({
           disabled={!connected || galleryCount === 0}
           onPress={onGallery}
           colors={colors}
+          testID="action-gallery"
         />
         <ActionButton
           icon={paused ? 'play' : 'pause'}
@@ -140,6 +152,7 @@ export function ActionBar({
           disabled={!connected}
           onPress={onPauseToggle}
           colors={colors}
+          testID="action-pause"
         />
       </View>
     </View>

@@ -16,12 +16,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import type { DrawingStyleType } from '@code-monet/shared';
 import { spacing, borderRadius, typography, useTheme } from '../theme';
+import { StylePicker } from './StylePicker';
 
 interface NewCanvasModalProps {
   visible: boolean;
+  currentStyle: DrawingStyleType;
   onClose: () => void;
-  onStart: (direction?: string) => void;
+  onStart: (direction?: string, style?: DrawingStyleType) => void;
 }
 
 const DIRECTION_SUGGESTIONS = [
@@ -37,21 +40,30 @@ const MAX_LENGTH = 200;
 
 export function NewCanvasModal({
   visible,
+  currentStyle,
   onClose,
   onStart,
 }: NewCanvasModalProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const [text, setText] = useState('');
+  const [selectedStyle, setSelectedStyle] = useState<DrawingStyleType>(currentStyle);
+
+  // Reset style when modal opens with current style
+  React.useEffect(() => {
+    if (visible) {
+      setSelectedStyle(currentStyle);
+    }
+  }, [visible, currentStyle]);
 
   const handleStart = () => {
     const direction = text.trim() || undefined;
-    onStart(direction);
+    onStart(direction, selectedStyle);
     setText('');
     onClose();
   };
 
   const handleSkip = () => {
-    onStart(undefined);
+    onStart(undefined, selectedStyle);
     setText('');
     onClose();
   };
@@ -114,9 +126,21 @@ export function NewCanvasModal({
             ))}
           </ScrollView>
 
+          {/* Style Picker */}
+          <View style={styles.stylePickerContainer}>
+            <StylePicker
+              value={selectedStyle}
+              onChange={setSelectedStyle}
+              variant="pills"
+              label="Style"
+              testIDPrefix="new-canvas-style"
+            />
+          </View>
+
           {/* Input */}
           <View style={styles.inputContainer}>
             <TextInput
+              testID="new-canvas-input"
               style={[
                 styles.input,
                 { backgroundColor: colors.surfaceElevated, color: colors.textPrimary },
@@ -155,6 +179,7 @@ export function NewCanvasModal({
             </Pressable>
 
             <Pressable
+              testID="new-canvas-start-button"
               style={({ pressed }) => [
                 styles.startButton,
                 { backgroundColor: text.trim() ? colors.primary : colors.surfaceElevated },
@@ -291,5 +316,9 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.8,
     transform: [{ scale: 0.98 }],
+  },
+  stylePickerContainer: {
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
   },
 });

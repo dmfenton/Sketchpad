@@ -1,0 +1,11 @@
+User-agent: *
+Disallow: /api/
+Disallow: /auth/
+Disallow: /debug/
+Disallow: /ws
+
+# Allow public gallery
+Allow: /public/
+Allow: /gallery/
+
+Sitemap: https://monet.dmfenton.net/sitemap.xml

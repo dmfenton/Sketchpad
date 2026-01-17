@@ -15,11 +15,15 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import type { DrawingStyleType } from '@code-monet/shared';
 
 import { spacing, borderRadius, typography, useTheme } from '../theme';
+import { StylePicker } from './StylePicker';
 
 interface StartPanelProps {
   connected: boolean;
+  drawingStyle: DrawingStyleType;
+  onStyleChange: (style: DrawingStyleType) => void;
   onStart: (direction?: string) => void;
 }
 
@@ -34,7 +38,12 @@ const QUICK_IDEAS = [
 
 const MAX_LENGTH = 200;
 
-export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.Element {
+export function StartPanel({
+  connected,
+  drawingStyle,
+  onStyleChange,
+  onStart,
+}: StartPanelProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const [customText, setCustomText] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -75,6 +84,16 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
               Choose an idea or describe your vision
             </Text>
           </View>
+        )}
+
+        {/* Style Selector - hidden when custom input is shown */}
+        {!showCustomInput && (
+          <StylePicker
+            value={drawingStyle}
+            onChange={onStyleChange}
+            variant="segmented"
+            label="Drawing style"
+          />
         )}
 
         {/* Quick Ideas Grid - hidden when custom input is shown */}
@@ -134,6 +153,7 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
             </Text>
             <View style={styles.inputWrapper}>
               <TextInput
+                testID="start-panel-input"
                 style={[
                   styles.textInput,
                   { backgroundColor: colors.surfaceElevated, color: colors.textPrimary },
@@ -169,6 +189,7 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
                 </Text>
               </Pressable>
               <Pressable
+                testID="start-panel-start-button"
                 style={[
                   styles.startButton,
                   { backgroundColor: customText.trim() ? colors.primary : colors.surfaceElevated },
@@ -195,6 +216,7 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
         ) : (
           <View style={styles.actionButtons}>
             <Pressable
+              testID="describe-vision-button"
               style={({ pressed }) => [
                 styles.customButton,
                 { backgroundColor: colors.surfaceElevated },
@@ -220,6 +242,7 @@ export function StartPanel({ connected, onStart }: StartPanelProps): React.JSX.E
             </Pressable>
 
             <Pressable
+              testID="surprise-me-button"
               style={({ pressed }) => [
                 styles.surpriseButton,
                 { backgroundColor: colors.primary },

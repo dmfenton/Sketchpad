@@ -15,6 +15,6 @@ echo "Starting Python server on :8000..."
 (cd server && uv run python -m drawing_agent.main) &
 
 echo "Starting Vite on :5173..."
-(cd web && npm run dev) &
+(cd web && pnpm dev) &
 
 wait

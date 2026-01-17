@@ -2,8 +2,8 @@
  * Tests for bionic reading utilities.
  */
 
-import { bionicWord, chunkWords, getLastToolCall } from '@drawing-agent/shared';
-import type { AgentMessage } from '@drawing-agent/shared';
+import { bionicWord, chunkWords, getLastToolCall } from '@code-monet/shared';
+import type { AgentMessage } from '@code-monet/shared';
 
 describe('bionicWord', () => {
   it('returns empty bold for single char', () => {

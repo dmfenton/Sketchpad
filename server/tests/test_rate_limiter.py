@@ -1,6 +1,6 @@
 """Tests for rate limiter."""
 
-from drawing_agent.rate_limiter import RateLimiter, RateLimiterConfig
+from code_monet.rate_limiter import RateLimiter, RateLimiterConfig
 
 
 class TestRateLimiter:

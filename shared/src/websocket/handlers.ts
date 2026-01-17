@@ -16,15 +16,12 @@ import type {
   LoadCanvasMessage,
   NewCanvasMessage,
   PausedMessage,
-  PenMessage,
-  PieceCompleteMessage,
-  PieceCountMessage,
+  PieceStateMessage,
   ServerMessage,
-  StatusMessage,
   StrokeCompleteMessage,
   StrokesReadyMessage,
+  StyleChangeMessage,
   ThinkingDeltaMessage,
-  ThinkingMessage,
 } from '../types';
 
 import type { CanvasAction } from '../canvas/reducer';
@@ -37,19 +34,8 @@ export type DispatchFn = (action: CanvasAction) => void;
 type MessageHandler<T extends ServerMessage> = (message: T, dispatch: DispatchFn) => void;
 
 // Individual handlers
-export const handlePen: MessageHandler<PenMessage> = (message, dispatch) => {
-  dispatch({ type: 'SET_PEN', x: message.x, y: message.y, down: message.down });
-};
-
 export const handleStrokeComplete: MessageHandler<StrokeCompleteMessage> = (message, dispatch) => {
   dispatch({ type: 'ADD_STROKE', path: message.path });
-};
-
-export const handleThinking: MessageHandler<ThinkingMessage> = (message, dispatch) => {
-  // Finalize any live message (converts it to permanent, keeping streamed content)
-  // Don't add a new message since content was already streamed via thinking_delta
-  dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
-  dispatch({ type: 'SET_THINKING', text: message.text });
 };
 
 export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (message, dispatch) => {
@@ -58,24 +44,15 @@ export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (messag
   dispatch({ type: 'APPEND_LIVE_MESSAGE', text: message.text });
 };
 
-export const handleStatus: MessageHandler<StatusMessage> = (message, dispatch) => {
-  dispatch({ type: 'SET_STATUS', status: message.status });
-
-  // Update paused state based on status
-  // Status 'paused' means agent is paused, any other status means it's running
-  dispatch({ type: 'SET_PAUSED', paused: message.status === 'paused' });
-
-  // Reset thinking when starting a new turn
-  if (message.status === 'thinking') {
-    dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
-    dispatch({ type: 'RESET_TURN' });
-  }
-  // Status is shown by StatusPill - no need to add to message stream
+export const handlePaused: MessageHandler<PausedMessage> = (message, dispatch) => {
+  dispatch({ type: 'SET_PAUSED', paused: message.paused });
 };
 
 export const handleIteration: MessageHandler<IterationMessage> = (message, dispatch) => {
   // Finalize any streaming thinking before showing iteration
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
+  // Clear accumulated thinking text for the new iteration
+  dispatch({ type: 'SET_THINKING', text: '' });
   dispatch({
     type: 'SET_ITERATION',
     current: message.current,
@@ -178,22 +155,27 @@ export const handleError: MessageHandler<ErrorMessage> = (message, dispatch) => 
   });
 };
 
-export const handlePieceComplete: MessageHandler<PieceCompleteMessage> = (message, dispatch) => {
-  // Finalize any streaming thinking before showing piece complete
-  dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
-  dispatch({ type: 'SET_PIECE_COUNT', count: message.piece_number });
-  dispatch({
-    type: 'ADD_MESSAGE',
-    message: {
-      id: generateMessageId(),
-      type: 'piece_complete',
-      text: `Piece #${message.piece_number} complete!`,
-      timestamp: Date.now(),
-      metadata: {
-        piece_number: message.piece_number,
+export const handlePieceState: MessageHandler<PieceStateMessage> = (message, dispatch) => {
+  // Update the piece count
+  dispatch({ type: 'SET_PIECE_COUNT', count: message.number });
+
+  // If piece just completed, show completion message
+  if (message.completed) {
+    // Finalize any streaming thinking before showing piece complete
+    dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
+    dispatch({
+      type: 'ADD_MESSAGE',
+      message: {
+        id: generateMessageId(),
+        type: 'piece_complete',
+        text: `Piece #${message.number} complete!`,
+        timestamp: Date.now(),
+        metadata: {
+          piece_number: message.number,
+        },
       },
-    },
-  });
+    });
+  }
 };
 
 export const handleClear: MessageHandler<ClearMessage> = (_message, dispatch) => {
@@ -215,6 +197,8 @@ export const handleLoadCanvas: MessageHandler<LoadCanvasMessage> = (message, dis
     type: 'LOAD_CANVAS',
     strokes: message.strokes,
     pieceNumber: message.piece_number,
+    drawingStyle: message.drawing_style,
+    styleConfig: message.style_config,
   });
 };
 
@@ -223,9 +207,10 @@ export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
     type: 'INIT',
     strokes: message.strokes,
     gallery: message.gallery,
-    status: message.status,
     pieceCount: message.piece_count,
     paused: message.paused,
+    drawingStyle: message.drawing_style,
+    styleConfig: message.style_config,
   });
 
   // Add previous monologue as a message if it exists
@@ -242,39 +227,42 @@ export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
   }
 };
 
-export const handlePieceCount: MessageHandler<PieceCountMessage> = (message, dispatch) => {
-  dispatch({ type: 'SET_PIECE_COUNT', count: message.count });
-};
-
-export const handlePaused: MessageHandler<PausedMessage> = (message, dispatch) => {
-  dispatch({ type: 'SET_PAUSED', paused: message.paused });
+export const handleStyleChange: MessageHandler<StyleChangeMessage> = (message, dispatch) => {
+  dispatch({
+    type: 'SET_STYLE',
+    drawingStyle: message.drawing_style,
+    styleConfig: message.style_config,
+  });
 };
 
 export const handleStrokesReady: MessageHandler<StrokesReadyMessage> = (message, dispatch) => {
   // Signal that strokes are ready to be fetched from the REST API
   // The hook will watch for this state change and trigger the fetch
-  dispatch({ type: 'STROKES_READY', count: message.count, batchId: message.batch_id });
+  // piece_id is used to ignore strokes from a previous canvas
+  dispatch({
+    type: 'STROKES_READY',
+    count: message.count,
+    batchId: message.batch_id,
+    pieceId: message.piece_id,
+  });
 };
 
 // Handler registry
 const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessage>>> = {
-  pen: handlePen as MessageHandler<ServerMessage>,
   stroke_complete: handleStrokeComplete as MessageHandler<ServerMessage>,
-  thinking: handleThinking as MessageHandler<ServerMessage>,
   thinking_delta: handleThinkingDelta as MessageHandler<ServerMessage>,
-  status: handleStatus as MessageHandler<ServerMessage>,
+  paused: handlePaused as MessageHandler<ServerMessage>,
   iteration: handleIteration as MessageHandler<ServerMessage>,
   code_execution: handleCodeExecution as MessageHandler<ServerMessage>,
   error: handleError as MessageHandler<ServerMessage>,
-  piece_complete: handlePieceComplete as MessageHandler<ServerMessage>,
+  piece_state: handlePieceState as MessageHandler<ServerMessage>,
   clear: handleClear as MessageHandler<ServerMessage>,
   new_canvas: handleNewCanvas as MessageHandler<ServerMessage>,
   gallery_update: handleGalleryUpdate as MessageHandler<ServerMessage>,
   load_canvas: handleLoadCanvas as MessageHandler<ServerMessage>,
   init: handleInit as MessageHandler<ServerMessage>,
-  piece_count: handlePieceCount as MessageHandler<ServerMessage>,
-  paused: handlePaused as MessageHandler<ServerMessage>,
   strokes_ready: handleStrokesReady as MessageHandler<ServerMessage>,
+  style_change: handleStyleChange as MessageHandler<ServerMessage>,
 };
 
 /**

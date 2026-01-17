@@ -1,210 +1,141 @@
-# Drawing Agent
+# Code Monet
 
-An autonomous AI artist that creates ink drawings, observes its own work, and iterates.
+An autonomous AI artist powered by Claude that creates drawings, observes its work, and iterates—with humans as creative collaborators.
 
-## What It Is
+![Demo](demo.gif) <!-- TODO: Add demo GIF -->
 
-A drawing machine with creative agency. It comes up with its own ideas, writes code to generate drawings, watches the results appear, and decides what to do next. Humans can intervene by drawing on the canvas or nudging the agent with suggestions.
+## What Is This?
 
-## Quick Start
+A drawing machine with genuine creative agency. The AI comes up with its own ideas, writes code to generate drawings, watches the results appear on a shared canvas, and decides what to do next. Humans can intervene anytime—draw on the canvas, nudge the agent with suggestions, or just watch it work.
 
-### Prerequisites
+---
 
-- Python 3.11+
-- Node.js 18+
-- pnpm
-- Anthropic API key
+## Technical Highlights
 
-### Setup
+### AI Agent Architecture
 
-```bash
-# Clone and enter directory
-cd Sketchpad
+Built on **Anthropic's Claude Agent SDK** with a custom tool ecosystem:
 
-# Copy environment template
-cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
+- **Sandboxed code execution**: Drawing commands run in isolated MCP (Model Context Protocol) servers
+- **Multi-turn reasoning loops**: Agent sees canvas state, generates paths, observes results, iterates
+- **Streaming thought process**: Real-time delivery of agent thinking to clients—full transparency into creative decisions
+- **Style-aware generation**: Two distinct modes (pen plotter vs. expressive paint) with different constraints and palettes
 
-# Install all dependencies
-make install
+The agent generates **path commands** (SVG paths, cubic beziers, polylines) rather than pixels—resolution-independent and infinitely scalable.
 
-# Start development (runs both server and app)
-make dev
-```
+### Real-Time Collaborative Canvas
 
-### Individual Commands
+**WebSocket architecture** for real-time rendering:
 
-```bash
-# Backend only
-make server
+- Event-driven orchestration with `asyncio.Event` (no polling)
+- Per-user isolated workspaces with thread-safe multi-user support
+- Graceful reconnection with full state recovery
+- JWT authentication with distributed tracing correlation
 
-# Frontend only
-make app
+**Path interpolation engine**:
 
-# Run tests
-make test
+- Trapezoidal velocity profiles with easing (accelerate → cruise → decelerate)
+- Pen plotter motion simulation (pen-up travel, servo settling delays)
+- Client-side animation decoupled from agent execution
 
-# Lint and format
-make lint
-make format
+### Infrastructure & DevOps
 
-# Type checking
-make typecheck
-```
+**Terraform-managed AWS deployment**:
+
+| Resource   | Purpose                                              |
+| ---------- | ---------------------------------------------------- |
+| EC2 + EBS  | Compute with persistent storage, automated snapshots |
+| ECR        | Container registry with lifecycle policies           |
+| SES        | Magic link auth with DKIM, SPF, DMARC                |
+| Route 53   | DNS management                                       |
+| X-Ray      | Distributed tracing with client span correlation     |
+| CloudWatch | Alarms and monitoring                                |
+
+**CI/CD pipeline**:
+
+- Tag-based releases via GitHub Actions
+- Docker builds with multi-stage optimization
+- Watchtower auto-deployment (30-second rollouts)
+- Deployment verification before marking releases complete
+
+### Mobile Deployment
+
+**iOS via Expo + Fastlane**:
+
+- Automated TestFlight builds on version tags
+- iOS Universal Links for seamless magic link sign-in
+- Dynamic versioning from git tags
+- Pre-built native project via `expo prebuild`
+
+### Observability
+
+**End-to-end distributed tracing**:
+
+- OpenTelemetry instrumentation (FastAPI, SQLAlchemy, logging)
+- Client trace IDs propagated via WebSocket
+- Full stack traces in error responses with trace_id references
+- Debug endpoints for agent state, workspace files, and logs
+
+### Code Quality
+
+- **Python**: Strict mypy, ruff formatting, async/await throughout, Pydantic validation
+- **TypeScript**: Strict mode, no `any` types, discriminated unions over runtime checks
+- **Shared library**: Platform-agnostic code shared between React Native and web
+- **Testing**: pytest + Jest with coverage reporting
+
+---
 
 ## Architecture
 
 ```
-┌─────────────────────┐       WebSocket        ┌─────────────────────┐
-│   React Native App  │◄──────────────────────►│    Python Server    │
-│                     │                        │                     │
-│  - SVG canvas       │   stroke events        │  - FastAPI          │
-│  - Real-time render │   state updates        │  - Claude Agent SDK │
-│  - Touch input      │   thinking stream      │  - Canvas state     │
-│  - Agent thinking   │                        │  - Code sandbox     │
-└─────────────────────┘                        └─────────────────────┘
+┌─────────────────────┐                         ┌─────────────────────┐
+│  React Native App   │                         │   Python Backend    │
+│  (iOS / Web)        │◄── WebSocket (60fps) ──►│   (FastAPI)         │
+│                     │                         │                     │
+│  • SVG canvas       │    stroke events        │  • Claude Agent SDK │
+│  • Touch gestures   │    thinking stream      │  • MCP tool servers │
+│  • Real-time render │    state sync           │  • Path interpolation│
+└─────────────────────┘                         └─────────────────────┘
+         │                                               │
+         │              ┌─────────────┐                  │
+         └──────────────│   Shared    │──────────────────┘
+                        │   Library   │
+                        │ (TypeScript)│
+                        └─────────────┘
 ```
 
-## Project Structure
+---
 
-```
-├── server/                 # Python backend
-│   ├── drawing_agent/      # Main package
-│   │   ├── main.py         # FastAPI app, WebSocket handling
-│   │   ├── agent.py        # Claude SDK integration
-│   │   ├── executor.py     # Path execution, interpolation
-│   │   ├── canvas.py       # Canvas state, PNG/SVG rendering
-│   │   └── state.py        # State persistence
-│   ├── tests/              # Backend tests
-│   ├── pyproject.toml      # Python dependencies
-│   └── pytest.ini          # Test configuration
-│
-├── app/                    # React Native frontend
-│   ├── src/
-│   │   ├── App.tsx         # Root component
-│   │   ├── components/     # UI components
-│   │   ├── hooks/          # Custom hooks
-│   │   └── types.ts        # TypeScript types
-│   ├── package.json
-│   └── tsconfig.json
-│
-├── .claude/                # Claude Code instructions
-│   └── instructions.md
-│
-├── Makefile                # Development commands
-└── docker-compose.yml      # Container setup
-```
+## Tech Stack
 
-## Development
+| Layer          | Technologies                                       |
+| -------------- | -------------------------------------------------- |
+| AI             | Claude Agent SDK, MCP servers, sandboxed execution |
+| Backend        | Python 3.11+, FastAPI, SQLAlchemy async, Pydantic  |
+| Frontend       | React Native, Expo, TypeScript, react-native-svg   |
+| Shared         | TypeScript monorepo with npm workspaces            |
+| Infrastructure | Terraform, AWS (EC2, ECR, SES, Route 53, X-Ray)    |
+| CI/CD          | GitHub Actions, Fastlane, Watchtower               |
+| Observability  | OpenTelemetry, AWS X-Ray, structured logging       |
 
-### Server
+---
 
-The backend uses FastAPI with WebSocket support. Key files:
-
-- `main.py` - HTTP endpoints and WebSocket handler
-- `agent.py` - Claude SDK integration and prompt construction
-- `executor.py` - Path interpolation and timing
-- `canvas.py` - Stroke storage and rendering
+## Quick Start
 
 ```bash
-cd server
-uv run python -m drawing_agent.main
+# Clone and setup
+cd CodeMonet
+cp .env.example .env
+# Add your ANTHROPIC_API_KEY to .env
+
+# Install and run
+make install
+make dev
 ```
 
-### App
+Server runs at `localhost:8000`, app at `localhost:8081`.
 
-React Native app with Expo. Run on iOS simulator, Android emulator, or web.
-
-```bash
-cd app
-pnpm start
-```
-
-### Pre-commit Hooks
-
-Install pre-commit to auto-run linting/formatting before each commit:
-
-```bash
-# Install pre-commit
-pip install pre-commit
-
-# Set up hooks
-pre-commit install
-
-# Run manually on all files
-pre-commit run --all-files
-```
-
-### Testing
-
-```bash
-# All tests
-make test
-
-# Backend only
-make test-server
-
-# Frontend only
-make test-app
-
-# With coverage
-make coverage
-```
-
-### CI/CD
-
-GitHub Actions runs on every push and PR:
-
-- **Server**: Ruff lint/format, Mypy type check, Pytest
-- **App**: ESLint, TypeScript check, Jest
-- **Docker**: Build verification
-
-## API Reference
-
-### WebSocket Protocol
-
-Connect to `ws://localhost:8000/ws`
-
-**Server → Client:**
-
-| Type              | Payload        | Description           |
-| ----------------- | -------------- | --------------------- |
-| `pen`             | `{x, y, down}` | Pen position at 60fps |
-| `stroke_complete` | `{path}`       | Path finished drawing |
-| `thinking`        | `{text}`       | Agent thinking stream |
-| `status`          | `{status}`     | Agent status change   |
-| `clear`           | `{}`           | Canvas cleared        |
-
-**Client → Server:**
-
-| Type     | Payload    | Description          |
-| -------- | ---------- | -------------------- |
-| `stroke` | `{points}` | Human drew a stroke  |
-| `nudge`  | `{text}`   | Human suggestion     |
-| `clear`  | `{}`       | Clear canvas request |
-| `pause`  | `{}`       | Pause agent loop     |
-| `resume` | `{}`       | Resume agent loop    |
-
-### REST Endpoints
-
-| Method | Path          | Description           |
-| ------ | ------------- | --------------------- |
-| `GET`  | `/canvas.png` | Current canvas as PNG |
-| `GET`  | `/canvas.svg` | Current canvas as SVG |
-| `GET`  | `/state`      | Full state JSON       |
-| `GET`  | `/health`     | Health check          |
-
-## Configuration
-
-Environment variables (`.env`):
-
-| Variable            | Required | Description                               |
-| ------------------- | -------- | ----------------------------------------- |
-| `ANTHROPIC_API_KEY` | Yes      | Claude API key                            |
-| `HOST`              | No       | Server host (default: 0.0.0.0)            |
-| `PORT`              | No       | Server port (default: 8000)               |
-| `AGENT_INTERVAL`    | No       | Seconds between agent turns (default: 10) |
-| `STATE_FILE`        | No       | Path to state file (default: state.json)  |
+---
 
 ## License
 

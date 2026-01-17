@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from drawing_agent.orchestrator import AgentOrchestrator
+from code_monet.orchestrator import AgentOrchestrator
 
 
 @pytest.fixture
@@ -150,7 +150,7 @@ class TestDrawPathsAnimationWait:
         """_draw_paths should wait for estimated animation time."""
         import time
 
-        from drawing_agent.types import Path, Point
+        from code_monet.types import Path, Point
 
         # Mock state.queue_strokes to return known values
         mock_state = MagicMock()
@@ -176,7 +176,7 @@ class TestDrawPathsAnimationWait:
         """_draw_paths should cap wait time to max_animation_wait_s."""
         import time
 
-        from drawing_agent.types import Path, Point
+        from code_monet.types import Path, Point
 
         # Mock state.queue_strokes with many points that would exceed max wait
         mock_state = MagicMock()
@@ -187,7 +187,7 @@ class TestDrawPathsAnimationWait:
         paths = [Path(type="line", points=[Point(x=0, y=0), Point(x=100, y=100)])]
 
         # Patch max_animation_wait_s to a short value for testing
-        with patch("drawing_agent.orchestrator.settings") as mock_settings:
+        with patch("code_monet.orchestrator.settings") as mock_settings:
             mock_settings.client_animation_fps = 60
             mock_settings.animation_wait_buffer_ms = 500
             mock_settings.max_animation_wait_s = 2.0  # 2 second cap for test

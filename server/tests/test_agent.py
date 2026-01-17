@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from PIL import Image
 
-from drawing_agent.agent import DrawingAgent, extract_tool_name
-from drawing_agent.types import AgentTurnComplete, Path, Point
+from code_monet.agent import DrawingAgent, extract_tool_name
+from code_monet.types import AgentTurnComplete, DrawingStyleType, Path, Point
 
 
 class TestDrawingAgentPauseResume:
@@ -332,3 +332,38 @@ class TestPostToolUseHook:
         await agent._post_tool_use_hook(input_data, None, MagicMock())
 
         on_draw_mock.assert_not_called()
+
+
+class TestClaudeAgentSDKCompatibility:
+    """Tests that validate compatibility with Claude Agent SDK.
+
+    These tests catch breaking changes in the SDK (like parameter renames)
+    before they hit production. They don't make API calls - they just verify
+    that our option construction is valid.
+    """
+
+    def test_build_options_without_workspace(self) -> None:
+        """Verify ClaudeAgentOptions accepts our base parameters."""
+        agent = DrawingAgent()
+        # This will raise TypeError if SDK parameters changed
+        options = agent._build_options(DrawingStyleType.PLOTTER)
+        assert options is not None
+
+    def test_build_options_with_workspace_directory(self) -> None:
+        """Verify ClaudeAgentOptions accepts cwd parameter.
+
+        Regression test: SDK renamed 'working_directory' to 'cwd' in v1.x.
+        This test would have caught that breaking change immediately.
+        """
+        agent = DrawingAgent()
+        # This will raise TypeError if 'cwd' parameter is renamed/removed
+        options = agent._build_options(
+            DrawingStyleType.PLOTTER, workspace_dir="/tmp/test-workspace"
+        )
+        assert options is not None
+
+    def test_build_options_paint_style(self) -> None:
+        """Verify options work with PAINT drawing style."""
+        agent = DrawingAgent()
+        options = agent._build_options(DrawingStyleType.PAINT)
+        assert options is not None

@@ -33,9 +33,9 @@ class TestPublicGalleryStrokes:
     @pytest.fixture
     def client(self, temp_workspace):
         """Create test client with mocked workspace."""
-        with patch("drawing_agent.main.settings") as mock_settings:
+        with patch("code_monet.main.settings") as mock_settings:
             mock_settings.workspace_base_dir = temp_workspace
-            from drawing_agent.main import app
+            from code_monet.main import app
 
             yield TestClient(app)
 

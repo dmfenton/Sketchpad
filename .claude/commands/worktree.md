@@ -22,7 +22,7 @@ Create a git worktree for: $ARGUMENTS
 3. **Create worktree in Claude's worktree location:**
 
    ```bash
-   WORKTREE_DIR=~/.claude-worktrees/Sketchpad/<branch-suffix>
+   WORKTREE_DIR=~/.claude-worktrees/CodeMonet/<branch-suffix>
    git worktree add "$WORKTREE_DIR" -b <branch-name>
    ```
 
@@ -41,7 +41,7 @@ Create a git worktree for: $ARGUMENTS
 
    ```bash
    cd server && uv sync --all-extras
-   cd ../app && pnpm install
+   cd .. && npm install --legacy-peer-deps
    ```
 
 6. **Output the `/add-dir` command** so user can add the worktree to Claude Code.

@@ -1,0 +1,29 @@
+appId: net.dmfenton.sketchpad
+---
+# Auth injected via simctl before Maestro runs
+
+# Handle "Open in Code Monet?" dialog (appears on fresh simulator)
+- tapOn:
+    text: 'Open'
+    optional: true
+
+# Wait for canvas
+- extendedWaitUntil:
+    visible:
+      id: 'canvas-view'
+    timeout: 15000
+
+# Dismiss debugger warning (if shown)
+- tapOn:
+    point: '95%,92%'
+
+# Tap Surprise Me by testID (optional - modal may already be dismissed)
+- tapOn:
+    id: 'surprise-me-button'
+    optional: true
+
+# Wait for action bar
+- extendedWaitUntil:
+    visible:
+      id: 'action-bar'
+    timeout: 5000

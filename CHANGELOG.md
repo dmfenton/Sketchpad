@@ -7,6 +7,190 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.21.6] - 2026-01-17
+
+### Fixed
+
+- Cross-canvas rendering bug where strokes from previous canvas could render on new canvas
+- Added `piece_id` to `strokes_ready` messages and `/strokes/pending` endpoint for canvas-scoped stroke fetching
+- Thinking text accumulation bug - thinking now clears when new iteration starts
+- Server now clears pending strokes when `new_canvas()` is called
+
+### Added
+
+- Comprehensive render flow tests covering status transitions, thinking lifecycle, and multi-turn scenarios
+- Render debug logging in `useStrokeAnimation` and `StrokeRenderer` for troubleshooting
+
+## [1.21.2] - 2026-01-17
+
+### Fixed
+
+- Updated Claude Agent SDK parameter from `working_directory` to `cwd` (SDK breaking change)
+
+## [1.21.1] - 2026-01-17
+
+### Changed
+
+- Renamed `generate_image` tool to `imagine` for clearer semantics
+- Removed `view_reference_image` tool (agents use filesystem `Read` tool instead)
+
+### Fixed
+
+- Corrected inaccuracies in README and fixed Makefile module paths
+
+### Documentation
+
+- Added comprehensive agent tools reference with event streaming details
+
+## [1.21.0] - 2026-01-17
+
+### Added
+
+- Floating particles animation on empty canvas (idle state visual enhancement)
+- Image generation tool (`imagine`) using Google Gemini API
+- Filesystem and bash tools for agent workspace operations (Read, Write, Glob, Grep, Bash)
+- `GOOGLE_API_KEY` config setting (optional, enables image generation tools)
+
+### Changed
+
+- Consolidated WebSocket message types from 18 to 13 for cleaner architecture:
+  - Merged `status` + `paused` → `agent_state` (single message for agent state)
+  - Merged `piece_count` + `piece_complete` → `piece_state` (single message with completed flag)
+  - Separated `GalleryEntry` (metadata only) from `SavedCanvas` (includes strokes)
+  - Removed redundant `thinking` message (content already streamed via `thinking_delta`)
+- Removed unused code: `executor.py`, `PenMessage`, `ExecutionState`
+
+### Fixed
+
+- In-progress agent strokes now render with their actual color, width, and opacity in paint mode
+
+## [1.20.0] - 2026-01-16
+
+### Fixed
+
+- Race condition when setting drawing style with new canvas (style now sent atomically)
+
+### Changed
+
+- Extracted shared StylePicker component from StartPanel and NewCanvasModal
+- Added testIDs to NewCanvasModal style picker buttons for E2E testing
+
+### Added
+
+- Unit tests for handle_new_canvas and handle_set_style handlers
+
+## [1.19.0] - 2026-01-16
+
+### Added
+
+- Swappable drawing styles: plotter (monochrome pen) and paint (full color palette)
+- DrawingStyleType enum and DrawingStyleConfig for style management
+- Path model extended with optional color, stroke_width, opacity properties
+- Style-aware code helpers (line(), polyline(), etc.) with style kwargs
+- set_style WebSocket handler for runtime style switching
+- Drawing style persisted in workspace and included in init/load_canvas messages
+- robots.txt for web crawler control
+
+### Changed
+
+- Agent prompts dynamically generated based on active drawing style
+- draw_paths and generate_svg tools support style parameters
+- Canvas components render strokes with effective style (color, width, opacity)
+- General `hasInProgressEvents()` function gates drawing until all preceding events complete
+
+### Fixed
+
+- Agent no longer auto-continues after piece completion (respects user intent)
+- StatusOverlay keeps thinking text visible during executing/drawing states
+- Drawing waits for tool execution to complete before starting animation
+- Jest moduleNameMapper updated for @code-monet/shared
+
+## [1.18.2] - 2026-01-16
+
+### Changed
+
+- Upgraded TestFlight CI to macOS 26 with Xcode 26 (iOS 26 SDK)
+
+## [1.18.1] - 2026-01-16
+
+### Fixed
+
+- SSM environment variable name mismatch: docker-compose now uses `CODE_MONET_ENV` (was `DRAWING_AGENT_ENV`)
+
+## [1.18.0] - 2026-01-16
+
+### Added
+
+- Dev auto-auth for E2E testing: app auto-authenticates in dev builds when no valid token exists
+- Agent draw E2E test (`agent-draw.yaml`): validates agent can draw strokes on canvas
+- TestID on `LiveStatus` component for E2E completion detection
+- Analytics subdomain (`analytics.monet.dmfenton.net`) for Umami dashboard
+- Umami tracking script on web frontend
+
+### Changed
+
+- Canvas no longer auto-clears after piece completion (strokes remain visible)
+- `save_to_gallery()` saves current canvas without clearing
+- Moved Umami analytics from path-based proxy to dedicated subdomain (BASE_PATH not supported in prebuilt Docker image)
+
+### Fixed
+
+- Gallery stroke count now uses cached `num_strokes` property instead of empty strokes array
+
+## [1.17.0] - 2026-01-16
+
+### Changed
+
+- Extended login session durations: access tokens now last 1 day (was 30 min), refresh tokens last 1 year (was 90 days)
+- Split agent message display into two areas: LiveStatus (always visible) shows streaming thoughts and current action; MessageStream (collapsible) shows message history
+
+### Fixed
+
+- Thinking status now displays immediately when agent starts thinking, before streaming text arrives
+- LiveStatus moved above canvas in mobile app for better visibility during agent activity
+
+## [1.15.0] - 2026-01-16
+
+### Changed
+
+- Redesigned mobile app color palette to match web homepage aesthetic
+- Updated theme from soft impressionist tones to bold, vibrant accents (rose, violet, teal)
+- Splash screen redesigned with gradient orbs and floating animations
+- StatusOverlay (bionic reading) moved from canvas overlay to dedicated strip above canvas
+- "Thoughts" panel now collapsible, starts collapsed by default
+- Added message count badge to collapsed thoughts panel header
+- Extracted `StrokeRenderer` class from `useStrokeAnimation` hook for testability
+- Added 19 unit tests covering stroke rendering logic (batch tracking, retry, animation sequence)
+
+## [1.14.1] - 2026-01-15
+
+### Added
+
+- Self-hosted Umami analytics for privacy-friendly web traffic tracking
+- Analytics dashboard at `/analytics/` (IP-restricted to admin)
+- `deploy/start-services.sh` for bootstrapping services with SSM secrets
+
+## [1.14.0] - 2026-01-15
+
+### Added
+
+- Maestro E2E tests for iOS simulator (auth, action-bar, canvas, websocket flows)
+- `make e2e` and `make e2e-install` targets for E2E testing
+- TestIDs on all interactive components for reliable E2E selection
+- E2E testing documentation in CLAUDE.md
+
+## [1.13.4] - 2026-01-14
+
+### Changed
+
+- Switched from pnpm to npm workspaces for better React Native compatibility
+- Simplified metro.config.js (removed pnpm-specific workarounds)
+- Updated Expo SDK 54 dependencies for React 19.1.0
+
+### Added
+
+- `/screenshot` Claude command for iOS simulator debugging
+
 ## [1.13.3] - 2026-01-14
 
 ### Added
@@ -412,7 +596,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.13.3...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.21.2...HEAD
+[1.21.2]: https://github.com/dmfenton/sketchpad/compare/v1.21.1...v1.21.2
+[1.21.1]: https://github.com/dmfenton/sketchpad/compare/v1.21.0...v1.21.1
+[1.21.0]: https://github.com/dmfenton/sketchpad/compare/v1.20.0...v1.21.0
+[1.20.0]: https://github.com/dmfenton/sketchpad/compare/v1.19.0...v1.20.0
+[1.19.0]: https://github.com/dmfenton/sketchpad/compare/v1.18.2...v1.19.0
+[1.18.2]: https://github.com/dmfenton/sketchpad/compare/v1.18.1...v1.18.2
+[1.18.1]: https://github.com/dmfenton/sketchpad/compare/v1.18.0...v1.18.1
+[1.18.0]: https://github.com/dmfenton/sketchpad/compare/v1.17.0...v1.18.0
+[1.17.0]: https://github.com/dmfenton/sketchpad/compare/v1.16.0...v1.17.0
+[1.14.1]: https://github.com/dmfenton/sketchpad/compare/v1.14.0...v1.14.1
+[1.14.0]: https://github.com/dmfenton/sketchpad/compare/v1.13.4...v1.14.0
+[1.13.4]: https://github.com/dmfenton/sketchpad/compare/v1.13.3...v1.13.4
 [1.13.3]: https://github.com/dmfenton/sketchpad/compare/v1.13.2...v1.13.3
 [1.13.2]: https://github.com/dmfenton/sketchpad/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/dmfenton/sketchpad/compare/v1.13.0...v1.13.1

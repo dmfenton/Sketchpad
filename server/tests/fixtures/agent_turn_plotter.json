@@ -1,0 +1,118 @@
+{
+  "metadata": {
+    "model": "claude-3-5-haiku-latest",
+    "style": "plotter",
+    "recorded_at": "2025-01-17T00:00:00+00:00",
+    "description": "Sample agent turn with plotter style - a simple diagonal line",
+    "message_count": 8
+  },
+  "messages": [
+    {
+      "type": "iteration",
+      "data": {
+        "type": "iteration",
+        "current": 1,
+        "max": 5
+      },
+      "timestamp_ms": 0
+    },
+    {
+      "type": "thinking_delta",
+      "data": {
+        "type": "thinking_delta",
+        "text": "I'll start by drawing a simple ",
+        "iteration": 1
+      },
+      "timestamp_ms": 50
+    },
+    {
+      "type": "thinking_delta",
+      "data": {
+        "type": "thinking_delta",
+        "text": "diagonal line across the canvas.",
+        "iteration": 1
+      },
+      "timestamp_ms": 100
+    },
+    {
+      "type": "code_execution",
+      "data": {
+        "type": "code_execution",
+        "status": "started",
+        "tool_name": "draw_paths",
+        "tool_input": {
+          "paths": [
+            {
+              "type": "line",
+              "points": [
+                {"x": 100, "y": 100},
+                {"x": 700, "y": 500}
+              ]
+            }
+          ]
+        },
+        "iteration": 1
+      },
+      "timestamp_ms": 200
+    },
+    {
+      "type": "strokes_ready",
+      "data": {
+        "type": "strokes_ready",
+        "count": 1,
+        "batch_id": 1,
+        "piece_id": 0
+      },
+      "timestamp_ms": 250
+    },
+    {
+      "type": "code_execution",
+      "data": {
+        "type": "code_execution",
+        "status": "completed",
+        "tool_name": "draw_paths",
+        "tool_input": {
+          "paths": [
+            {
+              "type": "line",
+              "points": [
+                {"x": 100, "y": 100},
+                {"x": 700, "y": 500}
+              ]
+            }
+          ]
+        },
+        "stdout": null,
+        "stderr": null,
+        "return_code": 0,
+        "iteration": 1
+      },
+      "timestamp_ms": 300
+    },
+    {
+      "type": "piece_state",
+      "data": {
+        "type": "piece_state",
+        "number": 1,
+        "completed": true
+      },
+      "timestamp_ms": 350
+    },
+    {
+      "type": "gallery_update",
+      "data": {
+        "type": "gallery_update",
+        "canvases": [
+          {
+            "id": "piece_000001",
+            "stroke_count": 1,
+            "created_at": "2025-01-17T00:00:01+00:00",
+            "piece_number": 1,
+            "drawing_style": "plotter"
+          }
+        ]
+      },
+      "timestamp_ms": 400
+    }
+  ]
+}

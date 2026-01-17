@@ -78,7 +78,11 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
                 Suggest something to the agent
               </Text>
             </View>
-            <Pressable style={styles.closeButton} onPress={handleCancel}>
+            <Pressable
+              testID="nudge-close-button"
+              style={styles.closeButton}
+              onPress={handleCancel}
+            >
               <Ionicons name="close" size={24} color={colors.textMuted} />
             </Pressable>
           </View>
@@ -106,6 +110,7 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
           {/* Input */}
           <View style={styles.inputContainer}>
             <TextInput
+              testID="nudge-input"
               style={[
                 styles.input,
                 { backgroundColor: colors.surfaceElevated, color: colors.textPrimary },
@@ -132,6 +137,7 @@ export function NudgeModal({ visible, onClose, onSend }: NudgeModalProps): React
           {/* Actions */}
           <View style={styles.actions}>
             <Pressable
+              testID="nudge-send-button"
               style={({ pressed }) => [
                 styles.sendButton,
                 { backgroundColor: text.trim() ? colors.primary : colors.surfaceElevated },

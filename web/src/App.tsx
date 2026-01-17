@@ -1,10 +1,10 @@
 /**
- * Drawing Agent Web Dev Server
+ * Drawing Agent Web App - Studio View
  */
 
-import React, { useCallback, useRef } from 'react';
-import type { PendingStroke, ServerMessage } from '@drawing-agent/shared';
-import { STATUS_LABELS, useStrokeAnimation } from '@drawing-agent/shared';
+import React, { useCallback } from 'react';
+import type { PendingStroke, ServerMessage } from '@code-monet/shared';
+import { deriveAgentStatus, STATUS_LABELS, useStrokeAnimation } from '@code-monet/shared';
 import { getApiUrl } from './config';
 
 import { Canvas } from './components/Canvas';
@@ -15,42 +15,35 @@ import { StatusOverlay } from './components/StatusOverlay';
 import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useDebug } from './hooks/useDebug';
+import { useAuth } from './context/AuthContext';
 
 function App(): React.ReactElement {
   const { state, dispatch, handleMessage, startStroke, addPoint, endStroke, toggleDrawing } =
     useCanvas();
 
-  const { logMessage, ...debug } = useDebug();
-
-  // Token cache for REST API calls
-  const tokenRef = useRef<string | null>(null);
-
-  // Get dev token for REST API calls
-  const getToken = useCallback(async (): Promise<string> => {
-    if (tokenRef.current) return tokenRef.current;
-    const response = await fetch(`${getApiUrl()}/auth/dev-token`);
-    if (!response.ok) throw new Error('Failed to get dev token');
-    const data = await response.json();
-    tokenRef.current = data.access_token as string;
-    return tokenRef.current;
-  }, []);
+  const { accessToken } = useAuth();
+  const { logMessage, ...debug } = useDebug({ token: accessToken });
 
   // Fetch pending strokes from server
   const fetchStrokes = useCallback(async (): Promise<PendingStroke[]> => {
-    const token = await getToken();
+    if (!accessToken) throw new Error('Not authenticated');
     const response = await fetch(`${getApiUrl()}/strokes/pending`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!response.ok) throw new Error('Failed to fetch strokes');
     const data = await response.json();
     return data.strokes as PendingStroke[];
-  }, [getToken]);
+  }, [accessToken]);
 
-  // Use shared animation hook
+  // Derive status from messages
+  const agentStatus = deriveAgentStatus(state);
+
+  // Use shared animation hook - gate on drawing status
   useStrokeAnimation({
     pendingStrokes: state.pendingStrokes,
     dispatch,
     fetchStrokes,
+    canRender: agentStatus === 'drawing',
   });
 
   const onMessage = useCallback(
@@ -61,7 +54,7 @@ function App(): React.ReactElement {
     [handleMessage, logMessage]
   );
 
-  const { status: wsStatus, send } = useWebSocket({ onMessage });
+  const { status: wsStatus, send } = useWebSocket({ onMessage, token: accessToken });
 
   const handleStrokeEnd = useCallback(() => {
     const path = endStroke();
@@ -80,9 +73,7 @@ function App(): React.ReactElement {
           </div>
         </div>
         <div className="header-center">
-          <div className={`status-pill ${state.agentStatus}`}>
-            {STATUS_LABELS[state.agentStatus]}
-          </div>
+          <div className={`status-pill ${agentStatus}`}>{STATUS_LABELS[agentStatus]}</div>
         </div>
         <div className="header-right">
           <span className="piece-count">Piece #{state.pieceCount}</span>
@@ -92,23 +83,25 @@ function App(): React.ReactElement {
       <ActionBar
         paused={state.paused}
         drawingEnabled={state.drawingEnabled}
+        drawingStyle={state.drawingStyle}
         onSend={send}
         onToggleDrawing={toggleDrawing}
       />
 
+      <div className="thinking-strip">
+        <StatusOverlay status={agentStatus} thinking={state.thinking} messages={state.messages} />
+      </div>
+
       <div className="canvas-container">
-        <StatusOverlay
-          status={state.agentStatus}
-          thinking={state.thinking}
-          messages={state.messages}
-        />
         <Canvas
           strokes={state.strokes}
           currentStroke={state.currentStroke}
           agentStroke={state.agentStroke}
+          agentStrokeStyle={state.agentStrokeStyle}
           penPosition={state.penPosition}
           penDown={state.penDown}
           drawingEnabled={state.drawingEnabled}
+          styleConfig={state.styleConfig}
           onStrokeStart={startStroke}
           onStrokeMove={addPoint}
           onStrokeEnd={handleStrokeEnd}
@@ -116,7 +109,7 @@ function App(): React.ReactElement {
       </div>
 
       <div className="right-panel">
-        <MessageStream messages={state.messages} status={state.agentStatus} />
+        <MessageStream messages={state.messages} />
         <DebugPanel
           agent={debug.agent}
           files={debug.files}

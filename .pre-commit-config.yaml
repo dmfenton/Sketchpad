@@ -14,7 +14,7 @@ repos:
     rev: v1.13.0
     hooks:
       - id: mypy
-        files: ^server/drawing_agent/
+        files: ^server/code_monet/
         additional_dependencies:
           - pydantic>=2.10.0
           - pydantic-settings>=2.6.0
@@ -41,14 +41,14 @@ repos:
     hooks:
       - id: eslint-app
         name: eslint (app)
-        entry: bash -c 'cd app && pnpm lint'
+        entry: bash -c 'cd app && npm run lint'
         language: system
         files: ^app/.*\.(ts|tsx)$
         pass_filenames: false
 
       - id: typecheck-app
         name: typecheck (app)
-        entry: bash -c 'cd app && pnpm typecheck'
+        entry: bash -c 'cd app && npm run typecheck'
         language: system
         files: ^app/.*\.(ts|tsx)$
         pass_filenames: false
@@ -58,14 +58,14 @@ repos:
     hooks:
       - id: eslint-web
         name: eslint (web)
-        entry: bash -c 'cd web && pnpm lint'
+        entry: bash -c 'cd web && npm run lint'
         language: system
         files: ^web/.*\.(ts|tsx)$
         pass_filenames: false
 
       - id: typecheck-web
         name: typecheck (web)
-        entry: bash -c 'cd web && pnpm typecheck'
+        entry: bash -c 'cd web && npm run typecheck'
         language: system
         files: ^web/.*\.(ts|tsx)$
         pass_filenames: false
@@ -75,14 +75,14 @@ repos:
     hooks:
       - id: eslint-shared
         name: eslint (shared)
-        entry: bash -c 'cd shared && pnpm lint'
+        entry: bash -c 'cd shared && npm run lint'
         language: system
         files: ^shared/.*\.ts$
         pass_filenames: false
 
       - id: typecheck-shared
         name: typecheck (shared)
-        entry: bash -c 'cd shared && pnpm typecheck'
+        entry: bash -c 'cd shared && npm run typecheck'
         language: system
         files: ^shared/.*\.ts$
         pass_filenames: false

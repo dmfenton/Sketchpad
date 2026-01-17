@@ -411,6 +411,110 @@ wheels = [
 ]
 
 [[package]]
+name = "code-monet"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "aiofiles" },
+    { name = "aiosqlite" },
+    { name = "alembic" },
+    { name = "anthropic" },
+    { name = "boto3" },
+    { name = "claude-agent-sdk" },
+    { name = "email-validator" },
+    { name = "fastapi" },
+    { name = "google-genai" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-logging" },
+    { name = "opentelemetry-instrumentation-sqlalchemy" },
+    { name = "opentelemetry-propagator-aws-xray" },
+    { name = "opentelemetry-sdk" },
+    { name = "opentelemetry-sdk-extension-aws" },
+    { name = "passlib", extra = ["bcrypt"] },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "python-jose", extra = ["cryptography"] },
+    { name = "rich" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "svgpathtools" },
+    { name = "typer" },
+    { name = "uvicorn", extra = ["standard"] },
+    { name = "websockets" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "types-aiofiles" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "boto3-stubs" },
+    { name = "pytest-timeout" },
+    { name = "types-aiofiles" },
+    { name = "types-pillow" },
+    { name = "types-python-jose" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiofiles", specifier = ">=24.1.0" },
+    { name = "aiosqlite", specifier = ">=0.19.0" },
+    { name = "alembic", specifier = ">=1.13.0" },
+    { name = "anthropic", specifier = ">=0.40.0" },
+    { name = "boto3", specifier = ">=1.35.0" },
+    { name = "claude-agent-sdk", specifier = ">=0.1.18" },
+    { name = "email-validator", specifier = ">=2.3.0" },
+    { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "google-genai", specifier = ">=1.52.0" },
+    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13.0" },
+    { name = "opentelemetry-api", specifier = ">=1.20.0" },
+    { name = "opentelemetry-exporter-otlp", specifier = ">=1.20.0" },
+    { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.41b0" },
+    { name = "opentelemetry-instrumentation-logging", specifier = ">=0.41b0" },
+    { name = "opentelemetry-instrumentation-sqlalchemy", specifier = ">=0.41b0" },
+    { name = "opentelemetry-propagator-aws-xray", specifier = ">=1.0.0" },
+    { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
+    { name = "opentelemetry-sdk-extension-aws", specifier = ">=2.0.0" },
+    { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7.4" },
+    { name = "pillow", specifier = ">=11.0.0" },
+    { name = "pydantic", specifier = ">=2.10.0" },
+    { name = "pydantic-settings", specifier = ">=2.6.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0.0" },
+    { name = "python-jose", extras = ["cryptography"], specifier = ">=3.3.0" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0" },
+    { name = "svgpathtools", specifier = ">=1.6.0" },
+    { name = "typer", specifier = ">=0.12.0" },
+    { name = "types-aiofiles", marker = "extra == 'dev'", specifier = ">=24.1.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
+    { name = "websockets", specifier = ">=13.0" },
+]
+provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "boto3-stubs", specifier = ">=1.42.25" },
+    { name = "pytest-timeout", specifier = ">=2.4.0" },
+    { name = "types-aiofiles", specifier = ">=25.1.0.20251011" },
+    { name = "types-pillow", specifier = ">=10.2.0.20240822" },
+    { name = "types-python-jose", specifier = ">=3.5.0.20250531" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -601,104 +705,6 @@ wheels = [
 ]
 
 [[package]]
-name = "drawing-agent"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "aiofiles" },
-    { name = "aiosqlite" },
-    { name = "alembic" },
-    { name = "anthropic" },
-    { name = "boto3" },
-    { name = "claude-agent-sdk" },
-    { name = "email-validator" },
-    { name = "fastapi" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp" },
-    { name = "opentelemetry-instrumentation-fastapi" },
-    { name = "opentelemetry-instrumentation-logging" },
-    { name = "opentelemetry-instrumentation-sqlalchemy" },
-    { name = "opentelemetry-propagator-aws-xray" },
-    { name = "opentelemetry-sdk" },
-    { name = "opentelemetry-sdk-extension-aws" },
-    { name = "passlib", extra = ["bcrypt"] },
-    { name = "pillow" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "python-jose", extra = ["cryptography"] },
-    { name = "rich" },
-    { name = "sqlalchemy", extra = ["asyncio"] },
-    { name = "svgpathtools" },
-    { name = "typer" },
-    { name = "uvicorn", extra = ["standard"] },
-    { name = "websockets" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "httpx" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "types-aiofiles" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "boto3-stubs" },
-    { name = "types-aiofiles" },
-    { name = "types-python-jose" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiofiles", specifier = ">=24.1.0" },
-    { name = "aiosqlite", specifier = ">=0.19.0" },
-    { name = "alembic", specifier = ">=1.13.0" },
-    { name = "anthropic", specifier = ">=0.40.0" },
-    { name = "boto3", specifier = ">=1.35.0" },
-    { name = "claude-agent-sdk", specifier = ">=0.1.18" },
-    { name = "email-validator", specifier = ">=2.3.0" },
-    { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13.0" },
-    { name = "opentelemetry-api", specifier = ">=1.20.0" },
-    { name = "opentelemetry-exporter-otlp", specifier = ">=1.20.0" },
-    { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.41b0" },
-    { name = "opentelemetry-instrumentation-logging", specifier = ">=0.41b0" },
-    { name = "opentelemetry-instrumentation-sqlalchemy", specifier = ">=0.41b0" },
-    { name = "opentelemetry-propagator-aws-xray", specifier = ">=1.0.0" },
-    { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
-    { name = "opentelemetry-sdk-extension-aws", specifier = ">=2.0.0" },
-    { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7.4" },
-    { name = "pillow", specifier = ">=11.0.0" },
-    { name = "pydantic", specifier = ">=2.10.0" },
-    { name = "pydantic-settings", specifier = ">=2.6.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-    { name = "python-jose", extras = ["cryptography"], specifier = ">=3.3.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0" },
-    { name = "svgpathtools", specifier = ">=1.6.0" },
-    { name = "typer", specifier = ">=0.12.0" },
-    { name = "types-aiofiles", marker = "extra == 'dev'", specifier = ">=24.1.0" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
-    { name = "websockets", specifier = ">=13.0" },
-]
-provides-extras = ["dev"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "boto3-stubs", specifier = ">=1.42.25" },
-    { name = "types-aiofiles", specifier = ">=25.1.0.20251011" },
-    { name = "types-python-jose", specifier = ">=3.5.0.20250531" },
-]
-
-[[package]]
 name = "ecdsa"
 version = "0.19.1"
 source = { registry = "https://pypi.org/simple" }
@@ -736,6 +742,45 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/52/08/8c8508db6c7b9aae8f7175046af41baad690771c9bcde676419965e338c7/fastapi-0.128.0.tar.gz", hash = "sha256:1cc179e1cef10a6be60ffe429f79b829dce99d8de32d7acb7e6c8dfdf7f2645a", size = 365682, upload-time = "2025-12-27T15:21:13.714Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5c/05/5cbb59154b093548acd0f4c7c474a118eda06da25aa75c616b72d8fcd92a/fastapi-0.128.0-py3-none-any.whl", hash = "sha256:aebd93f9716ee3b4f4fcfe13ffb7cf308d99c9f3ab5622d8877441072561582d", size = 103094, upload-time = "2025-12-27T15:21:12.154Z" },
+]
+
+[[package]]
+name = "google-auth"
+version = "2.47.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyasn1-modules" },
+    { name = "rsa" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/60/3c/ec64b9a275ca22fa1cd3b6e77fefcf837b0732c890aa32d2bd21313d9b33/google_auth-2.47.0.tar.gz", hash = "sha256:833229070a9dfee1a353ae9877dcd2dec069a8281a4e72e72f77d4a70ff945da", size = 323719, upload-time = "2026-01-06T21:55:31.045Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/db/18/79e9008530b79527e0d5f79e7eef08d3b179b7f851cfd3a2f27822fbdfa9/google_auth-2.47.0-py3-none-any.whl", hash = "sha256:c516d68336bfde7cf0da26aab674a36fedcf04b37ac4edd59c597178760c3498", size = 234867, upload-time = "2026-01-06T21:55:28.6Z" },
+]
+
+[package.optional-dependencies]
+requests = [
+    { name = "requests" },
+]
+
+[[package]]
+name = "google-genai"
+version = "1.59.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "distro" },
+    { name = "google-auth", extra = ["requests"] },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "sniffio" },
+    { name = "tenacity" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/40/34/c03bcbc759d67ac3d96077838cdc1eac85417de6ea3b65b313fe53043eee/google_genai-1.59.0.tar.gz", hash = "sha256:0b7a2dc24582850ae57294209d8dfc2c4f5fcfde0a3f11d81dc5aca75fb619e2", size = 487374, upload-time = "2026-01-15T20:29:46.619Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/aa/53/6d00692fe50d73409b3406ae90c71bc4499c8ae7fac377ba16e283da917c/google_genai-1.59.0-py3-none-any.whl", hash = "sha256:59fc01a225d074fe9d1e626c3433da292f33249dadce4deb34edea698305a6df", size = 719099, upload-time = "2026-01-15T20:29:44.604Z" },
 ]
 
 [[package]]
@@ -1778,6 +1823,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pyasn1-modules"
+version = "0.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyasn1" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e9/e6/78ebbb10a8c8e4b61a59249394a4a594c1a7af95593dc933a349c8d00964/pyasn1_modules-0.4.2.tar.gz", hash = "sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6", size = 307892, upload-time = "2025-03-28T02:41:22.17Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/47/8d/d529b5d697919ba8c11ad626e835d4039be708a35b0d22de83a269a6682c/pyasn1_modules-0.4.2-py3-none-any.whl", hash = "sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a", size = 181259, upload-time = "2025-03-28T02:41:19.028Z" },
+]
+
+[[package]]
 name = "pycparser"
 version = "2.23"
 source = { registry = "https://pypi.org/simple" }
@@ -1976,6 +2033,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5e/f7/c933acc76f5208b3b00089573cf6a2bc26dc80a8aece8f52bb7d6b1855ca/pytest_cov-7.0.0.tar.gz", hash = "sha256:33c97eda2e049a0c5298e91f519302a1334c26ac65c1a483d6206fd458361af1", size = 54328, upload-time = "2025-09-09T10:57:02.113Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ee/49/1377b49de7d0c1ce41292161ea0f721913fa8722c19fb9c1e3aa0367eecb/pytest_cov-7.0.0-py3-none-any.whl", hash = "sha256:3b8e9558b16cc1479da72058bdecf8073661c7f57f7d3c5f22a1c23507f2d861", size = 22424, upload-time = "2025-09-09T10:57:00.695Z" },
+]
+
+[[package]]
+name = "pytest-timeout"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ac/82/4c9ecabab13363e72d880f2fb504c5f750433b2b6f16e99f4ec21ada284c/pytest_timeout-2.4.0.tar.gz", hash = "sha256:7e68e90b01f9eff71332b25001f85c75495fc4e3a836701876183c4bcfd0540a", size = 17973, upload-time = "2025-05-05T19:44:34.99Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/b6/3127540ecdf1464a00e5a01ee60a1b09175f6913f0644ac748494d9c4b21/pytest_timeout-2.4.0-py3-none-any.whl", hash = "sha256:c42667e5cdadb151aeb5b26d114aff6bdf5a907f176a007a30b940d3d865b5c2", size = 14382, upload-time = "2025-05-05T19:44:33.502Z" },
 ]
 
 [[package]]
@@ -2496,6 +2565,15 @@ wheels = [
 ]
 
 [[package]]
+name = "tenacity"
+version = "9.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0a/d4/2b0cd0fe285e14b36db076e78c93766ff1d529d70408bd1d2a5a84f1d929/tenacity-9.1.2.tar.gz", hash = "sha256:1169d376c297e7de388d18b4481760d478b0e99a777cad3a9c86e556f4b697cb", size = 48036, upload-time = "2025-04-02T08:25:09.966Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e5/30/643397144bfbfec6f6ef821f36f33e57d35946c44a2352d3c9f0ae847619/tenacity-9.1.2-py3-none-any.whl", hash = "sha256:f77bf36710d8b73a50b2dd155c97b870017ad21afe6ab300326b0371b3b05138", size = 28248, upload-time = "2025-04-02T08:25:07.678Z" },
+]
+
+[[package]]
 name = "tomli"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2575,6 +2653,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/30/1f/febd2df22e24f77b759db0dd9ecdd7f07f055e6a4dbbb699c5eb34b617ef/types_awscrt-0.30.0.tar.gz", hash = "sha256:362fd8f5eaebcfcd922cb9fd8274fb375df550319f78031ee3779eac0b9ecc79", size = 17761, upload-time = "2025-12-12T01:55:59.626Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5b/5f/15999051fca2949a67562c3f80fae2dd5d3404a3f97b326b614533843281/types_awscrt-0.30.0-py3-none-any.whl", hash = "sha256:8204126e01a00eaa4a746e7a0076538ca0e4e3f52408adec0ab9b471bb0bb64b", size = 42392, upload-time = "2025-12-12T01:55:58.194Z" },
+]
+
+[[package]]
+name = "types-pillow"
+version = "10.2.0.20240822"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/18/4a/4495264dddaa600d65d68bcedb64dcccf9d9da61adff51f7d2ffd8e4c9ce/types-Pillow-10.2.0.20240822.tar.gz", hash = "sha256:559fb52a2ef991c326e4a0d20accb3bb63a7ba8d40eb493e0ecb0310ba52f0d3", size = 35389, upload-time = "2024-08-22T02:32:48.15Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/66/23/e81a5354859831fcf54d488d33b80ba6133ea84f874a9c0ec40a4881e133/types_Pillow-10.2.0.20240822-py3-none-any.whl", hash = "sha256:d9dab025aba07aeb12fd50a6799d4eac52a9603488eca09d7662543983f16c5d", size = 54354, upload-time = "2024-08-22T02:32:46.664Z" },
 ]
 
 [[package]]

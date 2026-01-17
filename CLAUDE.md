@@ -1,8 +1,8 @@
-# Drawing Agent - Development Instructions
+# Code Monet - Development Instructions
 
 ## Project Overview
 
-Drawing Agent is an autonomous AI artist application with:
+Code Monet is an autonomous AI artist application with:
 
 - **Backend**: Python 3.11+ with FastAPI, Claude Agent SDK, WebSocket support
 - **Frontend**: React Native with Expo, TypeScript, react-native-svg
@@ -13,11 +13,58 @@ Drawing Agent is an autonomous AI artist application with:
 - Config loads from both `../.env` and `.env` so it works from any directory
 - Required: `ANTHROPIC_API_KEY`
 
+## Package Management
+
+**This project uses npm workspaces.**
+
+### Workspace Structure
+
+```
+/                    # Root workspace
+├── app/             # React Native app (Expo)
+├── web/             # Vite web app
+├── shared/          # Shared TypeScript library
+└── server/          # Python backend (uses uv, not npm)
+```
+
+### Key Rules
+
+1. **Always use npm** - Run `npm install` from project root
+2. **Build shared after changes** - Run `cd shared && npm run build` after modifying shared/
+3. **Install from root** - Run `npm install` from project root, not subdirectories
+
+### Adding Dependencies
+
+```bash
+# Add to specific workspace
+npm install <package> -w app
+npm install <package> -w web
+npm install <package> -w shared
+
+# Add to root (dev tools, etc.)
+npm install <package>
+```
+
+### Common Issues
+
+**Stale shared library** - Rebuild:
+
+```bash
+cd shared && npm run build
+```
+
+**Dependency issues** - Clean reinstall:
+
+```bash
+rm -rf node_modules app/node_modules web/node_modules shared/node_modules package-lock.json
+npm install
+```
+
 ## Claude Code Sandbox
 
 Sandbox configured in `.claude/settings.json`:
 
-- Auto-allows `make`, `uv`, `pnpm`, `git`, `gh`, `curl`, and common dev commands
+- Auto-allows `make`, `uv`, `npm`, `git`, `gh`, `curl`, and common dev commands
 - No permission prompts for standard development workflows
 - Run `make test`, `make dev`, `make lint`, `git commit`, `git push` freely
 
@@ -44,7 +91,7 @@ The `sandbox.network` config in settings.json includes:
 Domains we need for this project:
 
 - `github.com`, `*.github.com` - git operations, GitHub CLI
-- `registry.npmjs.org`, `*.npmjs.org` - npm/pnpm packages
+- `registry.npmjs.org`, `*.npmjs.org` - npm packages
 - `pypi.org`, `files.pythonhosted.org` - Python packages
 - `expo.dev`, `*.expo.dev` - Expo development
 - `api.anthropic.com` - Claude API calls
@@ -56,7 +103,7 @@ There's a path resolution bug where `Edit()` rules for paths outside the working
 Affected commands:
 
 - `make server-bg` / `make server-restart` (uv cache)
-- `pnpm start` in app/ (Expo cache)
+- `npm start` in app/ (Expo cache)
 
 ## Git Workflow
 
@@ -104,6 +151,12 @@ Both have live reload - no restarts needed for code changes.
 
 **Stuck ports?** Run `make dev-stop` to force-kill by port, then start again.
 
+### Simulator Screenshots (Debugging)
+
+Use `/screenshot` to capture the iOS simulator screen when debugging mobile issues.
+
+Screenshots are saved to `screenshots/` (gitignored) and displayed for analysis.
+
 ### Debug API Endpoints
 
 ```bash
@@ -148,6 +201,40 @@ The `/debug/agent` endpoint returns:
 3. **Path-based drawing**: Agent writes code that outputs path definitions, not pixel data
 4. **Stateless agent turns**: Each agent turn receives full context (canvas image + notes)
 
+## Agent Tools
+
+The drawing agent has 6 tools available, defined in `server/code_monet/tools.py`:
+
+| Tool              | Purpose                              | UI Status        |
+| ----------------- | ------------------------------------ | ---------------- |
+| `draw_paths`      | Draw predefined paths on canvas      | "drawing paths"  |
+| `generate_svg`    | Generate paths via Python code       | "generating SVG" |
+| `view_canvas`     | View current canvas state            | "viewing canvas" |
+| `mark_piece_done` | Signal piece completion              | "marking done"   |
+| `imagine`         | Generate AI reference image (Gemini) | "imagining"      |
+
+### Tool Events
+
+All tools emit `code_execution` WebSocket events:
+
+- `status: "started"` when tool begins
+- `status: "completed"` when tool finishes (includes `return_code`)
+
+TypeScript types in `shared/src/types.ts`:
+
+- `ToolName` union type lists all tool names
+- `TOOL_DISPLAY_NAMES` maps tool names to UI-friendly strings
+
+### Adding New Tools
+
+1. Add handler + `@tool` decorator in `server/code_monet/tools.py`
+2. Register in `create_drawing_server()` tools list
+3. Add to `ToolName` type in `shared/src/types.ts`
+4. Add to `TOOL_DISPLAY_NAMES` in `shared/src/types.ts`
+5. Rebuild shared: `cd shared && npm run build`
+
+See `docs/agent-tools.md` for full tool documentation.
+
 ## Testing Requirements
 
 - Backend: pytest with async support
@@ -155,12 +242,126 @@ The `/debug/agent` endpoint returns:
 - All new features need tests
 - Run `make test` before committing
 
+## Integration & E2E Tests
+
+Multiple test types validate different layers of the system:
+
+```bash
+make test-e2e              # Run all integration tests (SDK + replay, no iOS simulator)
+```
+
+### SDK Integration Tests
+
+Tests that validate Claude Agent SDK compatibility with real API calls.
+
+```bash
+make test-e2e-sdk          # Run SDK integration tests (requires API key)
+```
+
+These tests catch SDK breaking changes (e.g., parameter renames) before production.
+
+### WebSocket Message Replay Tests
+
+Record-and-replay tests that validate app reducer handles real server messages correctly.
+
+```bash
+make test-record-fixture   # Record new fixtures (requires API key)
+make test-replay           # Replay fixtures through app reducer (fast, no API)
+```
+
+**Fixtures location:** `server/tests/fixtures/` (symlinked to `app/src/__tests__/fixtures/server/`)
+
+Re-record fixtures when:
+
+- Agent message format changes
+- New message types are added
+- Reducer logic changes
+
+### iOS Simulator Tests (Maestro)
+
+See next section for Maestro-based E2E tests that require iOS simulator.
+
+## E2E Testing (Maestro)
+
+E2E tests use [Maestro](https://maestro.mobile.dev/) to test iOS simulator flows.
+
+### Running E2E Tests
+
+```bash
+make e2e              # Run all E2E tests
+make e2e-install      # Install Maestro + Java dependencies
+./scripts/e2e.sh auth.yaml  # Run single test
+```
+
+### Test Structure
+
+```
+app/e2e/
+├── flows/           # Test files
+│   ├── auth.yaml    # Magic link flow (runs first, needs clean state)
+│   ├── action-bar.yaml
+│   ├── canvas.yaml
+│   └── websocket.yaml
+└── helpers/
+    └── inject-auth.yaml  # Shared auth injection helper
+```
+
+### Key Learnings
+
+**Simulator state:**
+
+- `simctl erase` required before auth test - Keychain persists across app uninstall
+- Auth injection uses `simctl launch` then `simctl openurl` (app must be running for deep links)
+
+**Maestro tips:**
+
+- Use `testID` props, not text matching (icons break text selectors)
+- Use `optional: true` for dialogs that may or may not appear
+- `extendedWaitUntil` with timeout for async operations
+- Coordinate taps (`point: "95%,52%"`) are fragile - prefer testIDs
+
+**iOS-specific:**
+
+- "Open in App?" dialog appears on fresh simulator - handle with optional tap
+- `back` command doesn't work for modals - use testID on close button
+- Swipe gestures can interfere with subsequent button taps
+
+### Adding TestIDs
+
+Add `testID` prop to React Native components for E2E selection:
+
+```tsx
+<Pressable testID="my-button" onPress={handlePress}>
+```
+
+**Current testIDs:**
+
+- AuthScreen: `email-input`, `code-input`, `auth-submit-button`
+- Canvas: `canvas-view`
+- StatusPill: `status-pill`
+- ActionBar: `action-bar`, `action-draw`, `action-nudge`, `action-new`, `action-gallery`, `action-pause`
+- StartPanel: `surprise-me-button`
+- NudgeModal: `nudge-close-button`
+
+### Rebuilding After TestID Changes
+
+TestIDs are compiled into the native app. After adding new testIDs:
+
+```bash
+rm -rf ~/Library/Developer/Xcode/DerivedData/CodeMonet-*
+cd app && npx expo prebuild --platform ios --clean
+xcodebuild -workspace ios/CodeMonet.xcworkspace -scheme CodeMonet \
+  -configuration Debug -sdk iphonesimulator \
+  -destination "platform=iOS Simulator,id=$(xcrun simctl list devices -j | python3 -c "import sys,json; print([d['udid'] for r,devs in json.load(sys.stdin)['devices'].items() if 'iOS-18' in r for d in devs if 'iPhone 16 Pro' in d['name']][0])")" \
+  build
+```
+
 ## Common Tasks
 
 ### Adding a new WebSocket message type
 
-1. Add type to `server/drawing_agent/types.py`
-2. Add handler function in `server/drawing_agent/handlers.py`
+1. Add type to `server/code_monet/types.py`
+2. Add handler function in `server/code_monet/handlers.py`
 3. Add to `HANDLERS` dict in `handlers.py`
 4. Add type to `shared/src/types.ts`
 5. Add handler in `shared/src/websocket/handlers.ts`
@@ -168,17 +369,17 @@ The `/debug/agent` endpoint returns:
 
 ### Modifying the agent prompt
 
-Edit `server/drawing_agent/agent.py` - the `SYSTEM_PROMPT` constant
+Edit `server/code_monet/agent.py` - the `SYSTEM_PROMPT` constant
 
 ### Adding new path types
 
-1. Add type to `PathType` enum in `server/drawing_agent/types.py`
-2. Add interpolation in `server/drawing_agent/interpolation.py`
+1. Add type to `PathType` enum in `server/code_monet/types.py`
+2. Add interpolation in `server/code_monet/interpolation.py`
 3. Add SVG rendering in `app/src/components/Canvas.tsx`
 
 ## File Locations
 
-### Backend (server/drawing_agent/)
+### Backend (server/code_monet/)
 
 - `main.py` - FastAPI app, routes, WebSocket endpoint
 - `agent.py` - Claude agent with streaming turn execution
@@ -217,10 +418,10 @@ shared/src/
 **Development:**
 
 ```bash
-cd shared && npm run build    # Build TypeScript to dist/
-cd shared && npm run dev      # Watch mode
-cd shared && npm run lint     # ESLint
-cd shared && npm run format   # Prettier
+cd shared && npm run build     # Build TypeScript to dist/
+cd shared && npm run dev       # Watch mode
+cd shared && npm run lint      # ESLint
+cd shared && npm run format    # Prettier
 ```
 
 **Must build shared/ before app/web changes take effect.**
@@ -265,6 +466,19 @@ make web        # Starts Vite dev server only
 - `GET /debug/workspace` - Workspace files list
 
 ## Server Deployment (AWS)
+
+### Changelog
+
+**Location:** `CHANGELOG.md` at project root
+
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Update the `[Unreleased]` section when making changes:
+
+- **Added** - New features
+- **Changed** - Changes in existing functionality
+- **Fixed** - Bug fixes
+- **Security** - Vulnerability fixes
+
+Before cutting a release, move `[Unreleased]` items to a new version heading with the release date.
 
 ### Cutting a Release
 
@@ -404,7 +618,7 @@ uv run python scripts/remote.py shell "command"
 **Note:** Commands that start Python inside the container can be slow (~30s) due to `uv run` overhead. For direct database access, use sqlite3 on the host:
 
 ```bash
-uv run python scripts/remote.py shell "sqlite3 /home/ec2-user/data/drawing_agent.db '.tables'"
+uv run python scripts/remote.py shell "sqlite3 /home/ec2-user/data/code_monet.db '.tables'"
 ```
 
 ### SSH Access (if needed)
@@ -435,7 +649,7 @@ gh secret set AWS_SECRET_ACCESS_KEY --body "$(terraform output -raw github_actio
 | `AWS_ACCESS_KEY_ID`     | IAM user access key for ECR push |
 | `AWS_SECRET_ACCESS_KEY` | IAM user secret key for ECR push |
 
-Add at: https://github.com/dmfenton/Sketchpad/settings/secrets/actions
+Add at: https://github.com/dmfenton/CodeMonet/settings/secrets/actions
 
 ---
 
@@ -448,9 +662,9 @@ Add at: https://github.com/dmfenton/Sketchpad/settings/secrets/actions
 
 ### Database Location
 
-- Dev: `server/data/drawing_agent.db`
-- Prod (container): `/app/data/drawing_agent.db`
-- Prod (host): `/home/ec2-user/data/drawing_agent.db` (on EBS volume)
+- Dev: `server/data/code_monet.db`
+- Prod (container): `/app/data/code_monet.db`
+- Prod (host): `/home/ec2-user/data/code_monet.db` (on EBS volume)
 
 ### Migrations
 
@@ -480,18 +694,18 @@ agent_workspace/users/{user_id}/
 
 ```bash
 # Invite code management
-uv run python -m drawing_agent.cli invite create      # Create invite code
-uv run python -m drawing_agent.cli invite create -c 5 # Create 5 codes
-uv run python -m drawing_agent.cli invite list        # List all invite codes
-uv run python -m drawing_agent.cli invite revoke CODE # Revoke unused code
+uv run python -m code_monet.cli invite create      # Create invite code
+uv run python -m code_monet.cli invite create -c 5 # Create 5 codes
+uv run python -m code_monet.cli invite list        # List all invite codes
+uv run python -m code_monet.cli invite revoke CODE # Revoke unused code
 
 # User management
-uv run python -m drawing_agent.cli user list          # List users with workspace summary
-uv run python -m drawing_agent.cli user list --all    # Include inactive users
-uv run python -m drawing_agent.cli user workspace 1   # Show workspace details for user ID 1
+uv run python -m code_monet.cli user list          # List users with workspace summary
+uv run python -m code_monet.cli user list --all    # Include inactive users
+uv run python -m code_monet.cli user workspace 1   # Show workspace details for user ID 1
 
 # Workspace filesystem
-uv run python -m drawing_agent.cli workspace list     # List all workspace directories
+uv run python -m code_monet.cli workspace list     # List all workspace directories
 ```
 
 ### Creating Users Directly
@@ -502,8 +716,8 @@ To create a user without an invite code (e.g., admin):
 # Run from server/ directory
 uv run python -c "
 import asyncio
-from drawing_agent.db import get_session, repository
-from drawing_agent.auth.password import hash_password
+from code_monet.db import get_session, repository
+from code_monet.auth.password import hash_password
 
 async def create_user(email: str, password: str):
     async with get_session() as session:
@@ -539,8 +753,8 @@ asyncio.run(create_user('admin@example.com', 'ChangeMe123!'))
 
 ### JWT Tokens
 
-- Access token (30 min) for API calls
-- Refresh token (7 days) to get new access token
+- Access token (1 day) for API calls
+- Refresh token (1 year) to get new access token
 - WebSocket auth via `?token=<jwt>` query param
 
 ### Magic Link API
@@ -725,6 +939,66 @@ AWS_REGION=us-east-1
 
 ---
 
+## Analytics (Umami)
+
+Self-hosted privacy-friendly web analytics at https://monet.dmfenton.net/analytics/
+
+### Architecture
+
+- **Umami**: Analytics dashboard and API (port 3000 internal)
+- **PostgreSQL**: Stores analytics data (separate from app SQLite)
+- **Tracking**: Lightweight script (~1KB) in web frontend
+
+### First-Time Setup
+
+After deploying for the first time:
+
+1. **Access Umami dashboard**: https://monet.dmfenton.net/analytics/
+2. **Login** with default credentials: `admin` / `umami`
+3. **Change the admin password** immediately
+4. **Add a website**:
+   - Go to Settings → Websites → Add website
+   - Name: `Code Monet`
+   - Domain: `monet.dmfenton.net`
+   - Click Save
+5. **Copy the Website ID** (UUID shown after creating)
+6. **Add to GitHub Secrets**:
+   ```bash
+   gh secret set UMAMI_WEBSITE_ID --body "your-website-uuid-here"
+   ```
+7. **Trigger a new release** to rebuild the frontend with analytics enabled
+
+### Environment Variables
+
+**Production (on EC2):**
+
+```bash
+# Add to deploy/.env or set in SSM Parameter Store
+UMAMI_DB_PASSWORD=<generate with: openssl rand -hex 16>
+UMAMI_APP_SECRET=<generate with: openssl rand -hex 32>
+```
+
+**GitHub Secrets:**
+
+| Secret             | Description                                        |
+| ------------------ | -------------------------------------------------- |
+| `UMAMI_WEBSITE_ID` | UUID from Umami dashboard (after creating website) |
+
+### Viewing Analytics
+
+- **Dashboard**: https://monet.dmfenton.net/analytics/
+- **Public share**: Create a share URL in Umami for read-only access
+
+### Data Collected
+
+Umami is privacy-focused and GDPR compliant:
+
+- Page views, referrers, browsers, devices, countries
+- No cookies, no personal data, no tracking across sites
+- All data stays on your server
+
+---
+
 ## Troubleshooting
 
 ### Docker container shows "unhealthy"
@@ -756,7 +1030,7 @@ If `scripts/remote.py` commands timeout:
 `uv run` inside the container is slow (~30s) because it syncs the venv. For quick DB operations, use sqlite3 directly:
 
 ```bash
-uv run python scripts/remote.py shell "sqlite3 /home/ec2-user/data/drawing_agent.db 'SELECT * FROM users;'"
+uv run python scripts/remote.py shell "sqlite3 /home/ec2-user/data/code_monet.db 'SELECT * FROM users;'"
 ```
 
 ### Missing tools in slim image

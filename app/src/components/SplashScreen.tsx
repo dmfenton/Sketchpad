@@ -1,12 +1,12 @@
 /**
  * Code Monet Splash Screen
- * An impressionist-inspired animated splash with floating water lilies,
- * gentle brush strokes, and dreamy color transitions.
+ * A bold, immersive splash with gradient orbs and dynamic animations,
+ * matching the web homepage aesthetic.
  */
 
 import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
+import Svg, { Circle, Defs, G, LinearGradient, Path, Stop } from 'react-native-svg';
 import { spacing, typography, useTheme } from '../theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -15,64 +15,51 @@ interface SplashScreenProps {
   onFinish: () => void;
 }
 
-// Water lily component - a stylized impressionist flower
-function WaterLily({
+// Animated gradient orb
+function GradientOrb({
   cx,
   cy,
   size,
-  petalColor,
-  rotation = 0,
-  accent,
-  accentMuted,
-  gold,
+  color1,
+  color2,
+  gradientId,
 }: {
   cx: number;
   cy: number;
   size: number;
-  petalColor: string;
-  rotation?: number;
-  accent: string;
-  accentMuted: string;
-  gold: string;
+  color1: string;
+  color2: string;
+  gradientId: string;
 }) {
-  const petalCount = 8;
-  const petals = [];
-
-  for (let i = 0; i < petalCount; i++) {
-    const angle = (i * 360) / petalCount + rotation;
-    const radians = (angle * Math.PI) / 180;
-    const petalLength = size * 0.8;
-    const petalWidth = size * 0.35;
-
-    petals.push(
-      <Ellipse
-        key={i}
-        cx={cx + Math.cos(radians) * size * 0.3}
-        cy={cy + Math.sin(radians) * size * 0.3}
-        rx={petalWidth}
-        ry={petalLength}
-        fill={petalColor}
-        opacity={0.85}
-        transform={`rotate(${angle}, ${cx + Math.cos(radians) * size * 0.3}, ${cy + Math.sin(radians) * size * 0.3})`}
-      />
-    );
-  }
-
   return (
     <G>
-      {/* Lily pad (green circle beneath) */}
-      <Circle cx={cx} cy={cy} r={size * 1.2} fill={accent} opacity={0.4} />
-      <Circle cx={cx - size * 0.2} cy={cy} r={size * 1.1} fill={accentMuted} opacity={0.3} />
-      {/* Petals */}
-      {petals}
-      {/* Center of flower */}
-      <Circle cx={cx} cy={cy} r={size * 0.25} fill={gold} opacity={0.9} />
-      <Circle cx={cx} cy={cy} r={size * 0.15} fill="#F0E0A0" />
+      <Defs>
+        <LinearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor={color1} stopOpacity="0.6" />
+          <Stop offset="100%" stopColor={color2} stopOpacity="0.3" />
+        </LinearGradient>
+      </Defs>
+      <Circle cx={cx} cy={cy} r={size} fill={`url(#${gradientId})`} />
     </G>
   );
 }
 
-// Floating brush stroke decoration
+// Paint splatter decoration
+function PaintSplatter({
+  x,
+  y,
+  size,
+  color,
+}: {
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+}) {
+  return <Circle cx={x} cy={y} r={size} fill={color} opacity={0.15} />;
+}
+
+// Artistic brush stroke
 function BrushStroke({
   x,
   y,
@@ -86,235 +73,245 @@ function BrushStroke({
   color: string;
   rotation?: number;
 }) {
-  const height = width * 0.15;
+  const height = width * 0.12;
 
   return (
     <Path
       d={`M ${x} ${y}
-          Q ${x + width * 0.3} ${y - height} ${x + width * 0.5} ${y}
-          Q ${x + width * 0.7} ${y + height} ${x + width} ${y}`}
+          Q ${x + width * 0.25} ${y - height * 0.8} ${x + width * 0.5} ${y}
+          Q ${x + width * 0.75} ${y + height * 0.8} ${x + width} ${y}`}
       stroke={color}
-      strokeWidth={height * 1.5}
+      strokeWidth={height * 2}
       strokeLinecap="round"
       fill="none"
-      opacity={0.6}
+      opacity={0.4}
       transform={`rotate(${rotation}, ${x + width / 2}, ${y})`}
     />
   );
 }
 
 export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element {
-  const { colors, gradients, shadows } = useTheme();
+  const { colors, shadows } = useTheme();
+
   // Animation values
   const fadeIn = useRef(new Animated.Value(0)).current;
-  const titleSlide = useRef(new Animated.Value(30)).current;
+  const titleSlide = useRef(new Animated.Value(40)).current;
+  const titleScale = useRef(new Animated.Value(0.9)).current;
   const subtitleFade = useRef(new Animated.Value(0)).current;
-  const floatAnim = useRef(new Animated.Value(0)).current;
+  const orbFloat1 = useRef(new Animated.Value(0)).current;
+  const orbFloat2 = useRef(new Animated.Value(0)).current;
   const fadeOut = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Orchestrated animation sequence
-    Animated.sequence([
-      // Phase 1: Fade in background and content
-      Animated.parallel([
-        Animated.timing(fadeIn, {
+    // Start orb floating animations
+    const orbAnimation1 = Animated.loop(
+      Animated.sequence([
+        Animated.timing(orbFloat1, {
           toValue: 1,
-          duration: 800,
+          duration: 3000,
           useNativeDriver: true,
         }),
-      ]),
-
-      // Phase 2: Title slides in
-      Animated.parallel([
-        Animated.timing(titleSlide, {
+        Animated.timing(orbFloat1, {
           toValue: 0,
-          duration: 600,
+          duration: 3000,
           useNativeDriver: true,
         }),
-        Animated.timing(subtitleFade, {
+      ])
+    );
+
+    const orbAnimation2 = Animated.loop(
+      Animated.sequence([
+        Animated.timing(orbFloat2, {
           toValue: 1,
-          duration: 800,
-          delay: 200,
+          duration: 2500,
           useNativeDriver: true,
         }),
-      ]),
+        Animated.timing(orbFloat2, {
+          toValue: 0,
+          duration: 2500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
 
-      // Phase 3: Gentle floating animation
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(floatAnim, {
-            toValue: 1,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(floatAnim, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-        ]),
-        { iterations: 1 }
-      ),
+    orbAnimation1.start();
+    orbAnimation2.start();
 
-      // Phase 4: Hold then fade out
-      Animated.delay(300),
-      Animated.timing(fadeOut, {
-        toValue: 0,
+    // Main animation sequence
+    Animated.sequence([
+      // Phase 1: Fade in background
+      Animated.timing(fadeIn, {
+        toValue: 1,
         duration: 600,
         useNativeDriver: true,
       }),
+
+      // Phase 2: Title animates in
+      Animated.parallel([
+        Animated.spring(titleSlide, {
+          toValue: 0,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(titleScale, {
+          toValue: 1,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      // Phase 3: Subtitle fades in
+      Animated.timing(subtitleFade, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+
+      // Phase 4: Hold
+      Animated.delay(800),
+
+      // Phase 5: Fade out
+      Animated.timing(fadeOut, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
     ]).start(() => {
+      orbAnimation1.stop();
+      orbAnimation2.stop();
       onFinish();
     });
-  }, [fadeIn, titleSlide, subtitleFade, floatAnim, fadeOut, onFinish]);
+  }, [fadeIn, titleSlide, titleScale, subtitleFade, orbFloat1, orbFloat2, fadeOut, onFinish]);
 
-  const floatTransform = floatAnim.interpolate({
+  const orb1Transform = orbFloat1.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -6],
+    outputRange: [0, -20],
+  });
+
+  const orb2Transform = orbFloat2.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 15],
   });
 
   return (
     <Animated.View
       style={[styles.container, { backgroundColor: colors.background, opacity: fadeOut }]}
     >
-      {/* Gradient-like background with overlapping circles */}
-      <View style={styles.gradientBackground}>
-        <View
-          style={[
-            styles.gradientCircle,
-            styles.gradientCircle1,
-            { backgroundColor: gradients.mist[0] },
-          ]}
-        />
-        <View
-          style={[
-            styles.gradientCircle,
-            styles.gradientCircle2,
-            { backgroundColor: gradients.waterLilies[1] },
-          ]}
-        />
-        <View
-          style={[
-            styles.gradientCircle,
-            styles.gradientCircle3,
-            { backgroundColor: gradients.garden[0] },
-          ]}
-        />
-        <View
-          style={[
-            styles.gradientCircle,
-            styles.gradientCircle4,
-            { backgroundColor: gradients.sunrise[0] },
-          ]}
-        />
-      </View>
-
-      {/* SVG decorations */}
+      {/* Gradient orbs background */}
       <Animated.View
         style={[
-          styles.svgContainer,
+          styles.orbContainer,
           {
             opacity: fadeIn,
-            transform: [{ translateY: floatTransform }],
+            transform: [{ translateY: orb1Transform }],
           },
         ]}
       >
         <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={styles.svg}>
-          {/* Background brush strokes */}
-          <BrushStroke
-            x={20}
+          {/* Large gradient orbs */}
+          <GradientOrb
+            cx={SCREEN_WIDTH * 0.2}
+            cy={SCREEN_HEIGHT * 0.2}
+            size={SCREEN_WIDTH * 0.6}
+            color1={colors.primary}
+            color2={colors.secondary}
+            gradientId="orb1"
+          />
+          <GradientOrb
+            cx={SCREEN_WIDTH * 0.85}
+            cy={SCREEN_HEIGHT * 0.35}
+            size={SCREEN_WIDTH * 0.5}
+            color1={colors.secondary}
+            color2={colors.accent}
+            gradientId="orb2"
+          />
+          <GradientOrb
+            cx={SCREEN_WIDTH * 0.3}
+            cy={SCREEN_HEIGHT * 0.75}
+            size={SCREEN_WIDTH * 0.45}
+            color1={colors.accent}
+            color2={colors.primary}
+            gradientId="orb3"
+          />
+
+          {/* Paint splatters */}
+          <PaintSplatter
+            x={SCREEN_WIDTH * 0.1}
             y={SCREEN_HEIGHT * 0.15}
-            width={120}
-            color={gradients.waterLilies[0]}
-            rotation={-5}
+            size={30}
+            color={colors.primary}
           />
+          <PaintSplatter
+            x={SCREEN_WIDTH * 0.85}
+            y={SCREEN_HEIGHT * 0.1}
+            size={25}
+            color={colors.accent}
+          />
+          <PaintSplatter
+            x={SCREEN_WIDTH * 0.7}
+            y={SCREEN_HEIGHT * 0.8}
+            size={35}
+            color={colors.secondary}
+          />
+          <PaintSplatter
+            x={SCREEN_WIDTH * 0.15}
+            y={SCREEN_HEIGHT * 0.85}
+            size={20}
+            color={colors.gold}
+          />
+
+          {/* Brush strokes */}
           <BrushStroke
-            x={SCREEN_WIDTH - 140}
-            y={SCREEN_HEIGHT * 0.2}
+            x={30}
+            y={SCREEN_HEIGHT * 0.25}
             width={100}
-            color={gradients.waterLilies[1]}
-            rotation={8}
+            color={colors.primary}
+            rotation={-8}
           />
           <BrushStroke
-            x={40}
-            y={SCREEN_HEIGHT * 0.75}
+            x={SCREEN_WIDTH - 130}
+            y={SCREEN_HEIGHT * 0.18}
+            width={90}
+            color={colors.secondary}
+            rotation={5}
+          />
+          <BrushStroke
+            x={50}
+            y={SCREEN_HEIGHT * 0.78}
             width={80}
-            color={gradients.garden[0]}
+            color={colors.accent}
             rotation={-3}
           />
           <BrushStroke
-            x={SCREEN_WIDTH - 100}
-            y={SCREEN_HEIGHT * 0.8}
+            x={SCREEN_WIDTH - 110}
+            y={SCREEN_HEIGHT * 0.82}
             width={70}
-            color={gradients.sunset[0]}
-            rotation={5}
+            color={colors.coral}
+            rotation={6}
           />
+        </Svg>
+      </Animated.View>
 
-          {/* Water lilies */}
-          <WaterLily
-            cx={SCREEN_WIDTH * 0.2}
-            cy={SCREEN_HEIGHT * 0.3}
-            size={35}
-            petalColor={colors.secondary}
-            rotation={15}
-            accent={colors.accent}
-            accentMuted={colors.accentMuted}
-            gold={colors.gold}
-          />
-
-          <WaterLily
-            cx={SCREEN_WIDTH * 0.8}
-            cy={SCREEN_HEIGHT * 0.25}
-            size={28}
-            petalColor={colors.lavender}
-            rotation={-20}
-            accent={colors.accent}
-            accentMuted={colors.accentMuted}
-            gold={colors.gold}
-          />
-
-          <WaterLily
-            cx={SCREEN_WIDTH * 0.15}
-            cy={SCREEN_HEIGHT * 0.72}
-            size={32}
-            petalColor={colors.coral}
-            rotation={45}
-            accent={colors.accent}
-            accentMuted={colors.accentMuted}
-            gold={colors.gold}
-          />
-
-          <WaterLily
-            cx={SCREEN_WIDTH * 0.85}
-            cy={SCREEN_HEIGHT * 0.68}
-            size={40}
-            petalColor={colors.secondary}
-            rotation={-10}
-            accent={colors.accent}
-            accentMuted={colors.accentMuted}
-            gold={colors.gold}
-          />
-
-          {/* Small accent lilies */}
-          <WaterLily
-            cx={SCREEN_WIDTH * 0.65}
-            cy={SCREEN_HEIGHT * 0.15}
-            size={18}
-            petalColor={colors.lavender}
-            rotation={30}
-            accent={colors.accent}
-            accentMuted={colors.accentMuted}
-            gold={colors.gold}
-          />
-          <WaterLily
-            cx={SCREEN_WIDTH * 0.35}
-            cy={SCREEN_HEIGHT * 0.85}
-            size={22}
-            petalColor={colors.coral}
-            rotation={-25}
-            accent={colors.accent}
-            accentMuted={colors.accentMuted}
-            gold={colors.gold}
+      {/* Second floating layer */}
+      <Animated.View
+        style={[
+          styles.orbContainer,
+          {
+            opacity: fadeIn,
+            transform: [{ translateY: orb2Transform }],
+          },
+        ]}
+      >
+        <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={styles.svg}>
+          <GradientOrb
+            cx={SCREEN_WIDTH * 0.7}
+            cy={SCREEN_HEIGHT * 0.6}
+            size={SCREEN_WIDTH * 0.4}
+            color1={colors.lavender}
+            color2={colors.primary}
+            gradientId="orb4"
           />
         </Svg>
       </Animated.View>
@@ -326,31 +323,50 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
             styles.titleContainer,
             {
               opacity: fadeIn,
-              transform: [{ translateY: titleSlide }],
+              transform: [{ translateY: titleSlide }, { scale: titleScale }],
             },
           ]}
         >
-          <Animated.Text style={[styles.title, { color: colors.textPrimary }]}>
-            Code Monet
-          </Animated.Text>
-          <View style={[styles.titleUnderline, { backgroundColor: colors.secondary }]} />
+          <View style={styles.titleRow}>
+            <Animated.Text style={[styles.titleCode, { color: colors.primary }]}>
+              Code
+            </Animated.Text>
+            <Animated.Text style={[styles.titleMonet, { color: colors.textPrimary }]}>
+              Monet
+            </Animated.Text>
+          </View>
+          <View style={styles.titleUnderlineContainer}>
+            <View style={[styles.titleUnderline, { backgroundColor: colors.primary }]} />
+            <View
+              style={[
+                styles.titleUnderline,
+                styles.titleUnderlineAccent,
+                { backgroundColor: colors.accent },
+              ]}
+            />
+          </View>
         </Animated.View>
 
         <Animated.Text
           style={[styles.subtitle, { color: colors.textSecondary, opacity: subtitleFade }]}
         >
-          Where AI Meets Impressionism
+          An autonomous AI artist
         </Animated.Text>
 
-        <Animated.View style={[styles.brushContainer, { opacity: subtitleFade }]}>
+        <Animated.View style={[styles.iconContainer, { opacity: subtitleFade }]}>
           <View style={[styles.brushIcon, shadows.glow]}>
-            <Svg width={40} height={40} viewBox="0 0 40 40">
+            <Svg width={44} height={44} viewBox="0 0 44 44">
+              <Defs>
+                <LinearGradient id="brushGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <Stop offset="0%" stopColor={colors.primary} />
+                  <Stop offset="100%" stopColor={colors.coral} />
+                </LinearGradient>
+              </Defs>
               <Path
-                d="M8 32 Q12 28 16 24 L28 12 Q32 8 34 6 Q36 8 34 12 L22 24 Q18 28 14 32 Q10 36 8 32Z"
-                fill={colors.primary}
-                opacity={0.9}
+                d="M10 34 Q14 30 18 26 L30 14 Q34 10 36 8 Q38 10 36 14 L24 26 Q20 30 16 34 Q12 38 10 34Z"
+                fill="url(#brushGradient)"
               />
-              <Circle cx={10} cy={32} r={4} fill={colors.secondary} />
+              <Circle cx={12} cy={34} r={4} fill={colors.accent} />
             </Svg>
           </View>
         </Animated.View>
@@ -360,7 +376,7 @@ export function SplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element
       <Animated.Text
         style={[styles.attribution, { color: colors.textMuted, opacity: subtitleFade }]}
       >
-        An AI Drawing Experience
+        Powered by Claude
       </Animated.Text>
     </Animated.View>
   );
@@ -373,43 +389,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 100,
   },
-  gradientBackground: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-  gradientCircle: {
-    position: 'absolute',
-    borderRadius: 9999,
-  },
-  gradientCircle1: {
-    width: SCREEN_WIDTH * 1.5,
-    height: SCREEN_WIDTH * 1.5,
-    top: -SCREEN_WIDTH * 0.5,
-    left: -SCREEN_WIDTH * 0.25,
-    opacity: 0.5,
-  },
-  gradientCircle2: {
-    width: SCREEN_WIDTH * 1.2,
-    height: SCREEN_WIDTH * 1.2,
-    bottom: -SCREEN_WIDTH * 0.4,
-    right: -SCREEN_WIDTH * 0.3,
-    opacity: 0.3,
-  },
-  gradientCircle3: {
-    width: SCREEN_WIDTH * 0.8,
-    height: SCREEN_WIDTH * 0.8,
-    top: SCREEN_HEIGHT * 0.3,
-    left: -SCREEN_WIDTH * 0.2,
-    opacity: 0.25,
-  },
-  gradientCircle4: {
-    width: SCREEN_WIDTH * 0.6,
-    height: SCREEN_WIDTH * 0.6,
-    bottom: SCREEN_HEIGHT * 0.25,
-    right: -SCREEN_WIDTH * 0.15,
-    opacity: 0.3,
-  },
-  svgContainer: {
+  orbContainer: {
     ...StyleSheet.absoluteFillObject,
   },
   svg: {
@@ -424,30 +404,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  title: {
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.sm,
+  },
+  titleCode: {
     ...typography.artistic,
-    textAlign: 'center',
-    textShadowColor: 'rgba(123, 140, 222, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
+    fontWeight: '300',
+  },
+  titleMonet: {
+    ...typography.artistic,
+    fontWeight: '200',
+  },
+  titleUnderlineContainer: {
+    flexDirection: 'row',
+    marginTop: spacing.md,
+    gap: spacing.xs,
   },
   titleUnderline: {
-    width: 120,
+    width: 60,
     height: 3,
-    marginTop: spacing.md,
     borderRadius: 2,
-    opacity: 0.8,
+  },
+  titleUnderlineAccent: {
+    width: 40,
   },
   subtitle: {
     ...typography.heading,
     textAlign: 'center',
     marginTop: spacing.sm,
-    fontStyle: 'italic',
+    fontWeight: '400',
+    letterSpacing: 1,
   },
-  brushContainer: {
+  iconContainer: {
     marginTop: spacing['2xl'],
   },
-  brushIcon: {},
+  brushIcon: {
+    padding: spacing.sm,
+    borderRadius: 22,
+  },
   attribution: {
     position: 'absolute',
     bottom: spacing['3xl'],
