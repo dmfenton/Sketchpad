@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.21.1] - 2026-01-17
+
+### Changed
+
+- Renamed `generate_image` tool to `imagine` for clearer semantics
+- Removed `view_reference_image` tool (agents use filesystem `Read` tool instead)
+
+### Fixed
+
+- Corrected inaccuracies in README and fixed Makefile module paths
+
+### Documentation
+
+- Added comprehensive agent tools reference with event streaming details
+
 ## [1.21.0] - 2026-01-17
 
 ### Added
