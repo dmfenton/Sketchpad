@@ -299,7 +299,9 @@ def _render_strokes_to_png_sync(
             default_style = (
                 style_config.agent_stroke if author == "agent" else style_config.human_stroke
             )
-            color = path.color if path.color and style_config.supports_color else default_style.color
+            color = (
+                path.color if path.color and style_config.supports_color else default_style.color
+            )
             stroke_width = int(
                 path.stroke_width
                 if path.stroke_width and style_config.supports_variable_width
@@ -316,7 +318,9 @@ async def render_strokes_to_png(
     strokes: list[Path], drawing_style: DrawingStyleType, width: int = 800, height: int = 600
 ) -> bytes:
     """Render strokes to PNG (async, non-blocking)."""
-    return await asyncio.to_thread(_render_strokes_to_png_sync, strokes, drawing_style, width, height)
+    return await asyncio.to_thread(
+        _render_strokes_to_png_sync, strokes, drawing_style, width, height
+    )
 
 
 @app.get("/state")
@@ -380,7 +384,7 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
             "id": p.id,
             "created_at": p.created_at,
             "piece_number": p.piece_number,
-            "stroke_count": p.num_strokes,
+            "stroke_count": p.stroke_count,
             "drawing_style": p.drawing_style.value,
         }
         for p in pieces
@@ -389,7 +393,10 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
 
 @app.get("/gallery/{piece_number}/thumbnail.png")
 async def get_gallery_thumbnail(piece_number: int, user: CurrentUser) -> Response:
-    """Get a gallery piece as a PNG thumbnail image."""
+    """Get a gallery piece as a PNG thumbnail image.
+
+    Thumbnails are immutable (pieces don't change after saving), so we cache aggressively.
+    """
     state = await get_user_state(user)
     result = await state.load_from_gallery(piece_number)
     if result is None:
@@ -397,7 +404,15 @@ async def get_gallery_thumbnail(piece_number: int, user: CurrentUser) -> Respons
 
     strokes, drawing_style = result
     png_bytes = await render_strokes_to_png(strokes, drawing_style)
-    return Response(content=png_bytes, media_type="image/png")
+
+    # Cache for 1 year - thumbnails are immutable once created
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+        },
+    )
 
 
 @app.get("/public/gallery")
@@ -776,7 +791,7 @@ async def websocket_endpoint(
                 "id": p.id,
                 "created_at": p.created_at,
                 "piece_number": p.piece_number,
-                "stroke_count": p.num_strokes,
+                "stroke_count": p.stroke_count,
                 "drawing_style": p.drawing_style.value,
             }
             for p in gallery_pieces

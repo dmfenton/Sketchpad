@@ -111,7 +111,7 @@ async def handle_new_canvas(
             "id": p.id,
             "created_at": p.created_at,
             "piece_number": p.piece_number,
-            "stroke_count": p.num_strokes,
+            "stroke_count": p.stroke_count,
             "drawing_style": p.drawing_style.value,
         }
         for p in gallery_pieces
