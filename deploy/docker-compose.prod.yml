@@ -34,7 +34,7 @@ services:
     container_name: drawing-agent
     environment:
       # SSM fetches secrets at runtime (ANTHROPIC_API_KEY, JWT_SECRET, etc.)
-      - DRAWING_AGENT_ENV=prod
+      - CODE_MONET_ENV=prod
       - AWS_REGION=${AWS_REGION:-us-east-1}
       # Non-secret config
       - HOST=0.0.0.0

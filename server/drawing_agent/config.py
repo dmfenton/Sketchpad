@@ -15,9 +15,9 @@ def _get_ssm_params() -> dict[str, str]:
 
     Returns empty dict if SSM is unavailable (e.g., missing credentials).
     """
-    env = os.getenv("DRAWING_AGENT_ENV", "dev")
+    env = os.getenv("CODE_MONET_ENV", "dev")
     region = os.getenv("AWS_REGION", "us-east-1")
-    path = f"/drawing-agent/{env}/"
+    path = f"/code-monet/{env}/"
 
     try:
         import boto3

@@ -1,8 +1,8 @@
 # SSM Parameter Store for application configuration
-# Parameters follow hierarchy: /drawing-agent/{env}/{param-name}
+# Parameters follow hierarchy: /code-monet/{env}/{param-name}
 
 locals {
-  ssm_prefix = "/drawing-agent"
+  ssm_prefix = "/code-monet"
 
   # Secrets (SecureString) - placeholder values, update via CLI/Console
   secrets = {
