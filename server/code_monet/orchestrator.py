@@ -10,14 +10,14 @@ from code_monet.agent import AgentCallbacks, CodeExecutionResult, ToolCallInfo
 from code_monet.agent_logger import AgentFileLogger
 from code_monet.config import settings
 from code_monet.types import (
+    AgentStateMessage,
     AgentStatus,
     AgentTurnComplete,
     CodeExecutionMessage,
     ErrorMessage,
     IterationMessage,
     Path,
-    PieceCompleteMessage,
-    StatusMessage,
+    PieceStateMessage,
     StrokesReadyMessage,
     ThinkingDeltaMessage,
     ThinkingMessage,
@@ -114,11 +114,11 @@ class AgentOrchestrator:
         logger.info(f">>> Waiting {animation_time_s:.2f}s for {total_points} points to animate")
         await asyncio.sleep(animation_time_s)
 
-    async def broadcast_status(self, status: AgentStatus) -> None:
+    async def broadcast_status(self, status: AgentStatus, paused: bool = False) -> None:
         """Broadcast a status update to all clients."""
         if self.file_logger:
             await self.file_logger.log_status_change(status.value)
-        await self.broadcaster.broadcast(StatusMessage(status=status))
+        await self.broadcaster.broadcast(AgentStateMessage(status=status, paused=paused))
 
     def create_callbacks(self) -> AgentCallbacks:
         """Create callbacks for agent events."""
@@ -243,25 +243,18 @@ class AgentOrchestrator:
             piece_num = state.piece_count
             logger.info(f"Piece {piece_num} complete")
 
-            # Broadcast piece complete
-            await self.broadcaster.broadcast(PieceCompleteMessage(piece_number=piece_num))
+            # Broadcast piece state with completed=True
+            await self.broadcaster.broadcast(PieceStateMessage(number=piece_num, completed=True))
 
             # Save to gallery (keep canvas visible)
             saved_id = await state.save_to_gallery()
             logger.info(f"Saved piece {piece_num} as {saved_id}")
 
             # Send gallery update
-            gallery_pieces = await state.list_gallery()
-            gallery_data = [
-                {
-                    "id": p.id,
-                    "created_at": p.created_at,
-                    "piece_number": p.piece_number,
-                    "stroke_count": p.num_strokes,
-                }
-                for p in gallery_pieces
-            ]
-            await self.broadcaster.broadcast({"type": "gallery_update", "canvases": gallery_data})
+            gallery_entries = await state.list_gallery()
+            await self.broadcaster.broadcast(
+                {"type": "gallery_update", "canvases": [e.model_dump() for e in gallery_entries]}
+            )
 
             # Mark piece as completed - orchestrator won't auto-start new turns
             self._piece_completed = True

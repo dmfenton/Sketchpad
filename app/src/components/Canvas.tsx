@@ -172,7 +172,6 @@ export function Canvas({
             viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
             preserveAspectRatio="xMidYMid meet"
           >
-
             {/* Completed strokes - render with effective style */}
             {strokes.map((stroke, index) => {
               const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
