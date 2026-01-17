@@ -302,6 +302,15 @@ export interface StyleChangeMessage {
   style_config: DrawingStyleConfig;
 }
 
+export interface TokenUsageMessage {
+  type: 'token_usage';
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_input_tokens: number;
+  cache_read_input_tokens: number;
+  total_tokens: number;
+}
+
 /**
  * A pending stroke ready for client-side rendering.
  * Contains the original path and pre-interpolated points.
@@ -326,7 +335,8 @@ export type ServerMessage =
   | ErrorMessage
   | IterationMessage
   | StrokesReadyMessage
-  | StyleChangeMessage;
+  | StyleChangeMessage
+  | TokenUsageMessage;
 
 // WebSocket messages - Client to Server
 export interface ClientStrokeMessage {

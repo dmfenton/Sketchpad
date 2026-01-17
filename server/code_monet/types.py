@@ -391,6 +391,31 @@ class StyleChangeMessage(BaseModel):
     style_config: DrawingStyleConfig  # Full config for frontend
 
 
+class TokenUsage(BaseModel):
+    """Token usage for a turn."""
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
+
+    @property
+    def total_tokens(self) -> int:
+        """Total tokens used (input + output)."""
+        return self.input_tokens + self.output_tokens
+
+
+class TokenUsageMessage(BaseModel):
+    """Token usage update from agent turn."""
+
+    type: Literal["token_usage"] = "token_usage"
+    input_tokens: int
+    output_tokens: int
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
+    total_tokens: int
+
+
 class ClientSetStyleMessage(BaseModel):
     """Client request to change drawing style."""
 
@@ -440,6 +465,7 @@ ServerMessage = (
     | IterationMessage
     | StrokesReadyMessage
     | StyleChangeMessage
+    | TokenUsageMessage
 )
 ClientMessage = (
     ClientStrokeMessage
@@ -466,6 +492,7 @@ class AgentTurnComplete(BaseModel):
     type: Literal["turn_complete"] = "turn_complete"
     thinking: str
     done: bool  # True if piece is complete
+    usage: TokenUsage | None = None  # Token usage for this turn
 
 
 AgentEvent = AgentPathsEvent | AgentTurnComplete

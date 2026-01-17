@@ -47,6 +47,7 @@ from code_monet.types import (
     DrawingStyleConfig,
     DrawingStyleType,
     Path,
+    TokenUsage,
     get_style_config,
 )
 
@@ -769,6 +770,7 @@ class DrawingAgent:
             iteration = 1
             last_tool_name: str | None = None
             last_tool_input: dict[str, Any] | None = None
+            turn_usage: TokenUsage | None = None
 
             # Process response messages
             async for message in self._client.receive_response():
@@ -857,8 +859,25 @@ class DrawingAgent:
                     logger.debug(f"System message: {message.subtype}")
 
                 elif isinstance(message, ResultMessage):
-                    # Turn complete
+                    # Turn complete - extract token usage
                     logger.info(f"Turn complete: {message.subtype}")
+                    if message.usage:
+                        turn_usage = TokenUsage(
+                            input_tokens=message.usage.get("input_tokens", 0),
+                            output_tokens=message.usage.get("output_tokens", 0),
+                            cache_creation_input_tokens=message.usage.get(
+                                "cache_creation_input_tokens", 0
+                            ),
+                            cache_read_input_tokens=message.usage.get(
+                                "cache_read_input_tokens", 0
+                            ),
+                        )
+                        logger.info(
+                            f"Token usage: input={turn_usage.input_tokens}, "
+                            f"output={turn_usage.output_tokens}, "
+                            f"cache_read={turn_usage.cache_read_input_tokens}, "
+                            f"cache_create={turn_usage.cache_creation_input_tokens}"
+                        )
                     if message.is_error and cb.on_error:
                         await cb.on_error(message.result or "Unknown error", None)
 
@@ -870,7 +889,7 @@ class DrawingAgent:
             # orchestrator.run_turn() which calls state.new_canvas() on piece completion
 
             # Signal turn complete
-            yield AgentTurnComplete(thinking=all_thinking, done=self._piece_done)
+            yield AgentTurnComplete(thinking=all_thinking, done=self._piece_done, usage=turn_usage)
 
         except Exception as e:
             logger.exception("Agent turn failed")

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 from code_monet.agent import AgentCallbacks, CodeExecutionResult, ToolCallInfo
 from code_monet.agent_logger import AgentFileLogger
 from code_monet.config import settings
+from code_monet.tracing import get_tracer
 from code_monet.types import (
     AgentTurnComplete,
     CodeExecutionMessage,
@@ -18,6 +19,7 @@ from code_monet.types import (
     PieceStateMessage,
     StrokesReadyMessage,
     ThinkingDeltaMessage,
+    TokenUsageMessage,
 )
 
 if TYPE_CHECKING:
@@ -200,13 +202,36 @@ class AgentOrchestrator:
 
         done = False
         thinking_text = ""
+        turn_usage = None
 
         # Consume events from agent - drawing happens in PostToolUse hook
         async for event in self.agent.run_turn(callbacks=callbacks):
             if isinstance(event, AgentTurnComplete):
                 done = event.done
                 thinking_text = event.thinking or ""
+                turn_usage = event.usage
                 logger.info(f"Turn complete. Piece done: {done}")
+
+        # Record token usage in OpenTelemetry span and broadcast to clients
+        if turn_usage:
+            tracer = get_tracer(__name__)
+            with tracer.start_as_current_span("agent_turn_tokens") as span:
+                span.set_attribute("tokens.input", turn_usage.input_tokens)
+                span.set_attribute("tokens.output", turn_usage.output_tokens)
+                span.set_attribute("tokens.total", turn_usage.total_tokens)
+                span.set_attribute("tokens.cache_read", turn_usage.cache_read_input_tokens)
+                span.set_attribute("tokens.cache_create", turn_usage.cache_creation_input_tokens)
+
+            # Broadcast token usage to connected clients
+            await self.broadcaster.broadcast(
+                TokenUsageMessage(
+                    input_tokens=turn_usage.input_tokens,
+                    output_tokens=turn_usage.output_tokens,
+                    cache_creation_input_tokens=turn_usage.cache_creation_input_tokens,
+                    cache_read_input_tokens=turn_usage.cache_read_input_tokens,
+                    total_tokens=turn_usage.total_tokens,
+                )
+            )
 
         # Log turn end with thinking
         if self.file_logger:
