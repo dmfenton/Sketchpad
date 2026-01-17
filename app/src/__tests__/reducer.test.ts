@@ -83,6 +83,51 @@ describe('hasInProgressEvents', () => {
     ];
     expect(hasInProgressEvents(messages)).toBe(false);
   });
+
+  it('returns false when started and completed messages both exist for same tool', () => {
+    // This is the real-world case: both "started" and "completed" messages exist
+    const messages: AgentMessage[] = [
+      {
+        id: 'exec_started',
+        type: 'code_execution',
+        text: 'Drawing 3 paths...',
+        timestamp: Date.now(),
+        iteration: 1,
+        metadata: { tool_name: 'draw_paths' }, // No return_code
+      },
+      {
+        id: 'exec_completed',
+        type: 'code_execution',
+        text: 'Drew 3 paths',
+        timestamp: Date.now(),
+        iteration: 1,
+        metadata: { tool_name: 'draw_paths', return_code: 0 },
+      },
+    ];
+    expect(hasInProgressEvents(messages)).toBe(false);
+  });
+
+  it('returns true when started exists but completed is for different iteration', () => {
+    const messages: AgentMessage[] = [
+      {
+        id: 'exec_started',
+        type: 'code_execution',
+        text: 'Drawing...',
+        timestamp: Date.now(),
+        iteration: 2, // Different iteration
+        metadata: { tool_name: 'draw_paths' },
+      },
+      {
+        id: 'exec_completed',
+        type: 'code_execution',
+        text: 'Drew paths',
+        timestamp: Date.now(),
+        iteration: 1, // Completed is for iteration 1
+        metadata: { tool_name: 'draw_paths', return_code: 0 },
+      },
+    ];
+    expect(hasInProgressEvents(messages)).toBe(true);
+  });
 });
 
 describe('deriveAgentStatus', () => {
@@ -163,14 +208,6 @@ describe('deriveAgentStatus', () => {
     };
     // This is the key test: drawing waits for in-progress events
     expect(deriveAgentStatus(state)).toBe('executing');
-  });
-
-  it('returns thinking when serverStatus is thinking and no other state', () => {
-    const state: CanvasHookState = {
-      ...baseState,
-      serverStatus: 'thinking',
-    };
-    expect(deriveAgentStatus(state)).toBe('thinking');
   });
 
   it('returns idle when no active state', () => {

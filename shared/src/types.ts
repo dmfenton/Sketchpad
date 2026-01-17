@@ -167,13 +167,6 @@ export interface CanvasState {
   drawingStyle: DrawingStyleType;
 }
 
-export interface ExecutionState {
-  active: boolean;
-  penX: number;
-  penY: number;
-  penDown: boolean;
-}
-
 export interface AgentState {
   status: AgentStatus;
   monologue: string;
@@ -182,44 +175,34 @@ export interface AgentState {
 
 export interface AppState {
   canvas: CanvasState;
-  execution: ExecutionState;
   agent: AgentState;
 }
 
 // WebSocket messages - Server to Client
-export interface PenMessage {
-  type: 'pen';
-  x: number;
-  y: number;
-  down: boolean;
-}
-
 export interface StrokeCompleteMessage {
   type: 'stroke_complete';
   path: Path;
 }
 
-export interface ThinkingMessage {
-  type: 'thinking';
-  text: string;
-}
-
-export interface StatusMessage {
-  type: 'status';
-  status: AgentStatus;
+export interface PausedMessage {
+  type: 'paused';
+  paused: boolean;
 }
 
 export interface ClearMessage {
   type: 'clear';
 }
 
-export interface SavedCanvas {
+export interface GalleryEntry {
   id: string;
   stroke_count: number;
   created_at: string;
   piece_number: number;
   drawing_style?: DrawingStyleType; // Style used for this piece (defaults to plotter)
 }
+
+// Backwards compatibility alias
+export type SavedCanvas = GalleryEntry;
 
 export interface NewCanvasMessage {
   type: 'new_canvas';
@@ -251,9 +234,10 @@ export interface InitMessage {
   style_config?: DrawingStyleConfig;
 }
 
-export interface PieceCountMessage {
-  type: 'piece_count';
-  count: number;
+export interface PieceStateMessage {
+  type: 'piece_state';
+  number: number;
+  completed: boolean;
 }
 
 // New message types for real-time status streaming
@@ -292,20 +276,10 @@ export interface ErrorMessage {
   details?: string | null;
 }
 
-export interface PieceCompleteMessage {
-  type: 'piece_complete';
-  piece_number: number;
-}
-
 export interface IterationMessage {
   type: 'iteration';
   current: number;
   max: number;
-}
-
-export interface PausedMessage {
-  type: 'paused';
-  paused: boolean;
 }
 
 export interface StrokesReadyMessage {
@@ -331,22 +305,18 @@ export interface PendingStroke {
 }
 
 export type ServerMessage =
-  | PenMessage
   | StrokeCompleteMessage
-  | ThinkingMessage
   | ThinkingDeltaMessage
-  | StatusMessage
+  | PausedMessage
   | ClearMessage
   | NewCanvasMessage
   | GalleryUpdateMessage
   | LoadCanvasMessage
   | InitMessage
-  | PieceCountMessage
+  | PieceStateMessage
   | CodeExecutionMessage
   | ErrorMessage
-  | PieceCompleteMessage
   | IterationMessage
-  | PausedMessage
   | StrokesReadyMessage
   | StyleChangeMessage;
 

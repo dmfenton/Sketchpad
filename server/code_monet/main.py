@@ -26,7 +26,7 @@ from code_monet.registry import workspace_registry
 from code_monet.share import share_router
 from code_monet.shutdown import shutdown_manager
 from code_monet.tracing import get_current_trace_id, record_client_spans, setup_tracing
-from code_monet.types import AgentStatus
+from code_monet.types import AgentStatus, PausedMessage
 from code_monet.user_handlers import handle_user_message
 from code_monet.workspace_state import WorkspaceState
 
@@ -336,16 +336,8 @@ async def get_canvas_svg(user: CurrentUser) -> Response:
 async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
     """Get user's gallery pieces."""
     state = await get_user_state(user)
-    pieces = await state.list_gallery()
-    return [
-        {
-            "id": p.id,
-            "created_at": p.created_at,
-            "piece_number": p.piece_number,
-            "stroke_count": p.num_strokes,
-        }
-        for p in pieces
-    ]
+    entries = await state.list_gallery()
+    return [entry.model_dump() for entry in entries]
 
 
 @app.get("/public/gallery")
@@ -573,7 +565,7 @@ async def reset_workspace_debug(user: CurrentUser) -> dict[str, Any]:
 
     # Broadcast updates to all connected clients
     await workspace.connections.broadcast({"type": "clear"})
-    await workspace.connections.broadcast({"type": "paused", "paused": True})
+    await workspace.connections.broadcast(PausedMessage(paused=True))
 
     return {"status": "reset", "piece_count": 0, "paused": True}
 
@@ -716,16 +708,8 @@ async def websocket_endpoint(
 
     try:
         # Send current state to new client
-        gallery_pieces = await workspace.state.list_gallery()
-        gallery_data = [
-            {
-                "id": p.id,
-                "created_at": p.created_at,
-                "piece_number": p.piece_number,
-                "stroke_count": p.num_strokes,
-            }
-            for p in gallery_pieces
-        ]
+        gallery_entries = await workspace.state.list_gallery()
+        gallery_data = [entry.model_dump() for entry in gallery_entries]
 
         # Get the current drawing style config
         from code_monet.types import get_style_config

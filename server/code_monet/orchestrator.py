@@ -10,17 +10,14 @@ from code_monet.agent import AgentCallbacks, CodeExecutionResult, ToolCallInfo
 from code_monet.agent_logger import AgentFileLogger
 from code_monet.config import settings
 from code_monet.types import (
-    AgentStatus,
     AgentTurnComplete,
     CodeExecutionMessage,
     ErrorMessage,
     IterationMessage,
     Path,
-    PieceCompleteMessage,
-    StatusMessage,
+    PieceStateMessage,
     StrokesReadyMessage,
     ThinkingDeltaMessage,
-    ThinkingMessage,
 )
 
 if TYPE_CHECKING:
@@ -101,9 +98,6 @@ class AgentOrchestrator:
         # Notify clients that strokes are ready
         await self.broadcaster.broadcast(StrokesReadyMessage(count=len(paths), batch_id=batch_id))
 
-        # Set status to drawing
-        await self.broadcast_status(AgentStatus.DRAWING)
-
         # Wait for client animation to complete
         # Calculate based on client frame rate, with buffer for network latency
         # Cap to prevent very long waits that block agent responsiveness
@@ -113,12 +107,6 @@ class AgentOrchestrator:
         animation_time_s = min(animation_time_ms / 1000, settings.max_animation_wait_s)
         logger.info(f">>> Waiting {animation_time_s:.2f}s for {total_points} points to animate")
         await asyncio.sleep(animation_time_s)
-
-    async def broadcast_status(self, status: AgentStatus) -> None:
-        """Broadcast a status update to all clients."""
-        if self.file_logger:
-            await self.file_logger.log_status_change(status.value)
-        await self.broadcaster.broadcast(StatusMessage(status=status))
 
     def create_callbacks(self) -> AgentCallbacks:
         """Create callbacks for agent events."""
@@ -149,7 +137,6 @@ class AgentOrchestrator:
         logger.info(f"Tool call started: {tool_info.name} (iteration {tool_info.iteration})")
         if self.file_logger:
             await self.file_logger.log_code_start(tool_info.iteration)
-        await self.broadcast_status(AgentStatus.EXECUTING)
         await self.broadcaster.broadcast(
             CodeExecutionMessage(
                 status="started",
@@ -188,7 +175,6 @@ class AgentOrchestrator:
         logger.error(f"Agent error: {message}")
         if self.file_logger:
             await self.file_logger.log_error(message, details)
-        await self.broadcast_status(AgentStatus.ERROR)
         await self.broadcaster.broadcast(ErrorMessage(message=message, details=details))
 
     async def run_turn(self) -> bool:
@@ -210,9 +196,6 @@ class AgentOrchestrator:
             if self.agent.pending_nudges:
                 await self.file_logger.log_nudge(self.agent.pending_nudges.copy())
 
-        # Broadcast THINKING status at start of turn
-        await self.broadcast_status(AgentStatus.THINKING)
-
         done = False
         thinking_text = ""
 
@@ -222,9 +205,6 @@ class AgentOrchestrator:
                 done = event.done
                 thinking_text = event.thinking or ""
                 logger.info(f"Turn complete. Piece done: {done}")
-                # Send complete thinking text as a final message
-                if event.thinking:
-                    await self.broadcaster.broadcast(ThinkingMessage(text=event.thinking))
 
         # Log turn end with thinking
         if self.file_logger:
@@ -235,33 +215,23 @@ class AgentOrchestrator:
                 thinking_chars=len(thinking_text),
             )
 
-        # Always broadcast IDLE after turn completes
-        await self.broadcast_status(AgentStatus.IDLE)
-
         if done:
             state = self.agent.get_state()
             piece_num = state.piece_count
             logger.info(f"Piece {piece_num} complete")
 
-            # Broadcast piece complete
-            await self.broadcaster.broadcast(PieceCompleteMessage(piece_number=piece_num))
+            # Broadcast piece state with completed=True
+            await self.broadcaster.broadcast(PieceStateMessage(number=piece_num, completed=True))
 
             # Save to gallery (keep canvas visible)
             saved_id = await state.save_to_gallery()
             logger.info(f"Saved piece {piece_num} as {saved_id}")
 
             # Send gallery update
-            gallery_pieces = await state.list_gallery()
-            gallery_data = [
-                {
-                    "id": p.id,
-                    "created_at": p.created_at,
-                    "piece_number": p.piece_number,
-                    "stroke_count": p.num_strokes,
-                }
-                for p in gallery_pieces
-            ]
-            await self.broadcaster.broadcast({"type": "gallery_update", "canvases": gallery_data})
+            gallery_entries = await state.list_gallery()
+            await self.broadcaster.broadcast(
+                {"type": "gallery_update", "canvases": [e.model_dump() for e in gallery_entries]}
+            )
 
             # Mark piece as completed - orchestrator won't auto-start new turns
             self._piece_completed = True
@@ -317,4 +287,3 @@ class AgentOrchestrator:
                 if self.file_logger:
                     await self.file_logger.log_error(f"Agent loop error: {e}")
                 await self.broadcaster.broadcast(ErrorMessage(message=str(e)))
-                await self.broadcast_status(AgentStatus.IDLE)

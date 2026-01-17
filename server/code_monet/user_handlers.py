@@ -17,8 +17,9 @@ from code_monet.types import (
     NewCanvasMessage,
     Path,
     PathType,
+    PausedMessage,
+    PieceStateMessage,
     Point,
-    StatusMessage,
     StyleChangeMessage,
     get_style_config,
 )
@@ -104,28 +105,19 @@ async def handle_new_canvas(
     await workspace.connections.broadcast(NewCanvasMessage(saved_id=saved_id))
 
     # Send updated gallery
-    gallery_pieces = await workspace.state.list_gallery()
-    gallery_data = [
-        {
-            "id": p.id,
-            "created_at": p.created_at,
-            "piece_number": p.piece_number,
-            "stroke_count": len(p.strokes),
-        }
-        for p in gallery_pieces
-    ]
-    # Send as raw dict - app expects stroke_count metadata, not full strokes
-    await workspace.connections.broadcast({"type": "gallery_update", "canvases": gallery_data})
+    gallery_entries = await workspace.state.list_gallery()
     await workspace.connections.broadcast(
-        {"type": "piece_count", "count": workspace.state.piece_count}
+        {"type": "gallery_update", "canvases": [e.model_dump() for e in gallery_entries]}
+    )
+    await workspace.connections.broadcast(
+        PieceStateMessage(number=workspace.state.piece_count, completed=False)
     )
 
     # Auto-start the agent on new canvas
     await workspace.agent.resume()
     workspace.state.status = AgentStatus.IDLE
     await workspace.state.save()
-    await workspace.connections.broadcast(StatusMessage(status=AgentStatus.IDLE))
-    await workspace.connections.broadcast({"type": "paused", "paused": False})
+    await workspace.connections.broadcast(PausedMessage(paused=False))
     # Clear piece_completed flag and wake the orchestrator
     if workspace.orchestrator:
         workspace.orchestrator.clear_piece_completed()
@@ -176,7 +168,7 @@ async def handle_pause(workspace: ActiveWorkspace) -> None:
     await workspace.agent.pause()
     workspace.state.status = AgentStatus.PAUSED
     await workspace.state.save()
-    await workspace.connections.broadcast(StatusMessage(status=AgentStatus.PAUSED))
+    await workspace.connections.broadcast(PausedMessage(paused=True))
     logger.info(f"User {workspace.user_id}: agent paused")
 
 
@@ -191,8 +183,7 @@ async def handle_resume(workspace: ActiveWorkspace, message: dict[str, Any] | No
     await workspace.agent.resume()
     workspace.state.status = AgentStatus.IDLE
     await workspace.state.save()
-    await workspace.connections.broadcast(StatusMessage(status=AgentStatus.IDLE))
-    await workspace.connections.broadcast({"type": "paused", "paused": False})
+    await workspace.connections.broadcast(PausedMessage(paused=False))
     # Wake the orchestrator immediately to start working
     if workspace.orchestrator:
         workspace.orchestrator.wake()

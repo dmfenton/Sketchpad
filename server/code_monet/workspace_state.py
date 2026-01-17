@@ -17,6 +17,7 @@ from code_monet.types import (
     AgentStatus,
     CanvasState,
     DrawingStyleType,
+    GalleryEntry,
     Path,
     PendingStrokeDict,
     SavedCanvas,
@@ -473,11 +474,11 @@ class WorkspaceState:
 
     # --- Gallery Operations ---
 
-    async def list_gallery(self) -> list[SavedCanvas]:
+    async def list_gallery(self) -> list[GalleryEntry]:
         """List gallery pieces for this workspace.
 
         Uses gallery index for O(1) lookup instead of scanning all files.
-        The index is lazily loaded and cached in memory.
+        Returns metadata only - use load_from_gallery for full stroke data.
         """
         # Load index if not cached
         if self._gallery_index is None:
@@ -486,8 +487,7 @@ class WorkspaceState:
         if not self._gallery_index:
             return []
 
-        # Convert index entries to SavedCanvas (without loading full stroke data)
-        # Note: strokes are empty here - load_from_gallery should be used for full data
+        # Convert index entries to GalleryEntry (metadata only)
         result = []
         for entry in self._gallery_index:
             # Parse drawing_style with fallback
@@ -498,12 +498,11 @@ class WorkspaceState:
                 drawing_style = DrawingStyleType.PLOTTER
 
             result.append(
-                SavedCanvas(
+                GalleryEntry(
                     id=entry["id"],
-                    strokes=[],  # Don't load strokes for listing
                     created_at=entry.get("created_at", ""),
                     piece_number=entry["piece_number"],
-                    stroke_count=entry.get("stroke_count", 0),  # Use cached count from index
+                    stroke_count=entry.get("stroke_count", 0),
                     drawing_style=drawing_style,
                 )
             )

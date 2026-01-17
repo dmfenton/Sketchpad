@@ -212,18 +212,6 @@ class CanvasState(BaseModel):
     drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER  # Active style
 
 
-class ExecutionState(BaseModel):
-    """Drawing execution state."""
-
-    active: bool = False
-    paths: list[Path] = []
-    path_index: int = 0
-    point_index: int = 0
-    pen_x: float = 0
-    pen_y: float = 0
-    pen_down: bool = False
-
-
 class AgentState(BaseModel):
     """Agent state."""
 
@@ -233,22 +221,39 @@ class AgentState(BaseModel):
     piece_count: int = 0
 
 
-class SavedCanvas(BaseModel):
-    """A saved canvas in the gallery."""
+class GalleryEntry(BaseModel):
+    """Gallery entry for listings (metadata only, no strokes)."""
 
     id: str
-    strokes: list[Path] = []  # May be empty if loaded from index
     created_at: str  # ISO timestamp
     piece_number: int
-    stroke_count: int | None = None  # Cached count, avoids loading all strokes
-    drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER  # Style used for this piece
+    stroke_count: int
+    drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
+
+
+class SavedCanvas(BaseModel):
+    """Full saved canvas with strokes (for loading)."""
+
+    id: str
+    strokes: list[Path]
+    created_at: str  # ISO timestamp
+    piece_number: int
+    drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
 
     @property
     def num_strokes(self) -> int:
-        """Get stroke count (uses cached value if available)."""
-        if self.stroke_count is not None:
-            return self.stroke_count
+        """Get stroke count."""
         return len(self.strokes)
+
+    def to_gallery_entry(self) -> GalleryEntry:
+        """Convert to gallery entry (metadata only)."""
+        return GalleryEntry(
+            id=self.id,
+            created_at=self.created_at,
+            piece_number=self.piece_number,
+            stroke_count=self.num_strokes,
+            drawing_style=self.drawing_style,
+        )
 
 
 class GalleryState(BaseModel):
@@ -261,21 +266,11 @@ class AppState(BaseModel):
     """Full application state."""
 
     canvas: CanvasState = CanvasState()
-    execution: ExecutionState = ExecutionState()
     agent: AgentState = AgentState()
     gallery: GalleryState = GalleryState()
 
 
 # WebSocket message types
-
-
-class PenMessage(BaseModel):
-    """Pen position update."""
-
-    type: Literal["pen"] = "pen"
-    x: float
-    y: float
-    down: bool
 
 
 class StrokeCompleteMessage(BaseModel):
@@ -285,18 +280,11 @@ class StrokeCompleteMessage(BaseModel):
     path: Path
 
 
-class ThinkingMessage(BaseModel):
-    """Agent thinking stream."""
+class PausedMessage(BaseModel):
+    """Pause state change notification."""
 
-    type: Literal["thinking"] = "thinking"
-    text: str
-
-
-class StatusMessage(BaseModel):
-    """Agent status change."""
-
-    type: Literal["status"] = "status"
-    status: AgentStatus
+    type: Literal["paused"] = "paused"
+    paused: bool
 
 
 class ClearMessage(BaseModel):
@@ -316,7 +304,7 @@ class GalleryUpdateMessage(BaseModel):
     """Gallery was updated."""
 
     type: Literal["gallery_update"] = "gallery_update"
-    canvases: list[SavedCanvas]
+    canvases: list[GalleryEntry]
 
 
 class LoadCanvasMessage(BaseModel):
@@ -358,18 +346,12 @@ class ErrorMessage(BaseModel):
     details: str | None = None
 
 
-class PieceCompleteMessage(BaseModel):
-    """A piece has been completed."""
+class PieceStateMessage(BaseModel):
+    """Piece state update (count and completion status)."""
 
-    type: Literal["piece_complete"] = "piece_complete"
-    piece_number: int
-
-
-class PieceCountMessage(BaseModel):
-    """Current piece count update."""
-
-    type: Literal["piece_count"] = "piece_count"
-    count: int
+    type: Literal["piece_state"] = "piece_state"
+    number: int
+    completed: bool  # True if piece just finished
 
 
 class IterationMessage(BaseModel):
@@ -432,18 +414,16 @@ class ClientNewCanvasMessage(BaseModel):
 
 
 ServerMessage = (
-    PenMessage
-    | StrokeCompleteMessage
-    | ThinkingMessage
+    StrokeCompleteMessage
     | ThinkingDeltaMessage
-    | StatusMessage
+    | PausedMessage
     | ClearMessage
     | NewCanvasMessage
     | GalleryUpdateMessage
     | LoadCanvasMessage
     | CodeExecutionMessage
     | ErrorMessage
-    | PieceCompleteMessage
+    | PieceStateMessage
     | IterationMessage
     | StrokesReadyMessage
     | StyleChangeMessage

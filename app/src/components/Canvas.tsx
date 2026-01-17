@@ -176,9 +176,7 @@ export function Canvas({
             {/* Idle animation - floating particles when canvas is empty */}
             <IdleParticles
               visible={
-                strokes.length === 0 &&
-                currentStroke.length === 0 &&
-                agentStroke.length === 0
+                strokes.length === 0 && currentStroke.length === 0 && agentStroke.length === 0
               }
             />
 

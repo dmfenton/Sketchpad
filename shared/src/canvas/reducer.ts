@@ -7,9 +7,9 @@ import type {
   AgentStatus,
   DrawingStyleConfig,
   DrawingStyleType,
+  GalleryEntry,
   Path,
   Point,
-  SavedCanvas,
 } from '../types';
 import { PLOTTER_STYLE, getStyleConfig } from '../types';
 import { boundedPush } from '../utils';
@@ -36,12 +36,11 @@ export interface CanvasHookState {
   pieceCount: number;
   viewingPiece: number | null; // Which gallery piece is being viewed (null = current)
   drawingEnabled: boolean;
-  gallery: SavedCanvas[];
+  gallery: GalleryEntry[];
   paused: boolean;
   currentIteration: number;
   maxIterations: number;
   pendingStrokes: PendingStrokesInfo | null; // Strokes ready to be fetched
-  serverStatus: string | null; // Status reported by server (fallback for derivation)
   drawingStyle: DrawingStyleType; // Current drawing style
   styleConfig: DrawingStyleConfig; // Full style configuration
 }
@@ -54,12 +53,24 @@ export interface CanvasHookState {
  * Add new event types here as needed.
  */
 export function hasInProgressEvents(messages: AgentMessage[]): boolean {
+  // Build a set of completed tool executions (by tool_name + iteration)
+  const completedTools = new Set<string>();
+  for (const m of messages) {
+    if (m.type === 'code_execution' && m.metadata?.return_code !== undefined) {
+      const key = `${m.metadata.tool_name ?? 'unknown'}_${m.iteration ?? 0}`;
+      completedTools.add(key);
+    }
+  }
+
   return messages.some((m) => {
     // Live thinking = still streaming, not yet finalized
     if (m.id === LIVE_MESSAGE_ID) return true;
 
-    // Code execution without return_code = still running
+    // Code execution without return_code = check if completed message exists
     if (m.type === 'code_execution' && m.metadata?.return_code === undefined) {
+      const key = `${m.metadata?.tool_name ?? 'unknown'}_${m.iteration ?? 0}`;
+      // If we have a completed message for this tool+iteration, it's not in-progress
+      if (completedTools.has(key)) return false;
       return true;
     }
 
@@ -71,8 +82,7 @@ export function hasInProgressEvents(messages: AgentMessage[]): boolean {
 
 /**
  * Derive agent status from messages and state.
- * Status is computed from messages, with serverStatus as a fallback
- * for states where messages haven't arrived yet.
+ * Status is computed entirely from messages and state - no server-side status.
  */
 export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
   // Paused overrides everything
@@ -91,9 +101,6 @@ export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
 
   // Pending strokes = drawing phase (only when no in-progress events)
   if (state.pendingStrokes !== null) return 'drawing';
-
-  // Fallback to server-reported status (for 'thinking' before thinking_delta arrives)
-  if (state.serverStatus === 'thinking') return 'thinking';
 
   return 'idle';
 }
@@ -114,7 +121,7 @@ export type CanvasAction =
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'TOGGLE_DRAWING' }
   | { type: 'SET_PIECE_COUNT'; count: number }
-  | { type: 'SET_GALLERY'; canvases: SavedCanvas[] }
+  | { type: 'SET_GALLERY'; canvases: GalleryEntry[] }
   | {
       type: 'LOAD_CANVAS';
       strokes: Path[];
@@ -125,7 +132,7 @@ export type CanvasAction =
   | {
       type: 'INIT';
       strokes: Path[];
-      gallery: SavedCanvas[];
+      gallery: GalleryEntry[];
       pieceCount: number;
       paused: boolean;
       drawingStyle?: DrawingStyleType;
@@ -136,7 +143,6 @@ export type CanvasAction =
   | { type: 'RESET_TURN' }
   | { type: 'STROKES_READY'; count: number; batchId: number }
   | { type: 'CLEAR_PENDING_STROKES' }
-  | { type: 'SET_SERVER_STATUS'; status: string | null }
   | { type: 'SET_STYLE'; drawingStyle: DrawingStyleType; styleConfig: DrawingStyleConfig };
 
 export const initialState: CanvasHookState = {
@@ -155,7 +161,6 @@ export const initialState: CanvasHookState = {
   currentIteration: 0,
   maxIterations: 5,
   pendingStrokes: null,
-  serverStatus: null,
   drawingStyle: 'plotter',
   styleConfig: PLOTTER_STYLE,
 };
@@ -325,9 +330,6 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
 
     case 'CLEAR_PENDING_STROKES':
       return { ...state, pendingStrokes: null };
-
-    case 'SET_SERVER_STATUS':
-      return { ...state, serverStatus: action.status };
 
     default:
       return state;
