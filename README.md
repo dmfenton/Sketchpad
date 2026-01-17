@@ -25,7 +25,7 @@ The agent generates **path commands** (SVG paths, cubic beziers, polylines) rath
 
 ### Real-Time Collaborative Canvas
 
-**WebSocket architecture** designed for 60fps rendering:
+**WebSocket architecture** for real-time rendering:
 
 - Event-driven orchestration with `asyncio.Event` (no polling)
 - Per-user isolated workspaces with thread-safe multi-user support
@@ -56,7 +56,7 @@ The agent generates **path commands** (SVG paths, cubic beziers, polylines) rath
 - Tag-based releases via GitHub Actions
 - Docker builds with multi-stage optimization
 - Watchtower auto-deployment (30-second rollouts)
-- Canary verification before marking releases complete
+- Deployment verification before marking releases complete
 
 ### Mobile Deployment
 
@@ -81,7 +81,7 @@ The agent generates **path commands** (SVG paths, cubic beziers, polylines) rath
 - **Python**: Strict mypy, ruff formatting, async/await throughout, Pydantic validation
 - **TypeScript**: Strict mode, no `any` types, discriminated unions over runtime checks
 - **Shared library**: Platform-agnostic code shared between React Native and web
-- **Testing**: pytest + Jest with 95%+ coverage targets
+- **Testing**: pytest + Jest with coverage reporting
 
 ---
 
