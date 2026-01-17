@@ -280,13 +280,6 @@ class StrokeCompleteMessage(BaseModel):
     path: Path
 
 
-class ThinkingMessage(BaseModel):
-    """Agent thinking stream."""
-
-    type: Literal["thinking"] = "thinking"
-    text: str
-
-
 class AgentStateMessage(BaseModel):
     """Agent status and pause state combined."""
 
@@ -423,7 +416,6 @@ class ClientNewCanvasMessage(BaseModel):
 
 ServerMessage = (
     StrokeCompleteMessage
-    | ThinkingMessage
     | ThinkingDeltaMessage
     | AgentStateMessage
     | ClearMessage

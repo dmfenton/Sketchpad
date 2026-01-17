@@ -184,11 +184,6 @@ export interface StrokeCompleteMessage {
   path: Path;
 }
 
-export interface ThinkingMessage {
-  type: 'thinking';
-  text: string;
-}
-
 export interface AgentStateMessage {
   type: 'agent_state';
   status: AgentStatus;
@@ -312,7 +307,6 @@ export interface PendingStroke {
 
 export type ServerMessage =
   | StrokeCompleteMessage
-  | ThinkingMessage
   | ThinkingDeltaMessage
   | AgentStateMessage
   | ClearMessage

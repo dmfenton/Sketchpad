@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Consolidated WebSocket message types from 18 to 14 for cleaner architecture:
+- Consolidated WebSocket message types from 18 to 13 for cleaner architecture:
   - Merged `status` + `paused` → `agent_state` (single message for agent state)
   - Merged `piece_count` + `piece_complete` → `piece_state` (single message with completed flag)
   - Separated `GalleryEntry` (metadata only) from `SavedCanvas` (includes strokes)
+  - Removed redundant `thinking` message (content already streamed via `thinking_delta`)
 - Removed unused code: `executor.py`, `PenMessage`, `ExecutionState`
 
 ## [1.20.0] - 2026-01-16

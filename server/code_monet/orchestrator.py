@@ -20,7 +20,6 @@ from code_monet.types import (
     PieceStateMessage,
     StrokesReadyMessage,
     ThinkingDeltaMessage,
-    ThinkingMessage,
 )
 
 if TYPE_CHECKING:
@@ -222,9 +221,6 @@ class AgentOrchestrator:
                 done = event.done
                 thinking_text = event.thinking or ""
                 logger.info(f"Turn complete. Piece done: {done}")
-                # Send complete thinking text as a final message
-                if event.thinking:
-                    await self.broadcaster.broadcast(ThinkingMessage(text=event.thinking))
 
         # Log turn end with thinking
         if self.file_logger:
