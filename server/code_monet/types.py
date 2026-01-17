@@ -368,6 +368,7 @@ class StrokesReadyMessage(BaseModel):
     type: Literal["strokes_ready"] = "strokes_ready"
     count: int  # Number of strokes ready
     batch_id: int  # For ordering/deduplication
+    piece_id: int  # Canvas/piece ID to prevent cross-canvas rendering
 
 
 class StyleChangeMessage(BaseModel):

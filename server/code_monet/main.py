@@ -744,6 +744,7 @@ async def websocket_endpoint(
                     "type": "strokes_ready",
                     "count": workspace.state.pending_stroke_count,
                     "batch_id": workspace.state.stroke_batch_id,
+                    "piece_id": workspace.state.piece_count,
                 },
             )
             logger.info(

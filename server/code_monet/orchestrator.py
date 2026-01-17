@@ -95,8 +95,10 @@ class AgentOrchestrator:
         # Interpolate paths and queue for client fetch
         batch_id, total_points = await state.queue_strokes(paths)
 
-        # Notify clients that strokes are ready
-        await self.broadcaster.broadcast(StrokesReadyMessage(count=len(paths), batch_id=batch_id))
+        # Notify clients that strokes are ready (include piece_id to prevent cross-canvas rendering)
+        await self.broadcaster.broadcast(
+            StrokesReadyMessage(count=len(paths), batch_id=batch_id, piece_id=state.piece_count)
+        )
 
         # Wait for client animation to complete
         # Calculate based on client frame rate, with buffer for network latency

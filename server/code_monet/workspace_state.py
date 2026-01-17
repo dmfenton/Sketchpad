@@ -400,6 +400,11 @@ class WorkspaceState:
             self._monologue = ""  # Clear thinking for new piece
             self._notes = ""  # Clear notes for new piece
 
+        # Clear pending strokes from previous canvas to prevent them
+        # from being rendered on the new canvas
+        async with self._stroke_lock:
+            self._pending_strokes.clear()
+
         await self.save()
         return saved_id
 
