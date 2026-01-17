@@ -488,7 +488,7 @@ class DrawingAgent:
         }
         # Scope filesystem tools to user's workspace
         if workspace_dir:
-            options["working_directory"] = workspace_dir
+            options["cwd"] = workspace_dir
         return ClaudeAgentOptions(**options)
 
     def get_style_config(self) -> DrawingStyleConfig:
