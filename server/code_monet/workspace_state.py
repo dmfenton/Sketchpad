@@ -78,6 +78,11 @@ class WorkspaceState:
     def is_loaded(self) -> bool:
         return self._loaded
 
+    @property
+    def workspace_dir(self) -> str:
+        """Return the user's workspace directory path as string."""
+        return str(self._user_dir)
+
     @classmethod
     async def load_for_user(cls, user_id: int) -> WorkspaceState:
         """Load or create workspace state for a user."""

@@ -5,6 +5,7 @@ import base64
 import json
 import logging
 import tempfile
+import time
 from pathlib import Path as FilePath
 from typing import Any
 
@@ -717,17 +718,47 @@ async def handle_generate_image(args: dict[str, Any]) -> dict[str, Any]:
         # Generate image using Nano Banana (Flash model)
         logger.info(f"Generating image with prompt: {prompt[:100]}...")
 
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model="gemini-2.5-flash-preview-05-20",
-            contents=[prompt],
-        )
+        try:
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    client.models.generate_content,
+                    model="gemini-2.5-flash-preview-05-20",
+                    contents=[prompt],
+                ),
+                timeout=IMAGE_GEN_TIMEOUT,
+            )
+        except TimeoutError:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"Error: Image generation timed out after {IMAGE_GEN_TIMEOUT}s",
+                    }
+                ],
+                "is_error": True,
+            }
+
+        # Check for valid response
+        if not response.candidates or len(response.candidates) == 0:
+            return {
+                "content": [
+                    {"type": "text", "text": "Error: No response from image generation API"}
+                ],
+                "is_error": True,
+            }
+
+        candidate = response.candidates[0]
+        if not candidate.content or not candidate.content.parts:
+            return {
+                "content": [{"type": "text", "text": "Error: Empty response from API"}],
+                "is_error": True,
+            }
 
         # Process response
         image_data = None
         text_response = None
 
-        for part in response.candidates[0].content.parts:
+        for part in candidate.content.parts:
             if part.text is not None:
                 text_response = part.text
             elif part.inline_data is not None:
@@ -755,8 +786,6 @@ async def handle_generate_image(args: dict[str, Any]) -> dict[str, Any]:
             filename = f"{safe_name}.png"
         else:
             # Generate a unique name based on timestamp
-            import time
-
             filename = f"reference_{int(time.time())}.png"
 
         filepath = references_dir / filename
