@@ -26,7 +26,7 @@ from code_monet.registry import workspace_registry
 from code_monet.share import share_router
 from code_monet.shutdown import shutdown_manager
 from code_monet.tracing import get_current_trace_id, record_client_spans, setup_tracing
-from code_monet.types import AgentStateMessage, AgentStatus
+from code_monet.types import AgentStatus, PausedMessage
 from code_monet.user_handlers import handle_user_message
 from code_monet.workspace_state import WorkspaceState
 
@@ -565,7 +565,7 @@ async def reset_workspace_debug(user: CurrentUser) -> dict[str, Any]:
 
     # Broadcast updates to all connected clients
     await workspace.connections.broadcast({"type": "clear"})
-    await workspace.connections.broadcast(AgentStateMessage(status=AgentStatus.PAUSED, paused=True))
+    await workspace.connections.broadcast(PausedMessage(paused=True))
 
     return {"status": "reset", "piece_count": 0, "paused": True}
 

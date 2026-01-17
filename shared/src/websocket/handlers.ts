@@ -7,7 +7,6 @@
 
 import type {
   AgentMessage,
-  AgentStateMessage,
   ClearMessage,
   CodeExecutionMessage,
   ErrorMessage,
@@ -16,6 +15,7 @@ import type {
   IterationMessage,
   LoadCanvasMessage,
   NewCanvasMessage,
+  PausedMessage,
   PieceStateMessage,
   ServerMessage,
   StrokeCompleteMessage,
@@ -44,18 +44,8 @@ export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (messag
   dispatch({ type: 'APPEND_LIVE_MESSAGE', text: message.text });
 };
 
-export const handleAgentState: MessageHandler<AgentStateMessage> = (message, dispatch) => {
-  // Update paused state
+export const handlePaused: MessageHandler<PausedMessage> = (message, dispatch) => {
   dispatch({ type: 'SET_PAUSED', paused: message.paused });
-
-  // Store server status for fallback derivation (e.g., 'thinking' before thinking_delta arrives)
-  dispatch({ type: 'SET_SERVER_STATUS', status: message.status });
-
-  // Finalize any live message and reset turn state on turn boundaries
-  if (message.status === 'idle' || message.status === 'thinking') {
-    dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
-    dispatch({ type: 'RESET_TURN' });
-  }
 };
 
 export const handleIteration: MessageHandler<IterationMessage> = (message, dispatch) => {
@@ -171,8 +161,6 @@ export const handlePieceState: MessageHandler<PieceStateMessage> = (message, dis
   if (message.completed) {
     // Finalize any streaming thinking before showing piece complete
     dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
-    // Clear server status since turn is complete
-    dispatch({ type: 'SET_SERVER_STATUS', status: null });
     dispatch({
       type: 'ADD_MESSAGE',
       message: {
@@ -191,13 +179,11 @@ export const handlePieceState: MessageHandler<PieceStateMessage> = (message, dis
 export const handleClear: MessageHandler<ClearMessage> = (_message, dispatch) => {
   dispatch({ type: 'CLEAR' });
   dispatch({ type: 'CLEAR_MESSAGES' });
-  dispatch({ type: 'SET_SERVER_STATUS', status: null });
 };
 
 export const handleNewCanvas: MessageHandler<NewCanvasMessage> = (_message, dispatch) => {
   dispatch({ type: 'CLEAR' });
   dispatch({ type: 'CLEAR_MESSAGES' });
-  dispatch({ type: 'SET_SERVER_STATUS', status: null });
 };
 
 export const handleGalleryUpdate: MessageHandler<GalleryUpdateMessage> = (message, dispatch) => {
@@ -257,7 +243,7 @@ export const handleStrokesReady: MessageHandler<StrokesReadyMessage> = (message,
 const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessage>>> = {
   stroke_complete: handleStrokeComplete as MessageHandler<ServerMessage>,
   thinking_delta: handleThinkingDelta as MessageHandler<ServerMessage>,
-  agent_state: handleAgentState as MessageHandler<ServerMessage>,
+  paused: handlePaused as MessageHandler<ServerMessage>,
   iteration: handleIteration as MessageHandler<ServerMessage>,
   code_execution: handleCodeExecution as MessageHandler<ServerMessage>,
   error: handleError as MessageHandler<ServerMessage>,

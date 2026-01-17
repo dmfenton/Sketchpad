@@ -10,7 +10,6 @@ from code_monet.config import settings
 from code_monet.rate_limiter import RateLimiter, RateLimiterConfig
 from code_monet.registry import ActiveWorkspace
 from code_monet.types import (
-    AgentStateMessage,
     AgentStatus,
     ClearMessage,
     DrawingStyleType,
@@ -18,6 +17,7 @@ from code_monet.types import (
     NewCanvasMessage,
     Path,
     PathType,
+    PausedMessage,
     PieceStateMessage,
     Point,
     StyleChangeMessage,
@@ -117,7 +117,7 @@ async def handle_new_canvas(
     await workspace.agent.resume()
     workspace.state.status = AgentStatus.IDLE
     await workspace.state.save()
-    await workspace.connections.broadcast(AgentStateMessage(status=AgentStatus.IDLE, paused=False))
+    await workspace.connections.broadcast(PausedMessage(paused=False))
     # Clear piece_completed flag and wake the orchestrator
     if workspace.orchestrator:
         workspace.orchestrator.clear_piece_completed()
@@ -168,7 +168,7 @@ async def handle_pause(workspace: ActiveWorkspace) -> None:
     await workspace.agent.pause()
     workspace.state.status = AgentStatus.PAUSED
     await workspace.state.save()
-    await workspace.connections.broadcast(AgentStateMessage(status=AgentStatus.PAUSED, paused=True))
+    await workspace.connections.broadcast(PausedMessage(paused=True))
     logger.info(f"User {workspace.user_id}: agent paused")
 
 
@@ -183,7 +183,7 @@ async def handle_resume(workspace: ActiveWorkspace, message: dict[str, Any] | No
     await workspace.agent.resume()
     workspace.state.status = AgentStatus.IDLE
     await workspace.state.save()
-    await workspace.connections.broadcast(AgentStateMessage(status=AgentStatus.IDLE, paused=False))
+    await workspace.connections.broadcast(PausedMessage(paused=False))
     # Wake the orchestrator immediately to start working
     if workspace.orchestrator:
         workspace.orchestrator.wake()

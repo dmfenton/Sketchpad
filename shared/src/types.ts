@@ -184,9 +184,8 @@ export interface StrokeCompleteMessage {
   path: Path;
 }
 
-export interface AgentStateMessage {
-  type: 'agent_state';
-  status: AgentStatus;
+export interface PausedMessage {
+  type: 'paused';
   paused: boolean;
 }
 
@@ -308,7 +307,7 @@ export interface PendingStroke {
 export type ServerMessage =
   | StrokeCompleteMessage
   | ThinkingDeltaMessage
-  | AgentStateMessage
+  | PausedMessage
   | ClearMessage
   | NewCanvasMessage
   | GalleryUpdateMessage

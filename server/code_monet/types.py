@@ -280,11 +280,10 @@ class StrokeCompleteMessage(BaseModel):
     path: Path
 
 
-class AgentStateMessage(BaseModel):
-    """Agent status and pause state combined."""
+class PausedMessage(BaseModel):
+    """Pause state change notification."""
 
-    type: Literal["agent_state"] = "agent_state"
-    status: AgentStatus
+    type: Literal["paused"] = "paused"
     paused: bool
 
 
@@ -417,7 +416,7 @@ class ClientNewCanvasMessage(BaseModel):
 ServerMessage = (
     StrokeCompleteMessage
     | ThinkingDeltaMessage
-    | AgentStateMessage
+    | PausedMessage
     | ClearMessage
     | NewCanvasMessage
     | GalleryUpdateMessage

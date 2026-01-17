@@ -10,8 +10,6 @@ from code_monet.agent import AgentCallbacks, CodeExecutionResult, ToolCallInfo
 from code_monet.agent_logger import AgentFileLogger
 from code_monet.config import settings
 from code_monet.types import (
-    AgentStateMessage,
-    AgentStatus,
     AgentTurnComplete,
     CodeExecutionMessage,
     ErrorMessage,
@@ -100,9 +98,6 @@ class AgentOrchestrator:
         # Notify clients that strokes are ready
         await self.broadcaster.broadcast(StrokesReadyMessage(count=len(paths), batch_id=batch_id))
 
-        # Set status to drawing
-        await self.broadcast_status(AgentStatus.DRAWING)
-
         # Wait for client animation to complete
         # Calculate based on client frame rate, with buffer for network latency
         # Cap to prevent very long waits that block agent responsiveness
@@ -112,12 +107,6 @@ class AgentOrchestrator:
         animation_time_s = min(animation_time_ms / 1000, settings.max_animation_wait_s)
         logger.info(f">>> Waiting {animation_time_s:.2f}s for {total_points} points to animate")
         await asyncio.sleep(animation_time_s)
-
-    async def broadcast_status(self, status: AgentStatus, paused: bool = False) -> None:
-        """Broadcast a status update to all clients."""
-        if self.file_logger:
-            await self.file_logger.log_status_change(status.value)
-        await self.broadcaster.broadcast(AgentStateMessage(status=status, paused=paused))
 
     def create_callbacks(self) -> AgentCallbacks:
         """Create callbacks for agent events."""
@@ -148,7 +137,6 @@ class AgentOrchestrator:
         logger.info(f"Tool call started: {tool_info.name} (iteration {tool_info.iteration})")
         if self.file_logger:
             await self.file_logger.log_code_start(tool_info.iteration)
-        await self.broadcast_status(AgentStatus.EXECUTING)
         await self.broadcaster.broadcast(
             CodeExecutionMessage(
                 status="started",
@@ -187,7 +175,6 @@ class AgentOrchestrator:
         logger.error(f"Agent error: {message}")
         if self.file_logger:
             await self.file_logger.log_error(message, details)
-        await self.broadcast_status(AgentStatus.ERROR)
         await self.broadcaster.broadcast(ErrorMessage(message=message, details=details))
 
     async def run_turn(self) -> bool:
@@ -209,9 +196,6 @@ class AgentOrchestrator:
             if self.agent.pending_nudges:
                 await self.file_logger.log_nudge(self.agent.pending_nudges.copy())
 
-        # Broadcast THINKING status at start of turn
-        await self.broadcast_status(AgentStatus.THINKING)
-
         done = False
         thinking_text = ""
 
@@ -230,9 +214,6 @@ class AgentOrchestrator:
                 piece_done=done,
                 thinking_chars=len(thinking_text),
             )
-
-        # Always broadcast IDLE after turn completes
-        await self.broadcast_status(AgentStatus.IDLE)
 
         if done:
             state = self.agent.get_state()
@@ -306,4 +287,3 @@ class AgentOrchestrator:
                 if self.file_logger:
                     await self.file_logger.log_error(f"Agent loop error: {e}")
                 await self.broadcaster.broadcast(ErrorMessage(message=str(e)))
-                await self.broadcast_status(AgentStatus.IDLE)

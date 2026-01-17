@@ -3,7 +3,6 @@
  */
 
 export {
-  handleAgentState,
   handleClear,
   handleCodeExecution,
   handleError,
@@ -12,6 +11,7 @@ export {
   handleIteration,
   handleLoadCanvas,
   handleNewCanvas,
+  handlePaused,
   handlePieceState,
   handleStrokeComplete,
   handleStrokesReady,

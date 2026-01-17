@@ -210,14 +210,6 @@ describe('deriveAgentStatus', () => {
     expect(deriveAgentStatus(state)).toBe('executing');
   });
 
-  it('returns thinking when serverStatus is thinking and no other state', () => {
-    const state: CanvasHookState = {
-      ...baseState,
-      serverStatus: 'thinking',
-    };
-    expect(deriveAgentStatus(state)).toBe('thinking');
-  });
-
   it('returns idle when no active state', () => {
     expect(deriveAgentStatus(baseState)).toBe('idle');
   });

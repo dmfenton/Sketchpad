@@ -41,7 +41,6 @@ export interface CanvasHookState {
   currentIteration: number;
   maxIterations: number;
   pendingStrokes: PendingStrokesInfo | null; // Strokes ready to be fetched
-  serverStatus: string | null; // Status reported by server (fallback for derivation)
   drawingStyle: DrawingStyleType; // Current drawing style
   styleConfig: DrawingStyleConfig; // Full style configuration
 }
@@ -83,8 +82,7 @@ export function hasInProgressEvents(messages: AgentMessage[]): boolean {
 
 /**
  * Derive agent status from messages and state.
- * Status is computed from messages, with serverStatus as a fallback
- * for states where messages haven't arrived yet.
+ * Status is computed entirely from messages and state - no server-side status.
  */
 export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
   // Paused overrides everything
@@ -103,9 +101,6 @@ export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
 
   // Pending strokes = drawing phase (only when no in-progress events)
   if (state.pendingStrokes !== null) return 'drawing';
-
-  // Fallback to server-reported status (for 'thinking' before thinking_delta arrives)
-  if (state.serverStatus === 'thinking') return 'thinking';
 
   return 'idle';
 }
@@ -148,7 +143,6 @@ export type CanvasAction =
   | { type: 'RESET_TURN' }
   | { type: 'STROKES_READY'; count: number; batchId: number }
   | { type: 'CLEAR_PENDING_STROKES' }
-  | { type: 'SET_SERVER_STATUS'; status: string | null }
   | { type: 'SET_STYLE'; drawingStyle: DrawingStyleType; styleConfig: DrawingStyleConfig };
 
 export const initialState: CanvasHookState = {
@@ -167,7 +161,6 @@ export const initialState: CanvasHookState = {
   currentIteration: 0,
   maxIterations: 5,
   pendingStrokes: null,
-  serverStatus: null,
   drawingStyle: 'plotter',
   styleConfig: PLOTTER_STYLE,
 };
@@ -337,9 +330,6 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
 
     case 'CLEAR_PENDING_STROKES':
       return { ...state, pendingStrokes: null };
-
-    case 'SET_SERVER_STATUS':
-      return { ...state, serverStatus: action.status };
 
     default:
       return state;
