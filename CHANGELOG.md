@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Cross-canvas rendering bug where strokes from previous canvas could render on new canvas
+- Added `piece_id` to `strokes_ready` messages and `/strokes/pending` endpoint for canvas-scoped stroke fetching
+- Thinking text accumulation bug - thinking now clears when new iteration starts
+- Server now clears pending strokes when `new_canvas()` is called
+
+### Added
+
+- Comprehensive render flow tests covering status transitions, thinking lifecycle, and multi-turn scenarios
+- Render debug logging in `useStrokeAnimation` and `StrokeRenderer` for troubleshooting
+
 ## [1.21.2] - 2026-01-17
 
 ### Fixed

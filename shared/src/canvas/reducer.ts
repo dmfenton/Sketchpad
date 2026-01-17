@@ -24,6 +24,7 @@ export const LIVE_MESSAGE_ID = 'live_thinking';
 export interface PendingStrokesInfo {
   count: number;
   batchId: number;
+  pieceId: number;
 }
 
 export interface CanvasHookState {
@@ -152,7 +153,7 @@ export type CanvasAction =
   | { type: 'SET_PAUSED'; paused: boolean }
   | { type: 'SET_ITERATION'; current: number; max: number }
   | { type: 'RESET_TURN' }
-  | { type: 'STROKES_READY'; count: number; batchId: number }
+  | { type: 'STROKES_READY'; count: number; batchId: number; pieceId: number }
   | { type: 'CLEAR_PENDING_STROKES' }
   | { type: 'SET_STYLE'; drawingStyle: DrawingStyleType; styleConfig: DrawingStyleConfig };
 
@@ -368,9 +369,13 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
       return { ...state, thinking: '', currentIteration: 0 };
 
     case 'STROKES_READY':
+      // Ignore strokes for a different piece (prevents cross-canvas rendering)
+      if (action.pieceId !== state.pieceCount) {
+        return state;
+      }
       return {
         ...state,
-        pendingStrokes: { count: action.count, batchId: action.batchId },
+        pendingStrokes: { count: action.count, batchId: action.batchId, pieceId: action.pieceId },
       };
 
     case 'CLEAR_PENDING_STROKES':

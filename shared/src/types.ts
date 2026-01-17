@@ -292,6 +292,7 @@ export interface StrokesReadyMessage {
   type: 'strokes_ready';
   count: number;
   batch_id: number;
+  piece_id: number;
 }
 
 export interface StyleChangeMessage {

@@ -51,6 +51,8 @@ export const handlePaused: MessageHandler<PausedMessage> = (message, dispatch) =
 export const handleIteration: MessageHandler<IterationMessage> = (message, dispatch) => {
   // Finalize any streaming thinking before showing iteration
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
+  // Clear accumulated thinking text for the new iteration
+  dispatch({ type: 'SET_THINKING', text: '' });
   dispatch({
     type: 'SET_ITERATION',
     current: message.current,
@@ -236,7 +238,13 @@ export const handleStyleChange: MessageHandler<StyleChangeMessage> = (message, d
 export const handleStrokesReady: MessageHandler<StrokesReadyMessage> = (message, dispatch) => {
   // Signal that strokes are ready to be fetched from the REST API
   // The hook will watch for this state change and trigger the fetch
-  dispatch({ type: 'STROKES_READY', count: message.count, batchId: message.batch_id });
+  // piece_id is used to ignore strokes from a previous canvas
+  dispatch({
+    type: 'STROKES_READY',
+    count: message.count,
+    batchId: message.batch_id,
+    pieceId: message.piece_id,
+  });
 };
 
 // Handler registry

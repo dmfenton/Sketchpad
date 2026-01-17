@@ -220,20 +220,26 @@ Server                          Client
 ```
 Server                          Client
   │                               │
-  │ strokes_ready {count: 5}      │
+  │ strokes_ready {count, piece_id}│
   ├──────────────────────────────►│ STROKES_READY
-  │                               │ pendingStrokes = {count: 5}
+  │                               │ Validate piece_id matches current canvas
+  │                               │ pendingStrokes = {count, batchId, pieceId}
   │                               │
   │           GET /strokes/pending│
   │◄──────────────────────────────┤ Fetch pre-interpolated
   │                               │
-  │ {strokes: [...]}              │
+  │ {strokes, piece_id}           │
   ├──────────────────────────────►│ Animate at 60fps
   │                               │ ADD_STROKE per stroke
   │                               │
   │                               │ CLEAR_PENDING_STROKES
   │                               │ status = "idle" or "thinking"
 ```
+
+**Cross-canvas protection**: `piece_id` ensures strokes are only rendered on the
+canvas they belong to. When a new canvas starts, pending strokes are cleared on
+the server, and the client reducer ignores strokes_ready messages with mismatched
+piece_id.
 
 ## Design Decisions
 
