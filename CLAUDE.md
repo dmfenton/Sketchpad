@@ -242,6 +242,45 @@ See `docs/agent-tools.md` for full tool documentation.
 - All new features need tests
 - Run `make test` before committing
 
+## Integration & E2E Tests
+
+Multiple test types validate different layers of the system:
+
+```bash
+make test-e2e              # Run all integration tests (SDK + replay, no iOS simulator)
+```
+
+### SDK Integration Tests
+
+Tests that validate Claude Agent SDK compatibility with real API calls.
+
+```bash
+make test-e2e-sdk          # Run SDK integration tests (requires API key)
+```
+
+These tests catch SDK breaking changes (e.g., parameter renames) before production.
+
+### WebSocket Message Replay Tests
+
+Record-and-replay tests that validate app reducer handles real server messages correctly.
+
+```bash
+make test-record-fixture   # Record new fixtures (requires API key)
+make test-replay           # Replay fixtures through app reducer (fast, no API)
+```
+
+**Fixtures location:** `server/tests/fixtures/` (symlinked to `app/src/__tests__/fixtures/server/`)
+
+Re-record fixtures when:
+
+- Agent message format changes
+- New message types are added
+- Reducer logic changes
+
+### iOS Simulator Tests (Maestro)
+
+See next section for Maestro-based E2E tests that require iOS simulator.
+
 ## E2E Testing (Maestro)
 
 E2E tests use [Maestro](https://maestro.mobile.dev/) to test iOS simulator flows.
