@@ -108,6 +108,78 @@ jobs:
           echo "Syncing web build to s3://${BUCKET}/deploy/web/"
           aws s3 sync web/dist/ "s3://${BUCKET}/deploy/web/" --delete
 
+      - name: Run database migrations
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          echo "Running database migrations with new image..."
+
+          # Get EC2 instance ID
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=drawing-agent" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" \
+            --output text)
+
+          if [ "$INSTANCE_ID" = "None" ] || [ -z "$INSTANCE_ID" ]; then
+            echo "❌ Could not find running EC2 instance"
+            exit 1
+          fi
+
+          echo "Found instance: $INSTANCE_ID"
+
+          # Run migration in a one-off container
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[
+              \"echo 'Pulling new image...'\",
+              \"docker pull $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\",
+              \"echo 'Running migrations...'\",
+              \"docker run --rm -v /home/ec2-user/data:/app/data -e CODE_MONET_ENV=prod -e AWS_REGION=us-east-1 $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION uv run alembic upgrade head\",
+              \"echo 'Migrations complete'\"
+            ]" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM Command ID: $COMMAND_ID"
+
+          # Wait for command to complete
+          for i in {1..30}; do
+            sleep 5
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "Status" \
+              --output text 2>/dev/null || echo "Pending")
+
+            echo "Attempt $i/30: Migration status: $STATUS"
+
+            if [ "$STATUS" = "Success" ]; then
+              echo "✅ Migrations completed successfully"
+              # Show output
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$INSTANCE_ID" \
+                --query "StandardOutputContent" \
+                --output text
+              break
+            elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ] || [ "$STATUS" = "TimedOut" ]; then
+              echo "❌ Migration failed with status: $STATUS"
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$INSTANCE_ID" \
+                --query "StandardErrorContent" \
+                --output text
+              exit 1
+            fi
+          done
+
+          if [ "$STATUS" != "Success" ]; then
+            echo "❌ Migration timed out"
+            exit 1
+          fi
+
       - name: Extract changelog
         id: changelog
         run: |

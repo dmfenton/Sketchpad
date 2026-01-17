@@ -60,6 +60,23 @@ resource "aws_iam_user_policy" "github_actions_ecr" {
           "sts:GetCallerIdentity"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "DescribeEC2Instances"
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeInstances"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "RunMigrationsViaSSM"
+        Effect = "Allow"
+        Action = [
+          "ssm:SendCommand",
+          "ssm:GetCommandInvocation"
+        ]
+        Resource = "*"
       }
     ]
   })
