@@ -87,6 +87,16 @@ repos:
         files: ^shared/.*\.ts$
         pass_filenames: false
 
+  # Database - Check for missing migrations
+  - repo: local
+    hooks:
+      - id: check-migrations
+        name: check migrations
+        entry: ./scripts/check-migrations.sh
+        language: script
+        pass_filenames: false
+        always_run: true
+
   # General
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

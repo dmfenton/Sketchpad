@@ -42,6 +42,19 @@ jobs:
         working-directory: server
         run: uv run python -m pytest --cov=drawing_agent --cov-report=xml
 
+      - name: Check for missing migrations
+        working-directory: server
+        run: |
+          # Generate what alembic thinks the migration should be
+          uv run alembic check 2>&1 || {
+            echo "❌ Model changes detected without corresponding migration!"
+            echo ""
+            echo "Run: cd server && uv run alembic revision --autogenerate -m 'description'"
+            echo "Then review and commit the generated migration."
+            exit 1
+          }
+          echo "✅ Models and migrations are in sync"
+
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
