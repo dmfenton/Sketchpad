@@ -54,12 +54,24 @@ export interface CanvasHookState {
  * Add new event types here as needed.
  */
 export function hasInProgressEvents(messages: AgentMessage[]): boolean {
+  // Build a set of completed tool executions (by tool_name + iteration)
+  const completedTools = new Set<string>();
+  for (const m of messages) {
+    if (m.type === 'code_execution' && m.metadata?.return_code !== undefined) {
+      const key = `${m.metadata.tool_name ?? 'unknown'}_${m.iteration ?? 0}`;
+      completedTools.add(key);
+    }
+  }
+
   return messages.some((m) => {
     // Live thinking = still streaming, not yet finalized
     if (m.id === LIVE_MESSAGE_ID) return true;
 
-    // Code execution without return_code = still running
+    // Code execution without return_code = check if completed message exists
     if (m.type === 'code_execution' && m.metadata?.return_code === undefined) {
+      const key = `${m.metadata?.tool_name ?? 'unknown'}_${m.iteration ?? 0}`;
+      // If we have a completed message for this tool+iteration, it's not in-progress
+      if (completedTools.has(key)) return false;
       return true;
     }
 
