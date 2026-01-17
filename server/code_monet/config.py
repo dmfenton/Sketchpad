@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     # Required (from SSM or env)
     anthropic_api_key: str = _ssm("anthropic_api_key")
 
+    # Image generation (Nano Banana / Google Gemini)
+    google_api_key: str = _ssm("google_api_key")  # Optional - enables generate_image tool
+
     # Database
     database_url: str = _ssm("database_url", "sqlite+aiosqlite:///./data/code_monet.db")
     database_echo: bool = False
