@@ -1,4 +1,4 @@
-.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test lint format typecheck clean cli cli-turn cli-status build-shared e2e e2e-install
+.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test test-e2e-sdk lint format typecheck clean cli cli-turn cli-status build-shared e2e e2e-install
 
 # Install all dependencies
 install:
@@ -84,6 +84,10 @@ test-server:
 
 test-app:
 	cd app && npm run test
+
+# E2E SDK integration tests (API key from SSM or .env)
+test-e2e-sdk:
+	cd server && uv run pytest tests/test_e2e_sdk.py -v
 
 # Run tests with coverage
 coverage:
