@@ -5,7 +5,7 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Circle, Defs, Line, Pattern, Path as SvgPath, Rect } from 'react-native-svg';
+import Svg, { Circle, Path as SvgPath } from 'react-native-svg';
 
 import { screenToCanvas } from '../hooks/useCanvas';
 import type { DrawingStyleConfig, Path, Point } from '@code-monet/shared';
@@ -172,14 +172,6 @@ export function Canvas({
             viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
             preserveAspectRatio="xMidYMid meet"
           >
-            {/* Grid pattern */}
-            <Defs>
-              <Pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <Line x1="40" y1="0" x2="40" y2="40" stroke={colors.border} strokeWidth="0.5" />
-                <Line x1="0" y1="40" x2="40" y2="40" stroke={colors.border} strokeWidth="0.5" />
-              </Pattern>
-            </Defs>
-            <Rect width="100%" height="100%" fill="url(#grid)" />
 
             {/* Completed strokes - render with effective style */}
             {strokes.map((stroke, index) => {

@@ -188,14 +188,6 @@ export function Canvas({
         onMouseLeave={handleMouseLeave}
         style={{ cursor: drawingEnabled ? 'crosshair' : 'default' }}
       >
-        {/* Grid pattern */}
-        <defs>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <line x1="40" y1="0" x2="40" y2="40" stroke="#ddd" strokeWidth="0.5" />
-            <line x1="0" y1="40" x2="40" y2="40" stroke="#ddd" strokeWidth="0.5" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
 
         {/* Completed strokes - render with effective style */}
         {strokes.map((stroke, index) => {
