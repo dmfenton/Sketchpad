@@ -188,7 +188,6 @@ export function Canvas({
         onMouseLeave={handleMouseLeave}
         style={{ cursor: drawingEnabled ? 'crosshair' : 'default' }}
       >
-
         {/* Completed strokes - render with effective style */}
         {strokes.map((stroke, index) => {
           const effectiveStyle = getEffectiveStyle(stroke, styleConfig);

@@ -7,9 +7,9 @@ import type {
   AgentStatus,
   DrawingStyleConfig,
   DrawingStyleType,
+  GalleryEntry,
   Path,
   Point,
-  SavedCanvas,
 } from '../types';
 import { PLOTTER_STYLE, getStyleConfig } from '../types';
 import { boundedPush } from '../utils';
@@ -36,7 +36,7 @@ export interface CanvasHookState {
   pieceCount: number;
   viewingPiece: number | null; // Which gallery piece is being viewed (null = current)
   drawingEnabled: boolean;
-  gallery: SavedCanvas[];
+  gallery: GalleryEntry[];
   paused: boolean;
   currentIteration: number;
   maxIterations: number;
@@ -126,7 +126,7 @@ export type CanvasAction =
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'TOGGLE_DRAWING' }
   | { type: 'SET_PIECE_COUNT'; count: number }
-  | { type: 'SET_GALLERY'; canvases: SavedCanvas[] }
+  | { type: 'SET_GALLERY'; canvases: GalleryEntry[] }
   | {
       type: 'LOAD_CANVAS';
       strokes: Path[];
@@ -137,7 +137,7 @@ export type CanvasAction =
   | {
       type: 'INIT';
       strokes: Path[];
-      gallery: SavedCanvas[];
+      gallery: GalleryEntry[];
       pieceCount: number;
       paused: boolean;
       drawingStyle?: DrawingStyleType;
