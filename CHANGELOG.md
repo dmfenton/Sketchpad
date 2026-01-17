@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.21.2] - 2026-01-17
+
+### Fixed
+
+- Updated Claude Agent SDK parameter from `working_directory` to `cwd` (SDK breaking change)
+
 ## [1.21.1] - 2026-01-17
 
 ### Changed
@@ -576,7 +582,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.21.0...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.21.2...HEAD
+[1.21.2]: https://github.com/dmfenton/sketchpad/compare/v1.21.1...v1.21.2
+[1.21.1]: https://github.com/dmfenton/sketchpad/compare/v1.21.0...v1.21.1
 [1.21.0]: https://github.com/dmfenton/sketchpad/compare/v1.20.0...v1.21.0
 [1.20.0]: https://github.com/dmfenton/sketchpad/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/dmfenton/sketchpad/compare/v1.18.2...v1.19.0
