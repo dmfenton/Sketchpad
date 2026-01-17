@@ -379,16 +379,7 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
     """Get user's gallery pieces (metadata only, thumbnails via separate endpoint)."""
     state = await get_user_state(user)
     pieces = await state.list_gallery()
-    return [
-        {
-            "id": p.id,
-            "created_at": p.created_at,
-            "piece_number": p.piece_number,
-            "stroke_count": p.stroke_count,
-            "drawing_style": p.drawing_style.value,
-        }
-        for p in pieces
-    ]
+    return [p.to_api_dict() for p in pieces]
 
 
 @app.get("/gallery/{piece_number}/thumbnail.png")
@@ -786,16 +777,7 @@ async def websocket_endpoint(
     try:
         # Send current state to new client (metadata only, thumbnails rendered server-side)
         gallery_pieces = await workspace.state.list_gallery()
-        gallery_data = [
-            {
-                "id": p.id,
-                "created_at": p.created_at,
-                "piece_number": p.piece_number,
-                "stroke_count": p.stroke_count,
-                "drawing_style": p.drawing_style.value,
-            }
-            for p in gallery_pieces
-        ]
+        gallery_data = [p.to_api_dict() for p in gallery_pieces]
 
         # Get the current drawing style config
         from code_monet.types import get_style_config

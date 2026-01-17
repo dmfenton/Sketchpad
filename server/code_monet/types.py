@@ -230,6 +230,16 @@ class GalleryEntry(BaseModel):
     stroke_count: int
     drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
 
+    def to_api_dict(self) -> dict[str, str | int]:
+        """Serialize for API response (excludes strokes)."""
+        return {
+            "id": self.id,
+            "created_at": self.created_at,
+            "piece_number": self.piece_number,
+            "stroke_count": self.stroke_count,
+            "drawing_style": self.drawing_style.value,
+        }
+
 
 class SavedCanvas(BaseModel):
     """Full saved canvas with strokes (for loading)."""

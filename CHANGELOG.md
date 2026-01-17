@@ -12,6 +12,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gallery now displays thumbnail previews of saved artwork in a grid layout
 - New `/gallery/{piece_number}/thumbnail.png` endpoint for server-side rendered thumbnails
 
+## [1.21.6] - 2026-01-17
+
+### Fixed
+
+- Cross-canvas rendering bug where strokes from previous canvas could render on new canvas
+- Added `piece_id` to `strokes_ready` messages and `/strokes/pending` endpoint for canvas-scoped stroke fetching
+- Thinking text accumulation bug - thinking now clears when new iteration starts
+- Server now clears pending strokes when `new_canvas()` is called
+
+### Added
+
+- Comprehensive render flow tests covering status transitions, thinking lifecycle, and multi-turn scenarios
+- Render debug logging in `useStrokeAnimation` and `StrokeRenderer` for troubleshooting
+
+## [1.21.2] - 2026-01-17
+
+### Fixed
+
+- Updated Claude Agent SDK parameter from `working_directory` to `cwd` (SDK breaking change)
+
+## [1.21.1] - 2026-01-17
+
+### Changed
+
+- Renamed `generate_image` tool to `imagine` for clearer semantics
+- Removed `view_reference_image` tool (agents use filesystem `Read` tool instead)
+
+### Fixed
+
+- Corrected inaccuracies in README and fixed Makefile module paths
+
+### Documentation
+
+- Added comprehensive agent tools reference with event streaming details
+
+## [1.21.0] - 2026-01-17
+
+### Added
+
+- Floating particles animation on empty canvas (idle state visual enhancement)
+- Image generation tool (`imagine`) using Google Gemini API
+- Filesystem and bash tools for agent workspace operations (Read, Write, Glob, Grep, Bash)
+- `GOOGLE_API_KEY` config setting (optional, enables image generation tools)
+
+### Changed
+
+- Consolidated WebSocket message types from 18 to 13 for cleaner architecture:
+  - Merged `status` + `paused` → `agent_state` (single message for agent state)
+  - Merged `piece_count` + `piece_complete` → `piece_state` (single message with completed flag)
+  - Separated `GalleryEntry` (metadata only) from `SavedCanvas` (includes strokes)
+  - Removed redundant `thinking` message (content already streamed via `thinking_delta`)
+- Removed unused code: `executor.py`, `PenMessage`, `ExecutionState`
+
+### Fixed
+
+- In-progress agent strokes now render with their actual color, width, and opacity in paint mode
+
 ## [1.20.0] - 2026-01-16
 
 ### Fixed

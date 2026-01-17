@@ -6,7 +6,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   Image,
   Modal,
@@ -14,6 +13,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -129,9 +129,9 @@ export function GalleryModal({
 }: GalleryModalProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const { accessToken } = useAuth();
+  const { width: screenWidth } = useWindowDimensions();
 
-  // Calculate thumbnail size based on screen width
-  const screenWidth = Dimensions.get('window').width;
+  // Calculate thumbnail size based on screen width (reactive to rotation)
   const availableWidth = screenWidth - HORIZONTAL_PADDING * 2 - GRID_GAP * (NUM_COLUMNS - 1);
   const thumbnailSize = Math.floor(availableWidth / NUM_COLUMNS);
 

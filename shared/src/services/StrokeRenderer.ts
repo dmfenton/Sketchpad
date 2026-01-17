@@ -63,7 +63,14 @@ export class StrokeRenderer {
    * @returns Result indicating whether strokes were fetched and count
    */
   async handleStrokesReady(batchId: number): Promise<HandleStrokesReadyResult> {
-    this.log('[StrokeRenderer] handleStrokesReady called, batchId:', batchId, 'stopped:', this.stopped, 'animating:', this.animating);
+    this.log(
+      '[StrokeRenderer] handleStrokesReady called, batchId:',
+      batchId,
+      'stopped:',
+      this.stopped,
+      'animating:',
+      this.animating
+    );
 
     // Skip if we've already successfully fetched this batch
     if (batchId <= this.fetchedBatchId) {
@@ -105,7 +112,10 @@ export class StrokeRenderer {
    */
   private async animateStrokes(strokes: PendingStroke[]): Promise<void> {
     if (this.animating) {
-      this.log('[StrokeRenderer] WARNING: animateStrokes called while already animating, strokes may be lost:', strokes.length);
+      this.log(
+        '[StrokeRenderer] WARNING: animateStrokes called while already animating, strokes may be lost:',
+        strokes.length
+      );
       return;
     }
     if (this.stopped) {
