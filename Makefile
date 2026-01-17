@@ -11,7 +11,7 @@ dev:
 
 # Run server only (foreground)
 server:
-	cd server && uv run python -m drawing_agent.main
+	cd server && uv run python -m code_monet.main
 
 # Run server in background with logging (for Claude debugging)
 server-bg:
@@ -19,10 +19,10 @@ server-bg:
 	@if curl -s localhost:8000/debug/agent > /dev/null 2>&1; then \
 		echo "Server already running"; \
 	else \
-		cd server && nohup uv run python -m drawing_agent.main > logs/server.log 2>&1 & \
+		cd server && nohup uv run python -m code_monet.main > logs/server.log 2>&1 & \
 		sleep 2; \
 		if curl -s localhost:8000/debug/agent > /dev/null 2>&1; then \
-			pgrep -f "drawing_agent.main" | head -1 > server/logs/server.pid; \
+			pgrep -f "code_monet.main" | head -1 > server/logs/server.pid; \
 			echo "Server started (PID $$(cat server/logs/server.pid)). Logs: server/logs/server.log"; \
 		else \
 			echo "Server failed to start. Check server/logs/server.log"; \
@@ -35,7 +35,7 @@ server-logs:
 
 # Stop server
 server-stop:
-	@PID=$$(pgrep -f "drawing_agent.main" | head -1); \
+	@PID=$$(pgrep -f "code_monet.main" | head -1); \
 	if [ -n "$$PID" ]; then \
 		kill $$PID 2>/dev/null; \
 		sleep 1; \
@@ -52,13 +52,13 @@ server-restart: server-stop
 
 # CLI commands for testing agent
 cli:
-	cd server && uv run python -m drawing_agent.cli --help
+	cd server && uv run python -m code_monet.cli --help
 
 cli-turn:
-	cd server && uv run python -m drawing_agent.cli run-turn
+	cd server && uv run python -m code_monet.cli run-turn
 
 cli-status:
-	cd server && uv run python -m drawing_agent.cli status
+	cd server && uv run python -m code_monet.cli status
 
 # Run app only
 app:
