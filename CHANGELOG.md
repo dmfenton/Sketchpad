@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Floating particles animation on empty canvas (idle state visual enhancement)
+
 ## [1.20.0] - 2026-01-16
 
 ### Fixed
