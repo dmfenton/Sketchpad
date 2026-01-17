@@ -30,6 +30,8 @@ const TOOL_ICONS: Record<
   generate_svg: { name: 'code-slash', activeIcon: 'code-working' },
   view_canvas: { name: 'eye', activeIcon: 'eye-outline' },
   mark_piece_done: { name: 'checkmark-done', activeIcon: 'checkmark-done-outline' },
+  generate_image: { name: 'sparkles', activeIcon: 'sparkles-outline' },
+  view_reference_image: { name: 'image', activeIcon: 'image-outline' },
   unknown: { name: 'help-circle', activeIcon: 'help-circle-outline' },
 };
 
@@ -170,11 +172,13 @@ const MessageBubble = React.memo(function MessageBubble({
         ? colors.primary
         : toolName === 'generate_svg'
           ? '#8B5CF6' // purple for code
-          : toolName === 'view_canvas'
+          : toolName === 'view_canvas' || toolName === 'view_reference_image'
             ? colors.textMuted
             : toolName === 'mark_piece_done'
               ? colors.success
-              : colors.primary;
+              : toolName === 'generate_image'
+                ? '#F59E0B' // amber for imagination
+                : colors.primary;
 
     return (
       <Animated.View

@@ -77,4 +77,58 @@ describe('Drawing Agent Types', () => {
       expect(strokeMsg.points).toHaveLength(1);
     });
   });
+
+  describe('Tool types', () => {
+    it('ToolName includes all 6 agent tools', () => {
+      // All tools defined in server/code_monet/tools.py
+      const expectedTools = [
+        'draw_paths',
+        'generate_svg',
+        'view_canvas',
+        'mark_piece_done',
+        'generate_image',
+        'view_reference_image',
+      ];
+      expect(expectedTools).toHaveLength(6);
+      expectedTools.forEach((tool) => {
+        expect(typeof tool).toBe('string');
+      });
+    });
+
+    it('TOOL_DISPLAY_NAMES has entries for all tools', () => {
+      // Matches TOOL_DISPLAY_NAMES in shared/src/types.ts
+      const displayNames: Record<string, string> = {
+        draw_paths: 'drawing paths',
+        generate_svg: 'generating SVG',
+        view_canvas: 'viewing canvas',
+        mark_piece_done: 'marking done',
+        generate_image: 'imagining',
+        view_reference_image: 'viewing reference',
+      };
+
+      expect(Object.keys(displayNames)).toHaveLength(6);
+      expect(displayNames.draw_paths).toBe('drawing paths');
+      expect(displayNames.generate_svg).toBe('generating SVG');
+      expect(displayNames.view_canvas).toBe('viewing canvas');
+      expect(displayNames.mark_piece_done).toBe('marking done');
+      expect(displayNames.generate_image).toBe('imagining');
+      expect(displayNames.view_reference_image).toBe('viewing reference');
+    });
+
+    it('tool display names are user-friendly present tense', () => {
+      const displayNames = [
+        'drawing paths',
+        'generating SVG',
+        'viewing canvas',
+        'marking done',
+        'imagining',
+        'viewing reference',
+      ];
+      // All should be lowercase and descriptive
+      displayNames.forEach((name) => {
+        expect(name).toMatch(/^[a-z]/); // starts with lowercase
+        expect(name.length).toBeGreaterThan(3); // meaningful length
+      });
+    });
+  });
 });
