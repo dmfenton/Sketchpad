@@ -178,7 +178,7 @@ describe('deriveAgentStatus', () => {
   it('returns drawing when pendingStrokes set and no in-progress events', () => {
     const state: CanvasHookState = {
       ...baseState,
-      pendingStrokes: { count: 5, batchId: 1 },
+      pendingStrokes: { count: 5, batchId: 1, pieceId: 0 },
       messages: [
         {
           id: 'exec_1',
@@ -195,7 +195,7 @@ describe('deriveAgentStatus', () => {
   it('returns executing (not drawing) when pendingStrokes set but code_execution in-progress', () => {
     const state: CanvasHookState = {
       ...baseState,
-      pendingStrokes: { count: 5, batchId: 1 },
+      pendingStrokes: { count: 5, batchId: 1, pieceId: 0 },
       messages: [
         {
           id: 'exec_1',
@@ -218,7 +218,7 @@ describe('deriveAgentStatus', () => {
     const state: CanvasHookState = {
       ...baseState,
       paused: true,
-      pendingStrokes: { count: 5, batchId: 1 },
+      pendingStrokes: { count: 5, batchId: 1, pieceId: 0 },
       messages: [{ id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Active', timestamp: Date.now() }],
     };
     expect(deriveAgentStatus(state)).toBe('paused');

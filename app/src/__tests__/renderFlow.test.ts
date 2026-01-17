@@ -222,7 +222,7 @@ describe('Render Flow - Live Message Management', () => {
     state = processMessage(state, {
       type: 'code_execution',
       status: 'started',
-      tool_name: 'test',
+      tool_name: 'draw_paths',
       tool_input: {},
       iteration: 1,
     });
@@ -246,7 +246,7 @@ describe('Render Flow - Live Message Management', () => {
     state = processMessage(state, {
       type: 'code_execution',
       status: 'started',
-      tool_name: 'test',
+      tool_name: 'draw_paths',
       tool_input: {},
       iteration: 1,
     });
@@ -272,7 +272,7 @@ describe('Render Flow - Status Derivation Edge Cases', () => {
     let state: CanvasHookState = {
       ...initialState,
       paused: false,
-      pendingStrokes: { count: 1, batchId: 1 },
+      pendingStrokes: { count: 1, batchId: 1, pieceId: 0 },
     };
     state = processMessage(state, { type: 'thinking_delta', text: 'Thinking', iteration: 1 });
 
@@ -388,7 +388,7 @@ describe('Render Flow - Error Handling', () => {
     let state: CanvasHookState = {
       ...initialState,
       paused: true,
-      pendingStrokes: { count: 1, batchId: 1 },
+      pendingStrokes: { count: 1, batchId: 1, pieceId: 0 },
     };
     state = processMessage(state, { type: 'thinking_delta', text: 'Thinking', iteration: 1 });
 
