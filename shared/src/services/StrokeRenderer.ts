@@ -63,6 +63,8 @@ export class StrokeRenderer {
    * @returns Result indicating whether strokes were fetched and count
    */
   async handleStrokesReady(batchId: number): Promise<HandleStrokesReadyResult> {
+    this.log('[StrokeRenderer] handleStrokesReady called, batchId:', batchId, 'stopped:', this.stopped, 'animating:', this.animating);
+
     // Skip if we've already successfully fetched this batch
     if (batchId <= this.fetchedBatchId) {
       this.log(
@@ -82,7 +84,7 @@ export class StrokeRenderer {
 
     // Fetch strokes from server
     const strokes = await this.fetchStrokes();
-    this.log('[StrokeRenderer] Fetched', strokes.length, 'strokes');
+    this.log('[StrokeRenderer] Fetched', strokes.length, 'strokes for batch', batchId);
 
     // Only mark as fetched AFTER successful fetch
     // This ensures failed fetches can be retried on reconnect
@@ -91,6 +93,8 @@ export class StrokeRenderer {
     // Animate strokes if any
     if (strokes.length > 0) {
       await this.animateStrokes(strokes);
+    } else {
+      this.log('[StrokeRenderer] No strokes to animate for batch', batchId);
     }
 
     return { fetched: true, strokeCount: strokes.length };
@@ -100,8 +104,16 @@ export class StrokeRenderer {
    * Animate a list of strokes by dispatching pen movements.
    */
   private async animateStrokes(strokes: PendingStroke[]): Promise<void> {
-    if (this.animating || this.stopped) return;
+    if (this.animating) {
+      this.log('[StrokeRenderer] WARNING: animateStrokes called while already animating, strokes may be lost:', strokes.length);
+      return;
+    }
+    if (this.stopped) {
+      this.log('[StrokeRenderer] animateStrokes called while stopped, skipping');
+      return;
+    }
     this.animating = true;
+    this.log('[StrokeRenderer] Starting animation of', strokes.length, 'strokes');
 
     try {
       for (const stroke of strokes) {
@@ -152,6 +164,7 @@ export class StrokeRenderer {
       }
     } finally {
       this.animating = false;
+      this.log('[StrokeRenderer] Animation complete');
     }
   }
 

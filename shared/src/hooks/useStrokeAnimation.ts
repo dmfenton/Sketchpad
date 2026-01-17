@@ -99,6 +99,8 @@ export function useStrokeAnimation({
 
   // Handle pendingStrokes changes - but wait for canRender
   useEffect(() => {
+    console.log('[useStrokeAnimation] Effect triggered: pendingStrokes=', pendingStrokes, 'canRender=', canRender, 'renderer=', !!rendererRef.current);
+
     if (!pendingStrokes || !rendererRef.current) {
       waitingToRenderRef.current = null;
       return;
@@ -106,19 +108,23 @@ export function useStrokeAnimation({
 
     if (!canRender) {
       // Remember we need to render this batch when canRender becomes true
+      console.log('[useStrokeAnimation] canRender is false, storing batchId:', pendingStrokes.batchId);
       waitingToRenderRef.current = pendingStrokes.batchId;
       return;
     }
 
     // We can render now - clear waiting state and render after delay
+    console.log('[useStrokeAnimation] canRender is true, starting render for batchId:', pendingStrokes.batchId);
     waitingToRenderRef.current = null;
     startRenderWithDelay(pendingStrokes.batchId);
   }, [pendingStrokes?.batchId, canRender]);
 
   // When canRender becomes true, check if we have a waiting batch
   useEffect(() => {
+    console.log('[useStrokeAnimation] canRender changed:', canRender, 'waitingBatch:', waitingToRenderRef.current);
     if (canRender && waitingToRenderRef.current !== null && rendererRef.current) {
       const batchId = waitingToRenderRef.current;
+      console.log('[useStrokeAnimation] canRender now true, triggering render for waiting batch:', batchId);
       waitingToRenderRef.current = null;
       startRenderWithDelay(batchId);
     }

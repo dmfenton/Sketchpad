@@ -51,6 +51,8 @@ export const handlePaused: MessageHandler<PausedMessage> = (message, dispatch) =
 export const handleIteration: MessageHandler<IterationMessage> = (message, dispatch) => {
   // Finalize any streaming thinking before showing iteration
   dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
+  // Clear accumulated thinking text for the new iteration
+  dispatch({ type: 'SET_THINKING', text: '' });
   dispatch({
     type: 'SET_ITERATION',
     current: message.current,
