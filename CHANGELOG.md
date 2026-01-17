@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.21.6] - 2026-01-17
+
 ### Fixed
 
 - Cross-canvas rendering bug where strokes from previous canvas could render on new canvas
