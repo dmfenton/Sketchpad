@@ -107,7 +107,7 @@ Affected commands:
 
 ## Git Workflow
 
-**Always use Pull Requests** - never push directly to Main, even if you have bypass permissions.
+**Always use Pull Requests** - never push directly to main, even if you have bypass permissions.
 
 1. Create a feature branch
 2. Make commits on the branch
@@ -115,6 +115,12 @@ Affected commands:
 4. Wait for review/approval before merging
 
 This ensures code review happens and keeps the workflow consistent.
+
+### Branch Strategy
+
+- **`main`** is the source of truth. All features and fixes should be merged here via PRs.
+- **`release/*` branches** are temporary, created only for cutting releases. They should not diverge from main - tag releases directly from main when possible.
+- Never do long-running work on release branches. If a hotfix is needed, make it on main first, then cherry-pick or create a new release from main.
 
 ## Development Servers
 
@@ -482,9 +488,11 @@ Before cutting a release, move `[Unreleased]` items to a new version heading wit
 
 ### Cutting a Release
 
-Deploy to production by creating a version tag:
+Deploy to production by tagging `main`:
 
 ```bash
+git checkout main
+git pull origin main
 git tag v1.0.0
 git push origin v1.0.0
 ```
