@@ -26,7 +26,7 @@ from code_monet.registry import workspace_registry
 from code_monet.share import share_router
 from code_monet.shutdown import shutdown_manager
 from code_monet.tracing import get_current_trace_id, record_client_spans, setup_tracing
-from code_monet.types import AgentStatus, PausedMessage
+from code_monet.types import AgentStatus, DrawingStyleType, Path, PausedMessage
 from code_monet.user_handlers import handle_user_message
 from code_monet.workspace_state import WorkspaceState
 
@@ -281,6 +281,48 @@ async def render_user_png(state: WorkspaceState, highlight_human: bool = True) -
     return await asyncio.to_thread(_render_user_png_sync, state, highlight_human)
 
 
+def _render_strokes_to_png_sync(
+    strokes: list[Path], drawing_style: DrawingStyleType, width: int = 800, height: int = 600
+) -> bytes:
+    """Render a list of strokes to PNG (synchronous, CPU-bound)."""
+    from code_monet.types import get_style_config
+
+    img = Image.new("RGB", (width, height), "#FFFFFF")
+    draw = ImageDraw.Draw(img)
+    style_config = get_style_config(drawing_style)
+
+    for path in strokes:
+        points = path_to_point_list(path)
+        if len(points) >= 2:
+            # Get effective style for the stroke
+            author = path.author or "agent"
+            default_style = (
+                style_config.agent_stroke if author == "agent" else style_config.human_stroke
+            )
+            color = (
+                path.color if path.color and style_config.supports_color else default_style.color
+            )
+            stroke_width = int(
+                path.stroke_width
+                if path.stroke_width and style_config.supports_variable_width
+                else default_style.stroke_width
+            )
+            draw.line(points, fill=color, width=stroke_width)
+
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+async def render_strokes_to_png(
+    strokes: list[Path], drawing_style: DrawingStyleType, width: int = 800, height: int = 600
+) -> bytes:
+    """Render strokes to PNG (async, non-blocking)."""
+    return await asyncio.to_thread(
+        _render_strokes_to_png_sync, strokes, drawing_style, width, height
+    )
+
+
 @app.get("/state")
 async def get_state(user: CurrentUser) -> dict[str, Any]:
     """Get current canvas state for authenticated user."""
@@ -334,10 +376,89 @@ async def get_canvas_svg(user: CurrentUser) -> Response:
 
 @app.get("/gallery")
 async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
-    """Get user's gallery pieces."""
+    """Get user's gallery pieces (metadata only, thumbnails via separate endpoint)."""
     state = await get_user_state(user)
-    entries = await state.list_gallery()
-    return [entry.model_dump() for entry in entries]
+    pieces = await state.list_gallery()
+    return [p.to_api_dict() for p in pieces]
+
+
+async def _find_piece_by_thumbnail_token(
+    token: str,
+) -> tuple[list[Path], DrawingStyleType] | None:
+    """Find a gallery piece by its thumbnail token across all user workspaces.
+
+    Returns (strokes, drawing_style) tuple or None if not found.
+    """
+    import re
+    from pathlib import Path as FilePath
+
+    import aiofiles
+    import aiofiles.os
+
+    # UUID pattern for valid user directories
+    uuid_pattern = re.compile(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+    )
+
+    # Get workspace base directory
+    server_dir = FilePath(__file__).parent.parent
+    base_dir = (server_dir / settings.workspace_base_dir).resolve()
+
+    if not base_dir.exists():
+        return None
+
+    # Scan all user directories
+    for user_dir in base_dir.iterdir():
+        if not user_dir.is_dir() or not uuid_pattern.match(user_dir.name):
+            continue
+
+        # Check gallery index for this user
+        index_file = user_dir / "gallery" / "_index.json"
+        if not await aiofiles.os.path.exists(index_file):
+            continue
+
+        try:
+            async with aiofiles.open(index_file) as f:
+                index = json.loads(await f.read())
+
+            for entry in index:
+                if entry.get("thumbnail_token") == token:
+                    # Found it! Load the actual piece
+                    piece_number = entry["piece_number"]
+                    state = await WorkspaceState.load_for_user(user_dir.name)
+                    return await state.load_from_gallery(piece_number)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    return None
+
+
+@app.get("/gallery/thumbnail/{token}.png")
+async def get_gallery_thumbnail_by_token(token: str) -> Response:
+    """Get a gallery piece thumbnail by its capability token.
+
+    This is a public endpoint - the token itself is the authorization.
+    Thumbnails are immutable (pieces don't change after saving), so we cache aggressively.
+    """
+    # Validate token format (url-safe base64, ~22 chars for 16 bytes)
+    if not token or len(token) < 10 or len(token) > 30:
+        raise HTTPException(status_code=400, detail="Invalid token format")
+
+    result = await _find_piece_by_thumbnail_token(token)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+
+    strokes, drawing_style = result
+    png_bytes = await render_strokes_to_png(strokes, drawing_style)
+
+    # Cache for 1 year - thumbnails are immutable once created
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+        },
+    )
 
 
 @app.get("/public/gallery")
@@ -709,9 +830,9 @@ async def websocket_endpoint(
     await shutdown_manager.register_connection(websocket)
 
     try:
-        # Send current state to new client
-        gallery_entries = await workspace.state.list_gallery()
-        gallery_data = [entry.model_dump() for entry in gallery_entries]
+        # Send current state to new client (metadata only, thumbnails rendered server-side)
+        gallery_pieces = await workspace.state.list_gallery()
+        gallery_data = [p.to_api_dict() for p in gallery_pieces]
 
         # Get the current drawing style config
         from code_monet.types import get_style_config

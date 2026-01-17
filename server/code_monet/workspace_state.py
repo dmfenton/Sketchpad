@@ -88,16 +88,17 @@ class WorkspaceState:
     async def load_for_user(cls, user_id: str) -> WorkspaceState:
         """Load or create workspace state for a user."""
         # Validate user_id is a valid UUID string (path traversal protection)
+        # UUID format: 8-4-4-4-12 hex characters with hyphens
         import re
 
         uuid_pattern = re.compile(
-            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I
+            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
         )
         if not isinstance(user_id, str) or not uuid_pattern.match(user_id):
-            raise ValueError(f"Invalid user_id (must be UUID): {user_id}")
+            raise ValueError(f"Invalid user_id: {user_id}")
 
         base_dir = _get_base_dir()
-        user_dir = (base_dir / str(user_id)).resolve()
+        user_dir = (base_dir / user_id).resolve()
 
         # Ensure path stays within base directory (path traversal protection)
         if not str(user_dir).startswith(str(base_dir)):
@@ -355,9 +356,14 @@ class WorkspaceState:
 
     async def save_to_gallery(self) -> str | None:
         """Save current canvas to gallery without clearing. Returns saved ID."""
+        import secrets
+
         async with self._write_lock:
             if not self._canvas.strokes:
                 return None
+
+            # Generate a random thumbnail token for capability-based access
+            thumbnail_token = secrets.token_urlsafe(16)
 
             # Save to gallery as JSON file (use 6 digits for scalability)
             piece_file = self._gallery_dir / f"piece_{self._piece_count:06d}.json"
@@ -367,6 +373,7 @@ class WorkspaceState:
                 "strokes": [s.model_dump() for s in self._canvas.strokes],
                 "created_at": created_at,
                 "drawing_style": self._canvas.drawing_style.value,
+                "thumbnail_token": thumbnail_token,
             }
 
             # Atomic write for gallery piece
@@ -385,6 +392,7 @@ class WorkspaceState:
                 "stroke_count": len(self._canvas.strokes),
                 "created_at": created_at,
                 "drawing_style": self._canvas.drawing_style.value,
+                "thumbnail_token": thumbnail_token,
             }
 
         # Update gallery index outside the write lock
@@ -449,6 +457,8 @@ class WorkspaceState:
 
     async def _rebuild_gallery_index(self) -> None:
         """Rebuild gallery index by scanning gallery files."""
+        import secrets
+
         self._gallery_index = []
 
         if not await aiofiles.os.path.exists(self._gallery_dir):
@@ -465,6 +475,17 @@ class WorkspaceState:
                     if piece_number is None:
                         continue
 
+                    # Generate thumbnail_token if missing (backward compatibility)
+                    thumbnail_token = data.get("thumbnail_token")
+                    if not thumbnail_token:
+                        thumbnail_token = secrets.token_urlsafe(16)
+                        # Update the piece file with the new token
+                        data["thumbnail_token"] = thumbnail_token
+                        temp_file = piece_file.with_suffix(".json.tmp")
+                        async with aiofiles.open(temp_file, "w") as f:
+                            await f.write(json.dumps(data, indent=2))
+                        await aiofiles.os.replace(temp_file, piece_file)
+
                     self._gallery_index.append(
                         {
                             "id": f"piece_{piece_number:06d}",
@@ -472,6 +493,7 @@ class WorkspaceState:
                             "stroke_count": len(data.get("strokes", [])),
                             "created_at": data.get("created_at", ""),
                             "drawing_style": data.get("drawing_style", "plotter"),
+                            "thumbnail_token": thumbnail_token,
                         }
                     )
                 except (json.JSONDecodeError, OSError) as e:
@@ -519,6 +541,7 @@ class WorkspaceState:
                     piece_number=entry["piece_number"],
                     stroke_count=entry.get("stroke_count", 0),
                     drawing_style=drawing_style,
+                    thumbnail_token=entry.get("thumbnail_token", ""),
                 )
             )
         return result

@@ -349,6 +349,8 @@ app.add_typer(workspace_app, name="workspace")
 
 async def _list_workspaces_async() -> list[dict[str, Any]]:
     """List all workspace directories with stats."""
+    import re
+
     from code_monet.config import settings
 
     server_dir = FilePath(__file__).parent.parent
@@ -359,14 +361,20 @@ async def _list_workspaces_async() -> list[dict[str, Any]]:
     if not base_dir.exists():
         return workspaces
 
+    # UUID pattern for valid user directories
+    uuid_pattern = re.compile(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+    )
+
     for user_dir in sorted(base_dir.iterdir()):
         if not user_dir.is_dir():
             continue
 
-        try:
-            user_id = int(user_dir.name)
-        except ValueError:
+        # Validate directory name is a valid UUID
+        if not uuid_pattern.match(user_dir.name):
             continue
+
+        user_id = user_dir.name
 
         workspace_file = user_dir / "workspace.json"
         gallery_dir = user_dir / "gallery"

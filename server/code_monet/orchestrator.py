@@ -229,11 +229,10 @@ class AgentOrchestrator:
             saved_id = await state.save_to_gallery()
             logger.info(f"Saved piece {piece_num} as {saved_id}")
 
-            # Send gallery update
-            gallery_entries = await state.list_gallery()
-            await self.broadcaster.broadcast(
-                {"type": "gallery_update", "canvases": [e.model_dump() for e in gallery_entries]}
-            )
+            # Send gallery update (metadata only, thumbnails rendered server-side)
+            gallery_pieces = await state.list_gallery()
+            gallery_data = [p.to_api_dict() for p in gallery_pieces]
+            await self.broadcaster.broadcast({"type": "gallery_update", "canvases": gallery_data})
 
             # Mark piece as completed - orchestrator won't auto-start new turns
             self._piece_completed = True

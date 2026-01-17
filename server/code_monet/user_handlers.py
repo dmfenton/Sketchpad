@@ -104,11 +104,10 @@ async def handle_new_canvas(
 
     await workspace.connections.broadcast(NewCanvasMessage(saved_id=saved_id))
 
-    # Send updated gallery
-    gallery_entries = await workspace.state.list_gallery()
-    await workspace.connections.broadcast(
-        {"type": "gallery_update", "canvases": [e.model_dump() for e in gallery_entries]}
-    )
+    # Send updated gallery (metadata only, thumbnails rendered server-side)
+    gallery_pieces = await workspace.state.list_gallery()
+    gallery_data = [p.to_api_dict() for p in gallery_pieces]
+    await workspace.connections.broadcast({"type": "gallery_update", "canvases": gallery_data})
     await workspace.connections.broadcast(
         PieceStateMessage(number=workspace.state.piece_count, completed=False)
     )

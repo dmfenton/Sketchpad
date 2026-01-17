@@ -229,6 +229,18 @@ class GalleryEntry(BaseModel):
     piece_number: int
     stroke_count: int
     drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
+    thumbnail_token: str = ""  # Capability token for thumbnail access
+
+    def to_api_dict(self) -> dict[str, str | int]:
+        """Serialize for API response (excludes strokes)."""
+        return {
+            "id": self.id,
+            "created_at": self.created_at,
+            "piece_number": self.piece_number,
+            "stroke_count": self.stroke_count,
+            "thumbnail_token": self.thumbnail_token,
+            "drawing_style": self.drawing_style.value,
+        }
 
 
 class SavedCanvas(BaseModel):
