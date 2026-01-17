@@ -32,8 +32,8 @@ async def create_user(
     return user
 
 
-async def get_user_by_id(session: AsyncSession, user_id: int) -> User | None:
-    """Get user by ID."""
+async def get_user_by_id(session: AsyncSession, user_id: str) -> User | None:
+    """Get user by ID (UUID string)."""
     result = await session.execute(select(User).where(User.id == user_id))
     return result.scalar_one_or_none()
 
@@ -44,7 +44,7 @@ async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
     return result.scalar_one_or_none()
 
 
-async def deactivate_user(session: AsyncSession, user_id: int) -> bool:
+async def deactivate_user(session: AsyncSession, user_id: str) -> bool:
     """Deactivate a user account. Returns True if user existed."""
     user = await get_user_by_id(session, user_id)
     if user:
@@ -90,7 +90,7 @@ async def list_invite_codes(session: AsyncSession) -> list[InviteCode]:
 async def use_invite_code(
     session: AsyncSession,
     code: str,
-    user_id: int,
+    user_id: str,
 ) -> InviteCode | None:
     """Mark an invite code as used. Returns None if code doesn't exist or already used."""
     invite = await get_invite_code(session, code)
@@ -203,7 +203,7 @@ async def cleanup_expired_magic_links(session: AsyncSession) -> int:
 async def create_canvas_share(
     session: AsyncSession,
     token: str,
-    user_id: int,
+    user_id: str,
     piece_number: int,
     title: str | None = None,
 ) -> CanvasShare:
@@ -226,7 +226,7 @@ async def get_canvas_share(session: AsyncSession, token: str) -> CanvasShare | N
 
 
 async def get_canvas_share_by_user_piece(
-    session: AsyncSession, user_id: int, piece_number: int
+    session: AsyncSession, user_id: str, piece_number: int
 ) -> CanvasShare | None:
     """Get canvas share by user and piece number."""
     result = await session.execute(
@@ -238,7 +238,7 @@ async def get_canvas_share_by_user_piece(
     return result.scalar_one_or_none()
 
 
-async def list_user_shares(session: AsyncSession, user_id: int) -> list[CanvasShare]:
+async def list_user_shares(session: AsyncSession, user_id: str) -> list[CanvasShare]:
     """List all shares for a user."""
     result = await session.execute(
         select(CanvasShare)
@@ -248,7 +248,7 @@ async def list_user_shares(session: AsyncSession, user_id: int) -> list[CanvasSh
     return list(result.scalars().all())
 
 
-async def delete_canvas_share(session: AsyncSession, token: str, user_id: int) -> bool:
+async def delete_canvas_share(session: AsyncSession, token: str, user_id: str) -> bool:
     """Delete a canvas share. Returns True if deleted, False if not found or not owned."""
     share = await get_canvas_share(session, token)
     if share is None or share.user_id != user_id:

@@ -52,7 +52,7 @@ async def _create_invites_async(count: int) -> list[str]:
     return codes
 
 
-async def _list_invites_async() -> list[tuple[str, str, str | None, int | None]]:
+async def _list_invites_async() -> list[tuple[str, str, str | None, str | None]]:
     """List all invite codes from the database."""
     from code_monet.db import get_session, repository
 
@@ -162,12 +162,12 @@ user_app = typer.Typer(help="Manage users and view workspace state")
 app.add_typer(user_app, name="user")
 
 
-async def _list_users_with_workspace_async() -> list[tuple[int, str, str, bool, int, int, str]]:
+async def _list_users_with_workspace_async() -> list[tuple[str, str, str, bool, int, int, str]]:
     """List users with workspace summary."""
     from code_monet.db import get_session, repository
     from code_monet.workspace_state import WorkspaceState
 
-    results: list[tuple[int, str, str, bool, int, int, str]] = []
+    results: list[tuple[str, str, str, bool, int, int, str]] = []
 
     async with get_session() as session:
         users = await repository.list_users(session, active_only=False)
@@ -202,7 +202,7 @@ async def _list_users_with_workspace_async() -> list[tuple[int, str, str, bool, 
 
 
 async def _get_workspace_state_async(
-    user_id: int,
+    user_id: str,
 ) -> dict[str, Any]:
     """Get detailed workspace state for a user."""
     from code_monet.workspace_state import WorkspaceState
@@ -280,7 +280,7 @@ def user_list(
 
 @user_app.command("workspace")
 def user_workspace(
-    user_id: int = typer.Argument(..., help="The user ID to inspect"),
+    user_id: str = typer.Argument(..., help="The user ID (UUID) to inspect"),
 ) -> None:
     """Show detailed workspace state for a user.
 

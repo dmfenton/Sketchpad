@@ -1,12 +1,24 @@
 /**
- * Gallery modal showing saved canvases.
+ * Gallery modal showing saved canvases as a grid of thumbnails.
+ * Thumbnails are rendered server-side and loaded as images.
  */
 
-import React from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { SavedCanvas } from '@code-monet/shared';
+import { getApiUrl } from '../config';
 import {
   spacing,
   borderRadius,
@@ -23,45 +35,87 @@ interface GalleryModalProps {
   onSelect: (canvasId: string) => void;
 }
 
+// Grid configuration
+const NUM_COLUMNS = 2;
+const GRID_GAP = spacing.md;
+const HORIZONTAL_PADDING = spacing.lg;
+
 function formatDate(isoString: string): string {
   const date = new Date(isoString);
   return date.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   });
 }
 
 interface GalleryItemProps {
   canvas: SavedCanvas;
+  thumbnailSize: number;
+  thumbnailUrl: string;
   onPress: () => void;
   colors: ColorScheme;
   shadows: ShadowScheme;
 }
 
-function GalleryItem({ canvas, onPress, colors, shadows }: GalleryItemProps): React.JSX.Element {
+function GalleryItem({
+  canvas,
+  thumbnailSize,
+  thumbnailUrl,
+  onPress,
+  colors,
+  shadows,
+}: GalleryItemProps): React.JSX.Element {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const imageSize = thumbnailSize - spacing.sm * 2;
+
   return (
     <Pressable
       style={({ pressed }) => [
         styles.item,
-        { backgroundColor: colors.surface },
+        { backgroundColor: colors.surface, width: thumbnailSize },
         shadows.sm,
-        pressed && { backgroundColor: colors.surfaceElevated, transform: [{ scale: 0.98 }] },
+        pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
       ]}
       onPress={onPress}
     >
-      <View style={styles.itemHeader}>
-        <Text style={[styles.itemTitle, { color: colors.textPrimary }]}>
-          Piece #{canvas.piece_number}
+      <View
+        style={[
+          styles.thumbnailContainer,
+          { width: imageSize, height: imageSize, backgroundColor: colors.canvasBackground },
+        ]}
+      >
+        {loading && !error && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="small" color={colors.textMuted} />
+          </View>
+        )}
+        {error ? (
+          <View style={styles.errorOverlay}>
+            <Ionicons name="image-outline" size={32} color={colors.textMuted} />
+          </View>
+        ) : (
+          <Image
+            source={{ uri: thumbnailUrl }}
+            style={{ width: imageSize, height: imageSize }}
+            resizeMode="contain"
+            onLoadStart={() => setLoading(true)}
+            onLoadEnd={() => setLoading(false)}
+            onError={() => {
+              setLoading(false);
+              setError(true);
+            }}
+          />
+        )}
+      </View>
+      <View style={styles.itemInfo}>
+        <Text style={[styles.itemTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+          #{canvas.piece_number}
         </Text>
-        <Text style={[styles.itemDate, { color: colors.textMuted }]}>
+        <Text style={[styles.itemMeta, { color: colors.textMuted }]}>
           {formatDate(canvas.created_at)}
         </Text>
       </View>
-      <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>
-        {canvas.stroke_count} strokes
-      </Text>
     </Pressable>
   );
 }
@@ -73,6 +127,40 @@ export function GalleryModal({
   onSelect,
 }: GalleryModalProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
+
+  // Calculate thumbnail size based on screen width (reactive to rotation)
+  const availableWidth = screenWidth - HORIZONTAL_PADDING * 2 - GRID_GAP * (NUM_COLUMNS - 1);
+  const thumbnailSize = Math.floor(availableWidth / NUM_COLUMNS);
+
+  // Reverse the order so newest is first
+  const sortedCanvases = useMemo(() => [...canvases].reverse(), [canvases]);
+
+  // Build thumbnail URL using capability token (no auth required)
+  const getThumbnailUrl = useCallback((thumbnailToken: string | undefined) => {
+    if (!thumbnailToken) {
+      return '';
+    }
+    const baseUrl = getApiUrl();
+    return `${baseUrl}/gallery/thumbnail/${thumbnailToken}.png`;
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: SavedCanvas }) => (
+      <GalleryItem
+        canvas={item}
+        thumbnailSize={thumbnailSize}
+        thumbnailUrl={getThumbnailUrl(item.thumbnail_token)}
+        onPress={() => onSelect(item.id)}
+        colors={colors}
+        shadows={shadows}
+      />
+    ),
+    [thumbnailSize, getThumbnailUrl, onSelect, colors, shadows]
+  );
+
+  const keyExtractor = useCallback((item: SavedCanvas) => item.id, []);
+
   return (
     <Modal
       visible={visible}
@@ -90,9 +178,9 @@ export function GalleryModal({
 
         {canvases.length === 0 ? (
           <View style={styles.empty}>
-            <Ionicons name="images-outline" size={48} color={colors.textMuted} />
+            <Ionicons name="images-outline" size={64} color={colors.textMuted} />
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No saved canvases yet
+              No saved artwork yet
             </Text>
             <Text style={[styles.emptyHint, { color: colors.textMuted }]}>
               Tap &quot;New&quot; to save the current canvas and start fresh
@@ -100,17 +188,12 @@ export function GalleryModal({
           </View>
         ) : (
           <FlatList
-            data={[...canvases].reverse()}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <GalleryItem
-                canvas={item}
-                onPress={() => onSelect(item.id)}
-                colors={colors}
-                shadows={shadows}
-              />
-            )}
-            contentContainerStyle={styles.list}
+            data={sortedCanvases}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            numColumns={NUM_COLUMNS}
+            contentContainerStyle={styles.grid}
+            columnWrapperStyle={styles.row}
             showsVerticalScrollIndicator={false}
           />
         )}
@@ -137,27 +220,46 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: spacing.sm,
   },
-  list: {
-    padding: spacing.lg,
-    gap: spacing.md,
+  grid: {
+    padding: HORIZONTAL_PADDING,
+    paddingTop: spacing.lg,
+  },
+  row: {
+    gap: GRID_GAP,
+    marginBottom: GRID_GAP,
   },
   item: {
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+    padding: spacing.sm,
+    alignItems: 'center',
   },
-  itemHeader: {
+  thumbnailContainer: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  itemInfo: {
+    width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   itemTitle: {
-    ...typography.body,
+    ...typography.caption,
     fontWeight: '600',
-  },
-  itemDate: {
-    ...typography.small,
   },
   itemMeta: {
     ...typography.small,
@@ -171,6 +273,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.body,
+    marginTop: spacing.sm,
   },
   emptyHint: {
     ...typography.small,

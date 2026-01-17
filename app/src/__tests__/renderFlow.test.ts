@@ -37,9 +37,10 @@ function processMessage(state: CanvasHookState, message: ServerMessage): CanvasH
 /**
  * Process a sequence of messages and track status at each step.
  */
-function processSequence(
-  messages: ServerMessage[]
-): { states: CanvasHookState[]; statuses: AgentStatus[] } {
+function processSequence(messages: ServerMessage[]): {
+  states: CanvasHookState[];
+  statuses: AgentStatus[];
+} {
   const states: CanvasHookState[] = [];
   const statuses: AgentStatus[] = [];
 
@@ -67,7 +68,17 @@ describe('Render Flow - Complete Turn Sequence', () => {
       type: 'code_execution',
       status: 'started',
       tool_name: 'draw_paths',
-      tool_input: { paths: [{ type: 'line', points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] }] },
+      tool_input: {
+        paths: [
+          {
+            type: 'line',
+            points: [
+              { x: 0, y: 0 },
+              { x: 100, y: 100 },
+            ],
+          },
+        ],
+      },
       iteration: 1,
     },
     { type: 'strokes_ready', count: 1, batch_id: 1, piece_id: 0 },
@@ -75,7 +86,17 @@ describe('Render Flow - Complete Turn Sequence', () => {
       type: 'code_execution',
       status: 'completed',
       tool_name: 'draw_paths',
-      tool_input: { paths: [{ type: 'line', points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] }] },
+      tool_input: {
+        paths: [
+          {
+            type: 'line',
+            points: [
+              { x: 0, y: 0 },
+              { x: 100, y: 100 },
+            ],
+          },
+        ],
+      },
       stdout: null,
       stderr: null,
       return_code: 0,

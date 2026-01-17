@@ -356,7 +356,7 @@ async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict
         return []
 
     # Look up the featured user's ID from their email
-    featured_user_id: int | None = None
+    featured_user_id: str | None = None
     if settings.homepage_featured_email:
         async with get_session() as session:
             featured_user = await repository.get_user_by_email(

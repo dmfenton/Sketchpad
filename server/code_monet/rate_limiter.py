@@ -30,10 +30,10 @@ class RateLimiter:
     """
 
     config: RateLimiterConfig
-    _timestamps: dict[int, list[float]] = field(default_factory=lambda: defaultdict(list))
+    _timestamps: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
     _lock: Lock = field(default_factory=Lock)
 
-    def is_allowed(self, key: int, now: float | None = None) -> bool:
+    def is_allowed(self, key: str, now: float | None = None) -> bool:
         """Check if request is allowed and record it if so.
 
         Args:
@@ -61,7 +61,7 @@ class RateLimiter:
             self._timestamps[key].append(now)
             return True
 
-    def remaining(self, key: int, now: float | None = None) -> int:
+    def remaining(self, key: str, now: float | None = None) -> int:
         """Get remaining requests allowed in current window.
 
         Args:
@@ -81,7 +81,7 @@ class RateLimiter:
             current_count = sum(1 for t in timestamps if t > window_start)
             return max(0, self.config.max_requests - current_count)
 
-    def reset(self, key: int) -> None:
+    def reset(self, key: str) -> None:
         """Reset rate limit for a specific key.
 
         Args:

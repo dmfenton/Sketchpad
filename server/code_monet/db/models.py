@@ -1,6 +1,7 @@
 """SQLAlchemy ORM models for Drawing Agent."""
 
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -17,7 +18,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -41,8 +42,8 @@ class InviteCode(Base):
         nullable=False,
     )
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    used_by_user_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=True
+    used_by_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
     )
 
     # Relationships
@@ -78,7 +79,7 @@ class CanvasShare(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(16), unique=True, nullable=False, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     piece_number: Mapped[int] = mapped_column(Integer, nullable=False)
     title: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

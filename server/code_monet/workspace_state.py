@@ -47,7 +47,7 @@ class WorkspaceState:
                 piece_002.json
     """
 
-    def __init__(self, user_id: int, user_dir: FilePath) -> None:
+    def __init__(self, user_id: str, user_dir: FilePath) -> None:
         self.user_id = user_id
         self._user_dir = user_dir
         self._workspace_file = user_dir / "workspace.json"
@@ -85,11 +85,16 @@ class WorkspaceState:
         return str(self._user_dir)
 
     @classmethod
-    async def load_for_user(cls, user_id: int) -> WorkspaceState:
+    async def load_for_user(cls, user_id: str) -> WorkspaceState:
         """Load or create workspace state for a user."""
-        # Validate user_id is a positive integer (path traversal protection)
-        if not isinstance(user_id, int) or user_id <= 0:
-            raise ValueError(f"Invalid user_id: {user_id}")
+        # Validate user_id is a valid UUID string (path traversal protection)
+        import re
+
+        uuid_pattern = re.compile(
+            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I
+        )
+        if not isinstance(user_id, str) or not uuid_pattern.match(user_id):
+            raise ValueError(f"Invalid user_id (must be UUID): {user_id}")
 
         base_dir = _get_base_dir()
         user_dir = (base_dir / str(user_id)).resolve()

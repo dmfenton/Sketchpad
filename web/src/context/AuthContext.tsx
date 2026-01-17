@@ -10,7 +10,7 @@ const ACCESS_TOKEN_KEY = 'auth_access_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';
 
 export interface User {
-  id: number;
+  id: string;
   email: string;
 }
 
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
         setState({
           isLoading: false,
           isAuthenticated: true,
-          user: { id: parseInt(decoded.sub, 10), email: decoded.email },
+          user: { id: decoded.sub, email: decoded.email },
           accessToken: data.access_token,
         });
         return true;
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
             setState({
               isLoading: false,
               isAuthenticated: true,
-              user: { id: parseInt(decoded.sub, 10), email: decoded.email },
+              user: { id: decoded.sub, email: decoded.email },
               accessToken,
             });
             return;
@@ -199,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
         setState({
           isLoading: false,
           isAuthenticated: true,
-          user: { id: parseInt(decoded.sub, 10), email: decoded.email },
+          user: { id: decoded.sub, email: decoded.email },
           accessToken: data.access_token,
         });
         return { success: true };
@@ -227,7 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
         setState({
           isLoading: false,
           isAuthenticated: true,
-          user: { id: parseInt(decoded.sub, 10), email: decoded.email },
+          user: { id: decoded.sub, email: decoded.email },
           accessToken,
         });
 

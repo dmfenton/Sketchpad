@@ -47,7 +47,7 @@ class TokenResponse(BaseModel):
 class UserResponse(BaseModel):
     """Response with user info."""
 
-    id: int
+    id: str
     email: str
     is_active: bool
 
