@@ -97,6 +97,7 @@ function App(): React.ReactElement {
           strokes={state.strokes}
           currentStroke={state.currentStroke}
           agentStroke={state.agentStroke}
+          agentStrokeStyle={state.agentStrokeStyle}
           penPosition={state.penPosition}
           penDown={state.penDown}
           drawingEnabled={state.drawingEnabled}

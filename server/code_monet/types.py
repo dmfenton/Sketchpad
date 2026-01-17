@@ -276,6 +276,10 @@ class PenMessage(BaseModel):
     x: float
     y: float
     down: bool
+    # Optional stroke style (sent when pen goes down for a new stroke)
+    color: str | None = None
+    stroke_width: float | None = None
+    opacity: float | None = None
 
 
 class StrokeCompleteMessage(BaseModel):

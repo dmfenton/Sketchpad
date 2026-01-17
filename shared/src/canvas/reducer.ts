@@ -25,10 +25,18 @@ export interface PendingStrokesInfo {
   batchId: number;
 }
 
+// Style for the agent's in-progress stroke
+export interface PendingStrokeStyle {
+  color?: string;
+  stroke_width?: number;
+  opacity?: number;
+}
+
 export interface CanvasHookState {
   strokes: Path[];
   currentStroke: Point[];
   agentStroke: Point[]; // Agent's in-progress stroke
+  agentStrokeStyle: PendingStrokeStyle | null; // Style for the agent's in-progress stroke
   penPosition: Point | null;
   penDown: boolean;
   thinking: string;
@@ -117,7 +125,15 @@ export type CanvasAction =
   | { type: 'START_STROKE'; point: Point }
   | { type: 'ADD_POINT'; point: Point }
   | { type: 'END_STROKE' }
-  | { type: 'SET_PEN'; x: number; y: number; down: boolean }
+  | {
+      type: 'SET_PEN';
+      x: number;
+      y: number;
+      down: boolean;
+      color?: string;
+      stroke_width?: number;
+      opacity?: number;
+    }
   | { type: 'SET_THINKING'; text: string }
   | { type: 'APPEND_THINKING'; text: string }
   | { type: 'APPEND_LIVE_MESSAGE'; text: string }
@@ -155,6 +171,7 @@ export const initialState: CanvasHookState = {
   strokes: [],
   currentStroke: [],
   agentStroke: [],
+  agentStrokeStyle: null,
   penPosition: null,
   penDown: false,
   thinking: '',
@@ -175,14 +192,14 @@ export const initialState: CanvasHookState = {
 export function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHookState {
   switch (action.type) {
     case 'ADD_STROKE':
-      // Clear agentStroke when stroke is finalized
-      return { ...state, strokes: [...state.strokes, action.path], agentStroke: [] };
+      // Clear agentStroke and agentStrokeStyle when stroke is finalized
+      return { ...state, strokes: [...state.strokes, action.path], agentStroke: [], agentStrokeStyle: null };
 
     case 'SET_STROKES':
       return { ...state, strokes: action.strokes };
 
     case 'CLEAR':
-      return { ...state, strokes: [], currentStroke: [], agentStroke: [], viewingPiece: null };
+      return { ...state, strokes: [], currentStroke: [], agentStroke: [], agentStrokeStyle: null, viewingPiece: null };
 
     case 'START_STROKE':
       return { ...state, currentStroke: [action.point] };
@@ -198,11 +215,26 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
       // Accumulate points when pen is down for live stroke preview
       // Don't clear on pen up - wait for ADD_STROKE to clear
       const newAgentStroke = action.down ? [...state.agentStroke, newPoint] : state.agentStroke;
+      // Capture style when pen first goes down (start of stroke)
+      // If style properties are provided, this is the start of a new stroke
+      const hasStyleInfo =
+        action.color !== undefined ||
+        action.stroke_width !== undefined ||
+        action.opacity !== undefined;
+      const newAgentStrokeStyle =
+        action.down && hasStyleInfo
+          ? {
+              color: action.color,
+              stroke_width: action.stroke_width,
+              opacity: action.opacity,
+            }
+          : state.agentStrokeStyle;
       return {
         ...state,
         penPosition: newPoint,
         penDown: action.down,
         agentStroke: newAgentStroke,
+        agentStrokeStyle: newAgentStrokeStyle,
       };
     }
 
@@ -291,6 +323,7 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         strokes: action.strokes,
         currentStroke: [],
         agentStroke: [], // Clear agent stroke to prevent stale drawing
+        agentStrokeStyle: null,
         viewingPiece: action.pieceNumber,
         drawingStyle: loadedStyle,
         styleConfig: loadedStyleConfig,

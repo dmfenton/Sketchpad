@@ -39,7 +39,15 @@ type MessageHandler<T extends ServerMessage> = (message: T, dispatch: DispatchFn
 
 // Individual handlers
 export const handlePen: MessageHandler<PenMessage> = (message, dispatch) => {
-  dispatch({ type: 'SET_PEN', x: message.x, y: message.y, down: message.down });
+  dispatch({
+    type: 'SET_PEN',
+    x: message.x,
+    y: message.y,
+    down: message.down,
+    color: message.color,
+    stroke_width: message.stroke_width,
+    opacity: message.opacity,
+  });
 };
 
 export const handleStrokeComplete: MessageHandler<StrokeCompleteMessage> = (message, dispatch) => {

@@ -11,4 +11,4 @@ export {
   MAX_MESSAGES,
 } from './reducer';
 
-export type { CanvasAction, CanvasHookState, PendingStrokesInfo } from './reducer';
+export type { CanvasAction, CanvasHookState, PendingStrokesInfo, PendingStrokeStyle } from './reducer';

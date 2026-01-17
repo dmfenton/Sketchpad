@@ -192,6 +192,10 @@ export interface PenMessage {
   x: number;
   y: number;
   down: boolean;
+  // Optional stroke style (sent when pen goes down for a new stroke)
+  color?: string;
+  stroke_width?: number;
+  opacity?: number;
 }
 
 export interface StrokeCompleteMessage {

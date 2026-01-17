@@ -8,7 +8,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Circle, Path as SvgPath } from 'react-native-svg';
 
 import { screenToCanvas } from '../hooks/useCanvas';
-import type { DrawingStyleConfig, Path, Point } from '@code-monet/shared';
+import type { DrawingStyleConfig, Path, PendingStrokeStyle, Point } from '@code-monet/shared';
 import {
   CANVAS_ASPECT_RATIO,
   CANVAS_HEIGHT,
@@ -24,6 +24,7 @@ interface CanvasProps {
   strokes: Path[];
   currentStroke: Point[];
   agentStroke: Point[]; // Agent's in-progress stroke
+  agentStrokeStyle: PendingStrokeStyle | null; // Style for the agent's in-progress stroke
   penPosition: Point | null;
   penDown: boolean;
   drawingEnabled: boolean;
@@ -116,6 +117,7 @@ export function Canvas({
   strokes,
   currentStroke,
   agentStroke,
+  agentStrokeStyle,
   penPosition,
   penDown,
   drawingEnabled,
@@ -218,28 +220,40 @@ export function Canvas({
 
             {/* Agent's in-progress stroke */}
             {agentStroke.length > 1 &&
-              (styleConfig.type === 'paint' && agentStroke.length > 3 ? (
-                // Paint mode: tapered brush stroke
-                <SvgPath
-                  d={createTaperedStrokePath(
-                    agentStroke,
-                    styleConfig.agent_stroke.stroke_width * 1.5,
-                    0.7
-                  )}
-                  fill={styleConfig.agent_stroke.color}
-                  opacity={styleConfig.agent_stroke.opacity * 0.9}
-                />
-              ) : (
-                // Plotter mode: simple polyline
-                <SvgPath
-                  d={pointsToSvgD(agentStroke)}
-                  stroke={styleConfig.agent_stroke.color}
-                  strokeWidth={styleConfig.agent_stroke.stroke_width}
-                  fill="none"
-                  strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
-                  strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
-                />
-              ))}
+              (() => {
+                // Use pending style if available, otherwise fall back to defaults
+                const strokeColor =
+                  agentStrokeStyle?.color && styleConfig.supports_color
+                    ? agentStrokeStyle.color
+                    : styleConfig.agent_stroke.color;
+                const strokeWidth =
+                  agentStrokeStyle?.stroke_width && styleConfig.supports_variable_width
+                    ? agentStrokeStyle.stroke_width
+                    : styleConfig.agent_stroke.stroke_width;
+                const strokeOpacity =
+                  agentStrokeStyle?.opacity !== undefined && styleConfig.supports_opacity
+                    ? agentStrokeStyle.opacity
+                    : styleConfig.agent_stroke.opacity;
+
+                return styleConfig.type === 'paint' && agentStroke.length > 3 ? (
+                  // Paint mode: tapered brush stroke
+                  <SvgPath
+                    d={createTaperedStrokePath(agentStroke, strokeWidth * 1.5, 0.7)}
+                    fill={strokeColor}
+                    opacity={strokeOpacity * 0.9}
+                  />
+                ) : (
+                  // Plotter mode: simple polyline
+                  <SvgPath
+                    d={pointsToSvgD(agentStroke)}
+                    stroke={strokeColor}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
+                    strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
+                  />
+                );
+              })()}
 
             {/* Pen position indicator - larger and more visible */}
             {penPosition && (

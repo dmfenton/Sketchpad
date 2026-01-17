@@ -136,7 +136,16 @@ async def execute_paths(
             if dist_to_start <= pen_lift_threshold:
                 # Pen stays down - draw directly to start if not already there
                 if dist_to_start > 0.1:
-                    await send_message(PenMessage(x=first_point.x, y=first_point.y, down=True))
+                    await send_message(
+                        PenMessage(
+                            x=first_point.x,
+                            y=first_point.y,
+                            down=True,
+                            color=path.color,
+                            stroke_width=path.stroke_width,
+                            opacity=path.opacity,
+                        )
+                    )
                     await asyncio.sleep(frame_delay)
             else:
                 # Too far - need to lift, travel, and lower
@@ -147,7 +156,16 @@ async def execute_paths(
                 for point in travel_points:
                     await send_message(PenMessage(x=point.x, y=point.y, down=False))
                     await asyncio.sleep(frame_delay)
-                await send_message(PenMessage(x=first_point.x, y=first_point.y, down=True))
+                await send_message(
+                    PenMessage(
+                        x=first_point.x,
+                        y=first_point.y,
+                        down=True,
+                        color=path.color,
+                        stroke_width=path.stroke_width,
+                        opacity=path.opacity,
+                    )
+                )
                 pen_is_down = True
                 if pen_settle_delay > 0:
                     await asyncio.sleep(pen_settle_delay)
@@ -158,7 +176,16 @@ async def execute_paths(
             for point in travel_points:
                 await send_message(PenMessage(x=point.x, y=point.y, down=False))
                 await asyncio.sleep(frame_delay)
-            await send_message(PenMessage(x=first_point.x, y=first_point.y, down=True))
+            await send_message(
+                PenMessage(
+                    x=first_point.x,
+                    y=first_point.y,
+                    down=True,
+                    color=path.color,
+                    stroke_width=path.stroke_width,
+                    opacity=path.opacity,
+                )
+            )
             pen_is_down = True
             if pen_settle_delay > 0:
                 await asyncio.sleep(pen_settle_delay)
@@ -166,7 +193,16 @@ async def execute_paths(
             # First stroke: move to start and lower pen
             await send_message(PenMessage(x=first_point.x, y=first_point.y, down=False))
             await asyncio.sleep(frame_delay)
-            await send_message(PenMessage(x=first_point.x, y=first_point.y, down=True))
+            await send_message(
+                PenMessage(
+                    x=first_point.x,
+                    y=first_point.y,
+                    down=True,
+                    color=path.color,
+                    stroke_width=path.stroke_width,
+                    opacity=path.opacity,
+                )
+            )
             pen_is_down = True
             if pen_settle_delay > 0:
                 await asyncio.sleep(pen_settle_delay)
