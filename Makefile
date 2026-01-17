@@ -1,4 +1,4 @@
-.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test test-e2e-sdk lint format typecheck clean cli cli-turn cli-status build-shared e2e e2e-install
+.PHONY: install dev dev-web dev-stop server server-bg server-logs server-stop server-restart app web test test-e2e test-e2e-sdk test-record-fixture test-replay lint format typecheck clean cli cli-turn cli-status build-shared e2e e2e-install
 
 # Install all dependencies
 install:
@@ -88,6 +88,17 @@ test-app:
 # E2E SDK integration tests (API key from SSM or .env)
 test-e2e-sdk:
 	cd server && uv run pytest tests/test_e2e_sdk.py -v
+
+# Record WebSocket message fixtures (requires API key)
+test-record-fixture:
+	cd server && uv run pytest tests/test_e2e_websocket_recording.py -v -k "test_record"
+
+# Run app reducer replay tests (fast, no API)
+test-replay:
+	npm run test -w app -- --testPathPattern=reducer.replay
+
+# Run all integration/E2E tests (excluding Maestro iOS simulator tests)
+test-e2e: test-e2e-sdk test-replay
 
 # Run tests with coverage
 coverage:
