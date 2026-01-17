@@ -305,6 +305,15 @@ Use it to:
 
 The images are saved to your workspace. You can refer back to them anytime with view_reference_image—useful when you want to check if you're staying true to your vision.
 
+### Filesystem Access — Your Workspace
+
+You have full access to your workspace directory via Read, Write, Glob, Grep, and Bash tools. Use these to:
+- Read and write files (notes, scripts, data)
+- List and search files in your workspace
+- Run shell commands for any scripting needs
+
+Your reference images are saved in the `references/` subdirectory. You can access them directly with Read or through view_reference_image.
+
 ### mark_piece_done — Finish
 
 Call when the piece is complete. Better to stop early than overwork—a piece is done when adding more would diminish it.
@@ -444,12 +453,19 @@ class DrawingAgent:
         self._base_options: dict[str, Any] = {
             "mcp_servers": {"drawing": self._drawing_server},
             "allowed_tools": [
+                # Drawing tools
                 "mcp__drawing__draw_paths",
                 "mcp__drawing__mark_piece_done",
                 "mcp__drawing__generate_svg",
                 "mcp__drawing__view_canvas",
                 "mcp__drawing__generate_image",
                 "mcp__drawing__view_reference_image",
+                # Filesystem tools (scoped to workspace via working_directory)
+                "Read",
+                "Write",
+                "Glob",
+                "Grep",
+                "Bash",
             ],
             "permission_mode": "acceptEdits",
             "model": settings.agent_model if hasattr(settings, "agent_model") else None,
@@ -458,13 +474,24 @@ class DrawingAgent:
             "env": {"ANTHROPIC_API_KEY": settings.anthropic_api_key},
         }
 
-    def _build_options(self, style_type: DrawingStyleType) -> ClaudeAgentOptions:
-        """Build agent options with style-specific system prompt."""
+    def _build_options(
+        self, style_type: DrawingStyleType, workspace_dir: str | None = None
+    ) -> ClaudeAgentOptions:
+        """Build agent options with style-specific system prompt.
+
+        Args:
+            style_type: The drawing style (PLOTTER or PAINT)
+            workspace_dir: Optional workspace directory to scope filesystem tools
+        """
         style_config = get_style_config(style_type)
-        return ClaudeAgentOptions(
-            system_prompt=build_system_prompt(style_config),
+        options = {
+            "system_prompt": build_system_prompt(style_config),
             **self._base_options,
-        )
+        }
+        # Scope filesystem tools to user's workspace
+        if workspace_dir:
+            options["working_directory"] = workspace_dir
+        return ClaudeAgentOptions(**options)
 
     def get_style_config(self) -> DrawingStyleConfig:
         """Get the current drawing style configuration."""
@@ -729,7 +756,7 @@ class DrawingAgent:
         try:
             # Connect client if needed
             if self._client is None:
-                options = self._build_options(state.canvas.drawing_style)
+                options = self._build_options(state.canvas.drawing_style, state.workspace_dir)
                 self._client = ClaudeSDKClient(options=options)
                 await self._client.connect()
 
