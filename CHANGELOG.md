@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Shared `useProgressiveText` hook for word-by-word text reveal animation
 - CI path filters to skip jobs when relevant code doesn't change
+- CloudWatch Logs integration for centralized application logging
+- Log query commands in diagnose.py (`logs`, `logs-errors`, `logs-user`, `logs-search`)
+- `/logs` Claude skill for querying production logs
+- Logrotate configuration for application log files (daily, 7 days, max 100MB)
+- CloudWatch alarms for high error rates (>10 errors in 5 minutes)
+- Docker awslogs driver for all production containers
 
 ### Changed
 
@@ -24,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stroke animation not starting when agent begins thinking immediately after draw_paths completes
 - Bionic reading display showing all text at once instead of progressive word-by-word reveal
 - CI migration check failing on fresh database (now creates data directory and runs migrations first)
+
+### Infrastructure
+
+- CloudWatch Log Groups: `/drawing-agent/app` (30 days), `/drawing-agent/errors` (90 days), `/drawing-agent/containers` (14 days)
+- Metric filters for error counting and auth failures
+- CloudWatch agent config for file-based log collection
 
 ## [1.22.0] - 2026-01-17
 
