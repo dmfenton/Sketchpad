@@ -133,7 +133,9 @@ The `main` branch is protected with these rules:
 | Enforce for admins                | No (can bypass if needed)                         |
 | Force pushes                      | Blocked                                           |
 
-PRs to main require all CI checks to pass before merging. Direct pushes to main are blocked.
+PRs to main require all CI checks to pass before merging.
+
+**Important:** Even though admin bypass is enabled, always use PRs. Never push directly to main.
 
 ## Development Servers
 
