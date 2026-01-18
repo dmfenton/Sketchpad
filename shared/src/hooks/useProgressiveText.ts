@@ -101,6 +101,8 @@ export function useProgressiveText(
 
     // Schedule next chunk reveal
     timerRef.current = setTimeout(() => {
+      // Clear ref BEFORE state update - this ordering ensures cleanup won't
+      // try to clear an already-fired timer if effect re-runs synchronously
       timerRef.current = null;
       setDisplayedWordCount((prev) => prev + chunkSize);
     }, intervalMs);

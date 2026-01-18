@@ -1,14 +1,24 @@
 /**
- * Tests for useProgressiveText hook logic.
+ * Tests for useProgressiveText hook STATE MACHINE LOGIC.
  *
- * Since the app workspace doesn't have @testing-library/react available,
- * we test the hook's logic by simulating the state machine behavior.
+ * IMPORTANT LIMITATION: These tests validate the algorithm (state transitions)
+ * but cannot test the actual closure capture bug that was fixed. That bug occurred
+ * when a timer callback captured a stale allWords.length in its closure, then fired
+ * after new text arrived. Testing this properly requires:
+ * - React Testing Library's renderHook
+ * - Jest fake timers
+ * - Rerendering the hook mid-timer
  *
- * The hook essentially implements:
- * 1. Split text into words
- * 2. On each timer tick, increment displayedWordCount by chunkSize
- * 3. Slice words to displayedWordCount (bounded)
+ * The app workspace lacks @testing-library/react, so we test the state machine
+ * synchronously. These tests verify:
+ * 1. Split text into words correctly
+ * 2. Timer ticks increment displayedWordCount by chunkSize
+ * 3. Slice bounds words to allWords.length
  * 4. Reset when text is null or significantly shorter
+ *
+ * The fix itself (using effect cleanup to cancel timers when deps change, and
+ * handling bounds at render time instead of in the callback) is validated by
+ * the fact that the algorithm expressed here matches the hook implementation.
  */
 
 import { splitWords, BIONIC_CHUNK_SIZE, BIONIC_CHUNK_INTERVAL_MS } from '@code-monet/shared';
