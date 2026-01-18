@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- CloudWatch Logs integration for centralized application logging
+- Log query commands in diagnose.py (`logs`, `logs-errors`, `logs-user`, `logs-search`)
+- `/logs` Claude skill for querying production logs
+- Logrotate configuration for application log files (daily, 7 days, max 100MB)
+- CloudWatch alarms for high error rates (>10 errors in 5 minutes)
+
+### Infrastructure
+
+- CloudWatch Log Groups: `/drawing-agent/app` (30 days), `/drawing-agent/errors` (90 days), `/drawing-agent/containers` (14 days)
+- Metric filters for error counting and auth failures
+- CloudWatch agent config for file-based log collection
+
 ## [1.23.0] - 2026-01-18
 
 ### Added
