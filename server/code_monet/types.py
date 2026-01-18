@@ -229,6 +229,7 @@ class GalleryEntry(BaseModel):
     piece_number: int
     stroke_count: int
     drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
+    thumbnail_token: str | None = None  # Capability token for thumbnail access
 
 
 class SavedCanvas(BaseModel):

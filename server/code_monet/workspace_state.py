@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import secrets
 from datetime import UTC, datetime
 from pathlib import Path as FilePath
 from typing import TYPE_CHECKING, Any
@@ -359,6 +360,9 @@ class WorkspaceState:
             if not self._canvas.strokes:
                 return None
 
+            # Generate thumbnail token for capability-based access
+            thumbnail_token = secrets.token_urlsafe(16)
+
             # Save to gallery as JSON file (use 6 digits for scalability)
             piece_file = self._gallery_dir / f"piece_{self._piece_count:06d}.json"
             created_at = datetime.now(UTC).isoformat()
@@ -367,6 +371,7 @@ class WorkspaceState:
                 "strokes": [s.model_dump() for s in self._canvas.strokes],
                 "created_at": created_at,
                 "drawing_style": self._canvas.drawing_style.value,
+                "thumbnail_token": thumbnail_token,
             }
 
             # Atomic write for gallery piece
@@ -385,6 +390,7 @@ class WorkspaceState:
                 "stroke_count": len(self._canvas.strokes),
                 "created_at": created_at,
                 "drawing_style": self._canvas.drawing_style.value,
+                "thumbnail_token": thumbnail_token,
             }
 
         # Update gallery index outside the write lock
@@ -465,6 +471,15 @@ class WorkspaceState:
                     if piece_number is None:
                         continue
 
+                    # Get or generate thumbnail token (for backwards compatibility)
+                    thumbnail_token = data.get("thumbnail_token")
+                    if not thumbnail_token:
+                        thumbnail_token = secrets.token_urlsafe(16)
+                        # Update piece file with new token
+                        data["thumbnail_token"] = thumbnail_token
+                        async with aiofiles.open(piece_file, "w") as f:
+                            await f.write(json.dumps(data, indent=2))
+
                     self._gallery_index.append(
                         {
                             "id": f"piece_{piece_number:06d}",
@@ -472,6 +487,7 @@ class WorkspaceState:
                             "stroke_count": len(data.get("strokes", [])),
                             "created_at": data.get("created_at", ""),
                             "drawing_style": data.get("drawing_style", "plotter"),
+                            "thumbnail_token": thumbnail_token,
                         }
                     )
                 except (json.JSONDecodeError, OSError) as e:
@@ -519,6 +535,7 @@ class WorkspaceState:
                     piece_number=entry["piece_number"],
                     stroke_count=entry.get("stroke_count", 0),
                     drawing_style=drawing_style,
+                    thumbnail_token=entry.get("thumbnail_token"),
                 )
             )
         return result
@@ -599,5 +616,27 @@ class WorkspaceState:
                 except (json.JSONDecodeError, KeyError) as e:
                     logger.warning(f"Failed to load gallery piece {piece_number}: {e}")
                     return None
+
+        return None
+
+    async def get_piece_by_thumbnail_token(
+        self, token: str
+    ) -> tuple[list[Path], DrawingStyleType] | None:
+        """Look up a gallery piece by its thumbnail token.
+
+        Returns (strokes, drawing_style) tuple or None if not found.
+        """
+        # Load index if not cached
+        if self._gallery_index is None:
+            await self._load_gallery_index()
+
+        if not self._gallery_index:
+            return None
+
+        # Find piece with matching token
+        for entry in self._gallery_index:
+            if entry.get("thumbnail_token") == token:
+                piece_number = entry["piece_number"]
+                return await self.load_from_gallery(piece_number)
 
         return None

@@ -440,6 +440,78 @@ async def get_public_piece_strokes(user_id: str, piece_id: str) -> dict[str, Any
         raise HTTPException(status_code=500, detail=f"Failed to load piece: {e}") from e
 
 
+def _render_strokes_to_png(
+    strokes: list[dict[str, Any]], width: int = 800, height: int = 800
+) -> bytes:
+    """Render strokes to PNG image (synchronous, CPU-bound)."""
+    from code_monet.types import Path
+
+    img = Image.new("RGB", (width, height), "#FFFFFF")
+    draw = ImageDraw.Draw(img)
+
+    for stroke_data in strokes:
+        path = Path.model_validate(stroke_data)
+        points = path_to_point_list(path)
+        if len(points) >= 2:
+            draw.line(points, fill="#000000", width=2)
+
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+@app.get("/gallery/thumbnail/{token}.png")
+async def get_gallery_thumbnail(token: str) -> Response:
+    """Get thumbnail image for a gallery piece by its capability token.
+
+    No authentication required - the token itself grants access.
+    """
+    from pathlib import Path as FilePath
+
+    # Validate token format (URL-safe base64, 16 bytes = ~22 chars)
+    if not token or len(token) > 30 or not token.replace("-", "").replace("_", "").isalnum():
+        raise HTTPException(status_code=400, detail="Invalid token format")
+
+    workspace_base = FilePath(settings.workspace_base_dir)
+    if not workspace_base.exists():
+        raise HTTPException(status_code=404, detail="Gallery not found")
+
+    # Scan all user workspaces for matching token
+    for user_dir in workspace_base.iterdir():
+        if not user_dir.is_dir():
+            continue
+
+        index_file = user_dir / "gallery" / "index.json"
+        if not index_file.exists():
+            continue
+
+        try:
+            index_data = json.loads(index_file.read_text())
+            for entry in index_data:
+                if entry.get("thumbnail_token") == token:
+                    # Found matching piece - load and render
+                    piece_id = entry.get("id", "")
+                    piece_file = user_dir / "gallery" / f"{piece_id}.json"
+
+                    if not piece_file.exists():
+                        raise HTTPException(status_code=404, detail="Piece file not found")
+
+                    piece_data = json.loads(piece_file.read_text())
+                    strokes = piece_data.get("strokes", [])
+
+                    # Render to PNG in thread pool
+                    png_bytes = await asyncio.to_thread(_render_strokes_to_png, strokes)
+                    return Response(
+                        content=png_bytes,
+                        media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+                    )
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    raise HTTPException(status_code=404, detail="Thumbnail not found")
+
+
 @app.get("/strokes/pending")
 async def get_pending_strokes(user: CurrentUser) -> dict[str, Any]:
     """Fetch and clear pending strokes for client-side rendering.
