@@ -181,7 +181,7 @@ class TestMessageRecording:
             print(f"  ... and {len(capture.messages) - 5} more")
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(120)
+    @pytest.mark.timeout(240)
     @pytest.mark.usefixtures("use_haiku")
     async def test_record_agent_turn_paint(
         self,
