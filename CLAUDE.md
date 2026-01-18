@@ -902,11 +902,9 @@ Production uses OpenTelemetry with AWS X-Ray for distributed tracing:
 
 ### Diagnose CLI
 
-Use the `/diagnose` or `/logs` skills, or run `scripts/diagnose.py` directly:
+Use the `/diagnose` skill or run `scripts/diagnose.py` directly:
 
 ```bash
-# === Trace commands (X-Ray) ===
-
 # Service status (quick health check, last 5 min)
 uv run python scripts/diagnose.py status
 
@@ -930,23 +928,6 @@ uv run python scripts/diagnose.py path /auth/verify 60
 
 # Full trace details (including stack traces)
 uv run python scripts/diagnose.py trace <trace_id>
-
-# === Log commands (CloudWatch Logs) ===
-
-# Recent application logs
-uv run python scripts/diagnose.py logs 30
-
-# Error/warning logs only
-uv run python scripts/diagnose.py logs-errors 60
-
-# Logs for a specific user
-uv run python scripts/diagnose.py logs-user 42 60
-
-# Search logs for a pattern
-uv run python scripts/diagnose.py logs-search "magic link" 60
-
-# Filter logs by category
-uv run python scripts/diagnose.py logs --category auth --md
 ```
 
 **Output formats:**
@@ -955,13 +936,11 @@ uv run python scripts/diagnose.py logs --category auth --md
 - `--json` - JSON output (for scripts)
 - Default: Rich terminal tables
 
-**Log categories:** auth, agent, websocket, workspace, system, http
-
 Example with markdown output:
 
 ```bash
 uv run python scripts/diagnose.py status --md
-uv run python scripts/diagnose.py logs-errors --md
+uv run python scripts/diagnose.py ws 120 --md
 ```
 
 ### Trace IDs in Errors

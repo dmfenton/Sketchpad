@@ -30,7 +30,7 @@ chown -R ec2-user:ec2-user /home/ec2-user/.docker
 # Install CloudWatch agent
 yum install -y amazon-cloudwatch-agent
 
-# Configure CloudWatch agent (metrics + logs)
+# Configure CloudWatch agent
 cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'EOF'
 {
   "metrics": {
@@ -49,48 +49,12 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'EOF'
     "append_dimensions": {
       "InstanceId": "${aws:InstanceId}"
     }
-  },
-  "logs": {
-    "logs_collected": {
-      "files": {
-        "collect_list": [
-          {
-            "file_path": "/home/ec2-user/data/logs/app.log",
-            "log_group_name": "/drawing-agent/app",
-            "log_stream_name": "{instance_id}",
-            "timezone": "UTC",
-            "multi_line_start_pattern": "^\\{",
-            "retention_in_days": 30
-          },
-          {
-            "file_path": "/home/ec2-user/data/logs/error.log",
-            "log_group_name": "/drawing-agent/errors",
-            "log_stream_name": "{instance_id}",
-            "timezone": "UTC",
-            "multi_line_start_pattern": "^\\{",
-            "retention_in_days": 90
-          }
-        ]
-      }
-    },
-    "log_stream_name": "default"
   }
 }
 EOF
 
-# Configure logrotate for application logs
-cat > /etc/logrotate.d/drawing-agent << 'LOGROTATE'
-/home/ec2-user/data/logs/*.log {
-    daily
-    rotate 7
-    compress
-    delaycompress
-    missingok
-    notifempty
-    copytruncate
-    maxsize 100M
-}
-LOGROTATE
+# Start CloudWatch agent
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
 # Wait for EBS data volume to be attached
 DATA_DEVICE="/dev/xvdf"
@@ -121,7 +85,6 @@ yum install -y sqlite
 # Create app directories with secure permissions
 mkdir -p /home/ec2-user/data/db
 mkdir -p /home/ec2-user/data/gallery
-mkdir -p /home/ec2-user/data/logs
 mkdir -p /home/ec2-user/certbot/conf
 mkdir -p /home/ec2-user/certbot/www
 
@@ -189,9 +152,6 @@ EOF
 systemctl daemon-reload
 systemctl enable sync-web.timer
 systemctl start sync-web.timer
-
-# Start CloudWatch agent (after EBS mount and directories exist)
-/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
 # Signal completion
 echo "User data script completed successfully" > /home/ec2-user/user_data_complete.txt

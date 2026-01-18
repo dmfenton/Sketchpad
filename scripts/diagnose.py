@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Diagnostic script for querying AWS X-Ray traces and CloudWatch Logs.
+"""Diagnostic script for querying AWS X-Ray traces.
 
 Usage:
-    # Trace commands (X-Ray)
     uv run python scripts/diagnose.py recent [MINUTES]     # Recent traces (default 30 min)
     uv run python scripts/diagnose.py errors [MINUTES]     # Recent error traces
     uv run python scripts/diagnose.py slow [SECONDS] [MIN]  # Slow traces (default >1s, 60 min)
@@ -12,21 +11,13 @@ Usage:
     uv run python scripts/diagnose.py status               # Current service status
     uv run python scripts/diagnose.py summary [MINUTES]    # Traffic summary
 
-    # Log commands (CloudWatch Logs)
-    uv run python scripts/diagnose.py logs [MINUTES]           # Recent app logs
-    uv run python scripts/diagnose.py logs-errors [MINUTES]    # Error/warning logs
-    uv run python scripts/diagnose.py logs-user USER_ID [MIN]  # Logs for specific user
-    uv run python scripts/diagnose.py logs-search PATTERN [M]  # Search logs
-
 Options:
     --md, --markdown    Output in markdown format (for Claude to read)
     --json              Output in JSON format
-    --category CAT      Filter logs by category (auth, agent, websocket, etc.)
 """
 
 import json
 import sys
-import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -41,20 +32,6 @@ elif "--json" in sys.argv:
     OUTPUT_FORMAT = "json"
     sys.argv = [a for a in sys.argv if a != "--json"]
 
-# Check for category filter
-LOG_CATEGORY: str | None = None
-if "--category" in sys.argv:
-    idx = sys.argv.index("--category")
-    if idx + 1 < len(sys.argv):
-        LOG_CATEGORY = sys.argv[idx + 1]
-        sys.argv = sys.argv[:idx] + sys.argv[idx + 2:]
-    else:
-        sys.argv = sys.argv[:idx]
-
-# CloudWatch Logs configuration
-LOG_GROUP_APP = "/drawing-agent/app"
-LOG_GROUP_ERRORS = "/drawing-agent/errors"
-
 if OUTPUT_FORMAT == "rich":
     from rich.console import Console
     from rich.panel import Panel
@@ -67,94 +44,6 @@ def get_xray_client() -> Any:
     import os
     region = os.environ.get("AWS_REGION", "us-east-1")
     return boto3.client("xray", region_name=region)
-
-
-def get_logs_client() -> Any:
-    """Get CloudWatch Logs client."""
-    import os
-    region = os.environ.get("AWS_REGION", "us-east-1")
-    return boto3.client("logs", region_name=region)
-
-
-def run_logs_query(
-    query: str,
-    log_group: str = LOG_GROUP_APP,
-    minutes: int = 30,
-    limit: int = 100,
-) -> list[dict[str, Any]]:
-    """Run a CloudWatch Logs Insights query and return results."""
-    client = get_logs_client()
-
-    end_time = datetime.now(UTC)
-    start_time = end_time - timedelta(minutes=minutes)
-
-    # Start query
-    response = client.start_query(
-        logGroupName=log_group,
-        startTime=int(start_time.timestamp() * 1000),
-        endTime=int(end_time.timestamp() * 1000),
-        queryString=query,
-        limit=limit,
-    )
-    query_id = response["queryId"]
-
-    # Poll for results (CloudWatch Logs Insights is async)
-    max_wait = 30  # seconds
-    poll_interval = 0.5
-    elapsed = 0
-
-    while elapsed < max_wait:
-        result = client.get_query_results(queryId=query_id)
-        status = result["status"]
-
-        if status == "Complete":
-            # Parse results into list of dicts
-            results = []
-            for row in result.get("results", []):
-                entry = {}
-                for field in row:
-                    entry[field["field"]] = field["value"]
-                results.append(entry)
-            return results
-        elif status in ("Failed", "Cancelled"):
-            raise RuntimeError(f"Query {status.lower()}")
-
-        time.sleep(poll_interval)
-        elapsed += poll_interval
-
-    raise TimeoutError("Query timed out")
-
-
-def format_log_entry(entry: dict[str, Any]) -> dict[str, Any]:
-    """Format a log entry for display."""
-    # CloudWatch Logs Insights returns @timestamp, @message, etc.
-    timestamp = entry.get("@timestamp", entry.get("timestamp", ""))
-    message = entry.get("@message", entry.get("message", ""))
-
-    # Try to parse JSON message for structured logs
-    level = entry.get("level", "INFO")
-    category = entry.get("category", "system")
-    user_id = entry.get("user_id")
-
-    # If message is JSON, try to parse it
-    if message.startswith("{"):
-        try:
-            parsed = json.loads(message)
-            level = parsed.get("level", level)
-            category = parsed.get("category", category)
-            user_id = parsed.get("user_id", user_id)
-            message = parsed.get("message", message)
-        except json.JSONDecodeError:
-            pass
-
-    return {
-        "timestamp": timestamp,
-        "level": level,
-        "category": category,
-        "user_id": user_id,
-        "message": message[:200] if len(message) > 200 else message,
-        "full_message": message,
-    }
 
 
 def format_trace_summary(trace: dict[str, Any]) -> dict[str, Any]:
@@ -674,225 +563,6 @@ def cmd_summary(minutes: int = 60) -> None:
         ))
 
 
-# ============== Log Output ==============
-
-def md_logs_table(logs: list[dict[str, Any]], title: str) -> None:
-    """Output logs as markdown table."""
-    md_print(f"\n## {title}\n")
-
-    if not logs:
-        md_print("*No logs found*\n")
-        return
-
-    md_print("| Time | Level | Category | Message |")
-    md_print("|------|-------|----------|---------|")
-
-    for log in logs:
-        time_str = log.get("timestamp", "")[:19] if log.get("timestamp") else "-"
-        level = log.get("level", "INFO")
-        category = log.get("category", "system")
-        message = log.get("message", "")[:80]
-        # Escape pipe characters in message
-        message = message.replace("|", "\\|")
-
-        md_print(f"| {time_str} | {level} | {category} | {message} |")
-
-    md_print("")
-
-
-def rich_logs_table(logs: list[dict[str, Any]], title: str) -> None:
-    """Display logs in a rich table."""
-    table = Table(title=title)
-    table.add_column("Time", style="dim")
-    table.add_column("Level", style="yellow")
-    table.add_column("Category", style="cyan")
-    table.add_column("User", style="green")
-    table.add_column("Message", style="white", max_width=60)
-
-    for log in logs:
-        time_str = log.get("timestamp", "")[:19] if log.get("timestamp") else "-"
-        level = log.get("level", "INFO")
-        category = log.get("category", "system")
-        user_id = str(log.get("user_id", "-") or "-")
-        message = log.get("message", "")[:60]
-
-        # Color level
-        level_style = {
-            "DEBUG": "dim",
-            "INFO": "white",
-            "WARNING": "yellow",
-            "ERROR": "red",
-            "CRITICAL": "bold red",
-        }.get(level, "white")
-
-        table.add_row(
-            time_str,
-            f"[{level_style}]{level}[/{level_style}]",
-            category,
-            user_id,
-            message,
-        )
-
-    console.print(table)
-
-
-# ============== Log Commands ==============
-
-def cmd_logs(minutes: int = 30) -> None:
-    """Show recent application logs."""
-    title = f"Application Logs (last {minutes} min)"
-    if LOG_CATEGORY:
-        title += f" [category={LOG_CATEGORY}]"
-
-    query_parts = [
-        "fields @timestamp, @message",
-        "sort @timestamp desc",
-        "limit 100",
-    ]
-    if LOG_CATEGORY:
-        query_parts.insert(1, f'filter category = "{LOG_CATEGORY}"')
-    query = " | ".join(query_parts)
-
-    try:
-        results = run_logs_query(query, LOG_GROUP_APP, minutes)
-        logs = [format_log_entry(r) for r in results]
-
-        if OUTPUT_FORMAT == "markdown":
-            md_logs_table(logs, title)
-        elif OUTPUT_FORMAT == "json":
-            print(json.dumps(logs, indent=2, default=str))
-        else:
-            console.print(f"[cyan]Fetching logs from last {minutes} minutes...[/cyan]")
-            if not logs:
-                console.print("[yellow]No logs found[/yellow]")
-                return
-            rich_logs_table(logs, title)
-    except Exception as e:
-        if "ResourceNotFoundException" in str(e):
-            msg = f"Log group {LOG_GROUP_APP} not found. CloudWatch Logs may not be configured."
-            if OUTPUT_FORMAT == "markdown":
-                md_print(f"\n**Error:** {msg}\n")
-            elif OUTPUT_FORMAT == "json":
-                print(json.dumps({"error": msg}))
-            else:
-                console.print(f"[red]{msg}[/red]")
-        else:
-            raise
-
-
-def cmd_logs_errors(minutes: int = 60) -> None:
-    """Show recent error and warning logs."""
-    query = """
-        fields @timestamp, @message
-        | filter level in ["ERROR", "WARNING", "CRITICAL"]
-        | sort @timestamp desc
-        | limit 100
-    """
-    title = f"Error Logs (last {minutes} min)"
-
-    try:
-        results = run_logs_query(query, LOG_GROUP_APP, minutes)
-        logs = [format_log_entry(r) for r in results]
-
-        if OUTPUT_FORMAT == "markdown":
-            md_logs_table(logs, title)
-        elif OUTPUT_FORMAT == "json":
-            print(json.dumps(logs, indent=2, default=str))
-        else:
-            console.print(f"[cyan]Fetching error logs from last {minutes} minutes...[/cyan]")
-            if not logs:
-                console.print("[green]No error logs found[/green]")
-                return
-            rich_logs_table(logs, title)
-    except Exception as e:
-        if "ResourceNotFoundException" in str(e):
-            msg = f"Log group {LOG_GROUP_APP} not found."
-            if OUTPUT_FORMAT == "markdown":
-                md_print(f"\n**Error:** {msg}\n")
-            elif OUTPUT_FORMAT == "json":
-                print(json.dumps({"error": msg}))
-            else:
-                console.print(f"[red]{msg}[/red]")
-        else:
-            raise
-
-
-def cmd_logs_user(user_id: int, minutes: int = 60) -> None:
-    """Show logs for a specific user."""
-    query = f"""
-        fields @timestamp, @message
-        | filter user_id = {user_id}
-        | sort @timestamp desc
-        | limit 100
-    """
-    title = f"Logs for User {user_id} (last {minutes} min)"
-
-    try:
-        results = run_logs_query(query, LOG_GROUP_APP, minutes)
-        logs = [format_log_entry(r) for r in results]
-
-        if OUTPUT_FORMAT == "markdown":
-            md_logs_table(logs, title)
-        elif OUTPUT_FORMAT == "json":
-            print(json.dumps(logs, indent=2, default=str))
-        else:
-            console.print(f"[cyan]Fetching logs for user {user_id}...[/cyan]")
-            if not logs:
-                console.print(f"[yellow]No logs found for user {user_id}[/yellow]")
-                return
-            rich_logs_table(logs, title)
-    except Exception as e:
-        if "ResourceNotFoundException" in str(e):
-            msg = f"Log group {LOG_GROUP_APP} not found."
-            if OUTPUT_FORMAT == "markdown":
-                md_print(f"\n**Error:** {msg}\n")
-            elif OUTPUT_FORMAT == "json":
-                print(json.dumps({"error": msg}))
-            else:
-                console.print(f"[red]{msg}[/red]")
-        else:
-            raise
-
-
-def cmd_logs_search(pattern: str, minutes: int = 60) -> None:
-    """Search logs for a pattern."""
-    # Escape quotes in pattern
-    safe_pattern = pattern.replace('"', '\\"')
-    query = f"""
-        fields @timestamp, @message
-        | filter @message like /{safe_pattern}/
-        | sort @timestamp desc
-        | limit 100
-    """
-    title = f'Logs matching "{pattern}" (last {minutes} min)'
-
-    try:
-        results = run_logs_query(query, LOG_GROUP_APP, minutes)
-        logs = [format_log_entry(r) for r in results]
-
-        if OUTPUT_FORMAT == "markdown":
-            md_logs_table(logs, title)
-        elif OUTPUT_FORMAT == "json":
-            print(json.dumps(logs, indent=2, default=str))
-        else:
-            console.print(f"[cyan]Searching logs for '{pattern}'...[/cyan]")
-            if not logs:
-                console.print(f"[yellow]No logs found matching '{pattern}'[/yellow]")
-                return
-            rich_logs_table(logs, title)
-    except Exception as e:
-        if "ResourceNotFoundException" in str(e):
-            msg = f"Log group {LOG_GROUP_APP} not found."
-            if OUTPUT_FORMAT == "markdown":
-                md_print(f"\n**Error:** {msg}\n")
-            elif OUTPUT_FORMAT == "json":
-                print(json.dumps({"error": msg}))
-            else:
-                console.print(f"[red]{msg}[/red]")
-        else:
-            raise
-
-
 def main() -> None:
     """Main entry point."""
     if len(sys.argv) < 2:
@@ -931,27 +601,6 @@ def main() -> None:
         elif command == "summary":
             minutes = int(sys.argv[2]) if len(sys.argv) > 2 else 60
             cmd_summary(minutes)
-        # Log commands (CloudWatch Logs)
-        elif command == "logs":
-            minutes = int(sys.argv[2]) if len(sys.argv) > 2 else 30
-            cmd_logs(minutes)
-        elif command == "logs-errors":
-            minutes = int(sys.argv[2]) if len(sys.argv) > 2 else 60
-            cmd_logs_errors(minutes)
-        elif command == "logs-user":
-            if len(sys.argv) < 3:
-                print("Usage: diagnose.py logs-user USER_ID [MINUTES]")
-                sys.exit(1)
-            user_id = int(sys.argv[2])
-            minutes = int(sys.argv[3]) if len(sys.argv) > 3 else 60
-            cmd_logs_user(user_id, minutes)
-        elif command == "logs-search":
-            if len(sys.argv) < 3:
-                print("Usage: diagnose.py logs-search PATTERN [MINUTES]")
-                sys.exit(1)
-            pattern = sys.argv[2]
-            minutes = int(sys.argv[3]) if len(sys.argv) > 3 else 60
-            cmd_logs_search(pattern, minutes)
         else:
             print(f"Unknown command: {command}")
             print(__doc__)

@@ -273,17 +273,15 @@ jobs:
 
           echo "Found instance: $INSTANCE_ID"
 
-          # Deploy: update IMAGE_TAG and ECR_REGISTRY, pull new image, restart container
+          # Deploy: update IMAGE_TAG, pull new image, restart container
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --parameters "commands=[
               \"cd /home/ec2-user/data\",
-              \"echo 'Setting IMAGE_TAG=v$VERSION and ECR_REGISTRY'\",
+              \"echo 'Setting IMAGE_TAG=v$VERSION'\",
               \"sed -i '/^IMAGE_TAG=/d' .env 2>/dev/null || true\",
-              \"sed -i '/^ECR_REGISTRY=/d' .env 2>/dev/null || true\",
               \"echo 'IMAGE_TAG=v$VERSION' >> .env\",
-              \"echo 'ECR_REGISTRY=$ECR_REGISTRY' >> .env\",
               \"echo 'Pulling new image...'\",
               \"docker pull $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\",
               \"echo 'Restarting container...'\",
