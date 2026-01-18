@@ -368,15 +368,28 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
     case 'RESET_TURN':
       return { ...state, thinking: '', currentIteration: 0 };
 
-    case 'STROKES_READY':
-      // Reject strokes for wrong piece (stale messages)
-      if (action.pieceNumber !== state.pieceNumber) {
+    case 'STROKES_READY': {
+      // When viewing gallery, ignore new strokes entirely
+      if (state.viewingPiece !== null) {
         return state;
       }
+
+      // Reject strokes for OLD pieces (stale messages)
+      if (action.pieceNumber < state.pieceNumber) {
+        return state;
+      }
+
+      // Accept strokes for current OR newer pieces
+      // If newer, sync pieceNumber (handles race condition where
+      // strokes_ready arrives before piece_state)
+      const newPieceNumber = Math.max(state.pieceNumber, action.pieceNumber);
+
       return {
         ...state,
+        pieceNumber: newPieceNumber,
         pendingStrokes: { count: action.count, batchId: action.batchId, pieceNumber: action.pieceNumber },
       };
+    }
 
     case 'CLEAR_PENDING_STROKES':
       return { ...state, pendingStrokes: null };

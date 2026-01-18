@@ -247,27 +247,46 @@ describe('canvasReducer - STROKES_READY', () => {
       pieceNumber: 5,
     });
     expect(result.pendingStrokes).toEqual({ count: 3, batchId: 1, pieceNumber: 5 });
+    expect(result.pieceNumber).toBe(5);
   });
 
-  it('rejects strokes when pieceNumber does not match (stale message)', () => {
+  it('rejects strokes for OLD pieces (stale message)', () => {
     const state: CanvasHookState = { ...initialState, pieceNumber: 5 };
 
-    // Old piece
-    const result1 = canvasReducer(state, {
+    const result = canvasReducer(state, {
       type: 'STROKES_READY',
       count: 3,
       batchId: 1,
       pieceNumber: 3,
     });
-    expect(result1.pendingStrokes).toBeNull();
+    expect(result.pendingStrokes).toBeNull();
+    expect(result.pieceNumber).toBe(5); // unchanged
+  });
 
-    // Future piece (shouldn't happen, but reject anyway)
-    const result2 = canvasReducer(state, {
+  it('accepts strokes for newer pieces and syncs pieceNumber (race condition handling)', () => {
+    // This handles the race condition where strokes_ready arrives before piece_state
+    const state: CanvasHookState = { ...initialState, pieceNumber: 5 };
+
+    const result = canvasReducer(state, {
       type: 'STROKES_READY',
       count: 3,
       batchId: 1,
       pieceNumber: 7,
     });
-    expect(result2.pendingStrokes).toBeNull();
+    // Should accept strokes and sync pieceNumber forward
+    expect(result.pendingStrokes).toEqual({ count: 3, batchId: 1, pieceNumber: 7 });
+    expect(result.pieceNumber).toBe(7);
+  });
+
+  it('rejects strokes when viewing gallery', () => {
+    const state: CanvasHookState = { ...initialState, pieceNumber: 5, viewingPiece: 3 };
+
+    const result = canvasReducer(state, {
+      type: 'STROKES_READY',
+      count: 3,
+      batchId: 1,
+      pieceNumber: 5,
+    });
+    expect(result.pendingStrokes).toBeNull();
   });
 });

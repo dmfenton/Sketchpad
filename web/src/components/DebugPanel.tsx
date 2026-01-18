@@ -10,7 +10,7 @@ interface DebugPanelProps {
     notes: string;
     monologue: string;
     status: string;
-    piece_count: number;
+    piece_number: number;
     paused: boolean;
   } | null;
   files: Array<{ name: string; path: string; size: number; modified: string }>;
@@ -82,8 +82,8 @@ export function DebugPanel({
                   {agent.paused && <span className="badge">PAUSED</span>}
                 </div>
                 <div className="debug-row">
-                  <span className="label">Piece Count:</span>
-                  <span className="value">{agent.piece_count}</span>
+                  <span className="label">Piece Number:</span>
+                  <span className="value">{agent.piece_number}</span>
                 </div>
                 <div className="debug-section">
                   <span className="label">Notes:</span>
