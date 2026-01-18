@@ -122,6 +122,19 @@ This ensures code review happens and keeps the workflow consistent.
 - **`release/*` branches** are temporary, created only for cutting releases. They should not diverge from main - tag releases directly from main when possible.
 - Never do long-running work on release branches. If a hotfix is needed, make it on main first, then cherry-pick or create a new release from main.
 
+### Branch Protection
+
+The `main` branch is protected with these rules:
+
+| Rule                              | Setting                                           |
+| --------------------------------- | ------------------------------------------------- |
+| Required status checks            | Server (Python), App (React Native), Replay Tests |
+| Require branches to be up to date | Yes                                               |
+| Enforce for admins                | No (can bypass if needed)                         |
+| Force pushes                      | Blocked                                           |
+
+PRs to main require all CI checks to pass before merging. Direct pushes to main are blocked.
+
 ## Development Servers
 
 ### Live Reload (IMPORTANT)
