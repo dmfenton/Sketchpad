@@ -527,10 +527,14 @@ git push origin v1.0.0
 
 This triggers `.github/workflows/release.yml` which:
 
-1. Builds Docker image from `server/`
-2. Pushes to AWS ECR with version tag + `latest`
-3. Creates GitHub Release with changelog
-4. Watchtower on EC2 auto-pulls new image within 30 seconds
+1. Runs E2E SDK tests to verify Claude SDK compatibility
+2. Builds web frontend and syncs to S3
+3. Builds Docker image with version tag
+4. Pushes to AWS ECR
+5. Runs database migrations via SSM
+6. Creates GitHub Release with changelog
+7. Deploys to EC2 via SSM (updates IMAGE_TAG, restarts container)
+8. Verifies deployment via `/api/version` endpoint
 
 ### Infrastructure (Terraform)
 
