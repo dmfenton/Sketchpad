@@ -374,7 +374,7 @@ async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict
     from pathlib import Path as FilePath
 
     pieces: list[dict[str, Any]] = []
-    workspace_base = FilePath(settings.workspace_base_dir)
+    workspace_base = FilePath(settings.workspace_base_dir).resolve()
 
     if not workspace_base.exists():
         return []

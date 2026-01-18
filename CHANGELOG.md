@@ -20,6 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Server-side brush stroke expansion with bristle sub-strokes, velocity-based width variation, and edge noise
 - `brush` parameter in `draw_paths` and `generate_svg` tools (paint mode only)
 - `BRUSHES` list available in `generate_svg` code for iterating brush names
+- Public gallery opt-in: users can share their artwork on the homepage via `PUT /settings/gallery`
+- `GET /settings/gallery` endpoint to check current gallery visibility setting
+- `gallery_public` column on users table (default: false, opt-in required)
+
+### Changed
+
+- Public gallery now aggregates artwork from all opted-in users instead of single featured user
+- Public gallery strokes endpoint now validates user has opted in before serving artwork
+
+### Removed
+
+- `homepage_featured_email` configuration setting (replaced by user opt-in)
 
 ### Fixed
 

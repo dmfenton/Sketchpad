@@ -61,7 +61,7 @@ class TestPublicGalleryStrokes:
             mock_settings.workspace_base_dir = temp_workspace
 
             # Mock repository.get_user_by_id
-            async def get_user_by_id(session, user_id):
+            async def get_user_by_id(_session, user_id):
                 if user_id == TEST_USER_ID:
                     return mock_public_user
                 return None
@@ -120,9 +120,7 @@ class TestPublicGalleryStrokes:
 
     def test_invalid_piece_id_path_traversal(self, client):
         """Test path traversal in piece_id is rejected."""
-        response = client.get(
-            f"/public/gallery/{TEST_USER_ID}/../../../etc/passwd/strokes"
-        )
+        response = client.get(f"/public/gallery/{TEST_USER_ID}/../../../etc/passwd/strokes")
 
         # Either 400 (validation) or 404 (route not found) blocks the attack
         assert response.status_code in (400, 404)
@@ -190,7 +188,7 @@ class TestPublicGalleryStrokes:
             mock_settings.workspace_base_dir = temp_workspace
 
             # Mock repository.get_user_by_id to return private user
-            async def get_user_by_id(session, user_id):
+            async def get_user_by_id(_session, user_id):
                 if user_id == TEST_USER_ID_PRIVATE:
                     return mock_private_user
                 return None
@@ -207,18 +205,15 @@ class TestPublicGalleryStrokes:
             from code_monet.main import app
 
             client = TestClient(app)
-            response = client.get(
-                f"/public/gallery/{TEST_USER_ID_PRIVATE}/piece_0001/strokes"
-            )
+            response = client.get(f"/public/gallery/{TEST_USER_ID_PRIVATE}/piece_0001/strokes")
 
             assert response.status_code == 404
             assert response.json()["detail"] == "Gallery not found"
 
-    def test_uppercase_uuid_accepted(self, client):
-        """Test uppercase UUID is accepted."""
-        response = client.get(
-            f"/public/gallery/{TEST_USER_ID.upper()}/piece_0001/strokes"
-        )
-        # Should be valid UUID format, but user won't be found (uppercase != lowercase in lookup)
-        # The UUID regex is case-insensitive, so it passes validation
-        assert response.status_code in (200, 404)
+    def test_uppercase_uuid_passes_validation(self, client):
+        """Test uppercase UUID passes validation but returns 404 (case-sensitive lookup)."""
+        response = client.get(f"/public/gallery/{TEST_USER_ID.upper()}/piece_0001/strokes")
+        # UUID regex is case-insensitive so it passes validation,
+        # but DB lookup is case-sensitive so user won't be found
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Gallery not found"
