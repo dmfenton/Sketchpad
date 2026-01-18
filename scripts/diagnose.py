@@ -22,7 +22,6 @@ Options:
     --md, --markdown    Output in markdown format (for Claude to read)
     --json              Output in JSON format
     --category CAT      Filter logs by category (auth, agent, websocket, etc.)
-    --postgres          Use Postgres backend instead of CloudWatch (requires LOGS_DATABASE_URL)
 """
 
 import json
@@ -52,18 +51,9 @@ if "--category" in sys.argv:
     else:
         sys.argv = sys.argv[:idx]
 
-# Check for log backend
-LOG_BACKEND = "cloudwatch"  # cloudwatch or postgres
-if "--postgres" in sys.argv:
-    LOG_BACKEND = "postgres"
-    sys.argv = [a for a in sys.argv if a != "--postgres"]
-
 # CloudWatch Logs configuration
 LOG_GROUP_APP = "/drawing-agent/app"
 LOG_GROUP_ERRORS = "/drawing-agent/errors"
-
-# Postgres configuration (when using --postgres)
-POSTGRES_DSN = "postgresql://umami:${UMAMI_DB_PASSWORD}@localhost:5432/logs"
 
 if OUTPUT_FORMAT == "rich":
     from rich.console import Console
@@ -84,28 +74,6 @@ def get_logs_client() -> Any:
     import os
     region = os.environ.get("AWS_REGION", "us-east-1")
     return boto3.client("logs", region_name=region)
-
-
-def run_postgres_query(
-    query: str,
-    params: tuple = (),
-    minutes: int = 30,
-) -> list[dict[str, Any]]:
-    """Run a query against the Postgres logs database."""
-    import os
-
-    try:
-        import psycopg2
-        import psycopg2.extras
-    except ImportError:
-        raise RuntimeError("psycopg2 not installed. Run: uv pip install psycopg2-binary")
-
-    dsn = os.environ.get("LOGS_DATABASE_URL", POSTGRES_DSN)
-
-    with psycopg2.connect(dsn) as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(query, params)
-            return [dict(row) for row in cur.fetchall()]
 
 
 def run_logs_query(
@@ -770,59 +738,31 @@ def rich_logs_table(logs: list[dict[str, Any]], title: str) -> None:
 
 # ============== Log Commands ==============
 
-def fetch_logs(
-    cloudwatch_query: str,
-    postgres_query: str,
-    postgres_params: tuple = (),
-    minutes: int = 30,
-) -> list[dict[str, Any]]:
-    """Fetch logs from the configured backend (CloudWatch or Postgres)."""
-    if LOG_BACKEND == "postgres":
-        results = run_postgres_query(postgres_query, postgres_params, minutes)
-        return [format_log_entry(r) for r in results]
-    else:
-        results = run_logs_query(cloudwatch_query, LOG_GROUP_APP, minutes)
-        return [format_log_entry(r) for r in results]
-
-
 def cmd_logs(minutes: int = 30) -> None:
     """Show recent application logs."""
     title = f"Application Logs (last {minutes} min)"
     if LOG_CATEGORY:
         title += f" [category={LOG_CATEGORY}]"
 
-    # CloudWatch query
-    cw_query_parts = [
+    query_parts = [
         "fields @timestamp, @message",
         "sort @timestamp desc",
         "limit 100",
     ]
     if LOG_CATEGORY:
-        cw_query_parts.insert(1, f'filter category = "{LOG_CATEGORY}"')
-    cw_query = " | ".join(cw_query_parts)
-
-    # Postgres query
-    pg_where = f"AND category = %s" if LOG_CATEGORY else ""
-    pg_query = f"""
-        SELECT timestamp, level, category, user_id, message, extra
-        FROM app_logs
-        WHERE timestamp > NOW() - INTERVAL '{minutes} minutes'
-        {pg_where}
-        ORDER BY timestamp DESC
-        LIMIT 100
-    """
-    pg_params = (LOG_CATEGORY,) if LOG_CATEGORY else ()
+        query_parts.insert(1, f'filter category = "{LOG_CATEGORY}"')
+    query = " | ".join(query_parts)
 
     try:
-        logs = fetch_logs(cw_query, pg_query, pg_params, minutes)
+        results = run_logs_query(query, LOG_GROUP_APP, minutes)
+        logs = [format_log_entry(r) for r in results]
 
         if OUTPUT_FORMAT == "markdown":
             md_logs_table(logs, title)
         elif OUTPUT_FORMAT == "json":
             print(json.dumps(logs, indent=2, default=str))
         else:
-            backend_name = "Postgres" if LOG_BACKEND == "postgres" else "CloudWatch"
-            console.print(f"[cyan]Fetching logs from {backend_name} (last {minutes} min)...[/cyan]")
+            console.print(f"[cyan]Fetching logs from last {minutes} minutes...[/cyan]")
             if not logs:
                 console.print("[yellow]No logs found[/yellow]")
                 return
@@ -830,16 +770,14 @@ def cmd_logs(minutes: int = 30) -> None:
     except Exception as e:
         if "ResourceNotFoundException" in str(e):
             msg = f"Log group {LOG_GROUP_APP} not found. CloudWatch Logs may not be configured."
-        elif "psycopg2" in str(type(e).__module__):
-            msg = f"Postgres error: {e}. Check LOGS_DATABASE_URL."
+            if OUTPUT_FORMAT == "markdown":
+                md_print(f"\n**Error:** {msg}\n")
+            elif OUTPUT_FORMAT == "json":
+                print(json.dumps({"error": msg}))
+            else:
+                console.print(f"[red]{msg}[/red]")
         else:
             raise
-        if OUTPUT_FORMAT == "markdown":
-            md_print(f"\n**Error:** {msg}\n")
-        elif OUTPUT_FORMAT == "json":
-            print(json.dumps({"error": msg}))
-        else:
-            console.print(f"[red]{msg}[/red]")
 
 
 def cmd_logs_errors(minutes: int = 60) -> None:
