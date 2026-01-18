@@ -1,19 +1,16 @@
 """Tests for brush expansion logic."""
 
-import pytest
-
 from code_monet.brushes import (
+    _apply_edge_noise,
+    _calculate_velocity_widths,
+    _get_path_points,
+    _offset_path,
     expand_brush_stroke,
     get_brush_descriptions,
     get_brush_names,
-    _calculate_velocity_widths,
-    _apply_edge_noise,
-    _offset_path,
-    _get_path_points,
 )
 from code_monet.types import (
     BRUSH_PRESETS,
-    BrushPreset,
     Path,
     PathType,
     Point,
@@ -182,7 +179,7 @@ class TestCalculateVelocityWidths:
         """Faster movement should produce thinner strokes."""
         points = [
             Point(x=0, y=0),
-            Point(x=10, y=0),   # Short distance (slow)
+            Point(x=10, y=0),  # Short distance (slow)
             Point(x=110, y=0),  # Long distance (fast)
         ]
         widths = _calculate_velocity_widths(points, base_width=10.0, pressure_response=1.0)
