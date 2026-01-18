@@ -7,6 +7,7 @@ import type { PendingStroke, ServerMessage } from '@code-monet/shared';
 import {
   deriveAgentStatus,
   hasInProgressEvents,
+  shouldShowIdleAnimation,
   STATUS_LABELS,
   useStrokeAnimation,
 } from '@code-monet/shared';
@@ -111,6 +112,7 @@ function App(): React.ReactElement {
           penDown={state.penDown}
           drawingEnabled={state.drawingEnabled}
           styleConfig={state.styleConfig}
+          showIdleAnimation={shouldShowIdleAnimation(state)}
           onStrokeStart={startStroke}
           onStrokeMove={addPoint}
           onStrokeEnd={handleStrokeEnd}

@@ -23,6 +23,7 @@ interface CanvasProps {
   penDown: boolean;
   drawingEnabled: boolean;
   styleConfig?: DrawingStyleConfig; // Current drawing style (defaults to plotter)
+  showIdleAnimation: boolean; // Whether to show idle particles
   onStrokeStart: (x: number, y: number) => void;
   onStrokeMove: (x: number, y: number) => void;
   onStrokeEnd: () => void;
@@ -127,6 +128,7 @@ export function Canvas({
   penDown,
   drawingEnabled,
   styleConfig = PLOTTER_STYLE,
+  showIdleAnimation,
   onStrokeStart,
   onStrokeMove,
   onStrokeEnd,
@@ -191,10 +193,8 @@ export function Canvas({
         onMouseLeave={handleMouseLeave}
         style={{ cursor: drawingEnabled ? 'crosshair' : 'default' }}
       >
-        {/* Idle animation - floating particles when canvas is empty */}
-        <IdleParticles
-          visible={strokes.length === 0 && currentStroke.length === 0 && agentStroke.length === 0}
-        />
+        {/* Idle animation - floating particles when canvas is empty and agent is idle */}
+        <IdleParticles visible={showIdleAnimation} />
 
         {/* Completed strokes - render with effective style */}
         {strokes.map((stroke, index) => {

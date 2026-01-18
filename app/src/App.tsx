@@ -23,6 +23,7 @@ import {
   deriveAgentStatus,
   hasInProgressEvents,
   LIVE_MESSAGE_ID,
+  shouldShowIdleAnimation,
   useStrokeAnimation,
 } from '@code-monet/shared';
 
@@ -260,6 +261,7 @@ function MainApp(): React.JSX.Element {
               penDown={canvas.state.penDown}
               drawingEnabled={canvas.state.drawingEnabled}
               styleConfig={canvas.state.styleConfig}
+              showIdleAnimation={shouldShowIdleAnimation(canvas.state)}
               onStrokeStart={handleStrokeStart}
               onStrokeMove={handleStrokeMove}
               onStrokeEnd={handleStrokeEnd}

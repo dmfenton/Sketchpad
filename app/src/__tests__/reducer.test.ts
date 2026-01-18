@@ -8,6 +8,7 @@ import {
   hasInProgressEvents,
   initialState,
   LIVE_MESSAGE_ID,
+  shouldShowIdleAnimation,
   type CanvasHookState,
 } from '@code-monet/shared';
 import type { AgentMessage } from '@code-monet/shared';
@@ -234,6 +235,67 @@ describe('deriveAgentStatus', () => {
       ],
     };
     expect(deriveAgentStatus(state)).toBe('error');
+  });
+});
+
+describe('shouldShowIdleAnimation', () => {
+  const baseState: CanvasHookState = {
+    ...initialState,
+    paused: false,
+  };
+
+  it('returns true when canvas empty and status is idle', () => {
+    expect(shouldShowIdleAnimation(baseState)).toBe(true);
+  });
+
+  it('returns false when canvas has strokes', () => {
+    const state: CanvasHookState = {
+      ...baseState,
+      strokes: [{ type: 'polyline', points: [{ x: 0, y: 0 }] }],
+    };
+    expect(shouldShowIdleAnimation(state)).toBe(false);
+  });
+
+  it('returns false when user is drawing (currentStroke has points)', () => {
+    const state: CanvasHookState = {
+      ...baseState,
+      currentStroke: [{ x: 10, y: 10 }],
+    };
+    expect(shouldShowIdleAnimation(state)).toBe(false);
+  });
+
+  it('returns false when paused (even with empty canvas)', () => {
+    const state: CanvasHookState = {
+      ...baseState,
+      paused: true,
+    };
+    expect(shouldShowIdleAnimation(state)).toBe(false);
+  });
+
+  it('returns false when thinking (even with empty canvas)', () => {
+    const state: CanvasHookState = {
+      ...baseState,
+      messages: [{ id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Thinking...', timestamp: Date.now() }],
+    };
+    expect(shouldShowIdleAnimation(state)).toBe(false);
+  });
+
+  it('returns false when drawing (even with empty canvas)', () => {
+    const state: CanvasHookState = {
+      ...baseState,
+      pendingStrokes: { count: 5, batchId: 1, pieceNumber: 0 },
+    };
+    expect(shouldShowIdleAnimation(state)).toBe(false);
+  });
+
+  it('returns false when has strokes even if would otherwise be idle', () => {
+    const state: CanvasHookState = {
+      ...baseState,
+      strokes: [{ type: 'line', points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] }],
+    };
+    // Status would be 'idle' but strokes exist
+    expect(deriveAgentStatus(state)).toBe('idle');
+    expect(shouldShowIdleAnimation(state)).toBe(false);
   });
 });
 

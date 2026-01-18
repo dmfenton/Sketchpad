@@ -30,6 +30,7 @@ interface CanvasProps {
   penDown: boolean;
   drawingEnabled: boolean;
   styleConfig?: DrawingStyleConfig; // Current drawing style (defaults to plotter)
+  showIdleAnimation: boolean; // Whether to show idle particles
   onStrokeStart: (x: number, y: number) => void;
   onStrokeMove: (x: number, y: number) => void;
   onStrokeEnd: () => void;
@@ -123,6 +124,7 @@ export function Canvas({
   penDown,
   drawingEnabled,
   styleConfig = PLOTTER_STYLE,
+  showIdleAnimation,
   onStrokeStart,
   onStrokeMove,
   onStrokeEnd,
@@ -175,12 +177,8 @@ export function Canvas({
             viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
             preserveAspectRatio="xMidYMid meet"
           >
-            {/* Idle animation - floating particles when canvas is empty */}
-            <IdleParticles
-              visible={
-                strokes.length === 0 && currentStroke.length === 0 && agentStroke.length === 0
-              }
-            />
+            {/* Idle animation - floating particles when canvas is empty and agent is idle */}
+            <IdleParticles visible={showIdleAnimation} />
 
             {/* Completed strokes - render with effective style */}
             {strokes.map((stroke, index) => {

@@ -108,6 +108,18 @@ export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
   return 'idle';
 }
 
+/**
+ * Determine if the idle animation should show.
+ * Single source of truth: canvas is empty, user is not drawing, AND agent is idle.
+ */
+export function shouldShowIdleAnimation(state: CanvasHookState): boolean {
+  return (
+    state.strokes.length === 0 &&
+    state.currentStroke.length === 0 &&
+    deriveAgentStatus(state) === 'idle'
+  );
+}
+
 export type CanvasAction =
   | { type: 'ADD_STROKE'; path: Path }
   | { type: 'SET_STROKES'; strokes: Path[] }
