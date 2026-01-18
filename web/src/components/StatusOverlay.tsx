@@ -8,14 +8,13 @@
  * - Idle/Paused: Subtle indicator
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo } from 'react';
 import type { AgentMessage, AgentStatus } from '@code-monet/shared';
 import {
   bionicWord,
   getLastToolCall,
   TOOL_DISPLAY_NAMES,
-  BIONIC_CHUNK_INTERVAL_MS,
-  BIONIC_CHUNK_SIZE,
+  useProgressiveText,
 } from '@code-monet/shared';
 
 interface StatusOverlayProps {
@@ -49,55 +48,15 @@ function ThinkingDisplay({
   text: string;
   isAnimating?: boolean;
 }): React.ReactElement {
-  // Track how many words to display (accumulating, not replacing)
-  const [displayedWordCount, setDisplayedWordCount] = useState(0);
-  const prevTextRef = useRef(text);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Progressive text display via shared hook (only when animating)
+  const { displayedWords, isBuffering } = useProgressiveText(isAnimating ? text : null);
 
-  // Split text into individual words
+  // All words for when not animating (show everything immediately)
   const allWords = useMemo(() => text.split(/\s+/).filter((w) => w.length > 0), [text]);
 
-  // Reset when text is cleared (new turn)
-  useEffect(() => {
-    if (text.length < prevTextRef.current.length / 2) {
-      setDisplayedWordCount(0);
-    }
-    prevTextRef.current = text;
-  }, [text]);
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, []);
-
-  // Progressively reveal words at a readable pace
-  useEffect(() => {
-    if (!isAnimating || allWords.length === 0) return;
-
-    // If we have more words than displayed, schedule next chunk
-    if (displayedWordCount < allWords.length && !timerRef.current) {
-      timerRef.current = setTimeout(() => {
-        timerRef.current = null;
-        setDisplayedWordCount((prev) => Math.min(prev + BIONIC_CHUNK_SIZE, allWords.length));
-      }, BIONIC_CHUNK_INTERVAL_MS);
-    }
-  }, [allWords.length, displayedWordCount, isAnimating]);
-
-  // When animation stops, show all text
-  useEffect(() => {
-    if (!isAnimating && allWords.length > 0) {
-      setDisplayedWordCount(allWords.length);
-    }
-  }, [isAnimating, allWords.length]);
-
-  // Get words to display (up to displayedWordCount)
-  const wordsToShow = allWords.slice(0, displayedWordCount);
-  const isBuffering = displayedWordCount < allWords.length;
+  // When not animating, show all words immediately
+  const wordsToShow = isAnimating ? displayedWords : allWords;
+  const showCursor = isAnimating && isBuffering;
 
   if (allWords.length === 0) {
     return <span className="status-text">Thinking...</span>;
@@ -111,7 +70,7 @@ function ThinkingDisplay({
           {i < wordsToShow.length - 1 && ' '}
         </React.Fragment>
       ))}
-      {isBuffering && <span className="cursor"> ▍</span>}
+      {showCursor && <span className="cursor"> ▍</span>}
     </div>
   );
 }
