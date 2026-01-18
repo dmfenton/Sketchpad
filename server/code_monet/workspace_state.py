@@ -59,7 +59,7 @@ class WorkspaceState:
         # In-memory state
         self._canvas: CanvasState = CanvasState()
         self._status: AgentStatus = AgentStatus.PAUSED
-        self._piece_count: int = 0
+        self._piece_number: int = 0
         self._notes: str = ""
         self._monologue: str = ""
         self._loaded = False
@@ -144,7 +144,7 @@ class WorkspaceState:
                 drawing_style=drawing_style,
             )
             self._status = AgentStatus(data.get("status", "paused"))
-            self._piece_count = data.get("piece_count", 0)
+            self._piece_number = data.get("piece_number", 0)
             self._notes = data.get("notes", "")
             self._monologue = data.get("monologue", "")
             self._pending_strokes = data.get("pending_strokes", [])
@@ -152,7 +152,7 @@ class WorkspaceState:
 
             logger.info(
                 f"Workspace loaded for user {self.user_id}: "
-                f"piece {self._piece_count}, {len(self._canvas.strokes)} strokes"
+                f"piece {self._piece_number}, {len(self._canvas.strokes)} strokes"
             )
         else:
             logger.info(f"New workspace created for user {self.user_id}")
@@ -194,7 +194,7 @@ class WorkspaceState:
             data = {
                 "canvas": self._canvas.model_dump(),
                 "status": self._status.value,
-                "piece_count": self._piece_count,
+                "piece_number": self._piece_number,
                 "notes": self._notes,
                 "monologue": self._monologue,
                 "pending_strokes": self._pending_strokes,
@@ -242,12 +242,12 @@ class WorkspaceState:
         self._status = value
 
     @property
-    def piece_count(self) -> int:
-        return self._piece_count
+    def piece_number(self) -> int:
+        return self._piece_number
 
-    @piece_count.setter
-    def piece_count(self, value: int) -> None:
-        self._piece_count = value
+    @piece_number.setter
+    def piece_number(self, value: int) -> None:
+        self._piece_number = value
 
     @property
     def notes(self) -> str:
@@ -360,10 +360,10 @@ class WorkspaceState:
                 return None
 
             # Save to gallery as JSON file (use 6 digits for scalability)
-            piece_file = self._gallery_dir / f"piece_{self._piece_count:06d}.json"
+            piece_file = self._gallery_dir / f"piece_{self._piece_number:06d}.json"
             created_at = datetime.now(UTC).isoformat()
             piece_data = {
-                "piece_number": self._piece_count,
+                "piece_number": self._piece_number,
                 "strokes": [s.model_dump() for s in self._canvas.strokes],
                 "created_at": created_at,
                 "drawing_style": self._canvas.drawing_style.value,
@@ -375,13 +375,13 @@ class WorkspaceState:
                 await f.write(json.dumps(piece_data, indent=2))
             await aiofiles.os.replace(temp_file, piece_file)
 
-            saved_id = f"piece_{self._piece_count:06d}"
-            logger.info(f"Saved piece {self._piece_count} to gallery as {saved_id}")
+            saved_id = f"piece_{self._piece_number:06d}"
+            logger.info(f"Saved piece {self._piece_number} to gallery as {saved_id}")
 
             # Prepare and update gallery index
             index_entry = {
                 "id": saved_id,
-                "piece_number": self._piece_count,
+                "piece_number": self._piece_number,
                 "stroke_count": len(self._canvas.strokes),
                 "created_at": created_at,
                 "drawing_style": self._canvas.drawing_style.value,
@@ -401,7 +401,7 @@ class WorkspaceState:
         # Then clear for new canvas
         async with self._write_lock:
             self._canvas.strokes = []
-            self._piece_count += 1
+            self._piece_number += 1
             self._monologue = ""  # Clear thinking for new piece
             self._notes = ""  # Clear notes for new piece
 

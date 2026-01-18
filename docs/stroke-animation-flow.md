@@ -43,12 +43,12 @@ SERVER                                  CLIENT
      * Interpolates paths to points
      * Stores in _pending_strokes
    - Broadcast: strokes_ready       --> Receives strokes_ready
-     (count, batch_id, piece_id)        |
+     (count, batch_id, piece_number)        |
    - Sleep (animation wait)             v
                                     10. STROKES_READY action
-                                        - IF pieceId !== pieceCount:
+                                        - IF pieceNumber !== state.pieceNumber:
                                           SILENTLY IGNORED! (return state)
-                                        - ELSE: pendingStrokes = {count, batchId, pieceId}
+                                        - ELSE: pendingStrokes = {count, batchId, pieceNumber}
                                         |
                                         v
                                     11. deriveAgentStatus():
@@ -91,7 +91,7 @@ SERVER                                  CLIENT
                                         - fetchStrokes() --> GET /strokes/pending
                                         |                        |
                                         |<-----------------------+
-                                        v                   Returns: {strokes, count, piece_id}
+                                        v                   Returns: {strokes, count, piece_number}
                                     20. animateStrokes():
                                         - For each stroke:
                                           - SET_PEN (down=false) - move to start
@@ -109,13 +109,13 @@ SERVER                                  CLIENT
 
 ## Potential Failure Points
 
-### 1. pieceId Mismatch (SILENT FAILURE)
+### 1. pieceNumber Mismatch (SILENT FAILURE)
 
 **Location:** `reducer.ts:373`
 
 ```typescript
 case 'STROKES_READY':
-  if (action.pieceId !== state.pieceCount) {
+  if (action.pieceNumber !== state.pieceNumber) {
     return state;  // SILENTLY IGNORED!
   }
 ```

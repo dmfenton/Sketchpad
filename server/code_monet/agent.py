@@ -603,7 +603,7 @@ class DrawingAgent:
         parts.append(
             f"Canvas size: {settings.canvas_width}x{settings.canvas_height}\n"
             f"Existing strokes: {len(state.canvas.strokes)}\n"
-            f"Piece number: {state.piece_count + 1}"
+            f"Piece number: {state.piece_number + 1}"
         )
 
         # Notes

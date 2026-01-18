@@ -11,7 +11,7 @@ import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { AgentMessage, AgentStatus, ToolName } from '@code-monet/shared';
-import { TOOL_DISPLAY_NAMES, useProgressiveText } from '@code-monet/shared';
+import { bionicWord, TOOL_DISPLAY_NAMES, useProgressiveText } from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
 
 interface LiveStatusProps {
@@ -61,6 +61,17 @@ function getStatusLabel(status: AgentStatus, currentTool?: ToolName | null): str
   }
 }
 
+/** Renders a word with bionic reading formatting (bold first ~40%) */
+function BionicWord({ word }: { word: string }): React.JSX.Element {
+  const { bold, regular } = bionicWord(word);
+  return (
+    <Text>
+      <Text style={{ fontWeight: '700' }}>{bold}</Text>
+      <Text>{regular}</Text>
+    </Text>
+  );
+}
+
 export function LiveStatus({
   liveMessage,
   status,
@@ -70,7 +81,7 @@ export function LiveStatus({
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Progressive text display via shared hook
-  const { displayedText, isBuffering } = useProgressiveText(liveMessage?.text ?? null);
+  const { displayedWords, isBuffering } = useProgressiveText(liveMessage?.text ?? null);
 
   // Pulse animation for active states
   useEffect(() => {
@@ -125,10 +136,15 @@ export function LiveStatus({
         </Text>
       </View>
 
-      {/* Live thought text */}
-      {displayedText.length > 0 && (
+      {/* Live thought text with bionic formatting */}
+      {displayedWords.length > 0 && (
         <Text style={[styles.thoughtText, { color: colors.textPrimary }]} numberOfLines={3}>
-          {displayedText}
+          {displayedWords.map((word, i) => (
+            <React.Fragment key={`${i}-${word}`}>
+              <BionicWord word={word} />
+              {i < displayedWords.length - 1 && ' '}
+            </React.Fragment>
+          ))}
           {isBuffering && <Text style={{ color: colors.textMuted }}> ▍</Text>}
         </Text>
       )}

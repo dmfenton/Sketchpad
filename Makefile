@@ -85,13 +85,13 @@ test-server:
 test-app:
 	cd app && npm run test
 
-# E2E SDK integration tests (API key from SSM or .env)
+# E2E SDK integration tests (fetches API key from SSM)
 test-e2e-sdk:
-	cd server && uv run pytest tests/test_e2e_sdk.py -v
+	cd server && CODE_MONET_ENV=prod AWS_REGION=us-east-1 uv run pytest tests/test_e2e_sdk.py -v
 
-# Record WebSocket message fixtures (requires API key)
+# Record WebSocket message fixtures (fetches API key from SSM)
 test-record-fixture:
-	cd server && uv run pytest tests/test_e2e_websocket_recording.py -v -k "test_record"
+	cd server && CODE_MONET_ENV=prod AWS_REGION=us-east-1 uv run pytest tests/test_e2e_websocket_recording.py -v -k "test_record"
 
 # Run app reducer replay tests (fast, no API)
 test-replay:

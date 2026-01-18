@@ -156,8 +156,8 @@ export const handleError: MessageHandler<ErrorMessage> = (message, dispatch) => 
 };
 
 export const handlePieceState: MessageHandler<PieceStateMessage> = (message, dispatch) => {
-  // Update the piece count
-  dispatch({ type: 'SET_PIECE_COUNT', count: message.number });
+  // Update the current piece number
+  dispatch({ type: 'SET_PIECE_NUMBER', number: message.number });
 
   // If piece just completed, show completion message
   if (message.completed) {
@@ -207,7 +207,7 @@ export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
     type: 'INIT',
     strokes: message.strokes,
     gallery: message.gallery,
-    pieceCount: message.piece_count,
+    pieceNumber: message.piece_number,
     paused: message.paused,
     drawingStyle: message.drawing_style,
     styleConfig: message.style_config,
@@ -238,12 +238,12 @@ export const handleStyleChange: MessageHandler<StyleChangeMessage> = (message, d
 export const handleStrokesReady: MessageHandler<StrokesReadyMessage> = (message, dispatch) => {
   // Signal that strokes are ready to be fetched from the REST API
   // The hook will watch for this state change and trigger the fetch
-  // piece_id is used to ignore strokes from a previous canvas
+  // piece_number is used to ignore strokes from a previous canvas
   dispatch({
     type: 'STROKES_READY',
     count: message.count,
     batchId: message.batch_id,
-    pieceId: message.piece_id,
+    pieceNumber: message.piece_number,
   });
 };
 

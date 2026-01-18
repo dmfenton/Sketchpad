@@ -32,7 +32,7 @@ interface GalleryModalProps {
   visible: boolean;
   canvases: SavedCanvas[];
   onClose: () => void;
-  onSelect: (canvasId: string) => void;
+  onSelect: (pieceNumber: number) => void;
 }
 
 // Grid configuration
@@ -151,7 +151,7 @@ export function GalleryModal({
         canvas={item}
         thumbnailSize={thumbnailSize}
         thumbnailUrl={getThumbnailUrl(item.thumbnail_token)}
-        onPress={() => onSelect(item.id)}
+        onPress={() => onSelect(item.piece_number)}
         colors={colors}
         shadows={shadows}
       />

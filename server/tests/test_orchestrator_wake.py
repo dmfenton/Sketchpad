@@ -16,7 +16,7 @@ def mock_agent():
     agent.pending_nudges = []
     agent.get_state.return_value = MagicMock(
         canvas=MagicMock(strokes=[]),
-        piece_count=0,
+        piece_number=0,
     )
     return agent
 

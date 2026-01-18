@@ -178,11 +178,11 @@ async def _list_users_with_workspace_async() -> list[tuple[str, str, str, bool, 
             # Try to load workspace state
             try:
                 state = await WorkspaceState.load_for_user(user.id)
-                piece_count = state.piece_count
+                piece_number = state.piece_number
                 stroke_count = len(state.canvas.strokes)
                 status = state.status.value
             except Exception:
-                piece_count = 0
+                piece_number = 0
                 stroke_count = 0
                 status = "no workspace"
 
@@ -192,7 +192,7 @@ async def _list_users_with_workspace_async() -> list[tuple[str, str, str, bool, 
                     user.email,
                     created,
                     user.is_active,
-                    piece_count,
+                    piece_number,
                     stroke_count,
                     status,
                 )
@@ -213,7 +213,7 @@ async def _get_workspace_state_async(
     return {
         "user_id": user_id,
         "status": state.status.value,
-        "piece_count": state.piece_count,
+        "piece_number": state.piece_number,
         "stroke_count": len(state.canvas.strokes),
         "notes": state.notes,
         "monologue_preview": state.monologue[:200] + "..."
@@ -303,7 +303,7 @@ def user_workspace(
     status_table.add_column("Value")
 
     status_table.add_row("Status", data["status"])
-    status_table.add_row("Piece Count", str(data["piece_count"]))
+    status_table.add_row("Piece Number", str(data["piece_number"]))
     status_table.add_row("Current Strokes", str(data["stroke_count"]))
     status_table.add_row("Gallery Items", str(data["gallery_count"]))
 

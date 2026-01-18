@@ -95,9 +95,11 @@ class AgentOrchestrator:
         # Interpolate paths and queue for client fetch
         batch_id, total_points = await state.queue_strokes(paths)
 
-        # Notify clients that strokes are ready (include piece_id to prevent cross-canvas rendering)
+        # Notify clients that strokes are ready (include piece_number to prevent cross-canvas rendering)
         await self.broadcaster.broadcast(
-            StrokesReadyMessage(count=len(paths), batch_id=batch_id, piece_id=state.piece_count)
+            StrokesReadyMessage(
+                count=len(paths), batch_id=batch_id, piece_number=state.piece_number
+            )
         )
 
         # Wait for client animation to complete
@@ -191,7 +193,7 @@ class AgentOrchestrator:
         # Log turn start
         if self.file_logger:
             await self.file_logger.log_turn_start(
-                piece_number=state.piece_count + 1,
+                piece_number=state.piece_number + 1,
                 stroke_count=len(state.canvas.strokes),
             )
             # Log any pending nudges
@@ -219,7 +221,7 @@ class AgentOrchestrator:
 
         if done:
             state = self.agent.get_state()
-            piece_num = state.piece_count
+            piece_num = state.piece_number
             logger.info(f"Piece {piece_num} complete")
 
             # Broadcast piece state with completed=True

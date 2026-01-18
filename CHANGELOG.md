@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Race condition where agent strokes could be silently dropped if `strokes_ready` message arrived before `piece_state` update
+
 ## [1.24.0] - 2026-01-18
 
 ### Added

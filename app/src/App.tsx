@@ -185,8 +185,8 @@ function MainApp(): React.JSX.Element {
   }, []);
 
   const handleGallerySelect = useCallback(
-    (canvasId: string) => {
-      send({ type: 'load_canvas', canvas_id: canvasId });
+    (pieceNumber: number) => {
+      send({ type: 'load_canvas', piece_number: pieceNumber });
       setGalleryModalVisible(false);
     },
     [send]

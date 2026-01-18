@@ -17,7 +17,7 @@ export interface AgentDebugInfo {
   notes: string;
   monologue: string;
   status: string;
-  piece_count: number;
+  piece_number: number;
   paused: boolean;
 }
 
