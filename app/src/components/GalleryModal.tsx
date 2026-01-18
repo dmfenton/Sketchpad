@@ -225,6 +225,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
   },
   row: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
     gap: GRID_GAP,
     marginBottom: GRID_GAP,
   },
