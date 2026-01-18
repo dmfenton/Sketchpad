@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Stroke animation not starting when agent begins thinking immediately after draw_paths completes
+- Bionic reading display showing all text at once instead of progressive word-by-word reveal
+- Mobile LiveStatus and web StatusOverlay now reveal 3 words every 150ms with cursor indicator
+
 ## [1.22.0] - 2026-01-17
 
 ### Fixed

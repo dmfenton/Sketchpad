@@ -141,7 +141,7 @@ export function LiveStatus({
         );
       }, BIONIC_CHUNK_INTERVAL_MS);
     }
-  }, [liveMessage?.text, displayedWordCount]);
+  }, [liveMessage, displayedWordCount]);
 
   // Don't show anything when idle
   if (status === 'idle' && !liveMessage) {
