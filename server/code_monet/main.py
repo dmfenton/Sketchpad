@@ -397,7 +397,11 @@ async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict
         if index_file.exists():
             try:
                 index_data = json.loads(index_file.read_text())
-                for entry in index_data.get("pieces", []):
+                # Handle both list format and {"pieces": [...]} format
+                entries = (
+                    index_data if isinstance(index_data, list) else index_data.get("pieces", [])
+                )
+                for entry in entries:
                     pieces.append(
                         {
                             "id": entry.get("id", ""),
