@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Release workflow now correctly updates IMAGE_TAG in `/home/ec2-user/.env` (was incorrectly using `/home/ec2-user/data`)
 - Release workflow now re-authenticates with ECR before pulling images to prevent expired token errors
+- Release workflow migrations now use correct database (fetches DATABASE_URL from SSM to pass to one-off container)
 
 ## [1.25.1] - 2026-01-18
 
