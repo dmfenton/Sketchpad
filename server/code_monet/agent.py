@@ -154,16 +154,30 @@ This constraint is a feature: with only black lines, every mark must earn its pl
 """
 
 _PROMPT_PAINT_STYLE = """\
-**Style: Paint** — You're working with a full color palette. Expressive, vibrant, rich.
+**Style: Paint** — You're working with a full color palette and realistic brush presets. Expressive, vibrant, rich.
 
 You have access to these colors:
 {color_palette}
 
-Each path can have its own color, stroke width (0.5-10), and opacity (0-1). Use these to create depth, emphasis, and visual rhythm.
+And these brush presets for realistic paint effects:
+- `oil_round` — Classic round brush, visible bristle texture (good for blending, details)
+- `oil_flat` — Flat brush, parallel bristle marks (good for blocking shapes)
+- `oil_filbert` — Rounded flat brush (good for organic shapes, foliage)
+- `watercolor` — Translucent with soft edges, colors pool at ends
+- `dry_brush` — Scratchy, broken strokes (good for texture, grass)
+- `palette_knife` — Sharp edges, thick paint (good for impasto effects)
+- `ink` — Pressure-sensitive with elegant taper (good for calligraphy)
+- `pencil` — Thin, consistent lines (good for sketching)
+- `charcoal` — Smudgy edges with texture (good for value studies)
+- `marker` — Solid color with slight edge bleed
+- `airbrush` — Very soft edges (good for gradients, backgrounds)
+- `splatter` — Random dots around stroke (good for texture effects)
 
-When a human draws, their marks appear in rose ({human_color}). Your default is dark ({agent_color}), but vary your palette freely.
+Each path can have a brush preset, color, stroke width (0.5-30), and opacity (0-1). Brushes add bristle texture, pressure sensitivity, and natural edge variation.
 
-Color is expressive: warm colors advance, cool recede. Thick strokes command attention, thin ones whisper. Build visual hierarchy through variation.
+When a human draws, their marks appear in rose ({human_color}). Your default is dark ({agent_color}), but vary your palette and brushes freely.
+
+Color is expressive: warm colors advance, cool recede. Thick strokes command attention, thin ones whisper. Different brushes evoke different mediums—oil painting feels different from watercolor. Build visual hierarchy through variation.
 """
 
 _PROMPT_TOOLS_BASE = """\
@@ -202,24 +216,30 @@ draw_paths({
 """
 
 _PROMPT_TOOLS_PAINT_EXAMPLE = """\
-Example with colors and styles:
+Example with brushes and colors:
 ```
 draw_paths({
     "paths": [
+        {"type": "polyline", "points": [
+            {"x": 100, "y": 300}, {"x": 200, "y": 250},
+            {"x": 300, "y": 280}, {"x": 400, "y": 220}
+        ], "brush": "oil_round", "color": "#e94560"},
         {"type": "cubic", "points": [
-            {"x": 100, "y": 300}, {"x": 200, "y": 100},
-            {"x": 600, "y": 500}, {"x": 700, "y": 300}
-        ], "color": "#e94560", "stroke_width": 4},
-        {"type": "svg", "d": "M 400 200 Q 450 250 400 300", "color": "#4ecdc4", "opacity": 0.7},
-        {"type": "line", "points": [{"x": 100, "y": 100}, {"x": 700, "y": 500}], "color": "#7b68ee", "stroke_width": 2}
+            {"x": 100, "y": 400}, {"x": 250, "y": 350},
+            {"x": 550, "y": 450}, {"x": 700, "y": 400}
+        ], "brush": "watercolor", "color": "#4ecdc4", "opacity": 0.5},
+        {"type": "line", "points": [{"x": 100, "y": 100}, {"x": 700, "y": 500}], "brush": "ink", "color": "#1a1a2e"}
     ]
 })
 ```
 
 Style properties (all optional):
+- `brush`: brush preset for paint effects (e.g., "oil_round", "watercolor", "ink")
 - `color`: hex color (e.g., "#e94560")
-- `stroke_width`: line thickness 0.5-10 (default: 3)
+- `stroke_width`: line thickness 0.5-30, overrides brush default
 - `opacity`: transparency 0-1 (default: 1)
+
+Note: Brushes work best with `polyline`, `line`, `quadratic`, and `cubic` types. SVG paths (`svg` type) don't support brush expansion.
 """
 
 _PROMPT_GENERATE_SVG_BASE = """\
@@ -257,29 +277,36 @@ output_paths(paths)
 """
 
 _PROMPT_GENERATE_SVG_PAINT_EXAMPLE = """\
-Example — colorful radial burst:
+Example — oil painting with brush strokes:
 ```python
 import math, random
 paths = []
 colors = ["#e94560", "#7b68ee", "#4ecdc4", "#ffd93d", "#ff6b6b"]
 cx, cy = canvas_width / 2, canvas_height / 2
-for i in range(60):
-    angle = i * math.pi / 30
-    length = random.uniform(80, 200)
-    x2 = cx + length * math.cos(angle)
-    y2 = cy + length * math.sin(angle)
+for i in range(40):
+    angle = i * math.pi / 20
+    r1 = 50 + random.uniform(0, 20)
+    r2 = 150 + random.uniform(0, 50)
+    x1, y1 = cx + r1 * math.cos(angle), cy + r1 * math.sin(angle)
+    x2, y2 = cx + r2 * math.cos(angle), cy + r2 * math.sin(angle)
     color = random.choice(colors)
-    width = random.uniform(1, 4)
-    paths.append(line(cx, cy, x2, y2, color=color, stroke_width=width))
+    brush = random.choice(["oil_round", "oil_flat", "oil_filbert"])
+    paths.append(line(x1, y1, x2, y2, brush=brush, color=color))
 output_paths(paths)
 ```
 
-Helper functions accept optional style parameters:
-- `line(x1, y1, x2, y2, color=None, stroke_width=None, opacity=None)`
-- `polyline(*points, color=None, stroke_width=None, opacity=None)` — points are (x, y) tuples
-- `quadratic(x1, y1, cx, cy, x2, y2, color=None, stroke_width=None, opacity=None)`
-- `cubic(x1, y1, cx1, cy1, cx2, cy2, x2, y2, color=None, stroke_width=None, opacity=None)`
-- `svg_path(d, color=None, stroke_width=None, opacity=None)`
+You have access to `BRUSHES` — a list of all brush preset names:
+```python
+for brush in BRUSHES:
+    paths.append(line(x, y, x+100, y, brush=brush))
+```
+
+Helper functions accept optional brush and style parameters:
+- `line(x1, y1, x2, y2, brush=None, color=None, stroke_width=None, opacity=None)`
+- `polyline(*points, brush=None, color=None, stroke_width=None, opacity=None)` — points are (x, y) tuples
+- `quadratic(x1, y1, cx, cy, x2, y2, brush=None, color=None, stroke_width=None, opacity=None)`
+- `cubic(x1, y1, cx1, cy1, cx2, cy2, x2, y2, brush=None, color=None, stroke_width=None, opacity=None)`
+- `svg_path(d, brush=None, color=None, stroke_width=None, opacity=None)` — note: brush ignored for svg_path
 """
 
 _PROMPT_MIXING_AND_VIEWING = """\

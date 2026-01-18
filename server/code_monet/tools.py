@@ -11,7 +11,7 @@ from typing import Any
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
-from code_monet.types import Path, PathType, Point
+from code_monet.types import BRUSH_PRESETS, Path, PathType, Point
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def parse_path_data(path_data: dict[str, Any]) -> Path | None:
     """Parse a path dictionary into a Path object.
 
-    Supports optional style properties: color, stroke_width, opacity.
+    Supports optional style properties: brush, color, stroke_width, opacity.
     """
     try:
         path_type_str = path_data.get("type", "")
@@ -32,9 +32,20 @@ def parse_path_data(path_data: dict[str, Any]) -> Path | None:
             return None
 
         # Extract optional style properties
+        brush = path_data.get("brush")
         color = path_data.get("color")
         stroke_width = path_data.get("stroke_width")
         opacity = path_data.get("opacity")
+
+        # Validate brush (must be a valid preset name or None)
+        if brush is not None:
+            if not isinstance(brush, str):
+                brush = None
+            else:
+                from .types import BRUSH_PRESETS
+
+                if brush not in BRUSH_PRESETS:
+                    brush = None  # Invalid brush name, ignore
 
         # Validate style properties
         if color is not None and not isinstance(color, str):
@@ -42,8 +53,8 @@ def parse_path_data(path_data: dict[str, Any]) -> Path | None:
         if stroke_width is not None:
             try:
                 stroke_width = float(stroke_width)
-                # Clamp to reasonable range
-                stroke_width = max(0.5, min(10.0, stroke_width))
+                # Clamp to reasonable range (extended for brushes)
+                stroke_width = max(0.5, min(30.0, stroke_width))
             except (TypeError, ValueError):
                 stroke_width = None
         if opacity is not None:
@@ -63,6 +74,7 @@ def parse_path_data(path_data: dict[str, Any]) -> Path | None:
                 type=PathType.SVG,
                 points=[],
                 d=d_string,
+                brush=brush,
                 color=color,
                 stroke_width=stroke_width,
                 opacity=opacity,
@@ -89,6 +101,7 @@ def parse_path_data(path_data: dict[str, Any]) -> Path | None:
         return Path(
             type=path_type,
             points=points,
+            brush=brush,
             color=color,
             stroke_width=stroke_width,
             opacity=opacity,
@@ -113,6 +126,9 @@ async def run_python_code(code: str, canvas_width: int, canvas_height: int) -> d
 
     Returns dict with stdout, stderr, return_code, and parsed paths.
     """
+    # Generate BRUSHES list from presets (ensures consistency with types.py)
+    brushes_list = json.dumps(list(BRUSH_PRESETS.keys()))
+
     # Prepend canvas dimensions as variables
     full_code = f"""
 import math
@@ -123,9 +139,14 @@ import json
 canvas_width = {canvas_width}
 canvas_height = {canvas_height}
 
+# Available brush presets for paint mode (generated from BRUSH_PRESETS)
+BRUSHES = {brushes_list}
+
 # Helper function to add style properties to a path dict
-def _add_style(path_dict: dict, color=None, stroke_width=None, opacity=None) -> dict:
-    \"\"\"Add optional style properties to a path dict.\"\"\"
+def _add_style(path_dict: dict, brush=None, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Add optional style and brush properties to a path dict.\"\"\"
+    if brush is not None:
+        path_dict["brush"] = brush
     if color is not None:
         path_dict["color"] = color
     if stroke_width is not None:
@@ -134,41 +155,41 @@ def _add_style(path_dict: dict, color=None, stroke_width=None, opacity=None) -> 
         path_dict["opacity"] = opacity
     return path_dict
 
-# Helper functions for generating paths (all support optional style parameters)
-def svg_path(d: str, color=None, stroke_width=None, opacity=None) -> dict:
-    \"\"\"Create an SVG path dict with optional style.\"\"\"
-    return _add_style({{"type": "svg", "d": d}}, color, stroke_width, opacity)
+# Helper functions for generating paths (all support optional brush and style parameters)
+def svg_path(d: str, brush=None, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Create an SVG path dict with optional brush and style.\"\"\"
+    return _add_style({{"type": "svg", "d": d}}, brush, color, stroke_width, opacity)
 
-def line(x1: float, y1: float, x2: float, y2: float, color=None, stroke_width=None, opacity=None) -> dict:
-    \"\"\"Create a line path with optional style.\"\"\"
+def line(x1: float, y1: float, x2: float, y2: float, brush=None, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Create a line path with optional brush and style.\"\"\"
     return _add_style(
         {{"type": "line", "points": [{{"x": x1, "y": y1}}, {{"x": x2, "y": y2}}]}},
-        color, stroke_width, opacity
+        brush, color, stroke_width, opacity
     )
 
-def polyline(*points, color=None, stroke_width=None, opacity=None) -> dict:
-    \"\"\"Create a polyline from (x, y) tuples with optional style.\"\"\"
+def polyline(*points, brush=None, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Create a polyline from (x, y) tuples with optional brush and style.\"\"\"
     return _add_style(
         {{"type": "polyline", "points": [{{"x": p[0], "y": p[1]}} for p in points]}},
-        color, stroke_width, opacity
+        brush, color, stroke_width, opacity
     )
 
-def quadratic(x1: float, y1: float, cx: float, cy: float, x2: float, y2: float, color=None, stroke_width=None, opacity=None) -> dict:
-    \"\"\"Create a quadratic bezier curve with optional style.\"\"\"
+def quadratic(x1: float, y1: float, cx: float, cy: float, x2: float, y2: float, brush=None, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Create a quadratic bezier curve with optional brush and style.\"\"\"
     return _add_style(
         {{"type": "quadratic", "points": [
             {{"x": x1, "y": y1}}, {{"x": cx, "y": cy}}, {{"x": x2, "y": y2}}
         ]}},
-        color, stroke_width, opacity
+        brush, color, stroke_width, opacity
     )
 
-def cubic(x1: float, y1: float, cx1: float, cy1: float, cx2: float, cy2: float, x2: float, y2: float, color=None, stroke_width=None, opacity=None) -> dict:
-    \"\"\"Create a cubic bezier curve with optional style.\"\"\"
+def cubic(x1: float, y1: float, cx1: float, cy1: float, cx2: float, cy2: float, x2: float, y2: float, brush=None, color=None, stroke_width=None, opacity=None) -> dict:
+    \"\"\"Create a cubic bezier curve with optional brush and style.\"\"\"
     return _add_style(
         {{"type": "cubic", "points": [
             {{"x": x1, "y": y1}}, {{"x": cx1, "y": cy1}}, {{"x": cx2, "y": cy2}}, {{"x": x2, "y": y2}}
         ]}},
-        color, stroke_width, opacity
+        brush, color, stroke_width, opacity
     )
 
 def output_paths(paths: list):
@@ -490,7 +511,21 @@ async def handle_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "draw_paths",
-    "Draw paths on the canvas (800x600). Coordinates must be within bounds: X 0-800, Y 0-600. Each path has a type (line, polyline, quadratic, cubic, svg) and either points or a d-string. In Paint mode, paths can have color, stroke_width, and opacity.",
+    """Draw paths on the canvas (800x600). Coordinates must be within bounds: X 0-800, Y 0-600.
+
+In Paint mode, you can specify a brush preset for realistic paint effects:
+- oil_round: Classic round brush with visible bristle texture (good for blending)
+- oil_flat: Flat brush with parallel marks (good for blocking shapes)
+- oil_filbert: Rounded flat brush (good for organic shapes)
+- watercolor: Translucent with soft edges (good for washes)
+- dry_brush: Scratchy, broken strokes (good for texture)
+- palette_knife: Sharp edges, thick paint (good for impasto)
+- ink: Pressure-sensitive with elegant taper (good for calligraphy)
+- pencil: Thin, consistent lines (good for sketching)
+- charcoal: Smudgy edges with texture (good for value studies)
+- marker: Solid color with slight edge bleed
+- airbrush: Very soft edges (good for gradients)
+- splatter: Random dots around stroke (good for effects)""",
     {
         "type": "object",
         "properties": {
@@ -518,13 +553,31 @@ async def handle_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
                             "type": "string",
                             "description": "SVG path d-string (for type=svg). Coordinates must be within canvas bounds (0-800, 0-600). Example: 'M 100 100 L 400 300 C 500 200 600 400 700 300'",
                         },
+                        "brush": {
+                            "type": "string",
+                            "enum": [
+                                "oil_round",
+                                "oil_flat",
+                                "oil_filbert",
+                                "watercolor",
+                                "dry_brush",
+                                "palette_knife",
+                                "ink",
+                                "pencil",
+                                "charcoal",
+                                "marker",
+                                "airbrush",
+                                "splatter",
+                            ],
+                            "description": "Brush preset for paint-like effects (Paint mode only). Each brush has unique texture and behavior.",
+                        },
                         "color": {
                             "type": "string",
                             "description": "Hex color for the path (Paint mode only). Example: '#e94560'",
                         },
                         "stroke_width": {
                             "type": "number",
-                            "description": "Stroke width 0.5-10 (Paint mode only). Default: 3",
+                            "description": "Stroke width 0.5-30 (Paint mode only). Overrides brush default width.",
                         },
                         "opacity": {
                             "type": "number",
@@ -567,14 +620,29 @@ IMPORTANT: Canvas is 800x600. All coordinates must be within X: 0-800, Y: 0-600.
 The code has access to:
 - canvas_width (800), canvas_height (600): Use for positioning within bounds
 - math, random, json: Standard library modules
-- Helper functions (all accept optional color, stroke_width, opacity kwargs for Paint mode):
-  - line(x1, y1, x2, y2, color=None, stroke_width=None, opacity=None) -> path dict
-  - polyline(*points, color=None, stroke_width=None, opacity=None) -> path dict (points are (x,y) tuples)
-  - quadratic(x1, y1, cx, cy, x2, y2, color=None, stroke_width=None, opacity=None) -> path dict
-  - cubic(x1, y1, cx1, cy1, cx2, cy2, x2, y2, color=None, stroke_width=None, opacity=None) -> path dict
-  - svg_path(d_string, color=None, stroke_width=None, opacity=None) -> path dict
+- BRUSHES: list of available brush names for Paint mode
+- Helper functions (all accept optional brush, color, stroke_width, opacity kwargs for Paint mode):
+  - line(x1, y1, x2, y2, brush=None, color=None, stroke_width=None, opacity=None) -> path dict
+  - polyline(*points, brush=None, color=None, stroke_width=None, opacity=None) -> path dict (points are (x,y) tuples)
+  - quadratic(x1, y1, cx, cy, x2, y2, brush=None, color=None, stroke_width=None, opacity=None) -> path dict
+  - cubic(x1, y1, cx1, cy1, cx2, cy2, x2, y2, brush=None, color=None, stroke_width=None, opacity=None) -> path dict
+  - svg_path(d_string, brush=None, color=None, stroke_width=None, opacity=None) -> path dict
   - output_paths(paths_list) -> prints JSON to stdout
   - output_svg_paths(d_strings_list) -> prints JSON to stdout
+
+Available brushes (BRUSHES list):
+- oil_round: Classic round brush, visible bristle texture
+- oil_flat: Flat brush, parallel marks
+- oil_filbert: Rounded flat, organic shapes
+- watercolor: Translucent, soft edges
+- dry_brush: Scratchy, broken strokes
+- palette_knife: Sharp edges, thick paint
+- ink: Pressure-sensitive, elegant taper
+- pencil: Thin, consistent lines
+- charcoal: Smudgy edges, texture
+- marker: Solid color, slight bleed
+- airbrush: Very soft edges
+- splatter: Random dots around stroke
 
 Example - draw a spiral centered on canvas:
 ```python
@@ -589,17 +657,26 @@ for i in range(100):
 output_paths(paths)
 ```
 
-Example - colorful spiral (Paint mode):
+Example - oil painting with brush strokes (Paint mode):
 ```python
 colors = ["#e94560", "#7b68ee", "#4ecdc4", "#ffd93d"]
 paths = []
 cx, cy = canvas_width / 2, canvas_height / 2
-for i in range(100):
-    t = i * 0.1
-    r = 10 + t * 5
+for i in range(50):
+    t = i * 0.15
+    r = 20 + t * 8
     x1, y1 = cx + r * math.cos(t), cy + r * math.sin(t)
-    x2, y2 = cx + (r+5) * math.cos(t+0.1), cy + (r+5) * math.sin(t+0.1)
-    paths.append(line(x1, y1, x2, y2, color=colors[i % len(colors)], stroke_width=2))
+    x2, y2 = cx + (r+20) * math.cos(t+0.15), cy + (r+20) * math.sin(t+0.15)
+    paths.append(line(x1, y1, x2, y2, brush="oil_round", color=colors[i % len(colors)]))
+output_paths(paths)
+```
+
+Example - watercolor wash:
+```python
+paths = []
+for y in range(50, 550, 30):
+    pts = [(x, y + random.uniform(-5, 5)) for x in range(50, 750, 20)]
+    paths.append(polyline(*pts, brush="watercolor", color="#4ecdc4", opacity=0.3))
 output_paths(paths)
 ```""",
     {

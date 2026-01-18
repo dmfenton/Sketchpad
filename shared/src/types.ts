@@ -104,6 +104,262 @@ export function getStyleConfig(styleType: DrawingStyleType): DrawingStyleConfig 
   return DRAWING_STYLES[styleType];
 }
 
+// Brush preset types for paint-like rendering
+export type BrushName =
+  | 'oil_round'
+  | 'oil_flat'
+  | 'oil_filbert'
+  | 'watercolor'
+  | 'dry_brush'
+  | 'palette_knife'
+  | 'ink'
+  | 'pencil'
+  | 'charcoal'
+  | 'marker'
+  | 'airbrush'
+  | 'splatter';
+
+export interface BrushPreset {
+  name: BrushName;
+  displayName: string;
+  description: string;
+  // Bristle rendering (sub-strokes)
+  bristleCount: number;
+  bristleSpread: number;
+  bristleOpacity: number;
+  bristleWidthRatio: number;
+  // Main stroke
+  mainOpacity: number;
+  baseWidth: number;
+  // Stroke shape
+  taper: number;
+  pressureResponse: number;
+  // Edge effects
+  edgeNoise: number;
+  wetEdges: number;
+  // Smoothing
+  smoothing: number;
+}
+
+// Brush preset definitions (mirrors backend)
+export const BRUSH_PRESETS: Record<BrushName, BrushPreset> = {
+  oil_round: {
+    name: 'oil_round',
+    displayName: 'Oil Round',
+    description: 'Classic round brush with visible bristle texture',
+    bristleCount: 5,
+    bristleSpread: 0.7,
+    bristleOpacity: 0.25,
+    bristleWidthRatio: 0.35,
+    mainOpacity: 0.75,
+    baseWidth: 10.0,
+    taper: 0.7,
+    pressureResponse: 0.5,
+    edgeNoise: 0,
+    wetEdges: 0,
+    smoothing: 0.6,
+  },
+  oil_flat: {
+    name: 'oil_flat',
+    displayName: 'Oil Flat',
+    description: 'Flat brush with parallel bristle marks',
+    bristleCount: 8,
+    bristleSpread: 0.5,
+    bristleOpacity: 0.2,
+    bristleWidthRatio: 0.25,
+    mainOpacity: 0.8,
+    baseWidth: 12.0,
+    taper: 0.3,
+    pressureResponse: 0.3,
+    edgeNoise: 0,
+    wetEdges: 0,
+    smoothing: 0.4,
+  },
+  oil_filbert: {
+    name: 'oil_filbert',
+    displayName: 'Oil Filbert',
+    description: 'Rounded flat brush for organic shapes',
+    bristleCount: 6,
+    bristleSpread: 0.6,
+    bristleOpacity: 0.22,
+    bristleWidthRatio: 0.3,
+    mainOpacity: 0.78,
+    baseWidth: 10.0,
+    taper: 0.6,
+    pressureResponse: 0.4,
+    edgeNoise: 0,
+    wetEdges: 0,
+    smoothing: 0.7,
+  },
+  watercolor: {
+    name: 'watercolor',
+    displayName: 'Watercolor',
+    description: 'Translucent with soft edges, colors pool at ends',
+    bristleCount: 0,
+    bristleSpread: 0,
+    bristleOpacity: 0,
+    bristleWidthRatio: 0,
+    mainOpacity: 0.35,
+    baseWidth: 14.0,
+    taper: 0.5,
+    pressureResponse: 0.6,
+    edgeNoise: 0.15,
+    wetEdges: 0.4,
+    smoothing: 0.8,
+  },
+  dry_brush: {
+    name: 'dry_brush',
+    displayName: 'Dry Brush',
+    description: 'Scratchy, broken strokes with visible gaps',
+    bristleCount: 12,
+    bristleSpread: 1.0,
+    bristleOpacity: 0.5,
+    bristleWidthRatio: 0.2,
+    mainOpacity: 0.3,
+    baseWidth: 10.0,
+    taper: 0.4,
+    pressureResponse: 0.7,
+    edgeNoise: 0,
+    wetEdges: 0,
+    smoothing: 0.3,
+  },
+  palette_knife: {
+    name: 'palette_knife',
+    displayName: 'Palette Knife',
+    description: 'Sharp edges, thick paint application',
+    bristleCount: 0,
+    bristleSpread: 0,
+    bristleOpacity: 0,
+    bristleWidthRatio: 0,
+    mainOpacity: 0.95,
+    baseWidth: 16.0,
+    taper: 0.1,
+    pressureResponse: 0.8,
+    edgeNoise: 0.05,
+    wetEdges: 0,
+    smoothing: 0.2,
+  },
+  ink: {
+    name: 'ink',
+    displayName: 'Ink Brush',
+    description: 'Pressure-sensitive with elegant taper',
+    bristleCount: 0,
+    bristleSpread: 0,
+    bristleOpacity: 0,
+    bristleWidthRatio: 0,
+    mainOpacity: 0.9,
+    baseWidth: 6.0,
+    taper: 0.9,
+    pressureResponse: 0.9,
+    edgeNoise: 0,
+    wetEdges: 0,
+    smoothing: 0.7,
+  },
+  pencil: {
+    name: 'pencil',
+    displayName: 'Pencil',
+    description: 'Thin, consistent lines for sketching',
+    bristleCount: 0,
+    bristleSpread: 0,
+    bristleOpacity: 0,
+    bristleWidthRatio: 0,
+    mainOpacity: 0.85,
+    baseWidth: 2.0,
+    taper: 0.2,
+    pressureResponse: 0.4,
+    edgeNoise: 0,
+    wetEdges: 0,
+    smoothing: 0.3,
+  },
+  charcoal: {
+    name: 'charcoal',
+    displayName: 'Charcoal',
+    description: 'Smudgy edges with slight texture',
+    bristleCount: 3,
+    bristleSpread: 0.4,
+    bristleOpacity: 0.3,
+    bristleWidthRatio: 0.5,
+    mainOpacity: 0.6,
+    baseWidth: 5.0,
+    taper: 0.4,
+    pressureResponse: 0.5,
+    edgeNoise: 0.1,
+    wetEdges: 0,
+    smoothing: 0.5,
+  },
+  marker: {
+    name: 'marker',
+    displayName: 'Marker',
+    description: 'Solid color with slight edge bleed',
+    bristleCount: 0,
+    bristleSpread: 0,
+    bristleOpacity: 0,
+    bristleWidthRatio: 0,
+    mainOpacity: 0.75,
+    baseWidth: 8.0,
+    taper: 0.15,
+    pressureResponse: 0.1,
+    edgeNoise: 0,
+    wetEdges: 0.2,
+    smoothing: 0.4,
+  },
+  airbrush: {
+    name: 'airbrush',
+    displayName: 'Airbrush',
+    description: 'Very soft edges for gradients',
+    bristleCount: 0,
+    bristleSpread: 0,
+    bristleOpacity: 0,
+    bristleWidthRatio: 0,
+    mainOpacity: 0.25,
+    baseWidth: 20.0,
+    taper: 0.0,
+    pressureResponse: 0.3,
+    edgeNoise: 0,
+    wetEdges: 0,
+    smoothing: 0.9,
+  },
+  splatter: {
+    name: 'splatter',
+    displayName: 'Splatter',
+    description: 'Random dots around stroke path',
+    bristleCount: 20,
+    bristleSpread: 2.0,
+    bristleOpacity: 0.6,
+    bristleWidthRatio: 0.15,
+    mainOpacity: 0.5,
+    baseWidth: 8.0,
+    taper: 0.3,
+    pressureResponse: 0.2,
+    edgeNoise: 0.3,
+    wetEdges: 0,
+    smoothing: 0.5,
+  },
+};
+
+// List of all brush names for iteration
+export const BRUSH_NAMES: BrushName[] = [
+  'oil_round',
+  'oil_flat',
+  'oil_filbert',
+  'watercolor',
+  'dry_brush',
+  'palette_knife',
+  'ink',
+  'pencil',
+  'charcoal',
+  'marker',
+  'airbrush',
+  'splatter',
+];
+
+// Default brush for paint mode
+export const DEFAULT_BRUSH: BrushName = 'oil_round';
+
+export function getBrushPreset(name: BrushName): BrushPreset {
+  return BRUSH_PRESETS[name];
+}
+
 export interface Path {
   type: PathType;
   points: Point[];
@@ -113,6 +369,8 @@ export interface Path {
   color?: string; // Hex color
   stroke_width?: number; // Stroke width
   opacity?: number; // 0-1 alpha
+  // Brush preset (paint mode only)
+  brush?: BrushName; // Brush preset name for paint-like rendering
 }
 
 /**
