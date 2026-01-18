@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass, field
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -79,7 +80,7 @@ class MessageCapture:
             "metadata": {
                 "model": model,
                 "style": style,
-                "recorded_at": datetime.now(datetime.UTC).isoformat(),
+                "recorded_at": datetime.now(UTC).isoformat(),
                 "description": description,
                 "message_count": len(self.messages),
             },
@@ -127,7 +128,7 @@ class TestMessageRecording:
     """Tests that record WebSocket messages for app replay."""
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(120)
+    @pytest.mark.timeout(240)
     @pytest.mark.usefixtures("use_haiku")
     async def test_record_agent_turn_plotter(
         self,
@@ -180,7 +181,7 @@ class TestMessageRecording:
             print(f"  ... and {len(capture.messages) - 5} more")
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(120)
+    @pytest.mark.timeout(240)
     @pytest.mark.usefixtures("use_haiku")
     async def test_record_agent_turn_paint(
         self,

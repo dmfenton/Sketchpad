@@ -31,6 +31,7 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import StreamEvent, SyncHookJSONOutput
 from PIL import Image
 
+from code_monet.brushes import expand_brush_stroke
 from code_monet.config import settings
 from code_monet.tools import (
     create_drawing_server,
@@ -650,6 +651,7 @@ class DrawingAgent:
         """Get canvas as PIL Image from current state.
 
         Renders paths using the active drawing style's colors and widths.
+        In paint mode, applies brush expansion so the AI sees what users see.
 
         Note: This is a synchronous CPU-bound operation. Use _get_canvas_image_async
         when calling from async code to avoid blocking the event loop.
@@ -661,11 +663,22 @@ class DrawingAgent:
         state = self.get_state()
         canvas = state.canvas
         style_config = self.get_style_config()
+        is_paint_mode = canvas.drawing_style == DrawingStyleType.PAINT
 
         img = Image.new("RGB", (canvas.width, canvas.height), "#FFFFFF")
         draw = ImageDraw.Draw(img)
 
+        # Build list of paths to render, expanding brush strokes in paint mode
+        paths_to_render: list[Path] = []
         for path in canvas.strokes:
+            if is_paint_mode and path.brush:
+                # Expand brush stroke so AI sees what users see
+                expanded = expand_brush_stroke(path)
+                paths_to_render.extend(expanded)
+            else:
+                paths_to_render.append(path)
+
+        for path in paths_to_render:
             points = path_to_point_list(path)
             if len(points) >= 2:
                 # Get the effective style for this path
