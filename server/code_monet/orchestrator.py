@@ -97,7 +97,9 @@ class AgentOrchestrator:
 
         # Notify clients that strokes are ready (include piece_number to prevent cross-canvas rendering)
         await self.broadcaster.broadcast(
-            StrokesReadyMessage(count=len(paths), batch_id=batch_id, piece_number=state.piece_number)
+            StrokesReadyMessage(
+                count=len(paths), batch_id=batch_id, piece_number=state.piece_number
+            )
         )
 
         # Wait for client animation to complete
