@@ -314,7 +314,12 @@ describe('Render Flow - Status Derivation Edge Cases', () => {
     });
 
     // Add pending strokes
-    state = processMessage(state, { type: 'strokes_ready', count: 1, batch_id: 1, piece_number: 0 });
+    state = processMessage(state, {
+      type: 'strokes_ready',
+      count: 1,
+      batch_id: 1,
+      piece_number: 0,
+    });
 
     // Status should be 'executing', not 'drawing'
     expect(deriveAgentStatus(state)).toBe('executing');
@@ -323,7 +328,12 @@ describe('Render Flow - Status Derivation Edge Cases', () => {
 
   it('CLEAR_PENDING_STROKES resets pendingStrokes', () => {
     let state: CanvasHookState = { ...initialState, paused: false };
-    state = processMessage(state, { type: 'strokes_ready', count: 1, batch_id: 1, piece_number: 0 });
+    state = processMessage(state, {
+      type: 'strokes_ready',
+      count: 1,
+      batch_id: 1,
+      piece_number: 0,
+    });
     expect(state.pendingStrokes).not.toBeNull();
 
     // Manually dispatch CLEAR_PENDING_STROKES (as StrokeRenderer would)

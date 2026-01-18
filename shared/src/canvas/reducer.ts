@@ -387,7 +387,11 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
       return {
         ...state,
         pieceNumber: newPieceNumber,
-        pendingStrokes: { count: action.count, batchId: action.batchId, pieceNumber: action.pieceNumber },
+        pendingStrokes: {
+          count: action.count,
+          batchId: action.batchId,
+          pieceNumber: action.pieceNumber,
+        },
       };
     }
 

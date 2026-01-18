@@ -60,6 +60,30 @@ rm -rf node_modules app/node_modules web/node_modules shared/node_modules packag
 npm install
 ```
 
+### Python Server Setup
+
+The server uses `uv` for dependency management (not npm).
+
+```bash
+cd server
+
+# Install all dependencies including dev tools (pytest, mypy, ruff, pre-commit)
+uv sync --extra dev
+
+# Run tests
+uv run pytest
+
+# Run linting
+uv run ruff check .
+uv run mypy .
+```
+
+**Common issues:**
+
+- `pytest-asyncio` not found → Run `uv sync --extra dev`
+- `pre-commit` not found → Run `uv sync --extra dev`
+- Tests fail with import errors → Rebuild shared library: `cd shared && npm run build`
+
 ## Claude Code Sandbox
 
 Sandbox configured in `.claude/settings.json`:
