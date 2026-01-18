@@ -7,9 +7,32 @@ on:
     branches: [main]
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            server:
+              - 'server/**'
+            frontend:
+              - 'app/**'
+              - 'web/**'
+              - 'shared/**'
+              - 'package.json'
+              - 'package-lock.json'
+
   server:
     name: Server (Python)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -69,6 +92,8 @@ jobs:
   app:
     name: App (React Native)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -98,6 +123,8 @@ jobs:
   replay:
     name: Replay Tests
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -119,10 +146,26 @@ jobs:
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
-    needs: [server]
+    needs: [changes, server]
+    if: needs.changes.outputs.server == 'true'
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Build Docker image
         run: docker build -t code-monet-server ./server
+
+  # Required status check that passes if all relevant jobs pass or are skipped
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [server, app, replay]
+    if: always()
+    steps:
+      - name: Check job results
+        run: |
+          if [[ "${{ needs.server.result }}" == "failure" || "${{ needs.app.result }}" == "failure" || "${{ needs.replay.result }}" == "failure" ]]; then
+            echo "One or more jobs failed"
+            exit 1
+          fi
+          echo "All jobs passed or were skipped"
