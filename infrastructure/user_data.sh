@@ -30,7 +30,7 @@ chown -R ec2-user:ec2-user /home/ec2-user/.docker
 # Install CloudWatch agent
 yum install -y amazon-cloudwatch-agent
 
-# Configure CloudWatch agent
+# Configure CloudWatch agent (metrics + logs)
 cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'EOF'
 {
   "metrics": {
@@ -49,9 +49,38 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'EOF'
     "append_dimensions": {
       "InstanceId": "${aws:InstanceId}"
     }
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/home/ec2-user/data/logs/app.log",
+            "log_group_name": "/drawing-agent/app",
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC",
+            "multi_line_start_pattern": "^\\{",
+            "retention_in_days": 30
+          },
+          {
+            "file_path": "/home/ec2-user/data/logs/error.log",
+            "log_group_name": "/drawing-agent/errors",
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC",
+            "multi_line_start_pattern": "^\\{",
+            "retention_in_days": 90
+          }
+        ]
+      }
+    },
+    "log_stream_name": "default"
   }
 }
 EOF
+
+# Create logs directory
+mkdir -p /home/ec2-user/data/logs
+chown ec2-user:ec2-user /home/ec2-user/data/logs
 
 # Start CloudWatch agent
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s

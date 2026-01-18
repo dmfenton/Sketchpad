@@ -21,7 +21,7 @@ Design document for an intentional, structured logging system.
 - Grafana for visualization
 - Best for: High log volume, Prometheus ecosystem
 
-**Recommended: Option B** - Leverages existing Postgres, adds Grafana for unified observability.
+**Chosen: Option A (CloudWatch)** - At our scale, CloudWatch is pennies/month and zero maintenance.
 
 ## Current State
 
