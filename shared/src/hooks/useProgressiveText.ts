@@ -5,7 +5,7 @@
  * in chunks at a readable pace, creating a typewriter-like effect.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 
 import { BIONIC_CHUNK_INTERVAL_MS, BIONIC_CHUNK_SIZE, splitWords } from '../utils';
 
@@ -61,9 +61,6 @@ export function useProgressiveText(
   // Track how many words to display (accumulating, not replacing)
   const [displayedWordCount, setDisplayedWordCount] = useState(0);
 
-  // Timer ref for cleanup
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // Track previous text length to detect resets
   const prevTextLengthRef = useRef(0);
 
@@ -80,44 +77,25 @@ export function useProgressiveText(
     // Reset if text is null or much shorter than before (likely a new message)
     if (!text || currentLength < prevTextLengthRef.current / 2) {
       setDisplayedWordCount(0);
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
     }
 
     prevTextLengthRef.current = currentLength;
   }, [text]);
 
   // Progressively reveal words at a readable pace
-  // Timer callback just increments - bounds are handled at render time via slice()
-  // This avoids closure capture issues: callback doesn't need current word count
+  // Effect cleanup cancels timer when deps change, so each run is independent
   useEffect(() => {
-    // Nothing to reveal
-    if (allWords.length === 0) return;
+    if (allWords.length === 0 || displayedWordCount >= allWords.length) return;
 
-    // Already caught up - no timer needed
-    if (displayedWordCount >= allWords.length) return;
-
-    // Schedule next chunk reveal
-    timerRef.current = setTimeout(() => {
-      // Clear ref BEFORE state update - this ordering ensures cleanup won't
-      // try to clear an already-fired timer if effect re-runs synchronously
-      timerRef.current = null;
+    const timer = setTimeout(() => {
       setDisplayedWordCount((prev) => prev + chunkSize);
     }, intervalMs);
 
-    // Cleanup: cancel timer when dependencies change or unmount
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
+    return () => clearTimeout(timer);
   }, [allWords.length, displayedWordCount, chunkSize, intervalMs]);
 
-  // Derive return values - slice handles bounds naturally
-  const displayedWords = allWords.slice(0, Math.min(displayedWordCount, allWords.length));
+  // Derive return values - slice handles out-of-bounds naturally
+  const displayedWords = allWords.slice(0, displayedWordCount);
   const displayedText = displayedWords.join(' ');
   const isBuffering = displayedWordCount < allWords.length;
 
