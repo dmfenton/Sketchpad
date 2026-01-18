@@ -32,15 +32,15 @@ Design document for an intentional, structured logging system with CloudWatch.
 
 ## Log Categories
 
-| Category | Logger Name | Purpose | Typical Level |
-|----------|-------------|---------|---------------|
-| `auth` | `code_monet.auth` | Authentication, sessions, tokens | INFO |
-| `agent` | `code_monet.agent` | AI agent turns, tool calls | INFO |
-| `websocket` | `code_monet.websocket` | WS connections, messages | INFO |
-| `drawing` | `code_monet.drawing` | Canvas operations, paths | DEBUG |
-| `workspace` | `code_monet.workspace` | User workspace lifecycle | INFO |
-| `system` | `code_monet.system` | Startup, shutdown, config | INFO |
-| `http` | `code_monet.http` | HTTP requests (non-WS) | INFO |
+| Category    | Logger Name            | Purpose                          | Typical Level |
+| ----------- | ---------------------- | -------------------------------- | ------------- |
+| `auth`      | `code_monet.auth`      | Authentication, sessions, tokens | INFO          |
+| `agent`     | `code_monet.agent`     | AI agent turns, tool calls       | INFO          |
+| `websocket` | `code_monet.websocket` | WS connections, messages         | INFO          |
+| `drawing`   | `code_monet.drawing`   | Canvas operations, paths         | DEBUG         |
+| `workspace` | `code_monet.workspace` | User workspace lifecycle         | INFO          |
+| `system`    | `code_monet.system`    | Startup, shutdown, config        | INFO          |
+| `http`      | `code_monet.http`      | HTTP requests (non-WS)           | INFO          |
 
 ## Structured Log Format
 
@@ -64,16 +64,16 @@ Design document for an intentional, structured logging system with CloudWatch.
 
 ### Fields
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `timestamp` | Yes | ISO 8601 with milliseconds |
-| `level` | Yes | DEBUG, INFO, WARNING, ERROR, CRITICAL |
-| `category` | Yes | Log category (auth, agent, etc.) |
-| `logger` | Yes | Full logger name |
-| `message` | Yes | Human-readable message |
-| `user_id` | No | User context if available |
-| `trace_id` | No | X-Ray trace ID for correlation |
-| `extra` | No | Category-specific structured data |
+| Field       | Required | Description                           |
+| ----------- | -------- | ------------------------------------- |
+| `timestamp` | Yes      | ISO 8601 with milliseconds            |
+| `level`     | Yes      | DEBUG, INFO, WARNING, ERROR, CRITICAL |
+| `category`  | Yes      | Log category (auth, agent, etc.)      |
+| `logger`    | Yes      | Full logger name                      |
+| `message`   | Yes      | Human-readable message                |
+| `user_id`   | No       | User context if available             |
+| `trace_id`  | No       | X-Ray trace ID for correlation        |
+| `extra`     | No       | Category-specific structured data     |
 
 ### Implementation
 
@@ -149,10 +149,10 @@ class StructuredFormatter(logging.Formatter):
 
 Created in `infrastructure/cloudwatch_logs.tf`:
 
-| Log Group | Retention | Purpose |
-|-----------|-----------|---------|
-| `/drawing-agent/app` | 30 days | All application logs |
-| `/drawing-agent/errors` | 90 days | ERROR/CRITICAL only |
+| Log Group               | Retention | Purpose              |
+| ----------------------- | --------- | -------------------- |
+| `/drawing-agent/app`    | 30 days   | All application logs |
+| `/drawing-agent/errors` | 90 days   | ERROR/CRITICAL only  |
 
 ### Metric Filters
 
@@ -166,12 +166,14 @@ Created in `infrastructure/cloudwatch_logs.tf`:
 ### CloudWatch Agent Config
 
 In `infrastructure/user_data.sh`, the CloudWatch agent collects:
+
 - `/home/ec2-user/data/logs/app.log` → `/drawing-agent/app`
 - `/home/ec2-user/data/logs/error.log` → `/drawing-agent/errors`
 
 ### Log Rotation
 
 Logrotate config in `user_data.sh`:
+
 - Daily rotation
 - Keep 7 days locally
 - Compress old logs
@@ -201,6 +203,7 @@ uv run python scripts/diagnose.py logs --category auth --md
 ### CloudWatch Logs Insights Queries
 
 **Error rate by category:**
+
 ```
 filter level = "ERROR"
 | stats count(*) as errors by category
@@ -208,6 +211,7 @@ filter level = "ERROR"
 ```
 
 **Authentication failures:**
+
 ```
 filter category = "auth" and level in ["WARNING", "ERROR"]
 | fields @timestamp, message, extra.email
@@ -216,6 +220,7 @@ filter category = "auth" and level in ["WARNING", "ERROR"]
 ```
 
 **Agent tool usage:**
+
 ```
 filter category = "agent" and message like /Tool use/
 | parse message "Tool use: *" as tool_name
@@ -224,6 +229,7 @@ filter category = "agent" and message like /Tool use/
 ```
 
 **User activity timeline:**
+
 ```
 filter user_id = 42
 | fields @timestamp, category, level, message
@@ -231,6 +237,7 @@ filter user_id = 42
 ```
 
 **Logs with trace correlation:**
+
 ```
 filter trace_id != ""
 | fields @timestamp, category, message, trace_id
@@ -269,11 +276,11 @@ filter trace_id != ""
 
 ## Cost Estimation
 
-| Component | Monthly Cost (est.) |
-|-----------|---------------------|
-| CloudWatch Logs ingestion | ~$0.50/GB |
-| CloudWatch Logs storage | ~$0.03/GB/month |
-| Log Insights queries | ~$0.005/GB scanned |
-| **Estimated total** | **$1-5/month** |
+| Component                 | Monthly Cost (est.) |
+| ------------------------- | ------------------- |
+| CloudWatch Logs ingestion | ~$0.50/GB           |
+| CloudWatch Logs storage   | ~$0.03/GB/month     |
+| Log Insights queries      | ~$0.005/GB scanned  |
+| **Estimated total**       | **$1-5/month**      |
 
 Based on ~100MB-1GB/month log volume at current scale.

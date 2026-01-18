@@ -6,7 +6,7 @@ x-logging: &awslogs
   options:
     awslogs-group: /drawing-agent/containers
     awslogs-region: ${AWS_REGION:-us-east-1}
-    awslogs-create-group: "true"
+    awslogs-create-group: 'true'
 
 services:
   nginx:
@@ -31,7 +31,7 @@ services:
       options:
         awslogs-group: /drawing-agent/containers
         awslogs-region: ${AWS_REGION:-us-east-1}
-        awslogs-create-group: "true"
+        awslogs-create-group: 'true'
         awslogs-stream-prefix: nginx
 
   certbot:
@@ -49,7 +49,7 @@ services:
       options:
         awslogs-group: /drawing-agent/containers
         awslogs-region: ${AWS_REGION:-us-east-1}
-        awslogs-create-group: "true"
+        awslogs-create-group: 'true'
         awslogs-stream-prefix: certbot
 
   drawing-agent:
@@ -92,7 +92,7 @@ services:
       options:
         awslogs-group: /drawing-agent/containers
         awslogs-region: ${AWS_REGION:-us-east-1}
-        awslogs-create-group: "true"
+        awslogs-create-group: 'true'
         awslogs-stream-prefix: app
 
   otel-collector:
@@ -117,7 +117,7 @@ services:
       options:
         awslogs-group: /drawing-agent/containers
         awslogs-region: ${AWS_REGION:-us-east-1}
-        awslogs-create-group: "true"
+        awslogs-create-group: 'true'
         awslogs-stream-prefix: otel
 
   watchtower:
@@ -143,7 +143,7 @@ services:
       options:
         awslogs-group: /drawing-agent/containers
         awslogs-region: ${AWS_REGION:-us-east-1}
-        awslogs-create-group: "true"
+        awslogs-create-group: 'true'
         awslogs-stream-prefix: watchtower
 
   # Analytics - Umami with PostgreSQL
@@ -170,7 +170,7 @@ services:
       options:
         awslogs-group: /drawing-agent/containers
         awslogs-region: ${AWS_REGION:-us-east-1}
-        awslogs-create-group: "true"
+        awslogs-create-group: 'true'
         awslogs-stream-prefix: umami-db
 
   umami:
@@ -197,7 +197,7 @@ services:
       options:
         awslogs-group: /drawing-agent/containers
         awslogs-region: ${AWS_REGION:-us-east-1}
-        awslogs-create-group: "true"
+        awslogs-create-group: 'true'
         awslogs-stream-prefix: umami
 
 networks:

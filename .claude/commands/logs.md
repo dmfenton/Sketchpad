@@ -17,14 +17,14 @@ Query application logs from CloudWatch Logs or the local debug endpoint.
 
 ## Quick Reference
 
-| Command | Description |
-|---------|-------------|
-| `/logs` | Recent logs (30 min) |
-| `/logs errors` | Error and warning logs |
-| `/logs auth` | Authentication events |
-| `/logs agent` | Agent tool calls and turns |
-| `/logs user 42` | All logs for user ID 42 |
-| `/logs search "magic link"` | Search for pattern |
+| Command                     | Description                |
+| --------------------------- | -------------------------- |
+| `/logs`                     | Recent logs (30 min)       |
+| `/logs errors`              | Error and warning logs     |
+| `/logs auth`                | Authentication events      |
+| `/logs agent`               | Agent tool calls and turns |
+| `/logs user 42`             | All logs for user ID 42    |
+| `/logs search "magic link"` | Search for pattern         |
 
 ## Commands
 
@@ -45,11 +45,13 @@ uv run python scripts/diagnose.py logs --md
 ### Error Logs
 
 Local:
+
 ```bash
 curl -s "http://localhost:8000/debug/logs?lines=200" | grep -E "(ERROR|WARNING)"
 ```
 
 Production:
+
 ```bash
 uv run python scripts/diagnose.py logs-errors --md
 ```
@@ -57,16 +59,19 @@ uv run python scripts/diagnose.py logs-errors --md
 ### Category-Specific Logs
 
 **Authentication logs:**
+
 ```bash
 uv run python scripts/diagnose.py logs --category auth --md
 ```
 
 **Agent logs:**
+
 ```bash
 uv run python scripts/diagnose.py logs --category agent --md
 ```
 
 **WebSocket logs:**
+
 ```bash
 uv run python scripts/diagnose.py logs --category websocket --md
 ```
@@ -104,12 +109,14 @@ curl -s "http://localhost:8000/debug/agent-logs?user_id=42&turn=turn_20240115_10
 For complex queries, use CloudWatch Logs Insights in the AWS Console.
 
 **Log groups:**
+
 - `/drawing-agent/app` - All application logs
 - `/drawing-agent/errors` - Errors only (longer retention)
 
 **Example queries:**
 
 Error rate by category:
+
 ```
 filter level = "ERROR"
 | stats count(*) as errors by category
@@ -117,6 +124,7 @@ filter level = "ERROR"
 ```
 
 Authentication failures:
+
 ```
 filter category = "auth" and level in ["WARNING", "ERROR"]
 | fields @timestamp, message, extra.email
@@ -125,6 +133,7 @@ filter category = "auth" and level in ["WARNING", "ERROR"]
 ```
 
 User activity timeline:
+
 ```
 filter user_id = 42
 | fields @timestamp, category, level, message
@@ -141,23 +150,25 @@ Logs include `trace_id` for correlation with X-Ray traces:
 
 ## Local vs Production
 
-| Feature | Local | Production |
-|---------|-------|------------|
-| Debug endpoints | `localhost:8000/debug/*` | Not exposed |
-| CloudWatch Logs | N/A | `/drawing-agent/*` |
+| Feature         | Local                                | Production             |
+| --------------- | ------------------------------------ | ---------------------- |
+| Debug endpoints | `localhost:8000/debug/*`             | Not exposed            |
+| CloudWatch Logs | N/A                                  | `/drawing-agent/*`     |
 | Agent turn logs | `data/agent_workspace/users/*/logs/` | Same path in container |
-| Log format | Plain text or JSON | JSON (structured) |
+| Log format      | Plain text or JSON                   | JSON (structured)      |
 
 ## Troubleshooting
 
 ### No logs appearing
 
 **Local:**
+
 - Check server is running: `curl localhost:8000/health`
 - Check log file exists: `ls server/logs/`
 - Server may be writing to stdout only
 
 **Production:**
+
 - Check CloudWatch agent: `systemctl status amazon-cloudwatch-agent`
 - Check log file permissions
 - Verify log group exists in CloudWatch console
@@ -165,6 +176,7 @@ Logs include `trace_id` for correlation with X-Ray traces:
 ### Missing user context
 
 Logs show `user_id: null` when:
+
 - Request is unauthenticated
 - Log happens outside request context
 - User context not propagated (bug)
