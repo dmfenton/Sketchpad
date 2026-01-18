@@ -156,8 +156,8 @@ export const handleError: MessageHandler<ErrorMessage> = (message, dispatch) => 
 };
 
 export const handlePieceState: MessageHandler<PieceStateMessage> = (message, dispatch) => {
-  // Update the piece count
-  dispatch({ type: 'SET_PIECE_COUNT', count: message.number });
+  // Update the current piece ID
+  dispatch({ type: 'SET_PIECE_ID', id: message.number });
 
   // If piece just completed, show completion message
   if (message.completed) {
@@ -207,7 +207,7 @@ export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
     type: 'INIT',
     strokes: message.strokes,
     gallery: message.gallery,
-    pieceCount: message.piece_count,
+    pieceId: message.piece_count,
     paused: message.paused,
     drawingStyle: message.drawing_style,
     styleConfig: message.style_config,

@@ -121,11 +121,11 @@ describe('Reducer Replay - Plotter Style Turn', () => {
       // Should have messages from the turn
       expect(finalState.messages.length).toBeGreaterThan(0);
 
-      // If fixture ends with piece_state completed=true, pieceCount should be set
+      // If fixture ends with piece_state, pieceId should be set
       const lastPieceState = typedFixture.messages.filter((m) => m.type === 'piece_state').pop();
 
       if (lastPieceState && lastPieceState.data.type === 'piece_state') {
-        expect(finalState.pieceCount).toBe(lastPieceState.data.number);
+        expect(finalState.pieceId).toBe(lastPieceState.data.number);
       }
     });
 

@@ -46,7 +46,7 @@ SERVER                                  CLIENT
      (count, batch_id, piece_id)        |
    - Sleep (animation wait)             v
                                     10. STROKES_READY action
-                                        - IF pieceId !== pieceCount:
+                                        - IF pieceId !== state.pieceId:
                                           SILENTLY IGNORED! (return state)
                                         - ELSE: pendingStrokes = {count, batchId, pieceId}
                                         |
@@ -115,7 +115,7 @@ SERVER                                  CLIENT
 
 ```typescript
 case 'STROKES_READY':
-  if (action.pieceId !== state.pieceCount) {
+  if (action.pieceId !== state.pieceId) {
     return state;  // SILENTLY IGNORED!
   }
 ```

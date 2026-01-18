@@ -36,7 +36,7 @@ export interface CanvasHookState {
   penDown: boolean;
   thinking: string;
   messages: AgentMessage[];
-  pieceCount: number;
+  pieceId: number;
   viewingPiece: number | null; // Which gallery piece is being viewed (null = current)
   drawingEnabled: boolean;
   gallery: GalleryEntry[];
@@ -132,7 +132,7 @@ export type CanvasAction =
   | { type: 'ADD_MESSAGE'; message: AgentMessage }
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'TOGGLE_DRAWING' }
-  | { type: 'SET_PIECE_COUNT'; count: number }
+  | { type: 'SET_PIECE_ID'; id: number }
   | { type: 'SET_GALLERY'; canvases: GalleryEntry[] }
   | {
       type: 'LOAD_CANVAS';
@@ -145,7 +145,7 @@ export type CanvasAction =
       type: 'INIT';
       strokes: Path[];
       gallery: GalleryEntry[];
-      pieceCount: number;
+      pieceId: number;
       paused: boolean;
       drawingStyle?: DrawingStyleType;
       styleConfig?: DrawingStyleConfig;
@@ -166,7 +166,7 @@ export const initialState: CanvasHookState = {
   penDown: false,
   thinking: '',
   messages: [],
-  pieceCount: 0,
+  pieceId: 0,
   viewingPiece: null,
   drawingEnabled: false,
   gallery: [],
@@ -311,8 +311,8 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
     case 'TOGGLE_DRAWING':
       return { ...state, drawingEnabled: !state.drawingEnabled };
 
-    case 'SET_PIECE_COUNT':
-      return { ...state, pieceCount: action.count };
+    case 'SET_PIECE_ID':
+      return { ...state, pieceId: action.id };
 
     case 'SET_GALLERY':
       return { ...state, gallery: action.canvases };
@@ -344,7 +344,7 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         ...state,
         strokes: action.strokes,
         gallery: action.gallery,
-        pieceCount: action.pieceCount,
+        pieceId: action.pieceId,
         paused: action.paused,
         viewingPiece: null, // Init shows current canvas
         drawingStyle: initStyle,
@@ -368,38 +368,15 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
     case 'RESET_TURN':
       return { ...state, thinking: '', currentIteration: 0 };
 
-    case 'STROKES_READY': {
-      // When viewing gallery, ignore new strokes entirely
-      if (state.viewingPiece !== null) {
-        console.log('[Reducer] STROKES_READY ignored: viewing gallery piece');
+    case 'STROKES_READY':
+      // Reject strokes for wrong piece (stale messages)
+      if (action.pieceId !== state.pieceId) {
         return state;
       }
-
-      // Reject strokes for OLD pieces (stale messages)
-      if (action.pieceId < state.pieceCount) {
-        console.log('[Reducer] STROKES_READY ignored: old piece', {
-          received: action.pieceId,
-          current: state.pieceCount,
-        });
-        return state;
-      }
-
-      // Accept strokes for current OR newer pieces
-      // If newer, sync pieceCount (handles race condition)
-      const newPieceCount = Math.max(state.pieceCount, action.pieceId);
-      if (action.pieceId > state.pieceCount) {
-        console.log('[Reducer] STROKES_READY: syncing pieceCount', {
-          from: state.pieceCount,
-          to: action.pieceId,
-        });
-      }
-
       return {
         ...state,
-        pieceCount: newPieceCount,
         pendingStrokes: { count: action.count, batchId: action.batchId, pieceId: action.pieceId },
       };
-    }
 
     case 'CLEAR_PENDING_STROKES':
       return { ...state, pendingStrokes: null };

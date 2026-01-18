@@ -170,7 +170,7 @@ export interface CanvasState {
 export interface AgentState {
   status: AgentStatus;
   monologue: string;
-  pieceCount: number;
+  pieceId: number;
 }
 
 export interface AppState {

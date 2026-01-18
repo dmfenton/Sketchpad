@@ -85,7 +85,7 @@ function App(): React.ReactElement {
           <div className={`status-pill ${agentStatus}`}>{STATUS_LABELS[agentStatus]}</div>
         </div>
         <div className="header-right">
-          <span className="piece-count">Piece #{state.pieceCount}</span>
+          <span className="piece-count">Piece #{state.pieceId}</span>
         </div>
       </header>
 

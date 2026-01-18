@@ -74,7 +74,7 @@ interface CanvasHookState {
   penPosition: Point | null; // Pen cursor position
   penDown: boolean; // Pen touching canvas
   messages: AgentMessage[]; // Agent thought/action stream
-  pieceCount: number; // Current piece number
+  pieceId: number; // Current piece ID
   viewingPiece: number | null; // Gallery piece being viewed
   drawingEnabled: boolean; // Human can draw
   gallery: SavedCanvas[]; // Gallery pieces
