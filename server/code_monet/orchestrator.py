@@ -102,9 +102,7 @@ class AgentOrchestrator:
                 # Expand this path into multiple bristle strokes
                 brush_paths = expand_brush_stroke(path)
                 expanded_paths.extend(brush_paths)
-                logger.debug(
-                    f"Expanded brush '{path.brush}' into {len(brush_paths)} paths"
-                )
+                logger.debug(f"Expanded brush '{path.brush}' into {len(brush_paths)} paths")
             else:
                 expanded_paths.append(path)
 

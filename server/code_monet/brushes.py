@@ -268,18 +268,14 @@ def _create_bristle_strokes(
     for i in range(preset.bristle_count):
         # Calculate offset position for this bristle
         # Distribute evenly with slight randomness (-0.5 to 0.5)
-        offset_ratio = (
-            0.0
-            if preset.bristle_count == 1
-            else (i / (preset.bristle_count - 1)) - 0.5
-        )
+        offset_ratio = 0.0 if preset.bristle_count == 1 else (i / (preset.bristle_count - 1)) - 0.5
 
         base_offset = offset_ratio * total_spread
 
         # Add slight randomness to offset
-        random_offset = random.uniform(
-            -BRISTLE_OFFSET_RANDOMNESS, BRISTLE_OFFSET_RANDOMNESS
-        ) * total_spread
+        random_offset = (
+            random.uniform(-BRISTLE_OFFSET_RANDOMNESS, BRISTLE_OFFSET_RANDOMNESS) * total_spread
+        )
 
         offset = base_offset + random_offset
 
