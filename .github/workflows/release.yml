@@ -155,6 +155,9 @@ jobs:
           echo "Found instance: $INSTANCE_ID"
 
           # Run migration in a one-off container
+          # Fetch DATABASE_URL from SSM to pass to the container (container can't access SSM directly)
+          DATABASE_URL=$(aws ssm get-parameter --name "/code-monet/prod/database-url" --with-decryption --query 'Parameter.Value' --output text 2>/dev/null || echo "")
+
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
@@ -162,7 +165,7 @@ jobs:
               \"echo 'Pulling new image...'\",
               \"docker pull $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\",
               \"echo 'Running migrations...'\",
-              \"docker run --rm -v /home/ec2-user/data:/app/data -e CODE_MONET_ENV=prod -e AWS_REGION=us-east-1 $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION uv run alembic upgrade head\",
+              \"docker run --rm -v /home/ec2-user/data:/app/data -e CODE_MONET_ENV=prod -e AWS_REGION=us-east-1 -e DATABASE_URL='$DATABASE_URL' $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION uv run alembic upgrade head\",
               \"echo 'Migrations complete'\"
             ]" \
             --query "Command.CommandId" \
