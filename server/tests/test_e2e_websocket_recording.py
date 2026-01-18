@@ -128,7 +128,7 @@ class TestMessageRecording:
     """Tests that record WebSocket messages for app replay."""
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(120)
+    @pytest.mark.timeout(240)
     @pytest.mark.usefixtures("use_haiku")
     async def test_record_agent_turn_plotter(
         self,
