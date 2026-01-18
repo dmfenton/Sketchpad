@@ -82,6 +82,20 @@ EOF
 mkdir -p /home/ec2-user/data/logs
 chown ec2-user:ec2-user /home/ec2-user/data/logs
 
+# Configure logrotate for application logs
+cat > /etc/logrotate.d/drawing-agent << 'LOGROTATE'
+/home/ec2-user/data/logs/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    maxsize 100M
+}
+LOGROTATE
+
 # Start CloudWatch agent
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
