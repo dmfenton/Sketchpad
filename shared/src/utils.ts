@@ -60,13 +60,22 @@ export const bionicWord = (word: string): BionicWord => {
 };
 
 /**
+ * Split text into an array of non-empty words.
+ * @param text - Text to split on whitespace
+ * @returns Array of words (empty strings filtered out)
+ */
+export const splitWords = (text: string): string[] => {
+  return text.split(/\s+/).filter((w) => w.length > 0);
+};
+
+/**
  * Split text into chunks of words.
  * @param text - Text to split
  * @param chunkSize - Number of words per chunk (default 2-3)
  * @returns Array of word arrays
  */
 export const chunkWords = (text: string, chunkSize: number = 2): string[][] => {
-  const words = text.split(/\s+/).filter((w) => w.length > 0);
+  const words = splitWords(text);
   const chunks: string[][] = [];
   for (let i = 0; i < words.length; i += chunkSize) {
     chunks.push(words.slice(i, i + chunkSize));

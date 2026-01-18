@@ -4,7 +4,12 @@
 
 import React, { useCallback } from 'react';
 import type { PendingStroke, ServerMessage } from '@code-monet/shared';
-import { deriveAgentStatus, STATUS_LABELS, useStrokeAnimation } from '@code-monet/shared';
+import {
+  deriveAgentStatus,
+  hasInProgressEvents,
+  STATUS_LABELS,
+  useStrokeAnimation,
+} from '@code-monet/shared';
 import { getApiUrl } from './config';
 
 import { Canvas } from './components/Canvas';
@@ -38,12 +43,16 @@ function App(): React.ReactElement {
   // Derive status from messages
   const agentStatus = deriveAgentStatus(state);
 
-  // Use shared animation hook - gate on drawing status
+  // Use shared animation hook for agent-drawn strokes
+  // Gate on: not paused AND no in-progress tool calls
+  // This ensures tool completion events are shown before animation starts,
+  // but allows animation while agent is thinking (so it's not blocked forever)
+  const canRenderStrokes = !state.paused && !hasInProgressEvents(state.messages);
   useStrokeAnimation({
     pendingStrokes: state.pendingStrokes,
     dispatch,
     fetchStrokes,
-    canRender: agentStatus === 'drawing',
+    canRender: canRenderStrokes,
   });
 
   const onMessage = useCallback(

@@ -6,16 +6,13 @@
  * - Current action: Drawing, Executing, etc.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { AgentMessage, AgentStatus, ToolName } from '@code-monet/shared';
-import { TOOL_DISPLAY_NAMES } from '@code-monet/shared';
+import { TOOL_DISPLAY_NAMES, useProgressiveText } from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
-
-// Display pacing for thought chunks (ms)
-const CHUNK_DISPLAY_MS = 800;
 
 interface LiveStatusProps {
   /** The live streaming message (or null if not thinking) */
@@ -72,10 +69,8 @@ export function LiveStatus({
   const { colors, shadows } = useTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Buffer text for smooth display
-  const [displayedText, setDisplayedText] = useState(liveMessage?.text ?? '');
-  const bufferRef = useRef(liveMessage?.text ?? '');
-  const lastUpdateRef = useRef(Date.now());
+  // Progressive text display via shared hook
+  const { displayedText, isBuffering } = useProgressiveText(liveMessage?.text ?? null);
 
   // Pulse animation for active states
   useEffect(() => {
@@ -101,29 +96,6 @@ export function LiveStatus({
     }
   }, [status, pulseAnim]);
 
-  // Buffer incoming text and release at readable pace
-  useEffect(() => {
-    if (!liveMessage) {
-      setDisplayedText('');
-      bufferRef.current = '';
-      return;
-    }
-
-    bufferRef.current = liveMessage.text;
-
-    if (displayedText.length < bufferRef.current.length) {
-      const timeSinceLastUpdate = Date.now() - lastUpdateRef.current;
-      const delay = Math.max(0, CHUNK_DISPLAY_MS - timeSinceLastUpdate);
-
-      const timer = setTimeout(() => {
-        setDisplayedText(bufferRef.current);
-        lastUpdateRef.current = Date.now();
-      }, delay);
-
-      return () => clearTimeout(timer);
-    }
-  }, [liveMessage?.text, displayedText.length]);
-
   // Don't show anything when idle
   if (status === 'idle' && !liveMessage) {
     return null;
@@ -132,7 +104,6 @@ export function LiveStatus({
   const statusLabel = getStatusLabel(status, currentTool);
   const statusIcon = getStatusIcon(status);
   const isActive = status === 'thinking' || status === 'drawing' || status === 'executing';
-  const isBuffering = liveMessage && displayedText.length < liveMessage.text.length;
 
   return (
     <View
