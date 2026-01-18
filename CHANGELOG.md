@@ -7,11 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-01-18
+
+### Added
+
+- Shared `useProgressiveText` hook for word-by-word text reveal animation
+- CI path filters to skip jobs when relevant code doesn't change
+
+### Changed
+
+- Release workflow now uses explicit SSM deployment instead of Watchtower for more reliable deployments
+- Simplified mobile `LiveStatus` and web `StatusOverlay` to use shared hook
+
 ### Fixed
 
 - Stroke animation not starting when agent begins thinking immediately after draw_paths completes
 - Bionic reading display showing all text at once instead of progressive word-by-word reveal
-- Mobile LiveStatus and web StatusOverlay now reveal 3 words every 150ms with cursor indicator
+- CI migration check failing on fresh database (now creates data directory and runs migrations first)
 
 ## [1.22.0] - 2026-01-17
 
