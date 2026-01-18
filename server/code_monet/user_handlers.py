@@ -110,7 +110,7 @@ async def handle_new_canvas(
         {"type": "gallery_update", "canvases": [e.model_dump() for e in gallery_entries]}
     )
     await workspace.connections.broadcast(
-        PieceStateMessage(number=workspace.state.piece_count, completed=False)
+        PieceStateMessage(number=workspace.state.piece_number, completed=False)
     )
 
     # Auto-start the agent on new canvas
@@ -124,43 +124,41 @@ async def handle_new_canvas(
         workspace.orchestrator.wake()
 
     logger.info(
-        f"User {workspace.user_id}: new canvas (piece #{workspace.state.piece_count}), saved: {saved_id}, auto-started"
+        f"User {workspace.user_id}: new canvas (piece #{workspace.state.piece_number}), saved: {saved_id}, auto-started"
     )
 
 
 async def handle_load_canvas(workspace: ActiveWorkspace, message: dict[str, Any]) -> None:
     """Handle loading a canvas from gallery."""
-    canvas_id = message.get("canvas_id", "")
+    piece_num = message.get("piece_number")
 
-    # Extract piece number from canvas_id (e.g., "piece_074")
-    if canvas_id.startswith("piece_"):
-        try:
-            piece_num = int(canvas_id.split("_")[1])
-            result = await workspace.state.load_from_gallery(piece_num)
+    if piece_num is None or not isinstance(piece_num, int):
+        logger.warning(f"User {workspace.user_id}: invalid piece_number: {piece_num}")
+        return
 
-            if result:
-                strokes, drawing_style = result
-                workspace.state.canvas.strokes[:] = strokes
-                workspace.state.canvas.drawing_style = drawing_style
-                await workspace.state.save()
+    result = await workspace.state.load_from_gallery(piece_num)
 
-                style_config = get_style_config(drawing_style)
-                await workspace.connections.broadcast(
-                    LoadCanvasMessage(
-                        strokes=strokes,
-                        piece_number=piece_num,
-                        drawing_style=drawing_style,
-                        style_config=style_config,
-                    )
-                )
-                logger.info(
-                    f"User {workspace.user_id}: loaded canvas {canvas_id} (style: {drawing_style.value})"
-                )
-                return
-        except (ValueError, IndexError):
-            pass
+    if result:
+        strokes, drawing_style = result
+        workspace.state.canvas.strokes[:] = strokes
+        workspace.state.canvas.drawing_style = drawing_style
+        await workspace.state.save()
 
-    logger.warning(f"User {workspace.user_id}: canvas not found: {canvas_id}")
+        style_config = get_style_config(drawing_style)
+        await workspace.connections.broadcast(
+            LoadCanvasMessage(
+                strokes=strokes,
+                piece_number=piece_num,
+                drawing_style=drawing_style,
+                style_config=style_config,
+            )
+        )
+        logger.info(
+            f"User {workspace.user_id}: loaded canvas piece #{piece_num} (style: {drawing_style.value})"
+        )
+        return
+
+    logger.warning(f"User {workspace.user_id}: canvas not found: piece #{piece_num}")
 
 
 async def handle_pause(workspace: ActiveWorkspace) -> None:

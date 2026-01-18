@@ -100,7 +100,7 @@ class TestDrawingAgentBuildPrompt:
     """Tests for building the prompt string."""
 
     def _create_mock_state(
-        self, strokes: list | None = None, notes: str = "", piece_count: int = 0
+        self, strokes: list | None = None, notes: str = "", piece_number: int = 0
     ) -> Any:
         """Create a mock state object for testing."""
         from unittest.mock import MagicMock
@@ -110,7 +110,7 @@ class TestDrawingAgentBuildPrompt:
         mock_canvas.strokes = strokes or []
         mock_state.canvas = mock_canvas
         mock_state.notes = notes
-        mock_state.piece_count = piece_count
+        mock_state.piece_number = piece_number
         return mock_state
 
     def test_build_prompt_basic(self) -> None:
@@ -129,7 +129,7 @@ class TestDrawingAgentBuildPrompt:
         agent = DrawingAgent()
         agent._state = self._create_mock_state(
             notes="Previous work: drew a circle",
-            piece_count=1,
+            piece_number=1,
         )
 
         prompt = agent._build_prompt()

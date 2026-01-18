@@ -288,7 +288,7 @@ async def get_state(user: CurrentUser) -> dict[str, Any]:
     return {
         "canvas": state.canvas.model_dump(),
         "status": state.status.value,
-        "piece_count": state.piece_count,
+        "piece_number": state.piece_number,
     }
 
 
@@ -448,21 +448,21 @@ async def get_pending_strokes(user: CurrentUser) -> dict[str, Any]:
     The client should animate these strokes locally.
 
     Strokes are cleared after fetching - each stroke is only returned once.
-    Includes piece_id so client can verify strokes belong to current canvas.
+    Includes piece_number so client can verify strokes belong to current canvas.
     """
     state = await get_user_state(user)
-    piece_id = state.piece_count
+    piece_number = state.piece_number
     strokes = await state.pop_strokes()
-    return {"strokes": strokes, "count": len(strokes), "piece_id": piece_id}
+    return {"strokes": strokes, "count": len(strokes), "piece_number": piece_number}
 
 
-@app.post("/piece_count/{count}")
-async def set_piece_count(count: int, user: CurrentUser) -> dict[str, int]:
-    """Set piece count for user's workspace."""
+@app.post("/piece_number/{number}")
+async def set_piece_number(number: int, user: CurrentUser) -> dict[str, int]:
+    """Set piece number for user's workspace."""
     state = await get_user_state(user)
-    state.piece_count = count
+    state.piece_number = number
     await state.save()
-    return {"piece_count": count}
+    return {"piece_number": number}
 
 
 @app.get("/auth/dev-token")
@@ -498,7 +498,7 @@ async def get_agent_debug(user: CurrentUser) -> dict[str, Any]:
         return {
             "paused": True,
             "status": state.status.value,
-            "piece_count": state.piece_count,
+            "piece_number": state.piece_number,
             "notes": state.notes[:500] if state.notes else None,
             "monologue": state.monologue[:500] if state.monologue else None,
             "stroke_count": len(state.canvas.strokes),
@@ -509,7 +509,7 @@ async def get_agent_debug(user: CurrentUser) -> dict[str, Any]:
     return {
         "paused": workspace.agent.paused,
         "status": state.status.value,
-        "piece_count": state.piece_count,
+        "piece_number": state.piece_number,
         "notes": state.notes[:500] if state.notes else None,
         "monologue": state.monologue[:500] if state.monologue else None,
         "stroke_count": len(state.canvas.strokes),
@@ -555,7 +555,7 @@ async def reset_workspace_debug(user: CurrentUser) -> dict[str, Any]:
     state.canvas.strokes.clear()
     state.notes = ""
     state.monologue = ""
-    state.piece_count = 0
+    state.piece_number = 0
     state.status = AgentStatus.PAUSED
     if agent:
         agent.pending_nudges.clear()
@@ -569,7 +569,7 @@ async def reset_workspace_debug(user: CurrentUser) -> dict[str, Any]:
     await workspace.connections.broadcast({"type": "clear"})
     await workspace.connections.broadcast(PausedMessage(paused=True))
 
-    return {"status": "reset", "piece_count": 0, "paused": True}
+    return {"status": "reset", "piece_number": 0, "paused": True}
 
 
 @app.get("/debug/logs")
@@ -727,7 +727,7 @@ async def websocket_endpoint(
                 "gallery": gallery_data,
                 "status": workspace.state.status.value,
                 "paused": workspace.agent.paused,
-                "piece_count": workspace.state.piece_count,
+                "piece_number": workspace.state.piece_number,
                 "monologue": workspace.state.monologue or "",
                 "drawing_style": drawing_style.value,
                 "style_config": style_config.model_dump(),
@@ -735,7 +735,7 @@ async def websocket_endpoint(
         )
         logger.info(
             f"User {user_id}: sent init with {len(workspace.state.canvas.strokes)} strokes, "
-            f"{len(gallery_data)} gallery, piece #{workspace.state.piece_count}"
+            f"{len(gallery_data)} gallery, piece #{workspace.state.piece_number}"
         )
 
         # Notify if there are pending strokes to fetch (reconnection scenario)
@@ -746,7 +746,7 @@ async def websocket_endpoint(
                     "type": "strokes_ready",
                     "count": workspace.state.pending_stroke_count,
                     "batch_id": workspace.state.stroke_batch_id,
-                    "piece_id": workspace.state.piece_count,
+                    "piece_number": workspace.state.piece_number,
                 },
             )
             logger.info(

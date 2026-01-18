@@ -81,7 +81,7 @@ describe('Render Flow - Complete Turn Sequence', () => {
       },
       iteration: 1,
     },
-    { type: 'strokes_ready', count: 1, batch_id: 1, piece_id: 0 },
+    { type: 'strokes_ready', count: 1, batch_id: 1, piece_number: 0 },
     {
       type: 'code_execution',
       status: 'completed',
@@ -133,10 +133,10 @@ describe('Render Flow - Complete Turn Sequence', () => {
     expect(states[3]?.pendingStrokes).toBeNull();
 
     // After strokes_ready (index 4)
-    expect(states[4]?.pendingStrokes).toEqual({ count: 1, batchId: 1, pieceId: 0 });
+    expect(states[4]?.pendingStrokes).toEqual({ count: 1, batchId: 1, pieceNumber: 0 });
 
     // After code_execution completed (index 5) - still set
-    expect(states[5]?.pendingStrokes).toEqual({ count: 1, batchId: 1, pieceId: 0 });
+    expect(states[5]?.pendingStrokes).toEqual({ count: 1, batchId: 1, pieceNumber: 0 });
   });
 
   it('canRender becomes true only after code_execution completed', () => {
@@ -293,7 +293,7 @@ describe('Render Flow - Status Derivation Edge Cases', () => {
     let state: CanvasHookState = {
       ...initialState,
       paused: false,
-      pendingStrokes: { count: 1, batchId: 1, pieceId: 0 },
+      pendingStrokes: { count: 1, batchId: 1, pieceNumber: 0 },
     };
     state = processMessage(state, { type: 'thinking_delta', text: 'Thinking', iteration: 1 });
 
@@ -314,7 +314,7 @@ describe('Render Flow - Status Derivation Edge Cases', () => {
     });
 
     // Add pending strokes
-    state = processMessage(state, { type: 'strokes_ready', count: 1, batch_id: 1, piece_id: 0 });
+    state = processMessage(state, { type: 'strokes_ready', count: 1, batch_id: 1, piece_number: 0 });
 
     // Status should be 'executing', not 'drawing'
     expect(deriveAgentStatus(state)).toBe('executing');
@@ -323,7 +323,7 @@ describe('Render Flow - Status Derivation Edge Cases', () => {
 
   it('CLEAR_PENDING_STROKES resets pendingStrokes', () => {
     let state: CanvasHookState = { ...initialState, paused: false };
-    state = processMessage(state, { type: 'strokes_ready', count: 1, batch_id: 1, piece_id: 0 });
+    state = processMessage(state, { type: 'strokes_ready', count: 1, batch_id: 1, piece_number: 0 });
     expect(state.pendingStrokes).not.toBeNull();
 
     // Manually dispatch CLEAR_PENDING_STROKES (as StrokeRenderer would)
@@ -346,7 +346,7 @@ describe('Render Flow - Multi-Turn Scenario', () => {
         tool_input: {},
         iteration: 1,
       },
-      { type: 'strokes_ready', count: 1, batch_id: 1, piece_id: 0 },
+      { type: 'strokes_ready', count: 1, batch_id: 1, piece_number: 0 },
       {
         type: 'code_execution',
         status: 'completed',
@@ -368,7 +368,7 @@ describe('Render Flow - Multi-Turn Scenario', () => {
         tool_input: {},
         iteration: 2,
       },
-      { type: 'strokes_ready', count: 1, batch_id: 2, piece_id: 0 },
+      { type: 'strokes_ready', count: 1, batch_id: 2, piece_number: 0 },
       {
         type: 'code_execution',
         status: 'completed',
@@ -387,7 +387,7 @@ describe('Render Flow - Multi-Turn Scenario', () => {
 
     // Should be in 'drawing' status at the end (pendingStrokes set, no in-progress events)
     expect(finalStatus).toBe('drawing');
-    expect(finalState.pendingStrokes).toEqual({ count: 1, batchId: 2, pieceId: 0 });
+    expect(finalState.pendingStrokes).toEqual({ count: 1, batchId: 2, pieceNumber: 0 });
 
     // Should have finalized thinking from both turns plus the code execution messages
     const messageTypes = finalState.messages.map((m) => m.type);
@@ -409,7 +409,7 @@ describe('Render Flow - Error Handling', () => {
     let state: CanvasHookState = {
       ...initialState,
       paused: true,
-      pendingStrokes: { count: 1, batchId: 1, pieceId: 0 },
+      pendingStrokes: { count: 1, batchId: 1, pieceNumber: 0 },
     };
     state = processMessage(state, { type: 'thinking_delta', text: 'Thinking', iteration: 1 });
 

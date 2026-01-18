@@ -179,7 +179,7 @@ describe('deriveAgentStatus', () => {
   it('returns drawing when pendingStrokes set and no in-progress events', () => {
     const state: CanvasHookState = {
       ...baseState,
-      pendingStrokes: { count: 5, batchId: 1, pieceId: 0 },
+      pendingStrokes: { count: 5, batchId: 1, pieceNumber: 0 },
       messages: [
         {
           id: 'exec_1',
@@ -196,7 +196,7 @@ describe('deriveAgentStatus', () => {
   it('returns executing (not drawing) when pendingStrokes set but code_execution in-progress', () => {
     const state: CanvasHookState = {
       ...baseState,
-      pendingStrokes: { count: 5, batchId: 1, pieceId: 0 },
+      pendingStrokes: { count: 5, batchId: 1, pieceNumber: 0 },
       messages: [
         {
           id: 'exec_1',
@@ -219,7 +219,7 @@ describe('deriveAgentStatus', () => {
     const state: CanvasHookState = {
       ...baseState,
       paused: true,
-      pendingStrokes: { count: 5, batchId: 1, pieceId: 0 },
+      pendingStrokes: { count: 5, batchId: 1, pieceNumber: 0 },
       messages: [{ id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Active', timestamp: Date.now() }],
     };
     expect(deriveAgentStatus(state)).toBe('paused');
@@ -238,26 +238,26 @@ describe('deriveAgentStatus', () => {
 });
 
 describe('canvasReducer - STROKES_READY', () => {
-  it('accepts strokes when pieceId matches', () => {
-    const state: CanvasHookState = { ...initialState, pieceId: 5 };
+  it('accepts strokes when pieceNumber matches', () => {
+    const state: CanvasHookState = { ...initialState, pieceNumber: 5 };
     const result = canvasReducer(state, {
       type: 'STROKES_READY',
       count: 3,
       batchId: 1,
-      pieceId: 5,
+      pieceNumber: 5,
     });
-    expect(result.pendingStrokes).toEqual({ count: 3, batchId: 1, pieceId: 5 });
+    expect(result.pendingStrokes).toEqual({ count: 3, batchId: 1, pieceNumber: 5 });
   });
 
-  it('rejects strokes when pieceId does not match (stale message)', () => {
-    const state: CanvasHookState = { ...initialState, pieceId: 5 };
+  it('rejects strokes when pieceNumber does not match (stale message)', () => {
+    const state: CanvasHookState = { ...initialState, pieceNumber: 5 };
 
     // Old piece
     const result1 = canvasReducer(state, {
       type: 'STROKES_READY',
       count: 3,
       batchId: 1,
-      pieceId: 3,
+      pieceNumber: 3,
     });
     expect(result1.pendingStrokes).toBeNull();
 
@@ -266,7 +266,7 @@ describe('canvasReducer - STROKES_READY', () => {
       type: 'STROKES_READY',
       count: 3,
       batchId: 1,
-      pieceId: 7,
+      pieceNumber: 7,
     });
     expect(result2.pendingStrokes).toBeNull();
   });

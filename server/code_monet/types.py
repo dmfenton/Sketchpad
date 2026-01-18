@@ -218,7 +218,7 @@ class AgentState(BaseModel):
     status: AgentStatus = AgentStatus.IDLE
     monologue: str = ""
     notes: str = ""
-    piece_count: int = 0
+    piece_number: int = 0
 
 
 class GalleryEntry(BaseModel):
@@ -368,7 +368,7 @@ class StrokesReadyMessage(BaseModel):
     type: Literal["strokes_ready"] = "strokes_ready"
     count: int  # Number of strokes ready
     batch_id: int  # For ordering/deduplication
-    piece_id: int  # Canvas/piece ID to prevent cross-canvas rendering
+    piece_number: int  # Canvas/piece number to prevent cross-canvas rendering
 
 
 class StyleChangeMessage(BaseModel):

@@ -170,7 +170,7 @@ export interface CanvasState {
 export interface AgentState {
   status: AgentStatus;
   monologue: string;
-  pieceId: number;
+  pieceNumber: number;
 }
 
 export interface AppState {
@@ -229,7 +229,7 @@ export interface InitMessage {
   gallery: SavedCanvas[];
   status: AgentStatus;
   paused: boolean;
-  piece_count: number;
+  piece_number: number;
   monologue: string;
   drawing_style?: DrawingStyleType;
   style_config?: DrawingStyleConfig;
@@ -293,7 +293,7 @@ export interface StrokesReadyMessage {
   type: 'strokes_ready';
   count: number;
   batch_id: number;
-  piece_id: number;
+  piece_number: number;
 }
 
 export interface StyleChangeMessage {
@@ -360,7 +360,7 @@ export interface ClientNewCanvasMessage {
 
 export interface ClientLoadCanvasMessage {
   type: 'load_canvas';
-  canvas_id: string;
+  piece_number: number;
 }
 
 export interface ClientSetStyleMessage {

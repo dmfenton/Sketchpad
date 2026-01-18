@@ -24,7 +24,7 @@ export const LIVE_MESSAGE_ID = 'live_thinking';
 export interface PendingStrokesInfo {
   count: number;
   batchId: number;
-  pieceId: number;
+  pieceNumber: number;
 }
 
 export interface CanvasHookState {
@@ -36,7 +36,7 @@ export interface CanvasHookState {
   penDown: boolean;
   thinking: string;
   messages: AgentMessage[];
-  pieceId: number;
+  pieceNumber: number;
   viewingPiece: number | null; // Which gallery piece is being viewed (null = current)
   drawingEnabled: boolean;
   gallery: GalleryEntry[];
@@ -132,7 +132,7 @@ export type CanvasAction =
   | { type: 'ADD_MESSAGE'; message: AgentMessage }
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'TOGGLE_DRAWING' }
-  | { type: 'SET_PIECE_ID'; id: number }
+  | { type: 'SET_PIECE_NUMBER'; number: number }
   | { type: 'SET_GALLERY'; canvases: GalleryEntry[] }
   | {
       type: 'LOAD_CANVAS';
@@ -145,7 +145,7 @@ export type CanvasAction =
       type: 'INIT';
       strokes: Path[];
       gallery: GalleryEntry[];
-      pieceId: number;
+      pieceNumber: number;
       paused: boolean;
       drawingStyle?: DrawingStyleType;
       styleConfig?: DrawingStyleConfig;
@@ -153,7 +153,7 @@ export type CanvasAction =
   | { type: 'SET_PAUSED'; paused: boolean }
   | { type: 'SET_ITERATION'; current: number; max: number }
   | { type: 'RESET_TURN' }
-  | { type: 'STROKES_READY'; count: number; batchId: number; pieceId: number }
+  | { type: 'STROKES_READY'; count: number; batchId: number; pieceNumber: number }
   | { type: 'CLEAR_PENDING_STROKES' }
   | { type: 'SET_STYLE'; drawingStyle: DrawingStyleType; styleConfig: DrawingStyleConfig };
 
@@ -166,7 +166,7 @@ export const initialState: CanvasHookState = {
   penDown: false,
   thinking: '',
   messages: [],
-  pieceId: 0,
+  pieceNumber: 0,
   viewingPiece: null,
   drawingEnabled: false,
   gallery: [],
@@ -311,8 +311,8 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
     case 'TOGGLE_DRAWING':
       return { ...state, drawingEnabled: !state.drawingEnabled };
 
-    case 'SET_PIECE_ID':
-      return { ...state, pieceId: action.id };
+    case 'SET_PIECE_NUMBER':
+      return { ...state, pieceNumber: action.number };
 
     case 'SET_GALLERY':
       return { ...state, gallery: action.canvases };
@@ -344,7 +344,7 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         ...state,
         strokes: action.strokes,
         gallery: action.gallery,
-        pieceId: action.pieceId,
+        pieceNumber: action.pieceNumber,
         paused: action.paused,
         viewingPiece: null, // Init shows current canvas
         drawingStyle: initStyle,
@@ -370,12 +370,12 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
 
     case 'STROKES_READY':
       // Reject strokes for wrong piece (stale messages)
-      if (action.pieceId !== state.pieceId) {
+      if (action.pieceNumber !== state.pieceNumber) {
         return state;
       }
       return {
         ...state,
-        pendingStrokes: { count: action.count, batchId: action.batchId, pieceId: action.pieceId },
+        pendingStrokes: { count: action.count, batchId: action.batchId, pieceNumber: action.pieceNumber },
       };
 
     case 'CLEAR_PENDING_STROKES':

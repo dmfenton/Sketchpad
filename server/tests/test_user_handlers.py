@@ -18,7 +18,7 @@ class TestHandleNewCanvas:
         workspace.user_id = 1
         workspace.state = MagicMock()
         workspace.state.new_canvas = AsyncMock(return_value="piece_001")
-        workspace.state.piece_count = 1
+        workspace.state.piece_number = 1
         workspace.state.list_gallery = AsyncMock(return_value=[])
         workspace.state.canvas = MagicMock()
         workspace.state.canvas.drawing_style = DrawingStyleType.PLOTTER

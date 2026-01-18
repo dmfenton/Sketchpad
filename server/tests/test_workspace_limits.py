@@ -137,8 +137,8 @@ class TestGalleryIndex:
         path = Path(type=PathType.LINE, points=[Point(x=0, y=0), Point(x=100, y=100)])
         workspace._canvas.strokes.append(path)
 
-        # Ensure we start with piece_count > 0 to avoid race with rebuild
-        workspace._piece_count = 1
+        # Ensure we start with piece_number > 0 to avoid race with rebuild
+        workspace._piece_number = 1
 
         saved_id = await workspace.new_canvas()
 
@@ -156,7 +156,7 @@ class TestGalleryIndex:
         workspace._canvas.strokes.append(path)
 
         # Use a unique piece number
-        workspace._piece_count = 5
+        workspace._piece_number = 5
 
         saved_id = await workspace.new_canvas()
 

@@ -61,7 +61,7 @@
         "type": "strokes_ready",
         "count": 1,
         "batch_id": 1,
-        "piece_id": 0
+        "piece_number": 0
       },
       "timestamp_ms": 250
     },

@@ -74,7 +74,7 @@ interface CanvasHookState {
   penPosition: Point | null; // Pen cursor position
   penDown: boolean; // Pen touching canvas
   messages: AgentMessage[]; // Agent thought/action stream
-  pieceId: number; // Current piece ID
+  pieceNumber: number; // Current piece ID
   viewingPiece: number | null; // Gallery piece being viewed
   drawingEnabled: boolean; // Human can draw
   gallery: SavedCanvas[]; // Gallery pieces
@@ -220,15 +220,15 @@ Server                          Client
 ```
 Server                          Client
   │                               │
-  │ strokes_ready {count, piece_id}│
+  │ strokes_ready {count, piece_number}│
   ├──────────────────────────────►│ STROKES_READY
-  │                               │ Validate piece_id matches current canvas
-  │                               │ pendingStrokes = {count, batchId, pieceId}
+  │                               │ Validate piece_number matches current canvas
+  │                               │ pendingStrokes = {count, batchId, pieceNumber}
   │                               │
   │           GET /strokes/pending│
   │◄──────────────────────────────┤ Fetch pre-interpolated
   │                               │
-  │ {strokes, piece_id}           │
+  │ {strokes, piece_number}           │
   ├──────────────────────────────►│ Animate at 60fps
   │                               │ ADD_STROKE per stroke
   │                               │
@@ -236,10 +236,10 @@ Server                          Client
   │                               │ status = "idle" or "thinking"
 ```
 
-**Cross-canvas protection**: `piece_id` ensures strokes are only rendered on the
+**Cross-canvas protection**: `piece_number` ensures strokes are only rendered on the
 canvas they belong to. When a new canvas starts, pending strokes are cleared on
 the server, and the client reducer ignores strokes_ready messages with mismatched
-piece_id.
+piece_number.
 
 ## Design Decisions
 
