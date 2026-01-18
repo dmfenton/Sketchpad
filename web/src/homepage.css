@@ -3,89 +3,22 @@
  * An artist's studio aesthetic inspired by Monet's world
  */
 
-/* ============================================
-   FONTS - Distinctive serif typography
-   ============================================ */
+/* Import shared theme - provides all CSS variables and base styles */
+@import './theme.css';
 
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap');
-
-/* ============================================
-   CSS VARIABLES - Monet's actual palette
-   ============================================ */
-
+/* Legacy aliases for backward compatibility */
 :root {
-  /* Warm, earthy base tones */
-  --atelier-cream: #f5f0e6;
-  --atelier-parchment: #ebe4d4;
-  --atelier-linen: #e8e0ce;
-
-  /* From Monet's paintings */
-  --atelier-ochre: #c4a35a;
-  --atelier-sienna: #9e6b4a;
-  --atelier-umber: #6b4423;
-  --atelier-indigo: #2c3e50;
-  --atelier-prussian: #1a2634;
-
-  /* Water Lilies palette */
-  --atelier-sage: #7d8471;
-  --atelier-water: #6a9fb5;
-  --atelier-lily: #c8b8d0;
-
-  /* Accent tones */
-  --atelier-rose: #b5606e;
-  --atelier-lavender: #8b7ea8;
-  --atelier-gold: #d4a84b;
-
-  /* Text hierarchy */
-  --text-primary: #2c2416;
-  --text-secondary: #5a4d3a;
-  --text-muted: #8a7d6b;
-  --text-light: #f5f0e6;
-
-  /* Typography */
-  --font-display: 'Cormorant Garamond', Georgia, serif;
-  --font-body: 'EB Garamond', Georgia, serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
-
-  /* Shadows */
-  --shadow-soft: 0 4px 20px rgba(44, 36, 22, 0.08);
-  --shadow-medium: 0 8px 30px rgba(44, 36, 22, 0.12);
-  --shadow-heavy: 0 16px 50px rgba(44, 36, 22, 0.18);
+  --text-light: var(--text-inverse);
+  --shadow-soft: var(--shadow-sm);
+  --shadow-medium: var(--shadow-md);
+  --shadow-heavy: var(--shadow-xl);
 }
 
 /* ============================================
-   ANIMATIONS - Subtle, refined motion
+   ANIMATIONS - Homepage-specific animations
+   (Base animations like fadeIn, fadeInUp, gentleBreathe
+   are provided by theme.css)
    ============================================ */
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes gentleBreathe {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.02);
-  }
-}
 
 @keyframes inkWrite {
   0%,
