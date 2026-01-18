@@ -11,7 +11,6 @@ import random
 
 from .types import (
     BRUSH_PRESETS,
-    DEFAULT_BRUSH,
     BrushPreset,
     Path,
     PathType,
