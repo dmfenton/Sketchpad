@@ -1,17 +1,15 @@
 """Share routes for public canvas sharing with social media support."""
 
 import html
-import io
 import secrets
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, Response
-from PIL import Image, ImageDraw
 from pydantic import BaseModel
 
 from code_monet.auth.dependencies import CurrentUser
-from code_monet.canvas import path_to_point_list, render_path_to_svg_d
+from code_monet.canvas import render_path_to_svg_d, render_strokes_to_png
 from code_monet.config import settings
 from code_monet.db import CanvasShare, get_session, repository
 from code_monet.types import Path
@@ -143,20 +141,10 @@ async def get_share_preview_image(token: str) -> Response:
     """Get preview image for social media sharing (no auth required)."""
     share, strokes = await load_shared_canvas(token)
 
-    # Render strokes to PNG (800x600)
-    img = Image.new("RGB", (800, 600), "#FFFFFF")
-    draw = ImageDraw.Draw(img)
-
-    for path in strokes:
-        points = path_to_point_list(path)
-        if len(points) >= 2:
-            draw.line(points, fill="#000000", width=2)
-
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG", optimize=True)
+    png_data = render_strokes_to_png(strokes, width=800, height=600)
 
     return Response(
-        content=buffer.getvalue(),
+        content=png_data,
         media_type="image/png",
         headers={
             "Cache-Control": "public, max-age=3600",  # Cache for 1 hour

@@ -19,7 +19,7 @@ from code_monet.auth import auth_router
 from code_monet.auth.dependencies import CurrentUser
 from code_monet.auth.jwt import TokenError, get_user_id_from_token
 from code_monet.auth.rate_limit import TRACES_BY_IP, rate_limiter
-from code_monet.canvas import path_to_point_list
+from code_monet.canvas import path_to_point_list, render_strokes_to_png
 from code_monet.config import settings
 from code_monet.db import User, get_session, repository
 from code_monet.registry import workspace_registry
@@ -481,20 +481,10 @@ async def get_gallery_thumbnail(token: str) -> Response:
                     piece_data = json.loads(piece_file.read_text())
                     strokes = [Path.model_validate(s) for s in piece_data.get("strokes", [])]
 
-                    # Render to PNG (same pattern as share/routes.py)
-                    img = Image.new("RGB", (800, 800), "#FFFFFF")
-                    draw = ImageDraw.Draw(img)
-
-                    for path in strokes:
-                        points = path_to_point_list(path)
-                        if len(points) >= 2:
-                            draw.line(points, fill="#000000", width=2)
-
-                    buffer = io.BytesIO()
-                    img.save(buffer, format="PNG", optimize=True)
+                    png_data = render_strokes_to_png(strokes)
 
                     return Response(
-                        content=buffer.getvalue(),
+                        content=png_data,
                         media_type="image/png",
                         headers={"Cache-Control": "public, max-age=31536000, immutable"},
                     )
