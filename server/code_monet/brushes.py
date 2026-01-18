@@ -5,9 +5,9 @@ multiple paths that create realistic paint effects like bristle texture,
 opacity variation, and edge effects.
 """
 
+import logging
 import math
 import random
-from typing import TYPE_CHECKING
 
 from .types import (
     BRUSH_PRESETS,
@@ -18,8 +18,12 @@ from .types import (
     Point,
 )
 
-if TYPE_CHECKING:
-    pass
+logger = logging.getLogger(__name__)
+
+# Constants for brush expansion algorithms
+EDGE_NOISE_SCALE = 0.3  # Scale factor for edge noise displacement
+BRISTLE_OPACITY_VARIANCE = (0.8, 1.2)  # Min/max opacity variation for bristles
+BRISTLE_OFFSET_RANDOMNESS = 0.1  # Randomness factor for bristle offsets
 
 
 def expand_brush_stroke(path: Path, preset: BrushPreset | None = None) -> list[Path]:
@@ -34,17 +38,22 @@ def expand_brush_stroke(path: Path, preset: BrushPreset | None = None) -> list[P
         The first path is always the main stroke, followed by bristle strokes.
     """
     if preset is None:
-        # Try to get preset from path, or use default
+        # Try to get preset from path
         preset = path.get_brush_preset()
         if preset is None:
-            preset = BRUSH_PRESETS.get(DEFAULT_BRUSH)
-            if preset is None:
-                # Fallback: return original path unchanged
-                return [path]
+            # No brush preset specified - return path unchanged
+            # (don't apply default brush unless explicitly requested)
+            return [path]
 
     # Get points from path
     points = _get_path_points(path)
     if len(points) < 2:
+        # SVG paths or paths with insufficient points can't be expanded
+        if path.brush and path.type == PathType.SVG:
+            logger.warning(
+                f"Brush '{path.brush}' ignored for SVG path - "
+                "brush expansion only supports point-based paths"
+            )
         return [path]
 
     # Determine effective stroke width
@@ -163,7 +172,7 @@ def _apply_edge_noise(
         return points
 
     # Scale noise by stroke width and noise_amount
-    max_displacement = stroke_width * noise_amount * 0.3
+    max_displacement = stroke_width * noise_amount * EDGE_NOISE_SCALE
 
     noisy_points: list[Point] = []
     for i, point in enumerate(points):
@@ -269,7 +278,9 @@ def _create_bristle_strokes(
         base_offset = offset_ratio * total_spread
 
         # Add slight randomness to offset
-        random_offset = random.uniform(-0.1, 0.1) * total_spread
+        random_offset = random.uniform(
+            -BRISTLE_OFFSET_RANDOMNESS, BRISTLE_OFFSET_RANDOMNESS
+        ) * total_spread
 
         offset = base_offset + random_offset
 
@@ -277,7 +288,7 @@ def _create_bristle_strokes(
         bristle_points = _offset_path(points, offset)
 
         # Vary opacity slightly per bristle
-        opacity_variation = random.uniform(0.8, 1.2)
+        opacity_variation = random.uniform(*BRISTLE_OPACITY_VARIANCE)
         bristle_opacity = min(1.0, preset.bristle_opacity * opacity_variation)
 
         bristle_path = Path(

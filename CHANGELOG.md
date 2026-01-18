@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Brush presets for paint-like stroke rendering with 12 brush types:
+  - Oil brushes: `oil_round`, `oil_flat`, `oil_filbert` (visible bristle texture)
+  - Watercolor: translucent strokes with soft edges
+  - Dry brush: scratchy, broken stroke texture
+  - Palette knife: sharp edges, thick paint application
+  - Ink: pressure-sensitive calligraphy style
+  - Pencil, charcoal: sketching tools
+  - Marker, airbrush, splatter: special effects
+- Server-side brush stroke expansion with bristle sub-strokes, velocity-based width variation, and edge noise
+- `brush` parameter in `draw_paths` and `generate_svg` tools (paint mode only)
+- `BRUSHES` list available in `generate_svg` code for iterating brush names
+
 ### Fixed
 
 - Race condition where agent strokes could be silently dropped if `strokes_ready` message arrived before `piece_state` update

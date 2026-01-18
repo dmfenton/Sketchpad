@@ -11,7 +11,7 @@ from typing import Any
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
-from code_monet.types import Path, PathType, Point
+from code_monet.types import BRUSH_PRESETS, Path, PathType, Point
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +126,9 @@ async def run_python_code(code: str, canvas_width: int, canvas_height: int) -> d
 
     Returns dict with stdout, stderr, return_code, and parsed paths.
     """
+    # Generate BRUSHES list from presets (ensures consistency with types.py)
+    brushes_list = json.dumps(list(BRUSH_PRESETS.keys()))
+
     # Prepend canvas dimensions as variables
     full_code = f"""
 import math
@@ -136,21 +139,8 @@ import json
 canvas_width = {canvas_width}
 canvas_height = {canvas_height}
 
-# Available brush presets for paint mode
-BRUSHES = [
-    "oil_round",     # Classic round brush, visible bristle texture
-    "oil_flat",      # Flat brush, parallel marks
-    "oil_filbert",   # Rounded flat, organic shapes
-    "watercolor",    # Translucent, soft edges
-    "dry_brush",     # Scratchy, broken strokes
-    "palette_knife", # Sharp edges, thick paint
-    "ink",           # Pressure-sensitive, elegant taper
-    "pencil",        # Thin, consistent lines
-    "charcoal",      # Smudgy edges, texture
-    "marker",        # Solid color, slight bleed
-    "airbrush",      # Very soft edges
-    "splatter",      # Random dots around stroke
-]
+# Available brush presets for paint mode (generated from BRUSH_PRESETS)
+BRUSHES = {brushes_list}
 
 # Helper function to add style properties to a path dict
 def _add_style(path_dict: dict, brush=None, color=None, stroke_width=None, opacity=None) -> dict:
@@ -587,7 +577,7 @@ In Paint mode, you can specify a brush preset for realistic paint effects:
                         },
                         "stroke_width": {
                             "type": "number",
-                            "description": "Stroke width 0.5-20 (Paint mode only). Overrides brush default width.",
+                            "description": "Stroke width 0.5-30 (Paint mode only). Overrides brush default width.",
                         },
                         "opacity": {
                             "type": "number",
