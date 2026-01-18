@@ -368,15 +368,38 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
     case 'RESET_TURN':
       return { ...state, thinking: '', currentIteration: 0 };
 
-    case 'STROKES_READY':
-      // Ignore strokes for a different piece (prevents cross-canvas rendering)
-      if (action.pieceId !== state.pieceCount) {
+    case 'STROKES_READY': {
+      // When viewing gallery, ignore new strokes entirely
+      if (state.viewingPiece !== null) {
+        console.log('[Reducer] STROKES_READY ignored: viewing gallery piece');
         return state;
       }
+
+      // Reject strokes for OLD pieces (stale messages)
+      if (action.pieceId < state.pieceCount) {
+        console.log('[Reducer] STROKES_READY ignored: old piece', {
+          received: action.pieceId,
+          current: state.pieceCount,
+        });
+        return state;
+      }
+
+      // Accept strokes for current OR newer pieces
+      // If newer, sync pieceCount (handles race condition)
+      const newPieceCount = Math.max(state.pieceCount, action.pieceId);
+      if (action.pieceId > state.pieceCount) {
+        console.log('[Reducer] STROKES_READY: syncing pieceCount', {
+          from: state.pieceCount,
+          to: action.pieceId,
+        });
+      }
+
       return {
         ...state,
+        pieceCount: newPieceCount,
         pendingStrokes: { count: action.count, batchId: action.batchId, pieceId: action.pieceId },
       };
+    }
 
     case 'CLEAR_PENDING_STROKES':
       return { ...state, pendingStrokes: null };
