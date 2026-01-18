@@ -45,7 +45,9 @@ jobs:
       - name: Check for missing migrations
         working-directory: server
         run: |
-          # Generate what alembic thinks the migration should be
+          # Create data directory for SQLite (needed for alembic to connect)
+          mkdir -p data
+          # Check if models and migrations are in sync
           uv run alembic check 2>&1 || {
             echo "❌ Model changes detected without corresponding migration!"
             echo ""
