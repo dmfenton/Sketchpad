@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from PIL import Image, ImageDraw
@@ -340,12 +340,36 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
     return [entry.model_dump() for entry in entries]
 
 
+@app.get("/settings/gallery")
+async def get_gallery_settings(user: CurrentUser) -> dict[str, Any]:
+    """Get user's gallery visibility settings."""
+    async with get_session() as session:
+        db_user = await repository.get_user_by_id(session, user.id)
+        if not db_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"gallery_public": db_user.gallery_public}
+
+
+@app.put("/settings/gallery")
+async def update_gallery_settings(
+    user: CurrentUser,
+    gallery_public: bool = Body(..., embed=True),
+) -> dict[str, Any]:
+    """Update user's gallery visibility settings."""
+    async with get_session() as session:
+        success = await repository.set_gallery_public(session, user.id, gallery_public)
+        if not success:
+            raise HTTPException(status_code=404, detail="User not found")
+        await session.commit()
+        return {"gallery_public": gallery_public}
+
+
 @app.get("/public/gallery")
 async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict[str, Any]]:
-    """Get public gallery showcasing artwork from the featured user.
+    """Get public gallery showcasing artwork from users who opted in.
 
     Returns pieces for the homepage - no authentication required.
-    Only shows artwork from the configured featured user (homepage_featured_email).
+    Shows artwork from all users who have set gallery_public=True.
     """
     from pathlib import Path as FilePath
 
@@ -355,45 +379,39 @@ async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict
     if not workspace_base.exists():
         return []
 
-    # Look up the featured user's ID from their email
-    featured_user_id: str | None = None
-    if settings.homepage_featured_email:
-        async with get_session() as session:
-            featured_user = await repository.get_user_by_email(
-                session, settings.homepage_featured_email
-            )
-            if featured_user:
-                featured_user_id = featured_user.id
+    # Get all users with public galleries
+    async with get_session() as session:
+        public_users = await repository.list_users_with_public_gallery(session)
 
-    # If no featured user found, return empty
-    if featured_user_id is None:
+    if not public_users:
         return []
 
-    # Only load gallery from the featured user
-    gallery_dir = workspace_base / str(featured_user_id) / "gallery"
-    if not gallery_dir.exists():
-        return []
+    # Load gallery pieces from all public users
+    for user in public_users:
+        gallery_dir = workspace_base / str(user.id) / "gallery"
+        if not gallery_dir.exists():
+            continue
 
-    # Load gallery index
-    index_file = gallery_dir / "_index.json"
-    if index_file.exists():
-        try:
-            index_data = json.loads(index_file.read_text())
-            for entry in index_data.get("pieces", []):
-                pieces.append(
-                    {
-                        "id": entry.get("id", ""),
-                        "user_id": str(featured_user_id),
-                        "piece_number": entry.get("piece_number", 0),
-                        "stroke_count": entry.get("stroke_count", 0),
-                        "created_at": entry.get("created_at", ""),
-                    }
-                )
-        except (json.JSONDecodeError, OSError):
-            pass
+        # Load gallery index
+        index_file = gallery_dir / "_index.json"
+        if index_file.exists():
+            try:
+                index_data = json.loads(index_file.read_text())
+                for entry in index_data.get("pieces", []):
+                    pieces.append(
+                        {
+                            "id": entry.get("id", ""),
+                            "user_id": str(user.id),
+                            "piece_number": entry.get("piece_number", 0),
+                            "stroke_count": entry.get("stroke_count", 0),
+                            "created_at": entry.get("created_at", ""),
+                        }
+                    )
+            except (json.JSONDecodeError, OSError):
+                pass
 
-    # Sort by piece_number descending (most recent first)
-    pieces.sort(key=lambda p: p.get("piece_number", 0), reverse=True)
+    # Sort by created_at descending (most recent first across all users)
+    pieces.sort(key=lambda p: p.get("created_at", ""), reverse=True)
 
     return pieces[:limit]
 
@@ -403,16 +421,25 @@ async def get_public_piece_strokes(user_id: str, piece_id: str) -> dict[str, Any
     """Get strokes for a specific gallery piece.
 
     Returns the full stroke data for rendering on the homepage.
+    Only returns data if the user has opted into public gallery.
     """
+    import re
     from pathlib import Path as FilePath
 
-    # Validate user_id is numeric to prevent path traversal
-    if not user_id.isdigit():
+    # Validate user_id is a valid UUID format to prevent path traversal
+    uuid_pattern = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    if not re.match(uuid_pattern, user_id, re.IGNORECASE):
         raise HTTPException(status_code=400, detail="Invalid user_id")
 
     # Validate piece_id format (alphanumeric, underscore, hyphen only)
     if not piece_id.replace("_", "").replace("-", "").isalnum():
         raise HTTPException(status_code=400, detail="Invalid piece_id")
+
+    # Verify the user has opted into public gallery
+    async with get_session() as session:
+        user = await repository.get_user_by_id(session, user_id)
+        if not user or not user.gallery_public:
+            raise HTTPException(status_code=404, detail="Gallery not found")
 
     workspace_base = FilePath(settings.workspace_base_dir).resolve()
     gallery_dir = workspace_base / user_id / "gallery"

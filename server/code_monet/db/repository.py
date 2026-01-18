@@ -62,6 +62,27 @@ async def list_users(session: AsyncSession, active_only: bool = True) -> list[Us
     return list(result.scalars().all())
 
 
+async def list_users_with_public_gallery(session: AsyncSession) -> list[User]:
+    """List all active users who have opted into public gallery."""
+    query = (
+        select(User)
+        .where(User.is_active == True)  # noqa: E712
+        .where(User.gallery_public == True)  # noqa: E712
+        .order_by(User.created_at.desc())
+    )
+    result = await session.execute(query)
+    return list(result.scalars().all())
+
+
+async def set_gallery_public(session: AsyncSession, user_id: str, public: bool) -> bool:
+    """Set user's gallery public visibility. Returns True if user existed."""
+    user = await get_user_by_id(session, user_id)
+    if user:
+        user.gallery_public = public
+        return True
+    return False
+
+
 # =============================================================================
 # Invite Code Repository
 # =============================================================================

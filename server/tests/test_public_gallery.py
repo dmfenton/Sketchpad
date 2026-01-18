@@ -3,10 +3,14 @@
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+
+# Test UUID for user with public gallery
+TEST_USER_ID = "12345678-1234-1234-1234-123456789abc"
+TEST_USER_ID_PRIVATE = "87654321-4321-4321-4321-cba987654321"
 
 
 class TestPublicGalleryStrokes:
@@ -16,8 +20,8 @@ class TestPublicGalleryStrokes:
     def temp_workspace(self):
         """Create a temporary workspace directory with test data."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create user gallery structure
-            user_dir = Path(tmpdir) / "1" / "gallery"
+            # Create user gallery structure with UUID-based directory
+            user_dir = Path(tmpdir) / TEST_USER_ID / "gallery"
             user_dir.mkdir(parents=True)
 
             # Create a test piece
@@ -31,17 +35,53 @@ class TestPublicGalleryStrokes:
             yield tmpdir
 
     @pytest.fixture
-    def client(self, temp_workspace):
-        """Create test client with mocked workspace."""
-        with patch("code_monet.main.settings") as mock_settings:
+    def mock_public_user(self):
+        """Create a mock user with public gallery."""
+        user = MagicMock()
+        user.id = TEST_USER_ID
+        user.gallery_public = True
+        return user
+
+    @pytest.fixture
+    def mock_private_user(self):
+        """Create a mock user with private gallery."""
+        user = MagicMock()
+        user.id = TEST_USER_ID_PRIVATE
+        user.gallery_public = False
+        return user
+
+    @pytest.fixture
+    def client(self, temp_workspace, mock_public_user):
+        """Create test client with mocked workspace and repository."""
+        with (
+            patch("code_monet.main.settings") as mock_settings,
+            patch("code_monet.main.repository") as mock_repo,
+            patch("code_monet.main.get_session") as mock_get_session,
+        ):
             mock_settings.workspace_base_dir = temp_workspace
+
+            # Mock repository.get_user_by_id
+            async def get_user_by_id(session, user_id):
+                if user_id == TEST_USER_ID:
+                    return mock_public_user
+                return None
+
+            mock_repo.get_user_by_id = AsyncMock(side_effect=get_user_by_id)
+
+            # Mock get_session context manager
+            mock_session = MagicMock()
+            mock_context = MagicMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_session.return_value = mock_context
+
             from code_monet.main import app
 
             yield TestClient(app)
 
     def test_valid_request_returns_strokes(self, client):
         """Test valid user_id and piece_id returns stroke data."""
-        response = client.get("/public/gallery/1/piece_0001/strokes")
+        response = client.get(f"/public/gallery/{TEST_USER_ID}/piece_0001/strokes")
 
         assert response.status_code == 200
         data = response.json()
@@ -49,9 +89,16 @@ class TestPublicGalleryStrokes:
         assert len(data["strokes"]) == 1
         assert data["piece_number"] == 1
 
-    def test_invalid_user_id_non_numeric(self, client):
-        """Test non-numeric user_id is rejected."""
+    def test_invalid_user_id_not_uuid(self, client):
+        """Test non-UUID user_id is rejected."""
         response = client.get("/public/gallery/abc/piece_0001/strokes")
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Invalid user_id"
+
+    def test_invalid_user_id_numeric(self, client):
+        """Test numeric user_id is rejected (must be UUID)."""
+        response = client.get("/public/gallery/123/piece_0001/strokes")
 
         assert response.status_code == 400
         assert response.json()["detail"] == "Invalid user_id"
@@ -73,63 +120,58 @@ class TestPublicGalleryStrokes:
 
     def test_invalid_piece_id_path_traversal(self, client):
         """Test path traversal in piece_id is rejected."""
-        response = client.get("/public/gallery/1/../../../etc/passwd/strokes")
+        response = client.get(
+            f"/public/gallery/{TEST_USER_ID}/../../../etc/passwd/strokes"
+        )
 
         # Either 400 (validation) or 404 (route not found) blocks the attack
         assert response.status_code in (400, 404)
 
     def test_invalid_piece_id_special_chars(self, client):
         """Test piece_id with special characters is rejected."""
-        response = client.get("/public/gallery/1/piece..0001/strokes")
+        response = client.get(f"/public/gallery/{TEST_USER_ID}/piece..0001/strokes")
 
         assert response.status_code == 400
         assert response.json()["detail"] == "Invalid piece_id"
 
     def test_invalid_piece_id_slash(self, client):
         """Test piece_id with slash is rejected."""
-        response = client.get("/public/gallery/1/piece/0001/strokes")
+        response = client.get(f"/public/gallery/{TEST_USER_ID}/piece/0001/strokes")
 
         # FastAPI will treat this as a different route, resulting in 404
         assert response.status_code == 404
 
     def test_valid_piece_id_with_underscore(self, client):
         """Test piece_id with underscore is allowed."""
-        response = client.get("/public/gallery/1/piece_0001/strokes")
+        response = client.get(f"/public/gallery/{TEST_USER_ID}/piece_0001/strokes")
 
         assert response.status_code == 200
 
     def test_valid_piece_id_with_hyphen(self, client, temp_workspace):
         """Test piece_id with hyphen is allowed."""
         # Create a piece with hyphen in name
-        user_dir = Path(temp_workspace) / "1" / "gallery"
+        user_dir = Path(temp_workspace) / TEST_USER_ID / "gallery"
         piece_data = {"strokes": [], "piece_number": 2}
         (user_dir / "piece-0002.json").write_text(json.dumps(piece_data))
 
-        response = client.get("/public/gallery/1/piece-0002/strokes")
+        response = client.get(f"/public/gallery/{TEST_USER_ID}/piece-0002/strokes")
 
         assert response.status_code == 200
 
     def test_nonexistent_user_returns_404(self, client):
         """Test request for nonexistent user returns 404."""
-        response = client.get("/public/gallery/999/piece_0001/strokes")
+        nonexistent_uuid = "99999999-9999-9999-9999-999999999999"
+        response = client.get(f"/public/gallery/{nonexistent_uuid}/piece_0001/strokes")
 
         assert response.status_code == 404
         assert response.json()["detail"] == "Gallery not found"
 
     def test_nonexistent_piece_returns_404(self, client):
         """Test request for nonexistent piece returns 404."""
-        response = client.get("/public/gallery/1/nonexistent/strokes")
+        response = client.get(f"/public/gallery/{TEST_USER_ID}/nonexistent/strokes")
 
         assert response.status_code == 404
         assert response.json()["detail"] == "Piece not found"
-
-    def test_user_id_with_leading_zeros(self, client):
-        """Test user_id with leading zeros is valid (numeric)."""
-        response = client.get("/public/gallery/001/piece_0001/strokes")
-
-        # Valid numeric user_id, but user doesn't exist
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Gallery not found"
 
     def test_empty_user_id_rejected(self, client):
         """Test empty user_id is handled by FastAPI routing."""
@@ -138,9 +180,45 @@ class TestPublicGalleryStrokes:
         # FastAPI treats this as a different route
         assert response.status_code in (404, 307)  # Not found or redirect
 
-    def test_negative_user_id_rejected(self, client):
-        """Test negative user_id (with dash) is rejected."""
-        response = client.get("/public/gallery/-1/piece_0001/strokes")
+    def test_private_gallery_returns_404(self, temp_workspace, mock_private_user):
+        """Test that private gallery is not accessible."""
+        with (
+            patch("code_monet.main.settings") as mock_settings,
+            patch("code_monet.main.repository") as mock_repo,
+            patch("code_monet.main.get_session") as mock_get_session,
+        ):
+            mock_settings.workspace_base_dir = temp_workspace
 
-        assert response.status_code == 400
-        assert response.json()["detail"] == "Invalid user_id"
+            # Mock repository.get_user_by_id to return private user
+            async def get_user_by_id(session, user_id):
+                if user_id == TEST_USER_ID_PRIVATE:
+                    return mock_private_user
+                return None
+
+            mock_repo.get_user_by_id = AsyncMock(side_effect=get_user_by_id)
+
+            # Mock get_session context manager
+            mock_session = MagicMock()
+            mock_context = MagicMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_session.return_value = mock_context
+
+            from code_monet.main import app
+
+            client = TestClient(app)
+            response = client.get(
+                f"/public/gallery/{TEST_USER_ID_PRIVATE}/piece_0001/strokes"
+            )
+
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Gallery not found"
+
+    def test_uppercase_uuid_accepted(self, client):
+        """Test uppercase UUID is accepted."""
+        response = client.get(
+            f"/public/gallery/{TEST_USER_ID.upper()}/piece_0001/strokes"
+        )
+        # Should be valid UUID format, but user won't be found (uppercase != lowercase in lookup)
+        # The UUID regex is case-insensitive, so it passes validation
+        assert response.status_code in (200, 404)
