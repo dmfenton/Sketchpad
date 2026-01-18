@@ -1,6 +1,27 @@
 # Logging System Design
 
-Design document for an intentional, structured logging system with CloudWatch integration.
+Design document for an intentional, structured logging system.
+
+## Approach Options
+
+### Option A: CloudWatch Logs (AWS-managed)
+- Logs go to CloudWatch via CloudWatch Agent
+- Query with Logs Insights
+- Pay per GB ingested (~$0.50/GB)
+- Best for: AWS-native, minimal ops
+
+### Option B: Postgres + Grafana (Self-hosted)
+- Logs stored in existing Postgres instance
+- Visualize with Grafana (also works with X-Ray)
+- No additional AWS costs
+- Best for: Cost-conscious, full control
+
+### Option C: Loki + Grafana (Self-hosted, scalable)
+- Loki for log aggregation (efficient, label-based)
+- Grafana for visualization
+- Best for: High log volume, Prometheus ecosystem
+
+**Recommended: Option B** - Leverages existing Postgres, adds Grafana for unified observability.
 
 ## Current State
 
@@ -23,7 +44,9 @@ Design document for an intentional, structured logging system with CloudWatch in
 4. **No centralized log reading** - Must SSH or use debug endpoints
 5. **Diagnose script is trace-only** - Can't query application logs
 
-## Proposed Architecture
+## Proposed Architecture (Option B: Postgres + Grafana)
+
+Leverages existing Postgres instance running for Umami analytics.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -36,29 +59,74 @@ Design document for an intentional, structured logging system with CloudWatch in
 │         └────────────────┴────────────────┘                      │
 │                          │                                       │
 │                  ┌───────▼───────┐                               │
-│                  │ StructuredLog │  JSON formatter               │
+│                  │ StructuredLog │  JSON + DB handler            │
 │                  │   Handler     │  with log categories          │
 │                  └───────┬───────┘                               │
 └──────────────────────────┼───────────────────────────────────────┘
                            │
-              ┌────────────┴────────────┐
-              │                         │
-      ┌───────▼───────┐       ┌────────▼────────┐
-      │    stdout     │       │   Log Files     │
-      │  (container)  │       │ /app/data/logs/ │
-      └───────┬───────┘       └────────┬────────┘
-              │                        │
-              └────────────┬───────────┘
-                           │
-               ┌───────────▼───────────┐
-               │   CloudWatch Agent    │
-               │  (log group per env)  │
-               └───────────┬───────────┘
-                           │
-               ┌───────────▼───────────┐
-               │    CloudWatch Logs    │
-               │  /drawing-agent/app   │
-               └───────────────────────┘
+              ┌────────────┼────────────┐
+              │            │            │
+      ┌───────▼───────┐    │    ┌───────▼───────┐
+      │    stdout     │    │    │  PostgreSQL   │
+      │  (container)  │    │    │  (logs table) │
+      └───────────────┘    │    └───────┬───────┘
+                           │            │
+               ┌───────────▼───────┐    │
+               │    X-Ray Traces   │    │
+               │  (via ADOT/OTEL)  │    │
+               └───────────┬───────┘    │
+                           │            │
+                   ┌───────┴────────────┘
+                   │
+           ┌───────▼───────┐
+           │    Grafana    │  ← Unified dashboard
+           │  (logs + traces) │
+           └───────────────┘
+```
+
+### Benefits of This Approach
+
+1. **No new costs** - Uses existing Postgres instance
+2. **Unified UI** - Grafana shows logs, traces, and metrics in one place
+3. **Full SQL** - Query logs with familiar SQL syntax
+4. **Self-hosted** - Data stays on your infrastructure
+5. **Grafana ecosystem** - Alerting, dashboards, sharing
+
+### Services Added
+
+| Service | Image | Purpose | Memory |
+|---------|-------|---------|--------|
+| Grafana | `grafana/grafana-oss` | Visualization | ~100MB |
+| (optional) Loki | `grafana/loki` | Log aggregation | ~200MB |
+
+## Alternative: CloudWatch Architecture
+
+For AWS-managed logging (higher cost, less ops):
+
+```
+┌──────────────────────────────────────┐
+│           Application                │
+│  ┌─────────────────────────────────┐ │
+│  │     Structured JSON Logger      │ │
+│  └──────────────┬──────────────────┘ │
+└─────────────────┼────────────────────┘
+                  │
+      ┌───────────┴───────────┐
+      │                       │
+┌─────▼─────┐         ┌───────▼───────┐
+│  stdout   │         │  Log Files    │
+└─────┬─────┘         └───────┬───────┘
+      │                       │
+      └───────────┬───────────┘
+                  │
+      ┌───────────▼───────────┐
+      │   CloudWatch Agent    │
+      └───────────┬───────────┘
+                  │
+      ┌───────────▼───────────┐
+      │   CloudWatch Logs     │
+      │  (Logs Insights)      │
+      └───────────────────────┘
 ```
 
 ## Log Categories
@@ -175,6 +243,254 @@ class StructuredFormatter(logging.Formatter):
 
         return json.dumps(log_record)
 ```
+
+## Postgres + Grafana Implementation (Option B)
+
+### 1. Database Schema
+
+Create a `logs` database in the existing Postgres instance:
+
+```sql
+-- Run in umami-db container or via init script
+CREATE DATABASE logs;
+
+\c logs
+
+CREATE TABLE app_logs (
+    id BIGSERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    level VARCHAR(10) NOT NULL,
+    category VARCHAR(20) NOT NULL,
+    logger VARCHAR(100) NOT NULL,
+    message TEXT NOT NULL,
+    user_id INTEGER,
+    trace_id VARCHAR(50),
+    extra JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for common queries
+CREATE INDEX idx_logs_timestamp ON app_logs(timestamp DESC);
+CREATE INDEX idx_logs_level ON app_logs(level) WHERE level IN ('ERROR', 'WARNING', 'CRITICAL');
+CREATE INDEX idx_logs_category ON app_logs(category);
+CREATE INDEX idx_logs_user_id ON app_logs(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX idx_logs_trace_id ON app_logs(trace_id) WHERE trace_id IS NOT NULL;
+
+-- Automatic cleanup: delete logs older than 30 days
+CREATE OR REPLACE FUNCTION cleanup_old_logs() RETURNS void AS $$
+BEGIN
+    DELETE FROM app_logs WHERE timestamp < NOW() - INTERVAL '30 days';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Schedule via pg_cron or external cron
+```
+
+### 2. Python Database Log Handler
+
+```python
+# server/code_monet/logging_db.py
+import asyncio
+import logging
+from datetime import datetime, UTC
+from typing import Any
+import asyncpg
+
+class PostgresLogHandler(logging.Handler):
+    """Async handler that writes logs to PostgreSQL."""
+
+    def __init__(self, dsn: str, batch_size: int = 50, flush_interval: float = 1.0):
+        super().__init__()
+        self.dsn = dsn
+        self.batch_size = batch_size
+        self.flush_interval = flush_interval
+        self._buffer: list[dict[str, Any]] = []
+        self._pool: asyncpg.Pool | None = None
+        self._flush_task: asyncio.Task | None = None
+
+    async def connect(self) -> None:
+        self._pool = await asyncpg.create_pool(self.dsn, min_size=1, max_size=5)
+        self._flush_task = asyncio.create_task(self._periodic_flush())
+
+    async def close(self) -> None:
+        if self._flush_task:
+            self._flush_task.cancel()
+        await self._flush_buffer()
+        if self._pool:
+            await self._pool.close()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        log_entry = {
+            "timestamp": datetime.now(UTC),
+            "level": record.levelname,
+            "category": getattr(record, "category", "system"),
+            "logger": record.name,
+            "message": record.getMessage(),
+            "user_id": getattr(record, "user_id", None),
+            "trace_id": getattr(record, "trace_id", None),
+            "extra": getattr(record, "extra", None),
+        }
+        self._buffer.append(log_entry)
+
+        if len(self._buffer) >= self.batch_size:
+            asyncio.create_task(self._flush_buffer())
+
+    async def _periodic_flush(self) -> None:
+        while True:
+            await asyncio.sleep(self.flush_interval)
+            await self._flush_buffer()
+
+    async def _flush_buffer(self) -> None:
+        if not self._buffer or not self._pool:
+            return
+
+        logs, self._buffer = self._buffer, []
+
+        async with self._pool.acquire() as conn:
+            await conn.executemany(
+                """
+                INSERT INTO app_logs (timestamp, level, category, logger, message, user_id, trace_id, extra)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                """,
+                [
+                    (
+                        log["timestamp"],
+                        log["level"],
+                        log["category"],
+                        log["logger"],
+                        log["message"],
+                        log["user_id"],
+                        log["trace_id"],
+                        log["extra"],
+                    )
+                    for log in logs
+                ],
+            )
+```
+
+### 3. Docker Compose Additions
+
+Add Grafana to `deploy/docker-compose.prod.yml`:
+
+```yaml
+  # Logging database (shares Postgres with Umami but separate DB)
+  # Uses same umami-db container, just create 'logs' database
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SERVER_ROOT_URL=https://monet.dmfenton.net/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      umami-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+```
+
+### 4. Grafana Data Source Configuration
+
+Create `deploy/grafana/provisioning/datasources/datasources.yml`:
+
+```yaml
+apiVersion: 1
+
+datasources:
+  # Application logs in Postgres
+  - name: Logs
+    type: postgres
+    url: umami-db:5432
+    database: logs
+    user: umami
+    secureJsonData:
+      password: ${UMAMI_DB_PASSWORD}
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 5
+      maxIdleConns: 2
+
+  # X-Ray traces (via CloudWatch data source)
+  - name: X-Ray
+    type: grafana-x-ray-datasource
+    jsonData:
+      defaultRegion: us-east-1
+```
+
+### 5. Grafana Dashboard (Provisioned)
+
+Create `deploy/grafana/provisioning/dashboards/logs.json`:
+
+```json
+{
+  "title": "Application Logs",
+  "panels": [
+    {
+      "title": "Log Volume",
+      "type": "timeseries",
+      "targets": [
+        {
+          "rawSql": "SELECT date_trunc('minute', timestamp) as time, count(*) FROM app_logs WHERE $__timeFilter(timestamp) GROUP BY 1 ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "title": "Errors by Category",
+      "type": "piechart",
+      "targets": [
+        {
+          "rawSql": "SELECT category, count(*) FROM app_logs WHERE level IN ('ERROR', 'CRITICAL') AND $__timeFilter(timestamp) GROUP BY category"
+        }
+      ]
+    },
+    {
+      "title": "Recent Logs",
+      "type": "table",
+      "targets": [
+        {
+          "rawSql": "SELECT timestamp, level, category, user_id, message FROM app_logs WHERE $__timeFilter(timestamp) ORDER BY timestamp DESC LIMIT 100"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### 6. Nginx Route for Grafana
+
+Add to `deploy/nginx.conf`:
+
+```nginx
+location /grafana/ {
+    proxy_pass http://grafana:3000/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
+### 7. Environment Variables
+
+Add to production `.env`:
+
+```bash
+# Grafana
+GRAFANA_ADMIN_PASSWORD=<generate secure password>
+
+# Logs database uses same credentials as Umami
+# UMAMI_DB_PASSWORD already configured
+```
+
+### Accessing Grafana
+
+- **URL**: `https://monet.dmfenton.net/grafana/`
+- **Default login**: admin / (GRAFANA_ADMIN_PASSWORD)
+- **Dashboards**: Application Logs, X-Ray Traces
 
 ## CloudWatch Agent Configuration
 
@@ -347,32 +663,116 @@ POST /debug/log-level
 
 ## Migration Plan
 
-### Phase 1: Structured Logging (Week 1)
+### Phase 1: Structured Logging (Common)
 
-1. Create `server/code_monet/logging_config.py`
+1. Create `server/code_monet/logging_config.py` with JSON formatter
 2. Update `main.py` to use structured formatter
 3. Add `user_id` context to relevant log calls
 4. Test locally with JSON output
 
-### Phase 2: CloudWatch Integration (Week 2)
+### Phase 2A: Postgres + Grafana (Recommended)
+
+1. Create `logs` database in existing Postgres container
+2. Add `logging_db.py` with PostgresLogHandler
+3. Add Grafana to docker-compose
+4. Configure Grafana data sources (Postgres + X-Ray)
+5. Create initial dashboards
+6. Update nginx for `/grafana/` route
+7. Deploy and verify logs in Grafana
+
+### Phase 2B: CloudWatch (Alternative)
 
 1. Create Terraform resources for log groups
 2. Update CloudWatch agent config in `user_data.sh`
 3. Configure log file output in container
 4. Deploy and verify logs appear in CloudWatch
 
-### Phase 3: Tooling (Week 3)
+### Phase 3: Tooling
 
-1. Add log commands to `diagnose.py`
-2. Create `/logs` skill
-3. Add CloudWatch Logs Insights queries
-4. Document common queries
+1. Add log commands to `diagnose.py` (supports both backends)
+2. Update `/logs` skill
+3. Document common queries (SQL for Grafana, Insights for CloudWatch)
 
-### Phase 4: Alerting (Week 4)
+### Phase 4: Alerting
 
+**Grafana path:**
+1. Configure Grafana alerting rules
+2. Set up notification channels (email, Slack)
+3. Create alert dashboard
+
+**CloudWatch path:**
 1. Create metric filters for error rates
 2. Add CloudWatch alarms for log-based metrics
 3. Document alert response procedures
+
+## Grafana SQL Queries (for Postgres backend)
+
+### Common Queries
+
+**Error rate by category:**
+```sql
+SELECT category, count(*) as errors
+FROM app_logs
+WHERE level IN ('ERROR', 'CRITICAL')
+  AND timestamp > NOW() - INTERVAL '1 hour'
+GROUP BY category
+ORDER BY errors DESC;
+```
+
+**Authentication failures:**
+```sql
+SELECT timestamp, message, extra->>'email' as email
+FROM app_logs
+WHERE category = 'auth'
+  AND level IN ('WARNING', 'ERROR')
+  AND timestamp > NOW() - INTERVAL '1 hour'
+ORDER BY timestamp DESC
+LIMIT 50;
+```
+
+**Agent tool usage:**
+```sql
+SELECT
+  substring(message FROM 'Tool use: (.+)') as tool_name,
+  count(*) as calls
+FROM app_logs
+WHERE category = 'agent'
+  AND message LIKE 'Tool use:%'
+  AND timestamp > NOW() - INTERVAL '1 day'
+GROUP BY tool_name
+ORDER BY calls DESC;
+```
+
+**User activity timeline:**
+```sql
+SELECT timestamp, category, level, message
+FROM app_logs
+WHERE user_id = 42
+  AND timestamp > NOW() - INTERVAL '1 hour'
+ORDER BY timestamp ASC;
+```
+
+**Logs with trace correlation:**
+```sql
+SELECT timestamp, category, message, trace_id
+FROM app_logs
+WHERE trace_id IS NOT NULL
+  AND timestamp > NOW() - INTERVAL '30 minutes'
+ORDER BY timestamp DESC
+LIMIT 100;
+```
+
+**Log volume over time (for time series panel):**
+```sql
+SELECT
+  date_trunc('minute', timestamp) as time,
+  level,
+  count(*) as count
+FROM app_logs
+WHERE $__timeFilter(timestamp)
+GROUP BY time, level
+ORDER BY time;
+```
 
 ## CloudWatch Logs Insights Queries
 
