@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- AI now sees brush-expanded strokes in paint mode (was seeing original paths while users saw expanded brush effects)
 - Mobile thinking display now shows all streamed words progressively (was only showing first chunk due to closure capture bug in timer callback)
 - Release workflow now correctly updates IMAGE_TAG in `/home/ec2-user/.env` (was incorrectly using `/home/ec2-user/data`)
 - Release workflow now re-authenticates with ECR before pulling images to prevent expired token errors
