@@ -256,6 +256,14 @@ describe('shouldShowIdleAnimation', () => {
     expect(shouldShowIdleAnimation(state)).toBe(false);
   });
 
+  it('returns false when user is drawing (currentStroke has points)', () => {
+    const state: CanvasHookState = {
+      ...baseState,
+      currentStroke: [{ x: 10, y: 10 }],
+    };
+    expect(shouldShowIdleAnimation(state)).toBe(false);
+  });
+
   it('returns false when paused (even with empty canvas)', () => {
     const state: CanvasHookState = {
       ...baseState,
