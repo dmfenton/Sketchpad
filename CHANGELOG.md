@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Release workflow now correctly updates IMAGE_TAG in `/home/ec2-user/.env` (was incorrectly using `/home/ec2-user/data`)
+- Release workflow now re-authenticates with ECR before pulling images to prevent expired token errors
+
+## [1.25.1] - 2026-01-18
+
+### Fixed
+
+- Public gallery endpoint now correctly handles gallery index stored as plain list (was expecting `{"pieces": [...]}` wrapper)
+
 ## [1.25.0] - 2026-01-18
 
 ### Added

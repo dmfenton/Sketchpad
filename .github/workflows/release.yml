@@ -278,12 +278,14 @@ jobs:
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --parameters "commands=[
-              \"cd /home/ec2-user/data\",
+              \"cd /home/ec2-user\",
               \"echo 'Setting IMAGE_TAG=v$VERSION and ECR_REGISTRY'\",
               \"sed -i '/^IMAGE_TAG=/d' .env 2>/dev/null || true\",
               \"sed -i '/^ECR_REGISTRY=/d' .env 2>/dev/null || true\",
               \"echo 'IMAGE_TAG=v$VERSION' >> .env\",
               \"echo 'ECR_REGISTRY=$ECR_REGISTRY' >> .env\",
+              \"echo 'Re-authenticating with ECR...'\",
+              \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY\",
               \"echo 'Pulling new image...'\",
               \"docker pull $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\",
               \"echo 'Restarting container...'\",
