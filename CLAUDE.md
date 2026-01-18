@@ -126,16 +126,29 @@ This ensures code review happens and keeps the workflow consistent.
 
 The `main` branch is protected with these rules:
 
-| Rule                              | Setting                                           |
-| --------------------------------- | ------------------------------------------------- |
-| Required status checks            | Server (Python), App (React Native), Replay Tests |
-| Require branches to be up to date | Yes                                               |
-| Enforce for admins                | No (can bypass if needed)                         |
-| Force pushes                      | Blocked                                           |
+| Rule                              | Setting                   |
+| --------------------------------- | ------------------------- |
+| Required status checks            | CI Success                |
+| Require branches to be up to date | Yes                       |
+| Enforce for admins                | No (can bypass if needed) |
+| Force pushes                      | Blocked                   |
 
-PRs to main require all CI checks to pass before merging.
+PRs to main require the "CI Success" check to pass before merging.
 
 **Important:** Even though admin bypass is enabled, always use PRs. Never push directly to main.
+
+### CI Path Filters
+
+CI jobs only run when relevant code changes:
+
+| Job                | Runs when these paths change                     |
+| ------------------ | ------------------------------------------------ |
+| Server (Python)    | `server/**`                                      |
+| App (React Native) | `app/**`, `web/**`, `shared/**`, `package*.json` |
+| Replay Tests       | `app/**`, `web/**`, `shared/**`, `package*.json` |
+| Docker Build       | `server/**` (after Server job passes)            |
+
+The "CI Success" job consolidates results - it passes if all jobs either pass or are appropriately skipped.
 
 ## Development Servers
 
