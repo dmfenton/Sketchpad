@@ -1,5 +1,15 @@
 # CloudWatch Log Groups for application logs
 
+resource "aws_cloudwatch_log_group" "containers" {
+  name              = "/drawing-agent/containers"
+  retention_in_days = 14
+
+  tags = {
+    Name        = "drawing-agent-container-logs"
+    Environment = "production"
+  }
+}
+
 resource "aws_cloudwatch_log_group" "app" {
   name              = "/drawing-agent/app"
   retention_in_days = 30
