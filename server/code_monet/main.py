@@ -375,7 +375,7 @@ async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict
         return []
 
     # Load gallery index
-    index_file = gallery_dir / "index.json"
+    index_file = gallery_dir / "_index.json"
     if index_file.exists():
         try:
             index_data = json.loads(index_file.read_text())
