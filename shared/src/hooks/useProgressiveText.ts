@@ -73,16 +73,6 @@ export function useProgressiveText(
     return splitWords(text);
   }, [text]);
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, []);
-
   // Reset when text is cleared or significantly shorter (new turn)
   useEffect(() => {
     const currentLength = text?.length ?? 0;
@@ -100,21 +90,32 @@ export function useProgressiveText(
   }, [text]);
 
   // Progressively reveal words at a readable pace
+  // Timer callback just increments - bounds are handled at render time via slice()
+  // This avoids closure capture issues: callback doesn't need current word count
   useEffect(() => {
+    // Nothing to reveal
     if (allWords.length === 0) return;
 
-    // Schedule next chunk if: more words pending AND no timer already running.
-    // The timerRef check prevents scheduling duplicate timers on re-renders.
-    if (displayedWordCount < allWords.length && !timerRef.current) {
-      timerRef.current = setTimeout(() => {
+    // Already caught up - no timer needed
+    if (displayedWordCount >= allWords.length) return;
+
+    // Schedule next chunk reveal
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      setDisplayedWordCount((prev) => prev + chunkSize);
+    }, intervalMs);
+
+    // Cleanup: cancel timer when dependencies change or unmount
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
         timerRef.current = null;
-        setDisplayedWordCount((prev) => Math.min(prev + chunkSize, allWords.length));
-      }, intervalMs);
-    }
+      }
+    };
   }, [allWords.length, displayedWordCount, chunkSize, intervalMs]);
 
-  // Derive return values
-  const displayedWords = allWords.slice(0, displayedWordCount);
+  // Derive return values - slice handles bounds naturally
+  const displayedWords = allWords.slice(0, Math.min(displayedWordCount, allWords.length));
   const displayedText = displayedWords.join(' ');
   const isBuffering = displayedWordCount < allWords.length;
 
