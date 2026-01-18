@@ -5,7 +5,7 @@
  * in chunks at a readable pace, creating a typewriter-like effect.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 
 import { BIONIC_CHUNK_INTERVAL_MS, BIONIC_CHUNK_SIZE, splitWords } from '../utils';
 
@@ -61,9 +61,6 @@ export function useProgressiveText(
   // Track how many words to display (accumulating, not replacing)
   const [displayedWordCount, setDisplayedWordCount] = useState(0);
 
-  // Timer ref for cleanup
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // Track previous text length to detect resets
   const prevTextLengthRef = useRef(0);
 
@@ -73,16 +70,6 @@ export function useProgressiveText(
     return splitWords(text);
   }, [text]);
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, []);
-
   // Reset when text is cleared or significantly shorter (new turn)
   useEffect(() => {
     const currentLength = text?.length ?? 0;
@@ -90,30 +77,24 @@ export function useProgressiveText(
     // Reset if text is null or much shorter than before (likely a new message)
     if (!text || currentLength < prevTextLengthRef.current / 2) {
       setDisplayedWordCount(0);
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
     }
 
     prevTextLengthRef.current = currentLength;
   }, [text]);
 
   // Progressively reveal words at a readable pace
+  // Effect cleanup cancels timer when deps change, so each run is independent
   useEffect(() => {
-    if (allWords.length === 0) return;
+    if (allWords.length === 0 || displayedWordCount >= allWords.length) return;
 
-    // Schedule next chunk if: more words pending AND no timer already running.
-    // The timerRef check prevents scheduling duplicate timers on re-renders.
-    if (displayedWordCount < allWords.length && !timerRef.current) {
-      timerRef.current = setTimeout(() => {
-        timerRef.current = null;
-        setDisplayedWordCount((prev) => Math.min(prev + chunkSize, allWords.length));
-      }, intervalMs);
-    }
+    const timer = setTimeout(() => {
+      setDisplayedWordCount((prev) => prev + chunkSize);
+    }, intervalMs);
+
+    return () => clearTimeout(timer);
   }, [allWords.length, displayedWordCount, chunkSize, intervalMs]);
 
-  // Derive return values
+  // Derive return values - slice handles out-of-bounds naturally
   const displayedWords = allWords.slice(0, displayedWordCount);
   const displayedText = displayedWords.join(' ');
   const isBuffering = displayedWordCount < allWords.length;
