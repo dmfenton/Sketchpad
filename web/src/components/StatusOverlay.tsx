@@ -12,7 +12,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgentMessage, AgentStatus } from '@code-monet/shared';
 import {
   bionicWord,
-  chunkWords,
   getLastToolCall,
   TOOL_DISPLAY_NAMES,
   BIONIC_CHUNK_INTERVAL_MS,
@@ -39,8 +38,9 @@ function BionicWord({ word }: { word: string }): React.ReactElement {
 }
 
 /**
- * Thinking display with bionic reading animation.
- * When isAnimating is false, shows the last chunk statically.
+ * Thinking display with progressive bionic reading.
+ * Accumulates words at a readable pace, showing a few words at a time.
+ * Uses bionic formatting (bold first 40% of each word) to guide eye movement.
  */
 function ThinkingDisplay({
   text,
@@ -49,71 +49,69 @@ function ThinkingDisplay({
   text: string;
   isAnimating?: boolean;
 }): React.ReactElement {
-  const [chunkIndex, setChunkIndex] = useState(0);
-  const [opacity, setOpacity] = useState(1);
+  // Track how many words to display (accumulating, not replacing)
+  const [displayedWordCount, setDisplayedWordCount] = useState(0);
   const prevTextRef = useRef(text);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Split text into chunks
-  const chunks = useMemo(() => chunkWords(text, BIONIC_CHUNK_SIZE), [text]);
+  // Split text into individual words
+  const allWords = useMemo(() => text.split(/\s+/).filter((w) => w.length > 0), [text]);
 
-  // Reset when text changes significantly (new turn)
+  // Reset when text is cleared (new turn)
   useEffect(() => {
-    // If text was cleared or completely replaced, reset
     if (text.length < prevTextRef.current.length / 2) {
-      setChunkIndex(0);
+      setDisplayedWordCount(0);
     }
     prevTextRef.current = text;
   }, [text]);
 
-  // Cycle through chunks (only when animating)
+  // Cleanup timer on unmount
   useEffect(() => {
-    if (chunks.length === 0 || !isAnimating) return;
-
-    let timeoutId: ReturnType<typeof setTimeout>;
-
-    const interval = setInterval(() => {
-      setOpacity(0); // Fade out
-
-      timeoutId = setTimeout(() => {
-        setChunkIndex((prev) => {
-          // Move to next chunk, or stay at last if we're at the end
-          const next = prev + 1;
-          return next >= chunks.length ? Math.max(0, chunks.length - 1) : next;
-        });
-        setOpacity(1); // Fade in
-      }, 50); // Short fade duration
-    }, BIONIC_CHUNK_INTERVAL_MS);
-
     return () => {
-      clearInterval(interval);
-      clearTimeout(timeoutId);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [chunks.length, isAnimating]);
+  }, []);
 
-  // When animation stops, jump to last chunk
+  // Progressively reveal words at a readable pace
   useEffect(() => {
-    if (!isAnimating && chunks.length > 0) {
-      setChunkIndex(chunks.length - 1);
-      setOpacity(1);
+    if (!isAnimating || allWords.length === 0) return;
+
+    // If we have more words than displayed, schedule next chunk
+    if (displayedWordCount < allWords.length && !timerRef.current) {
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        setDisplayedWordCount((prev) => Math.min(prev + BIONIC_CHUNK_SIZE, allWords.length));
+      }, BIONIC_CHUNK_INTERVAL_MS);
     }
-  }, [isAnimating, chunks.length]);
+  }, [allWords.length, displayedWordCount, isAnimating]);
 
-  // Clamp index if chunks changed
-  const safeIndex = Math.min(chunkIndex, Math.max(0, chunks.length - 1));
-  const currentChunk = chunks[safeIndex] ?? [];
+  // When animation stops, show all text
+  useEffect(() => {
+    if (!isAnimating && allWords.length > 0) {
+      setDisplayedWordCount(allWords.length);
+    }
+  }, [isAnimating, allWords.length]);
 
-  if (chunks.length === 0) {
+  // Get words to display (up to displayedWordCount)
+  const wordsToShow = allWords.slice(0, displayedWordCount);
+  const isBuffering = displayedWordCount < allWords.length;
+
+  if (allWords.length === 0) {
     return <span className="status-text">Thinking...</span>;
   }
 
   return (
-    <div className="thinking-display" style={{ opacity }}>
-      {currentChunk.map((word, i) => (
-        <React.Fragment key={`${safeIndex}-${i}`}>
+    <div className="thinking-display">
+      {wordsToShow.map((word, i) => (
+        <React.Fragment key={`word-${i}`}>
           <BionicWord word={word} />
-          {i < currentChunk.length - 1 && ' '}
+          {i < wordsToShow.length - 1 && ' '}
         </React.Fragment>
       ))}
+      {isBuffering && <span className="cursor"> ▍</span>}
     </div>
   );
 }

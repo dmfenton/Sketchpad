@@ -19,7 +19,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { PendingStroke, ToolName } from '@code-monet/shared';
-import { deriveAgentStatus, LIVE_MESSAGE_ID, useStrokeAnimation } from '@code-monet/shared';
+import {
+  deriveAgentStatus,
+  hasInProgressEvents,
+  LIVE_MESSAGE_ID,
+  useStrokeAnimation,
+} from '@code-monet/shared';
 
 import { useTokenRefresh } from './hooks/useTokenRefresh';
 import { tracer } from './utils/tracing';
@@ -88,12 +93,15 @@ function MainApp(): React.JSX.Element {
   }, [canvas.state.messages]);
 
   // Use shared animation hook for agent-drawn strokes
-  // Gate on status === 'drawing' (derived when pendingStrokes is set)
+  // Gate on: not paused AND no in-progress tool calls
+  // This ensures tool completion events are shown before animation starts,
+  // but allows animation while agent is thinking (so it's not blocked forever)
+  const canRenderStrokes = !canvas.state.paused && !hasInProgressEvents(canvas.state.messages);
   useStrokeAnimation({
     pendingStrokes: canvas.state.pendingStrokes,
     dispatch,
     fetchStrokes,
-    canRender: agentStatus === 'drawing',
+    canRender: canRenderStrokes,
   });
 
   // Handle auth errors from WebSocket with proper mutex pattern

@@ -11,11 +11,12 @@ import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { AgentMessage, AgentStatus, ToolName } from '@code-monet/shared';
-import { TOOL_DISPLAY_NAMES } from '@code-monet/shared';
+import {
+  BIONIC_CHUNK_INTERVAL_MS,
+  BIONIC_CHUNK_SIZE,
+  TOOL_DISPLAY_NAMES,
+} from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
-
-// Display pacing for thought chunks (ms)
-const CHUNK_DISPLAY_MS = 800;
 
 interface LiveStatusProps {
   /** The live streaming message (or null if not thinking) */
@@ -72,10 +73,11 @@ export function LiveStatus({
   const { colors, shadows } = useTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Buffer text for smooth display
-  const [displayedText, setDisplayedText] = useState(liveMessage?.text ?? '');
-  const bufferRef = useRef(liveMessage?.text ?? '');
-  const lastUpdateRef = useRef(Date.now());
+  // Progressive text display - show a few words at a time at readable pace
+  // Tracks word index so we show text progressively, not all at once
+  const [displayedWordCount, setDisplayedWordCount] = useState(0);
+  const allWordsRef = useRef<string[]>([]);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Pulse animation for active states
   useEffect(() => {
@@ -101,28 +103,45 @@ export function LiveStatus({
     }
   }, [status, pulseAnim]);
 
-  // Buffer incoming text and release at readable pace
+  // Progressive word-by-word display at readable pace
+  // When new text arrives, split into words and progressively reveal them
+  useEffect(() => {
+    // Clear timer on cleanup
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!liveMessage) {
-      setDisplayedText('');
-      bufferRef.current = '';
+      // Reset when no live message
+      allWordsRef.current = [];
+      setDisplayedWordCount(0);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
       return;
     }
 
-    bufferRef.current = liveMessage.text;
+    // Split incoming text into words
+    const newWords = liveMessage.text.split(/\s+/).filter((w) => w.length > 0);
+    allWordsRef.current = newWords;
 
-    if (displayedText.length < bufferRef.current.length) {
-      const timeSinceLastUpdate = Date.now() - lastUpdateRef.current;
-      const delay = Math.max(0, CHUNK_DISPLAY_MS - timeSinceLastUpdate);
-
-      const timer = setTimeout(() => {
-        setDisplayedText(bufferRef.current);
-        lastUpdateRef.current = Date.now();
-      }, delay);
-
-      return () => clearTimeout(timer);
+    // If we have more words than displayed, schedule next chunk
+    if (displayedWordCount < newWords.length && !timerRef.current) {
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        // Show next chunk of words
+        setDisplayedWordCount((prev) =>
+          Math.min(prev + BIONIC_CHUNK_SIZE, allWordsRef.current.length)
+        );
+      }, BIONIC_CHUNK_INTERVAL_MS);
     }
-  }, [liveMessage?.text, displayedText.length]);
+  }, [liveMessage?.text, displayedWordCount]);
 
   // Don't show anything when idle
   if (status === 'idle' && !liveMessage) {
@@ -132,7 +151,10 @@ export function LiveStatus({
   const statusLabel = getStatusLabel(status, currentTool);
   const statusIcon = getStatusIcon(status);
   const isActive = status === 'thinking' || status === 'drawing' || status === 'executing';
-  const isBuffering = liveMessage && displayedText.length < liveMessage.text.length;
+
+  // Build displayed text from the words we've revealed so far
+  const displayedText = allWordsRef.current.slice(0, displayedWordCount).join(' ');
+  const isBuffering = liveMessage && displayedWordCount < allWordsRef.current.length;
 
   return (
     <View

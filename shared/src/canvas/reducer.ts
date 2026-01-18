@@ -97,13 +97,36 @@ export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
 
   // Live message = actively thinking
   const hasLiveMessage = state.messages.some((m) => m.id === LIVE_MESSAGE_ID);
-  if (hasLiveMessage) return 'thinking';
+  if (hasLiveMessage) {
+    if (state.pendingStrokes !== null) {
+      console.log(
+        '[deriveAgentStatus] Status=thinking but pendingStrokes exists! batchId:',
+        state.pendingStrokes.batchId
+      );
+    }
+    return 'thinking';
+  }
 
   // Any in-progress event blocks drawing and shows as executing
-  if (hasInProgressEvents(state.messages)) return 'executing';
+  const hasInProgress = hasInProgressEvents(state.messages);
+  if (hasInProgress) {
+    if (state.pendingStrokes !== null) {
+      console.log(
+        '[deriveAgentStatus] Status=executing but pendingStrokes exists! batchId:',
+        state.pendingStrokes.batchId
+      );
+    }
+    return 'executing';
+  }
 
   // Pending strokes = drawing phase (only when no in-progress events)
-  if (state.pendingStrokes !== null) return 'drawing';
+  if (state.pendingStrokes !== null) {
+    console.log(
+      '[deriveAgentStatus] Status=drawing, will animate batchId:',
+      state.pendingStrokes.batchId
+    );
+    return 'drawing';
+  }
 
   return 'idle';
 }
@@ -370,9 +393,19 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
 
     case 'STROKES_READY':
       // Ignore strokes for a different piece (prevents cross-canvas rendering)
+      console.log(
+        '[STROKES_READY] pieceId:',
+        action.pieceId,
+        'state.pieceCount:',
+        state.pieceCount,
+        'match:',
+        action.pieceId === state.pieceCount
+      );
       if (action.pieceId !== state.pieceCount) {
+        console.warn('[STROKES_READY] IGNORED due to piece mismatch!');
         return state;
       }
+      console.log('[STROKES_READY] Setting pendingStrokes, batchId:', action.batchId);
       return {
         ...state,
         pendingStrokes: { count: action.count, batchId: action.batchId, pieceId: action.pieceId },
