@@ -13,6 +13,7 @@ import type { AgentMessage, AgentStatus } from '@code-monet/shared';
 import {
   bionicWord,
   getLastToolCall,
+  splitWords,
   TOOL_DISPLAY_NAMES,
   useProgressiveText,
 } from '@code-monet/shared';
@@ -52,7 +53,7 @@ function ThinkingDisplay({
   const { displayedWords, isBuffering } = useProgressiveText(isAnimating ? text : null);
 
   // All words for when not animating (show everything immediately)
-  const allWords = useMemo(() => text.split(/\s+/).filter((w) => w.length > 0), [text]);
+  const allWords = useMemo(() => splitWords(text), [text]);
 
   // When not animating, show all words immediately
   const wordsToShow = isAnimating ? displayedWords : allWords;
@@ -65,7 +66,7 @@ function ThinkingDisplay({
   return (
     <div className="thinking-display">
       {wordsToShow.map((word, i) => (
-        <React.Fragment key={`word-${i}`}>
+        <React.Fragment key={`${i}-${word}`}>
           <BionicWord word={word} />
           {i < wordsToShow.length - 1 && ' '}
         </React.Fragment>

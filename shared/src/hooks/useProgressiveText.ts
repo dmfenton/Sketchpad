@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { BIONIC_CHUNK_INTERVAL_MS, BIONIC_CHUNK_SIZE } from '../utils';
+import { BIONIC_CHUNK_INTERVAL_MS, BIONIC_CHUNK_SIZE, splitWords } from '../utils';
 
 export interface UseProgressiveTextOptions {
   /** Number of words to reveal per chunk (default: BIONIC_CHUNK_SIZE = 3) */
@@ -70,7 +70,7 @@ export function useProgressiveText(
   // Split text into individual words (memoized)
   const allWords = useMemo(() => {
     if (!text) return [];
-    return text.split(/\s+/).filter((w) => w.length > 0);
+    return splitWords(text);
   }, [text]);
 
   // Cleanup timer on unmount
@@ -103,7 +103,8 @@ export function useProgressiveText(
   useEffect(() => {
     if (allWords.length === 0) return;
 
-    // If we have more words than displayed, schedule next chunk
+    // Schedule next chunk if: more words pending AND no timer already running.
+    // The timerRef check prevents scheduling duplicate timers on re-renders.
     if (displayedWordCount < allWords.length && !timerRef.current) {
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
