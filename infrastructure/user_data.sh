@@ -78,10 +78,6 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'EOF'
 }
 EOF
 
-# Create logs directory
-mkdir -p /home/ec2-user/data/logs
-chown ec2-user:ec2-user /home/ec2-user/data/logs
-
 # Configure logrotate for application logs
 cat > /etc/logrotate.d/drawing-agent << 'LOGROTATE'
 /home/ec2-user/data/logs/*.log {
@@ -95,9 +91,6 @@ cat > /etc/logrotate.d/drawing-agent << 'LOGROTATE'
     maxsize 100M
 }
 LOGROTATE
-
-# Start CloudWatch agent
-/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
 # Wait for EBS data volume to be attached
 DATA_DEVICE="/dev/xvdf"
@@ -128,6 +121,7 @@ yum install -y sqlite
 # Create app directories with secure permissions
 mkdir -p /home/ec2-user/data/db
 mkdir -p /home/ec2-user/data/gallery
+mkdir -p /home/ec2-user/data/logs
 mkdir -p /home/ec2-user/certbot/conf
 mkdir -p /home/ec2-user/certbot/www
 
@@ -195,6 +189,9 @@ EOF
 systemctl daemon-reload
 systemctl enable sync-web.timer
 systemctl start sync-web.timer
+
+# Start CloudWatch agent (after EBS mount and directories exist)
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
 # Signal completion
 echo "User data script completed successfully" > /home/ec2-user/user_data_complete.txt
