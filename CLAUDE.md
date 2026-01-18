@@ -308,12 +308,21 @@ Multiple test types validate different layers of the system:
 make test-e2e              # Run all integration tests (SDK + replay, no iOS simulator)
 ```
 
+### API Key from SSM
+
+E2E tests that require the Anthropic API key fetch it automatically from AWS SSM Parameter Store. This requires:
+
+1. AWS credentials configured locally (`~/.aws/credentials` or environment variables)
+2. Access to the `/code-monet/prod/` SSM path
+
+The make targets set `CODE_MONET_ENV=prod` to enable SSM fetching. No local `.env` file needed.
+
 ### SDK Integration Tests
 
 Tests that validate Claude Agent SDK compatibility with real API calls.
 
 ```bash
-make test-e2e-sdk          # Run SDK integration tests (requires API key)
+make test-e2e-sdk          # Run SDK integration tests (API key from SSM)
 ```
 
 These tests catch SDK breaking changes (e.g., parameter renames) before production.
@@ -323,7 +332,7 @@ These tests catch SDK breaking changes (e.g., parameter renames) before producti
 Record-and-replay tests that validate app reducer handles real server messages correctly.
 
 ```bash
-make test-record-fixture   # Record new fixtures (requires API key)
+make test-record-fixture   # Record new fixtures (API key from SSM)
 make test-replay           # Replay fixtures through app reducer (fast, no API)
 ```
 
