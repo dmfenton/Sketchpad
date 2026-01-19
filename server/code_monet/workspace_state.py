@@ -388,7 +388,9 @@ class WorkspaceState:
             await aiofiles.os.replace(temp_file, piece_file)
 
             saved_id = f"piece_{self._piece_number:06d}"
-            title_info = f' titled "{self._current_piece_title}"' if self._current_piece_title else ""
+            title_info = (
+                f' titled "{self._current_piece_title}"' if self._current_piece_title else ""
+            )
             logger.info(f"Saved piece {self._piece_number}{title_info} to gallery as {saved_id}")
 
             # Prepare and update gallery index

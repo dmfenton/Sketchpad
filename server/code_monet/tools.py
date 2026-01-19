@@ -1209,9 +1209,7 @@ async def handle_name_piece(args: dict[str, Any]) -> dict[str, Any]:
 
     if not title or not isinstance(title, str):
         return {
-            "content": [
-                {"type": "text", "text": "Error: Please provide a title for the piece"}
-            ],
+            "content": [{"type": "text", "text": "Error: Please provide a title for the piece"}],
             "is_error": True,
         }
 
