@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.27.3] - 2026-01-19
+
+### Fixed
+
+- Nginx OG image route now correctly strips `/api/` prefix when proxying to backend
+
 ## [1.27.2] - 2026-01-19
 
 ### Added
