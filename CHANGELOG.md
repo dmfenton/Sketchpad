@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.0] - 2026-01-19
+
 ### Added
 
 - Server-side rendering (SSR) for SEO and LLM accessibility
@@ -700,7 +702,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.21.2...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.26.0...HEAD
+[1.26.0]: https://github.com/dmfenton/sketchpad/compare/v1.25.2...v1.26.0
 [1.21.2]: https://github.com/dmfenton/sketchpad/compare/v1.21.1...v1.21.2
 [1.21.1]: https://github.com/dmfenton/sketchpad/compare/v1.21.0...v1.21.1
 [1.21.0]: https://github.com/dmfenton/sketchpad/compare/v1.20.0...v1.21.0
