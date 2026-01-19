@@ -774,7 +774,7 @@ async def websocket_endpoint(
             await workspace.connections.send_to(
                 websocket,
                 {
-                    "type": "strokes_ready",
+                    "type": "agent_strokes_ready",
                     "count": workspace.state.pending_stroke_count,
                     "batch_id": workspace.state.stroke_batch_id,
                     "piece_number": workspace.state.piece_number,

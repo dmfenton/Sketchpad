@@ -51,7 +51,7 @@ async def handle_stroke(workspace: ActiveWorkspace, message: dict[str, Any]) -> 
         path = Path(type=PathType.POLYLINE, points=points, author="human")
         await workspace.state.add_stroke(path)
         await workspace.connections.broadcast(
-            {"type": "stroke_complete", "path": path.model_dump()}
+            {"type": "human_stroke", "path": path.model_dump()}
         )
 
 

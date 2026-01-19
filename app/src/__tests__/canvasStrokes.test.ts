@@ -6,8 +6,8 @@
  * when processing real-world message patterns from the agent.
  *
  * Key scenarios:
- * 1. stroke_complete messages add strokes directly
- * 2. strokes_ready signals pending strokes for REST fetch
+ * 1. human_stroke messages add strokes directly
+ * 2. agent_strokes_ready signals pending strokes for REST fetch
  * 3. Status transitions gate when drawing starts
  * 4. Idle animation shows only when canvas empty + status idle
  */
@@ -63,7 +63,7 @@ function processMessageSequence(
 }
 
 /**
- * Create a stroke_complete message with a simple line path.
+ * Create a human_stroke message with a simple line path.
  */
 function makeStrokeComplete(
   fromX: number,
@@ -73,7 +73,7 @@ function makeStrokeComplete(
   author: 'agent' | 'human' = 'agent'
 ): ServerMessage {
   return {
-    type: 'stroke_complete',
+    type: 'human_stroke',
     path: {
       type: 'line',
       points: [
@@ -86,11 +86,11 @@ function makeStrokeComplete(
 }
 
 /**
- * Create a strokes_ready message.
+ * Create a agent_strokes_ready message.
  */
 function makeStrokesReady(count: number, batchId: number, pieceNumber: number): ServerMessage {
   return {
-    type: 'strokes_ready',
+    type: 'agent_strokes_ready',
     count,
     batch_id: batchId,
     piece_number: pieceNumber,
@@ -169,10 +169,10 @@ function makePaused(paused: boolean): ServerMessage {
 }
 
 // =============================================================================
-// Tests: stroke_complete Message Flow
+// Tests: human_stroke Message Flow
 // =============================================================================
 
-describe('stroke_complete message flow', () => {
+describe('human_stroke message flow', () => {
   it('adds a single stroke to empty canvas', () => {
     const startState: CanvasHookState = { ...initialState, paused: false };
     const message = makeStrokeComplete(0, 0, 100, 100);
@@ -233,11 +233,11 @@ describe('stroke_complete message flow', () => {
 });
 
 // =============================================================================
-// Tests: strokes_ready Message Flow
+// Tests: agent_strokes_ready Message Flow
 // =============================================================================
 
-describe('strokes_ready message flow', () => {
-  it('sets pendingStrokes when strokes_ready received', () => {
+describe('agent_strokes_ready message flow', () => {
+  it('sets pendingStrokes when agent_strokes_ready received', () => {
     const startState: CanvasHookState = { ...initialState, paused: false, pieceNumber: 0 };
     const message = makeStrokesReady(5, 1, 0);
 
@@ -250,7 +250,7 @@ describe('strokes_ready message flow', () => {
     });
   });
 
-  it('ignores strokes_ready for old pieces (stale message)', () => {
+  it('ignores agent_strokes_ready for old pieces (stale message)', () => {
     const startState: CanvasHookState = { ...initialState, paused: false, pieceNumber: 5 };
     const message = makeStrokesReady(10, 1, 3); // piece 3 < current 5
 
@@ -260,7 +260,7 @@ describe('strokes_ready message flow', () => {
     expect(finalState.pieceNumber).toBe(5); // unchanged
   });
 
-  it('accepts strokes_ready for current piece', () => {
+  it('accepts agent_strokes_ready for current piece', () => {
     const startState: CanvasHookState = { ...initialState, paused: false, pieceNumber: 5 };
     const message = makeStrokesReady(10, 1, 5);
 
@@ -270,8 +270,8 @@ describe('strokes_ready message flow', () => {
     expect(finalState.pendingStrokes?.count).toBe(10);
   });
 
-  it('accepts strokes_ready for newer piece and syncs pieceNumber', () => {
-    // Race condition: strokes_ready arrives before piece_state
+  it('accepts agent_strokes_ready for newer piece and syncs pieceNumber', () => {
+    // Race condition: agent_strokes_ready arrives before piece_state
     const startState: CanvasHookState = { ...initialState, paused: false, pieceNumber: 5 };
     const message = makeStrokesReady(10, 1, 7); // piece 7 > current 5
 
@@ -281,7 +281,7 @@ describe('strokes_ready message flow', () => {
     expect(finalState.pieceNumber).toBe(7); // synced forward
   });
 
-  it('ignores strokes_ready when viewing gallery', () => {
+  it('ignores agent_strokes_ready when viewing gallery', () => {
     const startState: CanvasHookState = {
       ...initialState,
       paused: false,
@@ -325,7 +325,7 @@ describe('status transitions during drawing', () => {
     expect(deriveAgentStatus(finalState)).toBe('executing');
   });
 
-  it('transitions to drawing when strokes_ready after code_execution completes', () => {
+  it('transitions to drawing when agent_strokes_ready after code_execution completes', () => {
     const startState: CanvasHookState = { ...initialState, paused: false, pieceNumber: 0 };
     const messages: ServerMessage[] = [
       makeIteration(1, 5),
@@ -345,7 +345,7 @@ describe('status transitions during drawing', () => {
     const startState: CanvasHookState = { ...initialState, paused: false, pieceNumber: 0 };
     const messages: ServerMessage[] = [
       makeCodeExecutionStarted('draw_paths', 1),
-      makeStrokesReady(5, 1, 0), // strokes_ready arrives before completed
+      makeStrokesReady(5, 1, 0), // agent_strokes_ready arrives before completed
     ];
 
     const { finalState } = processMessageSequence(messages, startState);

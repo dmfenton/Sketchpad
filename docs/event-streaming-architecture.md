@@ -38,8 +38,8 @@ Server (Python)          Shared Library (TS)        Clients (React/RN)
 | `thinking_delta`  | `ThinkingDeltaMessage`  | Streaming thinking text            |
 | `iteration`       | `IterationMessage`      | Agent turn iteration (1-5)         |
 | `code_execution`  | `CodeExecutionMessage`  | Tool execution start/complete      |
-| `strokes_ready`   | `StrokesReadyMessage`   | Strokes available for fetch        |
-| `stroke_complete` | `StrokeCompleteMessage` | Single stroke finalized            |
+| `agent_strokes_ready`   | `AgentStrokesReadyMessage`   | Strokes available for fetch        |
+| `human_stroke` | `HumanStrokeMessage` | Single stroke finalized            |
 | `piece_state`     | `PieceStateMessage`     | Piece number and completion status |
 | `clear`           | `ClearMessage`          | Canvas cleared                     |
 | `new_canvas`      | `NewCanvasMessage`      | New canvas started                 |
@@ -220,7 +220,7 @@ Server                          Client
 ```
 Server                          Client
   │                               │
-  │ strokes_ready {count, piece_number}│
+  │ agent_strokes_ready {count, piece_number}│
   ├──────────────────────────────►│ STROKES_READY
   │                               │ Validate piece_number matches current canvas
   │                               │ pendingStrokes = {count, batchId, pieceNumber}
@@ -238,7 +238,7 @@ Server                          Client
 
 **Cross-canvas protection**: `piece_number` ensures strokes are only rendered on the
 canvas they belong to. When a new canvas starts, pending strokes are cleared on
-the server, and the client reducer ignores strokes_ready messages with mismatched
+the server, and the client reducer ignores agent_strokes_ready messages with mismatched
 piece_number.
 
 ## Design Decisions
@@ -305,7 +305,7 @@ The orchestrator uses `asyncio.Event` for wake-up instead of polling, reducing l
 
 - `thinking_delta` → thinking
 - `code_execution(started)` → executing
-- `strokes_ready` → drawing
+- `agent_strokes_ready` → drawing
 - `paused` message → paused
 
 No more `serverStatus` fallback or dual sources of truth.
@@ -314,7 +314,7 @@ No more `serverStatus` fallback or dual sources of truth.
 
 Strokes use a two-phase approach:
 
-1. Server sends `strokes_ready` notification
+1. Server sends `agent_strokes_ready` notification
 2. Client fetches via REST `/strokes/pending`
 
 This adds complexity vs just sending strokes in WebSocket. The rationale (keeping WS light) is valid but the REST endpoint is another failure point.
@@ -360,7 +360,7 @@ Multiple dispatches per message can cause multiple re-renders. Consider returnin
 WebSocket messages can arrive out of order after reconnect. There's no sequence number or timestamp ordering.
 
 ```typescript
-// If reconnect sends init + strokes_ready, order matters
+// If reconnect sends init + agent_strokes_ready, order matters
 // Currently relies on server sending in correct order
 ```
 
@@ -393,4 +393,4 @@ WebSocket messages can arrive out of order after reconnect. There's no sequence 
 
 The architecture is solid for a real-time collaborative drawing app. The core state management (derived status, bounded collections, shared reducer) is well-designed and testable.
 
-Recent consolidation efforts have reduced message types from 18 to 12 and eliminated synthetic status broadcasting. Status is now derived entirely client-side from actual events (`thinking_delta`, `code_execution`, `strokes_ready`, `paused`).
+Recent consolidation efforts have reduced message types from 18 to 12 and eliminated synthetic status broadcasting. Status is now derived entirely client-side from actual events (`thinking_delta`, `code_execution`, `agent_strokes_ready`, `paused`).

@@ -262,9 +262,11 @@ describe('Reducer Replay - Plotter Style Turn', () => {
     });
   });
 
-  describe('strokes ready handling', () => {
-    it('sets pendingStrokes when strokes_ready received', () => {
-      const strokesReadyIndex = typedFixture.messages.findIndex((m) => m.type === 'strokes_ready');
+  describe('agent strokes ready handling', () => {
+    it('sets pendingStrokes when agent_strokes_ready received', () => {
+      const strokesReadyIndex = typedFixture.messages.findIndex(
+        (m) => m.type === 'agent_strokes_ready'
+      );
 
       if (strokesReadyIndex === -1) {
         return;

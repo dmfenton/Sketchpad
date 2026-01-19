@@ -326,7 +326,7 @@ describe('canvasReducer - STROKES_READY', () => {
   });
 
   it('accepts strokes for newer pieces and syncs pieceNumber (race condition handling)', () => {
-    // This handles the race condition where strokes_ready arrives before piece_state
+    // This handles the race condition where agent_strokes_ready arrives before piece_state
     const state: CanvasHookState = { ...initialState, pieceNumber: 5 };
 
     const result = canvasReducer(state, {

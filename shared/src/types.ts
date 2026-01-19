@@ -437,8 +437,8 @@ export interface AppState {
 }
 
 // WebSocket messages - Server to Client
-export interface StrokeCompleteMessage {
-  type: 'stroke_complete';
+export interface HumanStrokeMessage {
+  type: 'human_stroke';
   path: Path;
 }
 
@@ -547,8 +547,8 @@ export interface IterationMessage {
   max: number;
 }
 
-export interface StrokesReadyMessage {
-  type: 'strokes_ready';
+export interface AgentStrokesReadyMessage {
+  type: 'agent_strokes_ready';
   count: number;
   batch_id: number;
   piece_number: number;
@@ -571,7 +571,7 @@ export interface PendingStroke {
 }
 
 export type ServerMessage =
-  | StrokeCompleteMessage
+  | HumanStrokeMessage
   | ThinkingDeltaMessage
   | PausedMessage
   | ClearMessage
@@ -583,7 +583,7 @@ export type ServerMessage =
   | CodeExecutionMessage
   | ErrorMessage
   | IterationMessage
-  | StrokesReadyMessage
+  | AgentStrokesReadyMessage
   | StyleChangeMessage;
 
 // WebSocket messages - Client to Server

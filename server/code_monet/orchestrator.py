@@ -18,7 +18,7 @@ from code_monet.types import (
     IterationMessage,
     Path,
     PieceStateMessage,
-    StrokesReadyMessage,
+    AgentStrokesReadyMessage,
     ThinkingDeltaMessage,
 )
 
@@ -118,7 +118,7 @@ class AgentOrchestrator:
 
         # Notify clients that strokes are ready (include piece_number to prevent cross-canvas rendering)
         await self.broadcaster.broadcast(
-            StrokesReadyMessage(
+            AgentStrokesReadyMessage(
                 count=len(paths), batch_id=batch_id, piece_number=state.piece_number
             )
         )

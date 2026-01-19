@@ -865,9 +865,9 @@
       "timestamp_ms": 29581
     },
     {
-      "type": "strokes_ready",
+      "type": "agent_strokes_ready",
       "data": {
-        "type": "strokes_ready",
+        "type": "agent_strokes_ready",
         "count": 2,
         "batch_id": 1,
         "piece_number": 0
@@ -1094,9 +1094,9 @@
       "timestamp_ms": 46483
     },
     {
-      "type": "strokes_ready",
+      "type": "agent_strokes_ready",
       "data": {
-        "type": "strokes_ready",
+        "type": "agent_strokes_ready",
         "count": 20,
         "batch_id": 2,
         "piece_number": 0
@@ -2491,9 +2491,9 @@
       "timestamp_ms": 96328
     },
     {
-      "type": "strokes_ready",
+      "type": "agent_strokes_ready",
       "data": {
-        "type": "strokes_ready",
+        "type": "agent_strokes_ready",
         "count": 1,
         "batch_id": 3,
         "piece_number": 0

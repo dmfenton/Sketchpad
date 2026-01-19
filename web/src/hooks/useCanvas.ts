@@ -31,9 +31,9 @@ export function useCanvas(): UseCanvasReturn {
   const handleMessage = useCallback((message: ServerMessage) => {
     // Debug logging for stroke-related messages
     if (
-      message.type === 'stroke_complete' ||
+      message.type === 'human_stroke' ||
       message.type === 'init' ||
-      message.type === 'strokes_ready'
+      message.type === 'agent_strokes_ready'
     ) {
       console.log('[useCanvas] Received:', message.type, message);
     }

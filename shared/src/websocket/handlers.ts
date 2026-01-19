@@ -7,10 +7,12 @@
 
 import type {
   AgentMessage,
+  AgentStrokesReadyMessage,
   ClearMessage,
   CodeExecutionMessage,
   ErrorMessage,
   GalleryUpdateMessage,
+  HumanStrokeMessage,
   InitMessage,
   IterationMessage,
   LoadCanvasMessage,
@@ -18,8 +20,6 @@ import type {
   PausedMessage,
   PieceStateMessage,
   ServerMessage,
-  StrokeCompleteMessage,
-  StrokesReadyMessage,
   StyleChangeMessage,
   ThinkingDeltaMessage,
 } from '../types';
@@ -34,7 +34,7 @@ export type DispatchFn = (action: CanvasAction) => void;
 type MessageHandler<T extends ServerMessage> = (message: T, dispatch: DispatchFn) => void;
 
 // Individual handlers
-export const handleStrokeComplete: MessageHandler<StrokeCompleteMessage> = (message, dispatch) => {
+export const handleHumanStroke: MessageHandler<HumanStrokeMessage> = (message, dispatch) => {
   dispatch({ type: 'ADD_STROKE', path: message.path });
 };
 
@@ -235,8 +235,11 @@ export const handleStyleChange: MessageHandler<StyleChangeMessage> = (message, d
   });
 };
 
-export const handleStrokesReady: MessageHandler<StrokesReadyMessage> = (message, dispatch) => {
-  // Signal that strokes are ready to be fetched from the REST API
+export const handleAgentStrokesReady: MessageHandler<AgentStrokesReadyMessage> = (
+  message,
+  dispatch
+) => {
+  // Signal that agent strokes are ready to be fetched from the REST API
   // The hook will watch for this state change and trigger the fetch
   // piece_number is used to ignore strokes from a previous canvas
   dispatch({
@@ -249,7 +252,7 @@ export const handleStrokesReady: MessageHandler<StrokesReadyMessage> = (message,
 
 // Handler registry
 const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessage>>> = {
-  stroke_complete: handleStrokeComplete as MessageHandler<ServerMessage>,
+  human_stroke: handleHumanStroke as MessageHandler<ServerMessage>,
   thinking_delta: handleThinkingDelta as MessageHandler<ServerMessage>,
   paused: handlePaused as MessageHandler<ServerMessage>,
   iteration: handleIteration as MessageHandler<ServerMessage>,
@@ -261,7 +264,7 @@ const handlers: Partial<Record<ServerMessage['type'], MessageHandler<ServerMessa
   gallery_update: handleGalleryUpdate as MessageHandler<ServerMessage>,
   load_canvas: handleLoadCanvas as MessageHandler<ServerMessage>,
   init: handleInit as MessageHandler<ServerMessage>,
-  strokes_ready: handleStrokesReady as MessageHandler<ServerMessage>,
+  agent_strokes_ready: handleAgentStrokesReady as MessageHandler<ServerMessage>,
   style_change: handleStyleChange as MessageHandler<ServerMessage>,
 };
 
