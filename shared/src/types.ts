@@ -458,6 +458,7 @@ export interface GalleryEntry {
   piece_number: number;
   drawing_style?: DrawingStyleType; // Style used for this piece (defaults to plotter)
   thumbnail_token?: string; // Capability token for thumbnail access
+  title?: string; // Piece title (set by agent via name_piece tool)
 }
 
 // Backwards compatibility alias
@@ -511,7 +512,9 @@ export type ToolName =
   | 'generate_svg'
   | 'view_canvas'
   | 'mark_piece_done'
-  | 'imagine';
+  | 'imagine'
+  | 'sign_canvas'
+  | 'name_piece';
 
 /**
  * Human-readable display names for tools.
@@ -522,6 +525,8 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
   view_canvas: 'viewing canvas',
   mark_piece_done: 'marking done',
   imagine: 'imagining',
+  sign_canvas: 'signing',
+  name_piece: 'naming piece',
 };
 
 export interface CodeExecutionMessage {

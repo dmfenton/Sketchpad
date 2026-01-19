@@ -110,10 +110,10 @@ function GalleryItem({
       </View>
       <View style={styles.itemInfo}>
         <Text style={[styles.itemTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-          #{canvas.piece_number}
+          {canvas.title || `#${canvas.piece_number}`}
         </Text>
         <Text style={[styles.itemMeta, { color: colors.textMuted }]}>
-          {formatDate(canvas.created_at)}
+          {canvas.title ? `#${canvas.piece_number} · ` : ''}{formatDate(canvas.created_at)}
         </Text>
       </View>
     </Pressable>

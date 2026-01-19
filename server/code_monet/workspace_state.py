@@ -62,6 +62,7 @@ class WorkspaceState:
         self._piece_number: int = 0
         self._notes: str = ""
         self._monologue: str = ""
+        self._current_piece_title: str | None = None  # Title for current piece
         self._loaded = False
 
         # Gallery index cache (loaded on demand)
@@ -147,6 +148,7 @@ class WorkspaceState:
             self._piece_number = data.get("piece_number", 0)
             self._notes = data.get("notes", "")
             self._monologue = data.get("monologue", "")
+            self._current_piece_title = data.get("current_piece_title")
             self._pending_strokes = data.get("pending_strokes", [])
             self._stroke_batch_id = data.get("stroke_batch_id", 0)
 
@@ -197,6 +199,7 @@ class WorkspaceState:
                 "piece_number": self._piece_number,
                 "notes": self._notes,
                 "monologue": self._monologue,
+                "current_piece_title": self._current_piece_title,
                 "pending_strokes": self._pending_strokes,
                 "stroke_batch_id": self._stroke_batch_id,
                 "updated_at": datetime.now(UTC).isoformat(),
@@ -264,6 +267,14 @@ class WorkspaceState:
     @monologue.setter
     def monologue(self, value: str) -> None:
         self._monologue = value
+
+    @property
+    def current_piece_title(self) -> str | None:
+        return self._current_piece_title
+
+    @current_piece_title.setter
+    def current_piece_title(self, value: str | None) -> None:
+        self._current_piece_title = value
 
     @property
     def has_pending_strokes(self) -> bool:
@@ -367,6 +378,7 @@ class WorkspaceState:
                 "strokes": [s.model_dump() for s in self._canvas.strokes],
                 "created_at": created_at,
                 "drawing_style": self._canvas.drawing_style.value,
+                "title": self._current_piece_title,
             }
 
             # Atomic write for gallery piece
@@ -376,7 +388,10 @@ class WorkspaceState:
             await aiofiles.os.replace(temp_file, piece_file)
 
             saved_id = f"piece_{self._piece_number:06d}"
-            logger.info(f"Saved piece {self._piece_number} to gallery as {saved_id}")
+            title_info = (
+                f' titled "{self._current_piece_title}"' if self._current_piece_title else ""
+            )
+            logger.info(f"Saved piece {self._piece_number}{title_info} to gallery as {saved_id}")
 
             # Prepare and update gallery index
             index_entry = {
@@ -385,6 +400,7 @@ class WorkspaceState:
                 "stroke_count": len(self._canvas.strokes),
                 "created_at": created_at,
                 "drawing_style": self._canvas.drawing_style.value,
+                "title": self._current_piece_title,
             }
 
         # Update gallery index outside the write lock
@@ -404,6 +420,7 @@ class WorkspaceState:
             self._piece_number += 1
             self._monologue = ""  # Clear thinking for new piece
             self._notes = ""  # Clear notes for new piece
+            self._current_piece_title = None  # Clear title for new piece
 
         # Clear pending strokes from previous canvas to prevent them
         # from being rendered on the new canvas
@@ -472,6 +489,7 @@ class WorkspaceState:
                             "stroke_count": len(data.get("strokes", [])),
                             "created_at": data.get("created_at", ""),
                             "drawing_style": data.get("drawing_style", "plotter"),
+                            "title": data.get("title"),
                         }
                     )
                 except (json.JSONDecodeError, OSError) as e:
@@ -519,6 +537,7 @@ class WorkspaceState:
                     piece_number=entry["piece_number"],
                     stroke_count=entry.get("stroke_count", 0),
                     drawing_style=drawing_style,
+                    title=entry.get("title"),
                 )
             )
         return result
@@ -561,6 +580,7 @@ class WorkspaceState:
                             created_at=data.get("created_at", ""),
                             piece_number=piece_number,
                             drawing_style=drawing_style,
+                            title=data.get("title"),
                         )
                     )
                 except (json.JSONDecodeError, KeyError) as e:

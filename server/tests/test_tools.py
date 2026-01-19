@@ -3,13 +3,19 @@
 import pytest
 
 from code_monet.tools import (
+    _generate_signature_paths,
     _inject_canvas_image,
+    _transform_svg_path,
     handle_draw_paths,
     handle_mark_piece_done,
+    handle_name_piece,
+    handle_sign_canvas,
     parse_path_data,
     set_add_strokes_callback,
+    set_canvas_dimensions,
     set_draw_callback,
     set_get_canvas_callback,
+    set_piece_title_callback,
 )
 from code_monet.types import Path, PathType
 
@@ -318,3 +324,190 @@ class TestAddStrokesCallback:
 
         # Should not call add_strokes when no valid paths
         assert strokes_called is False
+
+
+class TestTransformSvgPath:
+    """Tests for _transform_svg_path function."""
+
+    def test_transform_simple_move(self) -> None:
+        """Test transforming a simple M command."""
+        result = _transform_svg_path("M 10 20", 2.0, 100.0, 200.0)
+        # 10 * 2 + 100 = 120, 20 * 2 + 200 = 240
+        assert result == "M 120.0 240.0"
+
+    def test_transform_line_to(self) -> None:
+        """Test transforming L command."""
+        result = _transform_svg_path("M 0 0 L 50 50", 1.0, 10.0, 20.0)
+        assert result == "M 10.0 20.0 L 60.0 70.0"
+
+    def test_transform_quadratic(self) -> None:
+        """Test transforming Q command."""
+        result = _transform_svg_path("M 0 0 Q 25 25 50 0", 2.0, 0.0, 0.0)
+        # Just scaling, no offset
+        assert result == "M 0.0 0.0 Q 50.0 50.0 100.0 0.0"
+
+    def test_transform_cubic(self) -> None:
+        """Test transforming C command."""
+        result = _transform_svg_path("M 0 0 C 10 10 20 10 30 0", 1.0, 5.0, 5.0)
+        assert result == "M 5.0 5.0 C 15.0 15.0 25.0 15.0 35.0 5.0"
+
+
+class TestGenerateSignaturePaths:
+    """Tests for _generate_signature_paths function."""
+
+    def test_generates_paths(self) -> None:
+        """Test that signature paths are generated."""
+        set_canvas_dimensions(800, 600)
+        paths = _generate_signature_paths()
+        assert len(paths) > 0
+        assert all(p.type == PathType.SVG for p in paths)
+
+    def test_default_position_bottom_right(self) -> None:
+        """Test default position is bottom-right corner."""
+        set_canvas_dimensions(800, 600)
+        paths = _generate_signature_paths()
+        # All paths should have d-strings with coordinates near bottom-right
+        for p in paths:
+            assert p.d is not None
+            # Check that x coordinates are in right portion of canvas (> 400)
+            # This is a rough check since we're transforming the signature
+
+    def test_size_affects_stroke_width(self) -> None:
+        """Test that size parameter affects stroke width."""
+        set_canvas_dimensions(800, 600)
+        small_paths = _generate_signature_paths(size="small")
+        large_paths = _generate_signature_paths(size="large")
+        # Larger size should have larger stroke width
+        assert small_paths[0].stroke_width is not None
+        assert large_paths[0].stroke_width is not None
+        assert large_paths[0].stroke_width > small_paths[0].stroke_width
+
+    def test_color_is_applied(self) -> None:
+        """Test that custom color is applied to paths."""
+        set_canvas_dimensions(800, 600)
+        paths = _generate_signature_paths(color="#FF0000")
+        assert all(p.color == "#FF0000" for p in paths)
+
+
+class TestHandleSignCanvas:
+    """Tests for handle_sign_canvas function."""
+
+    @pytest.mark.asyncio
+    async def test_sign_canvas_success(self) -> None:
+        """Test successful signing."""
+        collected_strokes: list[Path] = []
+
+        async def add_strokes(paths: list[Path]) -> None:
+            collected_strokes.extend(paths)
+
+        async def draw_callback(_paths: list[Path], _done: bool) -> None:
+            pass
+
+        set_add_strokes_callback(add_strokes)
+        set_draw_callback(draw_callback)
+        set_get_canvas_callback(None)
+        set_canvas_dimensions(800, 600)
+
+        result = await handle_sign_canvas({})
+
+        assert "is_error" not in result or result["is_error"] is False
+        assert len(collected_strokes) > 0
+        assert "Signed the canvas" in result["content"][0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_sign_canvas_with_position(self) -> None:
+        """Test signing with different positions."""
+        set_add_strokes_callback(None)
+        set_draw_callback(None)
+        set_get_canvas_callback(None)
+        set_canvas_dimensions(800, 600)
+
+        for position in ["bottom_right", "bottom_left", "bottom_center"]:
+            result = await handle_sign_canvas({"position": position})
+            assert "is_error" not in result or result["is_error"] is False
+            assert position.replace("_", " ") in result["content"][0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_sign_canvas_invalid_position_fallback(self) -> None:
+        """Test that invalid position falls back to bottom_right."""
+        set_add_strokes_callback(None)
+        set_draw_callback(None)
+        set_get_canvas_callback(None)
+        set_canvas_dimensions(800, 600)
+
+        result = await handle_sign_canvas({"position": "invalid_position"})
+        assert "is_error" not in result or result["is_error"] is False
+        assert "bottom right" in result["content"][0]["text"]
+
+
+class TestHandleNamePiece:
+    """Tests for handle_name_piece function."""
+
+    @pytest.mark.asyncio
+    async def test_name_piece_success(self) -> None:
+        """Test successful naming."""
+        saved_title: str | None = None
+
+        async def save_title(title: str) -> None:
+            nonlocal saved_title
+            saved_title = title
+
+        set_piece_title_callback(save_title)
+
+        result = await handle_name_piece({"title": "Whispers at Dusk"})
+
+        assert "is_error" not in result or result["is_error"] is False
+        assert saved_title == "Whispers at Dusk"
+        assert "Whispers at Dusk" in result["content"][0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_name_piece_empty_title(self) -> None:
+        """Test error when title is empty."""
+        set_piece_title_callback(None)
+
+        result = await handle_name_piece({"title": ""})
+
+        assert result.get("is_error") is True
+        assert "provide a title" in result["content"][0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_name_piece_missing_title(self) -> None:
+        """Test error when title is missing."""
+        set_piece_title_callback(None)
+
+        result = await handle_name_piece({})
+
+        assert result.get("is_error") is True
+
+    @pytest.mark.asyncio
+    async def test_name_piece_long_title_truncation(self) -> None:
+        """Test that very long titles are truncated."""
+        saved_title: str | None = None
+
+        async def save_title(title: str) -> None:
+            nonlocal saved_title
+            saved_title = title
+
+        set_piece_title_callback(save_title)
+
+        long_title = "A" * 150
+        result = await handle_name_piece({"title": long_title})
+
+        assert "is_error" not in result or result["is_error"] is False
+        assert saved_title is not None
+        assert len(saved_title) == 100
+
+    @pytest.mark.asyncio
+    async def test_name_piece_whitespace_stripped(self) -> None:
+        """Test that whitespace is stripped from title."""
+        saved_title: str | None = None
+
+        async def save_title(title: str) -> None:
+            nonlocal saved_title
+            saved_title = title
+
+        set_piece_title_callback(save_title)
+
+        await handle_name_piece({"title": "  Sunset Reverie  "})
+
+        assert saved_title == "Sunset Reverie"

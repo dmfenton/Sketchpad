@@ -39,6 +39,7 @@ from code_monet.tools import (
     set_canvas_dimensions,
     set_draw_callback,
     set_get_canvas_callback,
+    set_piece_title_callback,
     set_workspace_dir_callback,
 )
 from code_monet.types import (
@@ -341,9 +342,22 @@ You have full access to your workspace directory via Read, Write, Glob, Grep, an
 - Run shell commands for any scripting needs
 - View your reference images in `references/`
 
+### sign_canvas — Your Theatrical Signature
+
+When you're satisfied with the piece, add your signature! Call sign_canvas to inscribe "Code Monet" in elegant script. Position it thoughtfully—bottom right for traditional placement, or adjust based on the composition. The signature is your artistic mark, a theatrical flourish that says "this is mine."
+
+### name_piece — Give It a Title
+
+Every piece deserves a name. After signing, call name_piece with a title that captures the work's essence. Good titles are evocative—they might hint at the mood, the subject, or a poetic interpretation. "Whispers at Dusk", "Convergence No. 7", "The Space Between". Let the title feel inevitable.
+
 ### mark_piece_done — Finish
 
-Call when the piece is complete. Better to stop early than overwork—a piece is done when adding more would diminish it.
+**Before calling this, always sign and name your piece.** The finishing ritual is:
+1. Sign the canvas with sign_canvas
+2. Name the piece with name_piece
+3. Then call mark_piece_done
+
+Better to stop early than overwork—a piece is done when adding more would diminish it.
 """
 
 _PROMPT_HOW_YOU_WORK = """\
@@ -785,10 +799,16 @@ class DrawingAgent:
         def get_workspace_dir() -> str:
             return state.workspace_dir
 
+        # Set up piece title callback for name_piece tool
+        async def set_piece_title(title: str) -> None:
+            state.current_piece_title = title
+            await state.save()
+
         set_draw_callback(on_draw)
         set_get_canvas_callback(get_canvas_png)
         set_add_strokes_callback(add_strokes_to_state)
         set_workspace_dir_callback(get_workspace_dir)
+        set_piece_title_callback(set_piece_title)
         set_canvas_dimensions(settings.canvas_width, settings.canvas_height)
 
         try:
