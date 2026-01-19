@@ -71,12 +71,14 @@ class UserConnectionManager:
 
         # Log important message types
         msg_type = message.type if hasattr(message, "type") else "unknown"
-        if msg_type == "stroke_complete":
-            logger.info(f"User {self.user_id}: >>> stroke_complete")
-        elif msg_type == "strokes_ready":
+        if msg_type == "human_stroke":
+            logger.info(f"User {self.user_id}: >>> human_stroke")
+        elif msg_type == "agent_strokes_ready":
             count = message.count if hasattr(message, "count") else "?"
             batch_id = message.batch_id if hasattr(message, "batch_id") else "?"
-            logger.info(f"User {self.user_id}: >>> strokes_ready count={count} batch={batch_id}")
+            logger.info(
+                f"User {self.user_id}: >>> agent_strokes_ready count={count} batch={batch_id}"
+            )
         elif msg_type == "status":
             status = message.status if hasattr(message, "status") else "?"
             logger.info(f"User {self.user_id}: >>> status={status}")

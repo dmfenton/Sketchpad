@@ -552,7 +552,7 @@ def cmd_ws(minutes: int = 60) -> None:
     elif OUTPUT_FORMAT == "json":
         print(json.dumps(traces, indent=2, default=str))
     else:
-        console.print(f"[cyan]Fetching WebSocket traces...[/cyan]")
+        console.print("[cyan]Fetching WebSocket traces...[/cyan]")
         if not traces:
             console.print("[yellow]No WebSocket traces found[/yellow]")
             return
@@ -657,7 +657,7 @@ def cmd_summary(minutes: int = 60) -> None:
             "max_duration": max(durations) if durations else 0,
         }, indent=2))
     else:
-        console.print(f"[cyan]Generating traffic summary...[/cyan]")
+        console.print("[cyan]Generating traffic summary...[/cyan]")
         # Rich output - create a simple summary
         total = len(traces)
         errors = sum(1 for t in traces if t.get("has_error") or t.get("has_fault"))

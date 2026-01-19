@@ -512,10 +512,10 @@ class AppState(BaseModel):
 # WebSocket message types
 
 
-class StrokeCompleteMessage(BaseModel):
-    """Stroke completed."""
+class HumanStrokeMessage(BaseModel):
+    """Human user completed a stroke (broadcast to sync other clients)."""
 
-    type: Literal["stroke_complete"] = "stroke_complete"
+    type: Literal["human_stroke"] = "human_stroke"
     path: Path
 
 
@@ -601,10 +601,10 @@ class IterationMessage(BaseModel):
     max: int = 5  # Maximum iterations
 
 
-class StrokesReadyMessage(BaseModel):
-    """Notification that strokes are ready to be fetched via REST API."""
+class AgentStrokesReadyMessage(BaseModel):
+    """Agent strokes are ready to be fetched via REST API."""
 
-    type: Literal["strokes_ready"] = "strokes_ready"
+    type: Literal["agent_strokes_ready"] = "agent_strokes_ready"
     count: int  # Number of strokes ready
     batch_id: int  # For ordering/deduplication
     piece_number: int  # Canvas/piece number to prevent cross-canvas rendering
@@ -654,7 +654,7 @@ class ClientNewCanvasMessage(BaseModel):
 
 
 ServerMessage = (
-    StrokeCompleteMessage
+    HumanStrokeMessage
     | ThinkingDeltaMessage
     | PausedMessage
     | ClearMessage
@@ -665,7 +665,7 @@ ServerMessage = (
     | ErrorMessage
     | PieceStateMessage
     | IterationMessage
-    | StrokesReadyMessage
+    | AgentStrokesReadyMessage
     | StyleChangeMessage
 )
 ClientMessage = (

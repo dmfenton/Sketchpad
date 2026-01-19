@@ -294,7 +294,7 @@ export function DebugPanel({
         .type-pen { background: rgba(78, 205, 196, 0.15); color: var(--success); }
         .type-thinking_delta { background: rgba(233, 69, 96, 0.15); color: var(--accent); }
         .type-status { background: rgba(255, 217, 61, 0.15); color: var(--warning); }
-        .type-stroke_complete { background: rgba(78, 205, 196, 0.15); color: var(--success); }
+        .type-human_stroke { background: rgba(78, 205, 196, 0.15); color: var(--success); }
         .type-init { background: rgba(123, 104, 238, 0.15); color: var(--accent-violet); }
 
         .log-data {

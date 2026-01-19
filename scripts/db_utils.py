@@ -26,7 +26,7 @@ def hash_password_cmd(password: str) -> None:
 
     hashed = hash_password(password)
     print(f"Password hash: {hashed}")
-    print(f"\nTo insert via sqlite3:")
+    print("\nTo insert via sqlite3:")
     print(f"sqlite3 data/drawing_agent.db \"INSERT INTO users (email, password_hash, is_active, created_at) VALUES ('EMAIL', '{hashed}', 1, datetime('now'));\"")
 
 
