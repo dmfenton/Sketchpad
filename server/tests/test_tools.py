@@ -508,6 +508,6 @@ class TestHandleNamePiece:
 
         set_piece_title_callback(save_title)
 
-        result = await handle_name_piece({"title": "  Sunset Reverie  "})
+        await handle_name_piece({"title": "  Sunset Reverie  "})
 
         assert saved_title == "Sunset Reverie"
