@@ -266,9 +266,9 @@ class TestFixtureValidation:
         # Timestamps should be monotonically increasing
         timestamps = [m["timestamp_ms"] for m in messages]
         for i in range(1, len(timestamps)):
-            assert (
-                timestamps[i] >= timestamps[i - 1]
-            ), f"Timestamps not monotonic: {timestamps[i - 1]} > {timestamps[i]}"
+            assert timestamps[i] >= timestamps[i - 1], (
+                f"Timestamps not monotonic: {timestamps[i - 1]} > {timestamps[i]}"
+            )
 
         # Extract message types
         types = [m["type"] for m in messages]
