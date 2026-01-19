@@ -471,6 +471,103 @@ async def get_public_piece_strokes(user_id: str, piece_id: str) -> dict[str, Any
         raise HTTPException(status_code=500, detail=f"Failed to load piece: {e}") from e
 
 
+@app.get("/sitemap.xml")
+async def get_sitemap() -> Response:
+    """Generate sitemap.xml for SEO.
+
+    Returns URLs for:
+    - Homepage
+    - Gallery index
+    - All public gallery pieces
+    """
+    from datetime import datetime
+    from pathlib import Path as FilePath
+
+    base_url = "https://monet.dmfenton.net"
+
+    # Static pages
+    urls = [
+        {"loc": f"{base_url}/", "priority": "1.0", "changefreq": "daily"},
+        {"loc": f"{base_url}/gallery", "priority": "0.8", "changefreq": "daily"},
+    ]
+
+    # Get public gallery pieces
+    workspace_base = FilePath(settings.workspace_base_dir).resolve()
+    if workspace_base.exists():
+        async with get_session() as session:
+            public_users = await repository.list_users_with_public_gallery(session)
+
+        for user in public_users:
+            gallery_dir = workspace_base / str(user.id) / "gallery"
+            index_file = gallery_dir / "_index.json"
+            if index_file.exists():
+                try:
+                    index_data = json.loads(index_file.read_text())
+                    entries = (
+                        index_data if isinstance(index_data, list) else index_data.get("pieces", [])
+                    )
+                    for entry in entries:
+                        piece_id = entry.get("id", "")
+                        created_at = entry.get("created_at", "")
+                        if piece_id:
+                            url_entry: dict[str, Any] = {
+                                "loc": f"{base_url}/gallery/{user.id}/{piece_id}",
+                                "priority": "0.6",
+                                "changefreq": "monthly",
+                            }
+                            # Add lastmod if we have created_at
+                            if created_at:
+                                try:
+                                    # Parse and format date
+                                    dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                                    url_entry["lastmod"] = dt.strftime("%Y-%m-%d")
+                                except ValueError:
+                                    pass
+                            urls.append(url_entry)
+                except (json.JSONDecodeError, OSError):
+                    pass
+
+    # Build XML
+    xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>']
+    xml_parts.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+
+    for url in urls:
+        xml_parts.append("  <url>")
+        xml_parts.append(f"    <loc>{url['loc']}</loc>")
+        if "lastmod" in url:
+            xml_parts.append(f"    <lastmod>{url['lastmod']}</lastmod>")
+        xml_parts.append(f"    <changefreq>{url['changefreq']}</changefreq>")
+        xml_parts.append(f"    <priority>{url['priority']}</priority>")
+        xml_parts.append("  </url>")
+
+    xml_parts.append("</urlset>")
+    xml_content = "\n".join(xml_parts)
+
+    return Response(content=xml_content, media_type="application/xml")
+
+
+@app.get("/robots.txt")
+async def get_robots_txt() -> Response:
+    """Serve robots.txt for search engine crawlers."""
+    content = """# Code Monet - AI Artist
+User-agent: *
+Allow: /
+Allow: /gallery/
+Allow: /public/
+
+# Sitemap location
+Sitemap: https://monet.dmfenton.net/sitemap.xml
+
+# Private routes
+Disallow: /studio
+Disallow: /auth/
+Disallow: /api/
+Disallow: /ws
+Disallow: /debug/
+"""
+    return Response(content=content, media_type="text/plain")
+
+
 @app.get("/strokes/pending")
 async def get_pending_strokes(user: CurrentUser) -> dict[str, Any]:
     """Fetch and clear pending strokes for client-side rendering.
