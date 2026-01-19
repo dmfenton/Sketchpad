@@ -133,8 +133,8 @@ async function createServer(): Promise<void> {
     });
   });
 
-  // SSR handler for all routes
-  app.use('*', async (req, res, next) => {
+  // SSR handler for all routes (Express 5 catch-all syntax)
+  app.use(async (req, res, next) => {
     const url = req.originalUrl;
 
     // Skip API and WebSocket routes
