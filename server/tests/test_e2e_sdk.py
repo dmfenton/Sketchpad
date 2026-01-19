@@ -17,15 +17,11 @@ from pathlib import Path as FilePath
 import pytest
 
 from code_monet.agent import DrawingAgent
-from code_monet.config import settings
 from code_monet.types import AgentTurnComplete, DrawingStyleType
 from code_monet.workspace_state import WorkspaceState
 
-# Skip all tests if no API key (checked via settings which loads from SSM/.env)
-pytestmark = pytest.mark.skipif(
-    not settings.anthropic_api_key,
-    reason="ANTHROPIC_API_KEY not available (SSM or .env) - skipping E2E SDK tests",
-)
+# Mark all tests as e2e (excluded from default pytest run, use -m e2e to include)
+pytestmark = pytest.mark.e2e
 
 
 @pytest.fixture

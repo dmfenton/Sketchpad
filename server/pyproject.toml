@@ -102,7 +102,12 @@ disallow_subclassing_any = false
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -m 'not e2e'"
+markers = [
+    "e2e: end-to-end tests requiring API key (deselected by default)",
+    "asyncio: mark test as async (auto-handled by pytest-asyncio)",
+    "timeout: set test timeout in seconds",
+]
 
 [dependency-groups]
 dev = [
