@@ -65,12 +65,12 @@ function processMessageSequence(
 /**
  * Create a human_stroke message with a simple line path.
  */
-function makeStrokeComplete(
+function makeHumanStroke(
   fromX: number,
   fromY: number,
   toX: number,
   toY: number,
-  author: 'agent' | 'human' = 'agent'
+  author: 'agent' | 'human' = 'human'
 ): ServerMessage {
   return {
     type: 'human_stroke',
@@ -175,7 +175,7 @@ function makePaused(paused: boolean): ServerMessage {
 describe('human_stroke message flow', () => {
   it('adds a single stroke to empty canvas', () => {
     const startState: CanvasHookState = { ...initialState, paused: false };
-    const message = makeStrokeComplete(0, 0, 100, 100);
+    const message = makeHumanStroke(0, 0, 100, 100);
 
     const { finalState } = processMessageSequence([message], startState);
 
@@ -190,9 +190,9 @@ describe('human_stroke message flow', () => {
   it('accumulates multiple strokes in order', () => {
     const startState: CanvasHookState = { ...initialState, paused: false };
     const messages: ServerMessage[] = [
-      makeStrokeComplete(0, 0, 100, 100),
-      makeStrokeComplete(100, 100, 200, 200),
-      makeStrokeComplete(200, 200, 300, 300),
+      makeHumanStroke(0, 0, 100, 100),
+      makeHumanStroke(100, 100, 200, 200),
+      makeHumanStroke(200, 200, 300, 300),
     ];
 
     const { finalState } = processMessageSequence(messages, startState);
@@ -206,8 +206,8 @@ describe('human_stroke message flow', () => {
   it('preserves stroke author attribution', () => {
     const startState: CanvasHookState = { ...initialState, paused: false };
     const messages: ServerMessage[] = [
-      makeStrokeComplete(0, 0, 50, 50, 'agent'),
-      makeStrokeComplete(50, 50, 100, 100, 'human'),
+      makeHumanStroke(0, 0, 50, 50, 'agent'),
+      makeHumanStroke(50, 50, 100, 100, 'human'),
     ];
 
     const { finalState } = processMessageSequence(messages, startState);
@@ -226,7 +226,7 @@ describe('human_stroke message flow', () => {
     expect(state.agentStroke.length).toBe(2);
 
     // Stroke complete should clear agentStroke
-    state = processMessage(state, makeStrokeComplete(10, 10, 20, 20));
+    state = processMessage(state, makeHumanStroke(10, 10, 20, 20));
     expect(state.agentStroke).toEqual([]);
     expect(state.strokes).toHaveLength(1);
   });
