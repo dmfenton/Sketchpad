@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.27.2] - 2026-01-19
+
+### Added
+
+- OG image endpoint for social sharing (`/public/gallery/{user_id}/{piece_id}/og-image.png`)
+- Renders gallery pieces to 1200x630 PNG for iMessage, Twitter, etc. previews
+- Nginx proxy caching for OG images (7-day cache)
+
 ## [1.27.1] - 2026-01-19
 
 ### Fixed
