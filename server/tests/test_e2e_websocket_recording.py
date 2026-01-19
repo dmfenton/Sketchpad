@@ -31,7 +31,6 @@ import pytest
 from pydantic import BaseModel
 
 from code_monet.agent import DrawingAgent
-from code_monet.config import settings
 from code_monet.orchestrator import AgentOrchestrator
 from code_monet.types import DrawingStyleType
 from code_monet.workspace_state import WorkspaceState
@@ -88,11 +87,8 @@ class MessageCapture:
         }
 
 
-# Skip all tests if no API key
-pytestmark = pytest.mark.skipif(
-    not settings.anthropic_api_key,
-    reason="ANTHROPIC_API_KEY not available - skipping recording tests",
-)
+# Mark all tests as e2e (excluded from default pytest run, use -m e2e to include)
+pytestmark = pytest.mark.e2e
 
 
 @pytest.fixture
