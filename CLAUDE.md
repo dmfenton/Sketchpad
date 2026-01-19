@@ -562,12 +562,58 @@ This triggers `.github/workflows/release.yml` which:
 
 1. Runs E2E SDK tests to verify Claude SDK compatibility
 2. Builds web frontend and syncs to S3
-3. Builds Docker image with version tag
-4. Pushes to AWS ECR
-5. Runs database migrations via SSM
-6. Creates GitHub Release with changelog
-7. Deploys to EC2 via SSM (updates IMAGE_TAG, restarts container)
-8. Verifies deployment via `/api/version` endpoint
+3. Builds backend Docker image with version tag
+4. Builds SSR Docker image with version tag
+5. Pushes both images to AWS ECR
+6. Runs database migrations via SSM
+7. Creates GitHub Release with changelog
+8. Deploys to EC2 via SSM (updates IMAGE_TAG, restarts containers)
+9. Verifies deployment via `/api/version` endpoint
+
+### SSR Architecture
+
+The web frontend uses Server-Side Rendering (SSR) for SEO and social sharing:
+
+```
+Browser Request
+      ↓
+    nginx (443)
+      ↓
+  ┌───────────────────────────────────────┐
+  │ /assets/*     → static files (cached) │
+  │ /api/*        → drawing-agent:8000    │
+  │ /ws           → drawing-agent:8000    │
+  │ /*            → web-ssr:3000 (SSR)    │
+  │   └─ on error → static index.html     │
+  └───────────────────────────────────────┘
+```
+
+**Components:**
+
+- **web-ssr**: Node.js SSR server running Express + tsx
+- **nginx**: Reverse proxy with smart routing and graceful fallback
+- **drawing-agent**: Python backend API
+
+**Graceful Degradation:**
+
+1. SSR server down → nginx serves static SPA via `@fallback`
+2. SSR render error → server.ts catches, serves static fallback
+3. Backend down → SSR returns empty initial data, client fetches on hydrate
+
+**Health Endpoints:**
+
+- `/ssr-health` - SSR server health check
+- `/api/version` - Backend API version
+
+**Building SSR Locally:**
+
+```bash
+# Build the SSR Docker image
+docker build -f web/Dockerfile -t web-ssr:dev .
+
+# Run locally
+docker run -p 3000:3000 -e API_URL=http://host.docker.internal:8000 web-ssr:dev
+```
 
 ### Infrastructure (Terraform)
 
@@ -593,7 +639,9 @@ infrastructure/
 
 - **EC2** (t3.small, 2GB RAM) running Docker Compose
 - **EBS** 10GB data volume at `/home/ec2-user/data` (persists across instance replacement)
-- **ECR** repository with 5-image retention
+- **ECR** repositories with 5-image retention:
+  - `drawing-agent` - Backend API container
+  - `web-ssr` - SSR frontend container
 - **Elastic IP** for stable addressing
 - **Route 53** DNS (monet.dmfenton.net)
 - **SES** email sending with domain verification, DKIM, SPF, DMARC

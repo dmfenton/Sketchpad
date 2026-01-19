@@ -20,6 +20,7 @@ services:
       - ./web/client:/var/www/html:ro
     depends_on:
       - drawing-agent
+      - web-ssr
       - umami
     restart: unless-stopped
     networks:
@@ -79,6 +80,32 @@ services:
           '-c',
           "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
         ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      <<: *awslogs
+      options:
+        awslogs-group: /drawing-agent/containers
+        awslogs-region: ${AWS_REGION:-us-east-1}
+        awslogs-create-group: 'true'
+
+  web-ssr:
+    image: ${ECR_REGISTRY:-web-ssr}/web-ssr:${IMAGE_TAG:-latest}
+    container_name: web-ssr
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - API_URL=http://drawing-agent:8000
+      - VERSION=${IMAGE_TAG:-latest}
+    depends_on:
+      - drawing-agent
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
