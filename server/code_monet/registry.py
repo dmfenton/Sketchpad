@@ -76,7 +76,9 @@ class UserConnectionManager:
         elif msg_type == "agent_strokes_ready":
             count = message.count if hasattr(message, "count") else "?"
             batch_id = message.batch_id if hasattr(message, "batch_id") else "?"
-            logger.info(f"User {self.user_id}: >>> agent_strokes_ready count={count} batch={batch_id}")
+            logger.info(
+                f"User {self.user_id}: >>> agent_strokes_ready count={count} batch={batch_id}"
+            )
         elif msg_type == "status":
             status = message.status if hasattr(message, "status") else "?"
             logger.info(f"User {self.user_id}: >>> status={status}")

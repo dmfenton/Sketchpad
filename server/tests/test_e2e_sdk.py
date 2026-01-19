@@ -91,9 +91,9 @@ class TestSDKIntegrationE2E:
         assert len(events) >= 1, "Expected at least one event from run_turn"
 
         last_event = events[-1]
-        assert isinstance(last_event, AgentTurnComplete), (
-            f"Expected AgentTurnComplete, got {type(last_event)}"
-        )
+        assert isinstance(
+            last_event, AgentTurnComplete
+        ), f"Expected AgentTurnComplete, got {type(last_event)}"
 
     @pytest.mark.asyncio
     @pytest.mark.timeout(120)

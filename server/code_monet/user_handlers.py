@@ -50,9 +50,7 @@ async def handle_stroke(workspace: ActiveWorkspace, message: dict[str, Any]) -> 
     if points:
         path = Path(type=PathType.POLYLINE, points=points, author="human")
         await workspace.state.add_stroke(path)
-        await workspace.connections.broadcast(
-            {"type": "human_stroke", "path": path.model_dump()}
-        )
+        await workspace.connections.broadcast({"type": "human_stroke", "path": path.model_dump()})
 
 
 async def handle_nudge(workspace: ActiveWorkspace, message: dict[str, Any]) -> None:

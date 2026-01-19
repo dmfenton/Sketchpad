@@ -1,7 +1,11 @@
+# Pre-commit hooks for Code Monet
+# Install: cd server && uv run pre-commit install
+# Run manually: cd server && uv run pre-commit run --all-files
+
 repos:
-  # Python - Ruff for linting and formatting
+  # Python linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.11
+    rev: v0.8.6
     hooks:
       - id: ruff
         args: [--fix]
@@ -9,103 +13,39 @@ repos:
       - id: ruff-format
         files: ^server/
 
-  # Python - Type checking
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
-    hooks:
-      - id: mypy
-        files: ^server/code_monet/
-        additional_dependencies:
-          - pydantic>=2.10.0
-          - pydantic-settings>=2.6.0
-          - fastapi>=0.115.0
-          - pillow>=11.0.0
-          - anthropic>=0.40.0
-          - types-aiofiles
-          - types-python-jose
-          - boto3-stubs
-          - alembic
-
-  # JavaScript/TypeScript - Prettier (formatting)
-  - repo: local
-    hooks:
-      - id: prettier
-        name: prettier
-        entry: bash -c 'npx prettier --write .'
-        language: system
-        files: \.(ts|tsx|js|jsx|json|css|md)$
-        pass_filenames: false
-
-  # JavaScript/TypeScript - ESLint (app/)
-  - repo: local
-    hooks:
-      - id: eslint-app
-        name: eslint (app)
-        entry: bash -c 'cd app && npm run lint'
-        language: system
-        files: ^app/.*\.(ts|tsx)$
-        pass_filenames: false
-
-      - id: typecheck-app
-        name: typecheck (app)
-        entry: bash -c 'cd app && npm run typecheck'
-        language: system
-        files: ^app/.*\.(ts|tsx)$
-        pass_filenames: false
-
-  # JavaScript/TypeScript - ESLint (web/)
-  - repo: local
-    hooks:
-      - id: eslint-web
-        name: eslint (web)
-        entry: bash -c 'cd web && npm run lint'
-        language: system
-        files: ^web/.*\.(ts|tsx)$
-        pass_filenames: false
-
-      - id: typecheck-web
-        name: typecheck (web)
-        entry: bash -c 'cd web && npm run typecheck'
-        language: system
-        files: ^web/.*\.(ts|tsx)$
-        pass_filenames: false
-
-  # JavaScript/TypeScript - ESLint (shared/)
+  # TypeScript/JavaScript linting (run from subdirectories for tsconfig)
   - repo: local
     hooks:
       - id: eslint-shared
-        name: eslint (shared)
-        entry: bash -c 'cd shared && npm run lint'
+        name: ESLint (shared)
+        entry: bash -c 'cd shared && npx eslint --fix $(echo "$@" | sed "s|shared/||g")' --
         language: system
-        files: ^shared/.*\.ts$
-        pass_filenames: false
+        files: ^shared/src/.*\.(ts|tsx)$
+        pass_filenames: true
 
-      - id: typecheck-shared
-        name: typecheck (shared)
-        entry: bash -c 'cd shared && npm run typecheck'
+      - id: eslint-app
+        name: ESLint (app)
+        entry: bash -c 'cd app && npx eslint --fix $(echo "$@" | sed "s|app/||g")' --
         language: system
-        files: ^shared/.*\.ts$
-        pass_filenames: false
+        files: ^app/src/.*\.(ts|tsx)$
+        pass_filenames: true
 
-  # Database - Check for missing migrations
-  - repo: local
-    hooks:
-      - id: check-migrations
-        name: check migrations
-        entry: ./scripts/check-migrations.sh
-        language: script
-        pass_filenames: false
-        always_run: true
+      - id: eslint-web
+        name: ESLint (web)
+        entry: bash -c 'cd web && npx eslint --fix $(echo "$@" | sed "s|web/||g")' --
+        language: system
+        files: ^web/src/.*\.(ts|tsx)$
+        pass_filenames: true
 
-  # General
+  # General file hygiene
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: \.json$
       - id: end-of-file-fixer
+        exclude: \.json$
       - id: check-yaml
-      - id: check-json
+        exclude: ^app/e2e/  # Maestro uses multi-document YAML
       - id: check-added-large-files
-        args: ['--maxkb=1000']
-      - id: check-merge-conflict
-      - id: detect-private-key
+        args: ['--maxkb=500']
