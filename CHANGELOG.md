@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.28.0] - 2026-01-19
+
 ### Added
 
 - `sign_canvas` tool: Agent can sign completed pieces with "Code Monet" signature in elegant cursive script
