@@ -90,7 +90,9 @@ export function GalleryItem({ piece, index, delay }: GalleryItemProps): React.Re
               ))}
         </svg>
       </div>
-      <span className="gallery-label">No. {String(displayNumber).padStart(3, '0')}</span>
+      <span className="gallery-label" title={piece?.title || `No. ${String(displayNumber).padStart(3, '0')}`}>
+        {piece?.title || `No. ${String(displayNumber).padStart(3, '0')}`}
+      </span>
     </div>
   );
 }

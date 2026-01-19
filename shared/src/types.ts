@@ -458,6 +458,7 @@ export interface GalleryEntry {
   piece_number: number;
   drawing_style?: DrawingStyleType; // Style used for this piece (defaults to plotter)
   thumbnail_token?: string; // Capability token for thumbnail access
+  title?: string; // Piece title (set by agent via name_piece tool)
 }
 
 // Backwards compatibility alias
