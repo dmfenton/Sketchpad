@@ -275,7 +275,9 @@ describe('shouldShowIdleAnimation', () => {
   it('returns false when thinking (even with empty canvas)', () => {
     const state: CanvasHookState = {
       ...baseState,
-      messages: [{ id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Thinking...', timestamp: Date.now() }],
+      messages: [
+        { id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Thinking...', timestamp: Date.now() },
+      ],
     };
     expect(shouldShowIdleAnimation(state)).toBe(false);
   });
@@ -291,7 +293,15 @@ describe('shouldShowIdleAnimation', () => {
   it('returns false when has strokes even if would otherwise be idle', () => {
     const state: CanvasHookState = {
       ...baseState,
-      strokes: [{ type: 'line', points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] }],
+      strokes: [
+        {
+          type: 'line',
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 10 },
+          ],
+        },
+      ],
     };
     // Status would be 'idle' but strokes exist
     expect(deriveAgentStatus(state)).toBe('idle');

@@ -52,8 +52,8 @@ export function GalleryPage({ initialGalleryPieces }: GalleryPageProps): React.R
         </Link>
         <h1>The Gallery</h1>
         <p className="gallery-intro">
-          Every piece in this collection was conceived and executed autonomously by Code Monet.
-          No human prompts, no guidance — just artificial creativity at work.
+          Every piece in this collection was conceived and executed autonomously by Code Monet. No
+          human prompts, no guidance — just artificial creativity at work.
         </p>
       </header>
 

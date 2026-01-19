@@ -25,7 +25,10 @@ export function AppRoutes({ initialData }: AppRoutesProps): React.ReactElement {
       {/* Public routes */}
       <Route path="/" element={<HomepageRoute initialData={ssrData} />} />
       <Route path="/gallery" element={<GalleryRoute initialData={ssrData} />} />
-      <Route path="/gallery/:userId/:pieceId" element={<GalleryPieceRoute initialData={ssrData} />} />
+      <Route
+        path="/gallery/:userId/:pieceId"
+        element={<GalleryPieceRoute initialData={ssrData} />}
+      />
 
       {/* Auth routes */}
       <Route path="/auth/callback" element={<AuthCallback />} />
@@ -99,7 +102,8 @@ function GalleryPieceRoute({ initialData }: { initialData?: SSRData }): React.Re
 
   const pieceNumber = piece?.piece_number ?? parseInt(pieceId?.replace('piece_', '') ?? '0', 10);
   const title = piece?.title ?? `Piece No. ${String(pieceNumber).padStart(3, '0')}`;
-  const description = piece?.description ??
+  const description =
+    piece?.description ??
     `Original artwork created by Code Monet, an autonomous AI artist. Piece ${pieceNumber} features ${piece?.stroke_count ?? 'multiple'} unique brushstrokes.`;
 
   // Generate dynamic OG image URL that can be rendered server-side
@@ -114,7 +118,10 @@ function GalleryPieceRoute({ initialData }: { initialData?: SSRData }): React.Re
         <meta property="og:description" content={description} />
         <meta property="og:type" content="article" />
         <meta property="og:image" content={ogImageUrl} />
-        <meta property="og:url" content={`https://monet.dmfenton.net/gallery/${userId}/${pieceId}`} />
+        <meta
+          property="og:url"
+          content={`https://monet.dmfenton.net/gallery/${userId}/${pieceId}`}
+        />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
@@ -126,20 +133,20 @@ function GalleryPieceRoute({ initialData }: { initialData?: SSRData }): React.Re
           {JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'VisualArtwork',
-            'name': title,
-            'description': description,
-            'creator': {
+            name: title,
+            description: description,
+            creator: {
               '@type': 'SoftwareApplication',
-              'name': 'Code Monet',
-              'description': 'An autonomous AI artist powered by Claude',
-              'url': 'https://monet.dmfenton.net'
+              name: 'Code Monet',
+              description: 'An autonomous AI artist powered by Claude',
+              url: 'https://monet.dmfenton.net',
             },
-            'artform': 'Digital Painting',
-            'artMedium': 'SVG/Digital',
-            'image': ogImageUrl,
-            'url': `https://monet.dmfenton.net/gallery/${userId}/${pieceId}`,
-            'dateCreated': piece?.created_at,
-            'artworkSurface': 'Digital Canvas'
+            artform: 'Digital Painting',
+            artMedium: 'SVG/Digital',
+            image: ogImageUrl,
+            url: `https://monet.dmfenton.net/gallery/${userId}/${pieceId}`,
+            dateCreated: piece?.created_at,
+            artworkSurface: 'Digital Canvas',
           })}
         </script>
       </Helmet>

@@ -73,10 +73,7 @@ async function fetchGalleryPieces(limit = 6): Promise<GalleryPiece[]> {
   return [];
 }
 
-async function fetchPieceStrokes(
-  userId: string,
-  pieceId: string
-): Promise<PieceStrokes | null> {
+async function fetchPieceStrokes(userId: string, pieceId: string): Promise<PieceStrokes | null> {
   try {
     const response = await fetch(`${API_URL}/public/gallery/${userId}/${pieceId}/strokes`);
     if (response.ok) {
@@ -145,10 +142,7 @@ async function createServer(): Promise<void> {
       } else {
         // In production, use cached template
         if (!template) {
-          template = fs.readFileSync(
-            path.join(__dirname, 'dist/client/index.html'),
-            'utf-8'
-          );
+          template = fs.readFileSync(path.join(__dirname, 'dist/client/index.html'), 'utf-8');
         }
         if (!ssrModule) {
           ssrModule = (await import('./dist/server/entry-server.js')) as SSRModule;
@@ -217,10 +211,7 @@ async function createServer(): Promise<void> {
       // In production, serve fallback with 500 status for monitoring
       if (isProduction) {
         console.error('SSR Error (serving client fallback):', e);
-        const fallback = fs.readFileSync(
-          path.join(__dirname, 'dist/client/index.html'),
-          'utf-8'
-        );
+        const fallback = fs.readFileSync(path.join(__dirname, 'dist/client/index.html'), 'utf-8');
         res.status(500).set({ 'Content-Type': 'text/html' }).end(fallback);
       } else {
         next(e);
