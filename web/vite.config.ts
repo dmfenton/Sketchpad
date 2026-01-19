@@ -16,6 +16,14 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(version),
   },
+  build: {
+    // SSR builds need different entry points
+    rollupOptions: {
+      input: {
+        main: './index.html',
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {
@@ -29,5 +37,10 @@ export default defineConfig({
         ws: true,
       },
     },
+  },
+  // SSR configuration
+  ssr: {
+    // Dependencies that should be bundled for SSR
+    noExternal: ['react-helmet-async'],
   },
 });

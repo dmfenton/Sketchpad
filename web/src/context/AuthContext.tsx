@@ -1,13 +1,33 @@
 /**
- * Authentication Context for Web - Manages JWT tokens with localStorage
+ * Authentication Context for Web - Manages JWT tokens with storage
+ * SSR-compatible: handles missing storage on server
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getApiUrl } from '../config';
 
+// Check if we're on the server
+const isServer = typeof window === 'undefined';
+
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'auth_access_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';
+
+// SSR-safe storage wrapper
+const storage = {
+  getItem: (key: string): string | null => {
+    if (isServer) return null;
+    return storage.getItem(key);
+  },
+  setItem: (key: string, value: string): void => {
+    if (isServer) return;
+    storage.setItem(key, value);
+  },
+  removeItem: (key: string): void => {
+    if (isServer) return;
+    storage.removeItem(key);
+  },
+};
 
 export interface User {
   id: string;
@@ -74,14 +94,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       });
 
       if (!response.ok) {
-        localStorage.removeItem(ACCESS_TOKEN_KEY);
-        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        storage.removeItem(ACCESS_TOKEN_KEY);
+        storage.removeItem(REFRESH_TOKEN_KEY);
         return false;
       }
 
       const data = (await response.json()) as { access_token: string; refresh_token: string };
-      localStorage.setItem(ACCESS_TOKEN_KEY, data.access_token);
-      localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+      storage.setItem(ACCESS_TOKEN_KEY, data.access_token);
+      storage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
 
       const decoded = decodeToken(data.access_token);
       if (decoded) {
@@ -103,8 +123,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   useEffect(() => {
     async function loadTokens(): Promise<void> {
       try {
-        const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-        const refreshTokenValue = localStorage.getItem(REFRESH_TOKEN_KEY);
+        const accessToken = storage.getItem(ACCESS_TOKEN_KEY);
+        const refreshTokenValue = storage.getItem(REFRESH_TOKEN_KEY);
 
         if (accessToken && !isTokenExpired(accessToken)) {
           const decoded = decodeToken(accessToken);
@@ -147,8 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   }, [refreshTokenInternal]);
 
   const signOut = useCallback(() => {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    storage.removeItem(ACCESS_TOKEN_KEY);
+    storage.removeItem(REFRESH_TOKEN_KEY);
     setState({
       isLoading: false,
       isAuthenticated: false,
@@ -191,8 +211,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       }
 
       const data = (await response.json()) as { access_token: string; refresh_token: string };
-      localStorage.setItem(ACCESS_TOKEN_KEY, data.access_token);
-      localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+      storage.setItem(ACCESS_TOKEN_KEY, data.access_token);
+      storage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
 
       const decoded = decodeToken(data.access_token);
       if (decoded) {
@@ -221,8 +241,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
           return { success: false, error: 'Invalid token received' };
         }
 
-        localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        storage.setItem(ACCESS_TOKEN_KEY, accessToken);
+        storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 
         setState({
           isLoading: false,

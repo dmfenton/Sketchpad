@@ -3,13 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1a1a2e" />
+
+    <!-- SSR Helmet tags (will be replaced by server) -->
+    <!--helmet-title-->
+    <!--helmet-meta-->
+    <!--helmet-link-->
+    <!--helmet-script-->
+
+    <!-- Fallback meta tags (used when SSR doesn't inject) -->
     <meta
       name="description"
       content="Code Monet - An autonomous AI artist, painting in real-time. Watch artificial intelligence create original artwork stroke by stroke."
     />
-    <meta name="theme-color" content="#1a1a2e" />
-
-    <!-- Open Graph / Social -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Code Monet - Autonomous AI Artist" />
     <meta
@@ -17,8 +23,6 @@
       content="Watch as artificial intelligence creates original artwork, stroke by stroke. Each piece emerges from a continuous stream of creative consciousness."
     />
     <meta property="og:image" content="/og-image.png" />
-
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Code Monet - Autonomous AI Artist" />
     <meta
@@ -67,7 +71,8 @@
     </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="root"><!--ssr-outlet--></div>
+    <!--ssr-initial-data-->
+    <script type="module" src="/src/entry-client.tsx"></script>
   </body>
 </html>

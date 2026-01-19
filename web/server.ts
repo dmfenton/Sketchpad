@@ -1,0 +1,226 @@
+/**
+ * SSR Express server for Code Monet web app.
+ *
+ * In development: Uses Vite's middleware for HMR and on-demand compilation.
+ * In production: Serves pre-built static assets with SSR rendering.
+ */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import express from 'express';
+import compression from 'compression';
+import sirv from 'sirv';
+import type { ViteDevServer } from 'vite';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const isProduction = process.env.NODE_ENV === 'production';
+const port = process.env.PORT || 5173;
+
+// Backend API URL for SSR data fetching
+const API_URL = process.env.API_URL || 'http://localhost:8000';
+
+interface SSRModule {
+  render: (
+    url: string,
+    initialData?: Record<string, unknown>
+  ) => { html: string; helmet: HelmetServerState };
+}
+
+interface HelmetServerState {
+  title: { toString: () => string };
+  meta: { toString: () => string };
+  link: { toString: () => string };
+  script: { toString: () => string };
+}
+
+interface GalleryPiece {
+  id: string;
+  user_id: string;
+  piece_number: number;
+  stroke_count: number;
+  created_at: string;
+}
+
+interface PieceStrokes {
+  id: string;
+  strokes: unknown[];
+  piece_number: number;
+  created_at: string;
+}
+
+async function fetchGalleryPieces(limit = 6): Promise<GalleryPiece[]> {
+  try {
+    const response = await fetch(`${API_URL}/public/gallery?limit=${limit}`);
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (error) {
+    console.error('Failed to fetch gallery pieces for SSR:', error);
+  }
+  return [];
+}
+
+async function fetchPieceStrokes(
+  userId: string,
+  pieceId: string
+): Promise<PieceStrokes | null> {
+  try {
+    const response = await fetch(`${API_URL}/public/gallery/${userId}/${pieceId}/strokes`);
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (error) {
+    console.error('Failed to fetch piece strokes for SSR:', error);
+  }
+  return null;
+}
+
+async function createServer(): Promise<void> {
+  const app = express();
+
+  let vite: ViteDevServer | undefined;
+  let template: string;
+  let ssrModule: SSRModule;
+
+  if (!isProduction) {
+    // Development mode: use Vite's middleware
+    const { createServer: createViteServer } = await import('vite');
+    vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'custom',
+    });
+    app.use(vite.middlewares);
+
+    // Proxy API requests in development
+    const { createProxyMiddleware } = await import('http-proxy-middleware');
+    app.use(
+      '/api',
+      createProxyMiddleware({
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        pathRewrite: { '^/api': '' },
+      })
+    );
+    app.use(
+      '/ws',
+      createProxyMiddleware({
+        target: 'ws://localhost:8000',
+        ws: true,
+      })
+    );
+  } else {
+    // Production mode: serve static assets
+    app.use(compression());
+    app.use(sirv(path.join(__dirname, 'dist/client'), { extensions: [] }));
+  }
+
+  // SSR handler for all routes
+  app.use('*', async (req, res, next) => {
+    const url = req.originalUrl;
+
+    // Skip API and WebSocket routes
+    if (url.startsWith('/api') || url.startsWith('/ws')) {
+      return next();
+    }
+
+    try {
+      // Load template
+      if (!isProduction) {
+        template = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf-8');
+        template = await vite!.transformIndexHtml(url, template);
+        ssrModule = (await vite!.ssrLoadModule('/src/entry-server.tsx')) as SSRModule;
+      } else {
+        // In production, use cached template
+        if (!template) {
+          template = fs.readFileSync(
+            path.join(__dirname, 'dist/client/index.html'),
+            'utf-8'
+          );
+        }
+        if (!ssrModule) {
+          ssrModule = (await import('./dist/server/entry-server.js')) as SSRModule;
+        }
+      }
+
+      // Fetch SSR data based on route
+      let initialData: Record<string, unknown> = {};
+
+      if (url === '/' || url.startsWith('/?')) {
+        // Homepage: fetch gallery preview
+        const galleryPieces = await fetchGalleryPieces(6);
+        initialData = { galleryPieces };
+      } else if (url === '/gallery' || url.startsWith('/gallery?')) {
+        // Gallery page: fetch more pieces
+        const galleryPieces = await fetchGalleryPieces(50);
+        initialData = { galleryPieces };
+      } else if (url.match(/^\/gallery\/[^/]+\/[^/]+/)) {
+        // Individual piece page
+        const match = url.match(/^\/gallery\/([^/]+)\/([^/?]+)/);
+        if (match) {
+          const [, userId, pieceId] = match;
+          const pieceStrokes = await fetchPieceStrokes(userId, pieceId);
+          if (pieceStrokes) {
+            initialData = {
+              galleryPiece: {
+                id: pieceStrokes.id,
+                user_id: userId,
+                piece_number: pieceStrokes.piece_number,
+                stroke_count: pieceStrokes.strokes?.length ?? 0,
+                created_at: pieceStrokes.created_at,
+              },
+              pieceStrokes,
+            };
+          }
+        }
+      }
+
+      // Render the app
+      const { html: appHtml, helmet } = ssrModule.render(url, initialData);
+
+      // Inject rendered content into template
+      let html = template
+        .replace('<!--ssr-outlet-->', appHtml)
+        .replace(
+          '<!--ssr-initial-data-->',
+          `<script>window.__INITIAL_DATA__ = ${JSON.stringify(initialData).replace(
+            /</g,
+            '\\u003c'
+          )}</script>`
+        );
+
+      // Inject helmet tags
+      if (helmet) {
+        html = html
+          .replace('<!--helmet-title-->', helmet.title.toString())
+          .replace('<!--helmet-meta-->', helmet.meta.toString())
+          .replace('<!--helmet-link-->', helmet.link.toString())
+          .replace('<!--helmet-script-->', helmet.script.toString());
+      }
+
+      res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+    } catch (e) {
+      if (!isProduction && vite) {
+        vite.ssrFixStacktrace(e as Error);
+      }
+      console.error('SSR Error:', e);
+
+      // In production, try to serve the static fallback
+      if (isProduction) {
+        const fallback = fs.readFileSync(
+          path.join(__dirname, 'dist/client/index.html'),
+          'utf-8'
+        );
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(fallback);
+      } else {
+        next(e);
+      }
+    }
+  });
+
+  app.listen(port, () => {
+    console.log(`SSR server running at http://localhost:${port}`);
+  });
+}
+
+createServer();

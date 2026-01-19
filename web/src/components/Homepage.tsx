@@ -9,18 +9,21 @@ import { LiveCanvas, ThoughtStream, GalleryItem, GalleryPiece } from './homepage
 
 interface HomepageProps {
   onEnter: () => void;
+  initialGalleryPieces?: GalleryPiece[];
 }
 
-export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
+export function Homepage({ onEnter, initialGalleryPieces }: HomepageProps): React.ReactElement {
   const [mounted, setMounted] = useState(false);
-  const [galleryPieces, setGalleryPieces] = useState<GalleryPiece[]>([]);
+  const [galleryPieces, setGalleryPieces] = useState<GalleryPiece[]>(initialGalleryPieces ?? []);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Fetch gallery pieces from public API
+  // Fetch gallery pieces from public API (skip if we have initial SSR data)
   useEffect(() => {
+    if (initialGalleryPieces && initialGalleryPieces.length > 0) return;
+
     const fetchGallery = async (): Promise<void> => {
       try {
         const response = await fetch(`${getApiUrl()}/public/gallery?limit=6`);
@@ -34,7 +37,7 @@ export function Homepage({ onEnter }: HomepageProps): React.ReactElement {
     };
 
     fetchGallery();
-  }, []);
+  }, [initialGalleryPieces]);
 
   // Use real gallery pieces if available, otherwise generate placeholders
   const displayPieces = galleryPieces.length > 0 ? galleryPieces : Array.from({ length: 6 });
