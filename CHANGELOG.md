@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.2] - 2026-01-19
+
+### Fixed
+
+- Release workflow now syncs deploy config from S3 to server before running docker-compose (fixes v1.26.1 deployment failure where server had stale docker-compose.prod.yml)
+
 ## [1.26.1] - 2026-01-19
 
 ### Fixed
