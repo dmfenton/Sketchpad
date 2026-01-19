@@ -276,12 +276,18 @@ jobs:
 
           echo "Found instance: $INSTANCE_ID"
 
-          # Deploy: update IMAGE_TAG and ECR_REGISTRY, pull new image, restart container
+          # Get S3 bucket name for config sync
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          CONFIG_BUCKET="drawing-agent-config-${ACCOUNT_ID}"
+
+          # Deploy: sync config, update IMAGE_TAG, pull new image, restart container
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --parameters "commands=[
               \"cd /home/ec2-user\",
+              \"echo 'Syncing deploy config from S3...'\",
+              \"aws s3 sync s3://${CONFIG_BUCKET}/deploy/ . --exclude 'web/*' --exclude 'data/*'\",
               \"echo 'Setting IMAGE_TAG=v$VERSION and ECR_REGISTRY'\",
               \"sed -i '/^IMAGE_TAG=/d' .env 2>/dev/null || true\",
               \"sed -i '/^ECR_REGISTRY=/d' .env 2>/dev/null || true\",
