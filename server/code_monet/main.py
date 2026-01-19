@@ -471,6 +471,82 @@ async def get_public_piece_strokes(user_id: str, piece_id: str) -> dict[str, Any
         raise HTTPException(status_code=500, detail=f"Failed to load piece: {e}") from e
 
 
+@app.get("/public/gallery/{user_id}/{piece_id}/og-image.png")
+async def get_public_piece_og_image(user_id: str, piece_id: str) -> Response:
+    """Get OG image for social sharing.
+
+    Renders gallery piece strokes to 1200x630 PNG (optimal OG image size).
+    Only returns image if user has opted into public gallery.
+    """
+    import re
+    from pathlib import Path as FilePath
+
+    from code_monet.types import Path
+
+    # Validate user_id is UUID format (prevent path traversal)
+    uuid_pattern = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    if not re.match(uuid_pattern, user_id, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid user_id")
+
+    # Validate piece_id format
+    if not piece_id.replace("_", "").replace("-", "").isalnum():
+        raise HTTPException(status_code=400, detail="Invalid piece_id")
+
+    # Verify user has opted into public gallery
+    async with get_session() as session:
+        user = await repository.get_user_by_id(session, user_id)
+        if not user or not user.gallery_public:
+            raise HTTPException(status_code=404, detail="Gallery not found")
+
+    # Load piece strokes
+    workspace_base = FilePath(settings.workspace_base_dir).resolve()
+    piece_file = (workspace_base / user_id / "gallery" / f"{piece_id}.json").resolve()
+
+    if not str(piece_file).startswith(str(workspace_base)):
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    if not piece_file.exists():
+        raise HTTPException(status_code=404, detail="Piece not found")
+
+    try:
+        data = json.loads(piece_file.read_text())
+        strokes = [Path(**s) for s in data.get("strokes", [])]
+    except (json.JSONDecodeError, OSError) as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load piece: {e}") from e
+
+    # Render to PNG (1200x630 is optimal OG image size)
+    # Scale from 800x600 canvas to 1200x630 with padding
+    def render_og_image() -> bytes:
+        img = Image.new("RGB", (1200, 630), "#1a1a2e")  # Dark background matching site
+        draw = ImageDraw.Draw(img)
+
+        # Scale and center: 800x600 -> fit in 1200x630 with padding
+        scale = min(1100 / 800, 580 / 600)  # Leave 50px padding
+        offset_x = (1200 - 800 * scale) / 2
+        offset_y = (630 - 600 * scale) / 2
+
+        for path in strokes:
+            points = path_to_point_list(path)
+            if len(points) >= 2:
+                scaled_points = [(x * scale + offset_x, y * scale + offset_y) for x, y in points]
+                draw.line(scaled_points, fill="#FFFFFF", width=2)
+
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG", optimize=True)
+        return buffer.getvalue()
+
+    # Run CPU-bound rendering in thread pool
+    image_bytes = await asyncio.to_thread(render_og_image)
+
+    return Response(
+        content=image_bytes,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "public, max-age=604800",  # 7 days (immutable)
+        },
+    )
+
+
 @app.get("/sitemap.xml")
 async def get_sitemap() -> Response:
     """Generate sitemap.xml for SEO.
