@@ -5,12 +5,13 @@
 repos:
   # Python linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.6
+    rev: v0.14.0
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [--fix, --config, server/pyproject.toml]
         files: ^server/
       - id: ruff-format
+        args: [--config, server/pyproject.toml]
         files: ^server/
 
   # TypeScript/JavaScript linting (run from subdirectories for tsconfig)
