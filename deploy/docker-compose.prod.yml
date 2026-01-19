@@ -53,7 +53,7 @@ services:
         awslogs-stream-prefix: certbot
 
   drawing-agent:
-    image: ${ECR_REGISTRY:-drawing-agent}:${IMAGE_TAG:-latest}
+    image: ${ECR_REGISTRY:-drawing-agent}/drawing-agent:${IMAGE_TAG:-latest}
     container_name: drawing-agent
     environment:
       # SSM fetches secrets at runtime (ANTHROPIC_API_KEY, JWT_SECRET, etc.)

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.1] - 2026-01-19
+
+### Fixed
+
+- Docker Compose image reference now includes repository name (`/drawing-agent`) for correct ECR pull
+- Release workflow now uses `--force-recreate` to ensure containers are recreated with new images
+
 ## [1.26.0] - 2026-01-19
 
 ### Added

@@ -292,7 +292,7 @@ jobs:
               \"echo 'Pulling new image...'\",
               \"docker pull $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\",
               \"echo 'Restarting container...'\",
-              \"docker-compose -f docker-compose.prod.yml up -d drawing-agent\",
+              \"docker-compose -f docker-compose.prod.yml up -d --force-recreate drawing-agent\",
               \"echo 'Waiting for container to be healthy...'\",
               \"sleep 10\",
               \"docker ps | grep drawing-agent\"
