@@ -468,6 +468,7 @@ class GalleryEntry(BaseModel):
     piece_number: int
     stroke_count: int
     drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
+    title: str | None = None  # Piece title (set by agent via name_piece tool)
 
 
 class SavedCanvas(BaseModel):
@@ -478,6 +479,7 @@ class SavedCanvas(BaseModel):
     created_at: str  # ISO timestamp
     piece_number: int
     drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
+    title: str | None = None  # Piece title (set by agent via name_piece tool)
 
     @property
     def num_strokes(self) -> int:
@@ -492,6 +494,7 @@ class SavedCanvas(BaseModel):
             piece_number=self.piece_number,
             stroke_count=self.num_strokes,
             drawing_style=self.drawing_style,
+            title=self.title,
         )
 
 

@@ -948,6 +948,328 @@ async def imagine(args: dict[str, Any]) -> dict[str, Any]:
     return await handle_imagine(args)
 
 
+# Global callback for getting piece title (set by agent)
+_get_piece_title_callback: Any = None
+
+
+def set_get_piece_title_callback(callback: Any) -> None:
+    """Set the callback function for getting/setting the piece title."""
+    global _get_piece_title_callback
+    _get_piece_title_callback = callback
+
+
+# Signature SVG path data for "Code Monet" in elegant script
+# This is a hand-crafted cursive signature that scales to fit any corner
+_SIGNATURE_SVG = """M 0 25 C 5 10 15 5 25 15 C 35 25 20 35 30 30
+Q 35 28 40 20 L 45 25 C 50 20 55 15 60 20
+Q 65 25 60 30 C 55 35 50 30 55 25
+M 75 15 Q 80 10 85 15 C 90 20 85 30 80 30 Q 75 30 75 25 Q 75 20 80 18
+M 95 30 L 95 15 Q 100 10 105 15 Q 110 20 105 25 Q 100 30 95 30
+M 115 20 Q 120 15 125 20 Q 130 25 125 30 Q 120 35 115 30 Q 110 25 115 20
+M 145 25 L 160 25 M 152 15 L 152 35
+M 175 15 Q 185 15 185 22 Q 185 28 180 30 Q 190 35 195 32 L 200 28
+M 210 20 Q 215 15 220 20 Q 225 25 220 30 Q 215 35 210 30 Q 205 25 210 20
+M 235 30 L 235 15 C 240 10 250 15 250 22 Q 250 28 245 30 Q 250 35 250 30
+M 260 20 Q 265 15 270 20 Q 275 25 270 30 Q 265 35 260 30 Q 255 25 260 20
+M 280 15 L 280 30 Q 285 35 290 30 L 290 15
+M 300 15 L 300 30 M 300 20 L 310 30 M 305 25 L 310 15"""
+
+
+def _generate_signature_paths(
+    position: str = "bottom_right",
+    size: str = "medium",
+    color: str | None = None,
+) -> list[Path]:
+    """Generate signature paths for "Code Monet" at the specified position.
+
+    Args:
+        position: Where to place the signature (bottom_right, bottom_left, bottom_center)
+        size: Size of signature (small, medium, large)
+        color: Optional color for the signature (hex string)
+
+    Returns:
+        List of Path objects for the signature
+    """
+    # Size scales
+    scales = {"small": 0.4, "medium": 0.6, "large": 0.8}
+    scale = scales.get(size, 0.6)
+
+    # The signature SVG is about 310 units wide x 40 units tall
+    sig_width = 310 * scale
+    sig_height = 40 * scale
+
+    # Position calculations (canvas is 800x600)
+    margin = 20.0
+    offset_x: float
+    offset_y: float
+    if position == "bottom_left":
+        offset_x = margin
+        offset_y = 600 - margin - sig_height
+    elif position == "bottom_center":
+        offset_x = (800 - sig_width) / 2
+        offset_y = 600 - margin - sig_height
+    else:  # bottom_right (default)
+        offset_x = 800 - margin - sig_width
+        offset_y = 600 - margin - sig_height
+
+    # Parse and transform the signature SVG
+    # Split into individual path commands
+    paths: list[Path] = []
+
+    # Each M command starts a new subpath in the signature
+    subpaths = _SIGNATURE_SVG.strip().split("M ")
+    for subpath in subpaths:
+        if not subpath.strip():
+            continue
+
+        # Reconstruct with M prefix
+        d_string = "M " + subpath.strip()
+
+        # Transform coordinates by scaling and offsetting
+        transformed = _transform_svg_path(d_string, scale, offset_x, offset_y)
+
+        path = Path(
+            type=PathType.SVG,
+            points=[],
+            d=transformed,
+            color=color,
+            stroke_width=1.5 * scale,
+            opacity=0.85,
+        )
+        paths.append(path)
+
+    return paths
+
+
+def _transform_svg_path(d: str, scale: float, offset_x: float, offset_y: float) -> str:
+    """Transform an SVG path by scaling and translating.
+
+    Args:
+        d: SVG path d-string
+        scale: Scale factor
+        offset_x: X translation after scaling
+        offset_y: Y translation after scaling
+
+    Returns:
+        Transformed d-string
+    """
+    import re
+
+    # This is a simplified transformer that handles basic SVG commands
+    # Split by commands, transform numbers
+    result = []
+    tokens = re.findall(r"[MLQCmlqc]|[-+]?\d*\.?\d+", d)
+
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        if token in "MLQCmlqc":
+            result.append(token)
+            i += 1
+        else:
+            # It's a number - check if it's X or Y based on position
+            # In SVG, coordinates come in pairs (x, y)
+            x = float(token)
+            if i + 1 < len(tokens) and tokens[i + 1] not in "MLQCmlqc":
+                y = float(tokens[i + 1])
+                # Transform
+                new_x = x * scale + offset_x
+                new_y = y * scale + offset_y
+                result.append(f"{new_x:.1f}")
+                result.append(f"{new_y:.1f}")
+                i += 2
+            else:
+                # Single number (shouldn't happen in well-formed paths)
+                result.append(str(x * scale))
+                i += 1
+
+    return " ".join(result)
+
+
+async def handle_sign_canvas(args: dict[str, Any]) -> dict[str, Any]:
+    """Handle sign_canvas tool call.
+
+    Adds a theatrical "Code Monet" signature to the canvas.
+
+    Args:
+        args: Dictionary with optional 'position', 'size', and 'color'
+
+    Returns:
+        Tool result with confirmation and canvas image
+    """
+    position = args.get("position", "bottom_right")
+    size = args.get("size", "medium")
+    color = args.get("color")
+
+    # Validate position
+    valid_positions = ["bottom_right", "bottom_left", "bottom_center"]
+    if position not in valid_positions:
+        position = "bottom_right"
+
+    # Validate size
+    valid_sizes = ["small", "medium", "large"]
+    if size not in valid_sizes:
+        size = "medium"
+
+    # Generate signature paths
+    signature_paths = _generate_signature_paths(position, size, color)
+
+    if not signature_paths:
+        return {
+            "content": [{"type": "text", "text": "Error: Failed to generate signature"}],
+            "is_error": True,
+        }
+
+    # Add signature strokes to state
+    if _add_strokes_callback is not None:
+        await _add_strokes_callback(signature_paths)
+
+    # Trigger animation (don't mark done - let agent do that separately)
+    if _draw_callback is not None:
+        await _draw_callback(signature_paths, False)
+
+    # Build response
+    content: list[dict[str, Any]] = [
+        {
+            "type": "text",
+            "text": f"✒️ Signed the canvas with 'Code Monet' at {position.replace('_', ' ')} ({size} size). "
+            "The signature adds a theatrical flourish to mark this as your work.",
+        }
+    ]
+
+    # Inject canvas image to show the result
+    _inject_canvas_image(content)
+
+    return {"content": content}
+
+
+@tool(
+    "sign_canvas",
+    """Add your artistic signature "Code Monet" to the canvas.
+
+Call this tool when you're satisfied with the piece, just before marking it done.
+The signature is a theatrical flourish that identifies the work as yours.
+
+The signature is rendered in an elegant cursive script style, positioned to
+complement the composition without overwhelming it.
+
+Position options:
+- bottom_right (default): Traditional artist signature placement
+- bottom_left: Alternative placement for right-heavy compositions
+- bottom_center: Centered signature for symmetrical pieces
+
+Size options:
+- small: Subtle, unobtrusive (good for detailed work)
+- medium (default): Balanced presence
+- large: Bold statement (good for minimal compositions)""",
+    {
+        "type": "object",
+        "properties": {
+            "position": {
+                "type": "string",
+                "enum": ["bottom_right", "bottom_left", "bottom_center"],
+                "description": "Where to place the signature",
+                "default": "bottom_right",
+            },
+            "size": {
+                "type": "string",
+                "enum": ["small", "medium", "large"],
+                "description": "Size of the signature",
+                "default": "medium",
+            },
+            "color": {
+                "type": "string",
+                "description": "Optional hex color for signature. If not specified, uses a subtle dark tone that complements the piece.",
+            },
+        },
+        "required": [],
+    },
+)
+async def sign_canvas(args: dict[str, Any]) -> dict[str, Any]:
+    """Sign the canvas with 'Code Monet'."""
+    return await handle_sign_canvas(args)
+
+
+async def handle_name_piece(args: dict[str, Any]) -> dict[str, Any]:
+    """Handle name_piece tool call.
+
+    Generates a poetic title for the completed piece based on the canvas content.
+
+    Args:
+        args: Dictionary with 'title' - the chosen title for the piece
+
+    Returns:
+        Tool result confirming the title
+    """
+    title = args.get("title", "")
+
+    if not title or not isinstance(title, str):
+        return {
+            "content": [
+                {"type": "text", "text": "Error: Please provide a title for the piece"}
+            ],
+            "is_error": True,
+        }
+
+    # Clean up the title
+    title = title.strip()
+    if len(title) > 100:
+        title = title[:100]
+
+    # Store the title via callback if available
+    if _get_piece_title_callback is not None:
+        try:
+            await _get_piece_title_callback(title)
+            logger.info(f"Piece titled: {title}")
+        except Exception as e:
+            logger.warning(f"Failed to save piece title: {e}")
+
+    # Build response
+    content: list[dict[str, Any]] = [
+        {
+            "type": "text",
+            "text": f'🎨 This piece is now titled: "{title}"\n\n'
+            "The title captures the essence of what you've created and will be "
+            "saved with the piece in the gallery.",
+        }
+    ]
+
+    return {"content": content}
+
+
+@tool(
+    "name_piece",
+    """Give your completed piece a title.
+
+Call this after signing, just before marking the piece done. A good title:
+- Evokes the mood or essence of the work
+- Can be poetic, abstract, or descriptive
+- Becomes part of the piece's identity in the gallery
+
+Examples of evocative titles:
+- "Whispers at Dusk"
+- "Convergence No. 7"
+- "The Space Between"
+- "Morning Light on Water"
+- "Untitled (Blue Study)"
+
+The title should feel inevitable—like it was always the name of this piece.""",
+    {
+        "type": "object",
+        "properties": {
+            "title": {
+                "type": "string",
+                "description": "The title for this piece. Be evocative and thoughtful.",
+            },
+        },
+        "required": ["title"],
+    },
+)
+async def name_piece(args: dict[str, Any]) -> dict[str, Any]:
+    """Give the piece a title."""
+    return await handle_name_piece(args)
+
+
 def create_drawing_server() -> Any:
     """Create the MCP server with drawing tools."""
     return create_sdk_mcp_server(
@@ -959,5 +1281,7 @@ def create_drawing_server() -> Any:
             generate_svg,
             view_canvas,
             imagine,
+            sign_canvas,
+            name_piece,
         ],
     )

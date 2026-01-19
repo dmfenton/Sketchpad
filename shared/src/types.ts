@@ -511,7 +511,9 @@ export type ToolName =
   | 'generate_svg'
   | 'view_canvas'
   | 'mark_piece_done'
-  | 'imagine';
+  | 'imagine'
+  | 'sign_canvas'
+  | 'name_piece';
 
 /**
  * Human-readable display names for tools.
@@ -522,6 +524,8 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
   view_canvas: 'viewing canvas',
   mark_piece_done: 'marking done',
   imagine: 'imagining',
+  sign_canvas: 'signing',
+  name_piece: 'naming piece',
 };
 
 export interface CodeExecutionMessage {
