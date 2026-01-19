@@ -62,7 +62,7 @@ jobs:
         working-directory: server
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: uv run pytest tests/test_e2e_sdk.py -v
+        run: uv run pytest -m e2e tests/test_e2e_sdk.py -v
 
       - name: Build web frontend
         env:
