@@ -49,6 +49,18 @@ interface PieceStrokes {
   created_at: string;
 }
 
+/**
+ * Safely stringify JSON for embedding in HTML script tags.
+ * Escapes characters that could break out of script context or cause parsing issues.
+ */
+function safeJsonStringify(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
 async function fetchGalleryPieces(limit = 6): Promise<GalleryPiece[]> {
   try {
     const response = await fetch(`${API_URL}/public/gallery?limit=${limit}`);
@@ -183,10 +195,7 @@ async function createServer(): Promise<void> {
         .replace('<!--ssr-outlet-->', appHtml)
         .replace(
           '<!--ssr-initial-data-->',
-          `<script>window.__INITIAL_DATA__ = ${JSON.stringify(initialData).replace(
-            /</g,
-            '\\u003c'
-          )}</script>`
+          `<script>window.__INITIAL_DATA__ = ${safeJsonStringify(initialData)}</script>`
         );
 
       // Inject helmet tags
@@ -205,13 +214,14 @@ async function createServer(): Promise<void> {
       }
       console.error('SSR Error:', e);
 
-      // In production, try to serve the static fallback
+      // In production, serve fallback with 500 status for monitoring
       if (isProduction) {
+        console.error('SSR Error (serving client fallback):', e);
         const fallback = fs.readFileSync(
           path.join(__dirname, 'dist/client/index.html'),
           'utf-8'
         );
-        res.status(200).set({ 'Content-Type': 'text/html' }).end(fallback);
+        res.status(500).set({ 'Content-Type': 'text/html' }).end(fallback);
       } else {
         next(e);
       }

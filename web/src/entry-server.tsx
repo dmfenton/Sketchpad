@@ -45,6 +45,15 @@ export interface RenderResult {
   helmet: HelmetServerState;
 }
 
+// Default helmet state for when context is not populated (uses toString only in SSR)
+const emptyDatum = { toString: () => '' };
+const defaultHelmet = {
+  title: emptyDatum,
+  meta: emptyDatum,
+  link: emptyDatum,
+  script: emptyDatum,
+} as HelmetServerState;
+
 export function render(url: string, initialData?: SSRData): RenderResult {
   const helmetContext: { helmet?: HelmetServerState } = {};
 
@@ -62,6 +71,6 @@ export function render(url: string, initialData?: SSRData): RenderResult {
 
   return {
     html,
-    helmet: helmetContext.helmet!,
+    helmet: helmetContext.helmet ?? defaultHelmet,
   };
 }

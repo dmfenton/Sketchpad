@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Server-side rendering (SSR) for SEO and LLM accessibility
+- Express SSR server with Vite integration for development and production
+- Individual gallery piece pages at `/gallery/:userId/:pieceId` with unique metadata
+- Full gallery listing page at `/gallery`
+- Dynamic meta tags and Open Graph metadata per artwork
+- JSON-LD structured data (schema.org VisualArtwork) for rich search results
+- `/sitemap.xml` endpoint listing all public gallery pieces
+- `/robots.txt` endpoint for search engine crawler guidance
+- React Router v6 for SSR-compatible client-side navigation
+
 ### Fixed
 
 - AI now sees brush-expanded strokes in paint mode (was seeing original paths while users saw expanded brush effects)

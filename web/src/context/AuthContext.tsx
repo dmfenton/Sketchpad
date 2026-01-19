@@ -13,19 +13,19 @@ const isServer = typeof window === 'undefined';
 const ACCESS_TOKEN_KEY = 'auth_access_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';
 
-// SSR-safe storage wrapper
+// SSR-safe localStorage wrapper
 const storage = {
   getItem: (key: string): string | null => {
     if (isServer) return null;
-    return storage.getItem(key);
+    return localStorage.getItem(key);
   },
   setItem: (key: string, value: string): void => {
     if (isServer) return;
-    storage.setItem(key, value);
+    localStorage.setItem(key, value);
   },
   removeItem: (key: string): void => {
     if (isServer) return;
-    storage.removeItem(key);
+    localStorage.removeItem(key);
   },
 };
 
