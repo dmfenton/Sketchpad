@@ -22,7 +22,7 @@ import {
   shouldShowIdleAnimation,
   type CanvasHookState,
 } from '@code-monet/shared';
-import type { ServerMessage, Path, AgentStatus } from '@code-monet/shared';
+import type { ServerMessage, AgentStatus } from '@code-monet/shared';
 
 // =============================================================================
 // Test Helpers
@@ -581,7 +581,7 @@ describe('realistic agent turn sequence', () => {
       makeCodeExecutionCompleted('draw_paths', 2),
     ];
 
-    const { finalState, statusHistory } = processMessageSequence(messages, startState);
+    const { finalState } = processMessageSequence(messages, startState);
 
     // Should end in drawing status
     expect(deriveAgentStatus(finalState)).toBe('drawing');

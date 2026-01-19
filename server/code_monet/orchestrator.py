@@ -11,6 +11,7 @@ from code_monet.agent_logger import AgentFileLogger
 from code_monet.brushes import expand_brush_stroke
 from code_monet.config import settings
 from code_monet.types import (
+    AgentStrokesReadyMessage,
     AgentTurnComplete,
     CodeExecutionMessage,
     DrawingStyleType,
@@ -18,7 +19,6 @@ from code_monet.types import (
     IterationMessage,
     Path,
     PieceStateMessage,
-    AgentStrokesReadyMessage,
     ThinkingDeltaMessage,
 )
 
