@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- SSR production deployment with containerized Node.js server
+- `web-ssr` ECR repository for SSR container images
+- `/ssr-health` endpoint for SSR server health monitoring
+- Graceful SSR fallback to static SPA on 502/503/504 errors
+
+### Changed
+
+- Release workflow now builds and deploys both backend and SSR containers
+- nginx routes page requests to SSR server (static assets served directly)
+
+### Infrastructure
+
+- IAM policy updated to allow ECR push for `web-ssr` repository
+
 ## [1.26.3] - 2026-01-19
 
 ### Fixed

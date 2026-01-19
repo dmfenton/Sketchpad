@@ -14,6 +14,7 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: drawing-agent
+  ECR_SSR_REPOSITORY: web-ssr
 
 jobs:
   build-and-release:
@@ -88,7 +89,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build, tag, and push backend image to Amazon ECR
         id: build
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -112,6 +113,26 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build, tag, and push SSR image to Amazon ECR
+        id: build-ssr
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Build the SSR image
+          docker build \
+            --build-arg VERSION="$VERSION" \
+            -t $ECR_REGISTRY/$ECR_SSR_REPOSITORY:v$VERSION \
+            -f web/Dockerfile \
+            .
+          docker tag $ECR_REGISTRY/$ECR_SSR_REPOSITORY:v$VERSION $ECR_REGISTRY/$ECR_SSR_REPOSITORY:latest
+
+          # Push both tags
+          docker push $ECR_REGISTRY/$ECR_SSR_REPOSITORY:v$VERSION
+          docker push $ECR_REGISTRY/$ECR_SSR_REPOSITORY:latest
+
+          echo "image=$ECR_REGISTRY/$ECR_SSR_REPOSITORY:v$VERSION" >> $GITHUB_OUTPUT
 
       - name: Sync deploy configs and web build to S3
         env:
@@ -239,10 +260,16 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Release ${{ steps.version.outputs.tag }}
           body: |
-            ## Docker Image
+            ## Docker Images
 
+            **Backend API:**
             ```
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:v${{ steps.version.outputs.version }}
+            ```
+
+            **Web SSR Server:**
+            ```
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_SSR_REPOSITORY }}:v${{ steps.version.outputs.version }}
             ```
 
             ## Changes
@@ -280,7 +307,7 @@ jobs:
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           CONFIG_BUCKET="drawing-agent-config-${ACCOUNT_ID}"
 
-          # Deploy: sync config, update IMAGE_TAG, pull new image, restart container
+          # Deploy: sync config, update IMAGE_TAG, pull new images, restart containers
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
@@ -295,13 +322,14 @@ jobs:
               \"echo 'ECR_REGISTRY=$ECR_REGISTRY' >> .env\",
               \"echo 'Re-authenticating with ECR...'\",
               \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY\",
-              \"echo 'Pulling new image...'\",
+              \"echo 'Pulling new images...'\",
               \"docker pull $ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\",
-              \"echo 'Restarting container...'\",
-              \"docker-compose -f docker-compose.prod.yml up -d --force-recreate drawing-agent\",
-              \"echo 'Waiting for container to be healthy...'\",
+              \"docker pull $ECR_REGISTRY/$ECR_SSR_REPOSITORY:v$VERSION\",
+              \"echo 'Restarting containers...'\",
+              \"docker-compose -f docker-compose.prod.yml up -d --force-recreate drawing-agent web-ssr\",
+              \"echo 'Waiting for containers to be healthy...'\",
               \"sleep 10\",
-              \"docker ps | grep drawing-agent\"
+              \"docker ps | grep -E 'drawing-agent|web-ssr'\"
             ]" \
             --query "Command.CommandId" \
             --output text)
@@ -349,25 +377,30 @@ jobs:
         run: |
           echo "Verifying v$VERSION is running..."
 
-          # Wait up to 1 minute for version endpoint to return correct version
+          # Wait up to 1 minute for both backend and SSR to be healthy
           for i in {1..12}; do
             sleep 5
 
+            # Check backend version
             RESPONSE=$(curl -sf https://monet.dmfenton.net/api/version 2>/dev/null || echo '{}')
             DEPLOYED_VERSION=$(echo "$RESPONSE" | jq -r '.version // empty')
 
-            if [ "$DEPLOYED_VERSION" = "$VERSION" ]; then
-              echo "✅ Deployment verified: v$VERSION is running"
-              echo "Response: $RESPONSE"
+            # Check SSR health
+            SSR_RESPONSE=$(curl -sf https://monet.dmfenton.net/ssr-health 2>/dev/null || echo '{}')
+            SSR_STATUS=$(echo "$SSR_RESPONSE" | jq -r '.status // empty')
+
+            if [ "$DEPLOYED_VERSION" = "$VERSION" ] && [ "$SSR_STATUS" = "healthy" ]; then
+              echo "✅ Backend deployed: v$VERSION"
+              echo "✅ SSR status: $SSR_STATUS"
               exit 0
             fi
 
-            echo "Attempt $i/12: Current version is '${DEPLOYED_VERSION:-unknown}', waiting for '$VERSION'..."
+            echo "Attempt $i/12: Backend='${DEPLOYED_VERSION:-unknown}' (want '$VERSION'), SSR='${SSR_STATUS:-unknown}' (want 'healthy')"
           done
 
           echo "❌ Deployment verification failed after 1 minute"
-          echo "Expected: $VERSION"
-          echo "Got: $DEPLOYED_VERSION"
+          echo "Expected backend: $VERSION, got: $DEPLOYED_VERSION"
+          echo "Expected SSR: healthy, got: $SSR_STATUS"
           exit 1
 
       - name: Summary
@@ -377,6 +410,7 @@ jobs:
         run: |
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: v$VERSION" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image**: \`$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend Image**: \`$ECR_REGISTRY/$ECR_REPOSITORY:v$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **SSR Image**: \`$ECR_REGISTRY/$ECR_SSR_REPOSITORY:v$VERSION\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Deployment**: ✅ Verified running at https://monet.dmfenton.net/api/version" >> $GITHUB_STEP_SUMMARY
           echo "- **iOS**: TestFlight build triggered" >> $GITHUB_STEP_SUMMARY

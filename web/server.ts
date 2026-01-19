@@ -124,6 +124,15 @@ async function createServer(): Promise<void> {
     app.use(sirv(path.join(__dirname, 'dist/client'), { extensions: [] }));
   }
 
+  // Health check endpoint for load balancers and container orchestration
+  app.get('/health', (req, res) => {
+    res.status(200).json({
+      status: 'healthy',
+      version: process.env.VERSION || 'dev',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   // SSR handler for all routes
   app.use('*', async (req, res, next) => {
     const url = req.originalUrl;
