@@ -37,6 +37,7 @@ export interface CanvasHookState {
   thinking: string;
   messages: AgentMessage[];
   pieceNumber: number;
+  pieceName: string | null; // Artist-given name for the current piece
   viewingPiece: number | null; // Which gallery piece is being viewed (null = current)
   drawingEnabled: boolean;
   gallery: GalleryEntry[];
@@ -152,6 +153,7 @@ export type CanvasAction =
       pieceNumber: number;
       drawingStyle?: DrawingStyleType;
       styleConfig?: DrawingStyleConfig;
+      name?: string | null;
     }
   | {
       type: 'INIT';
@@ -161,6 +163,7 @@ export type CanvasAction =
       paused: boolean;
       drawingStyle?: DrawingStyleType;
       styleConfig?: DrawingStyleConfig;
+      name?: string | null;
     }
   | { type: 'SET_PAUSED'; paused: boolean }
   | { type: 'SET_ITERATION'; current: number; max: number }
@@ -179,6 +182,7 @@ export const initialState: CanvasHookState = {
   thinking: '',
   messages: [],
   pieceNumber: 0,
+  pieceName: null,
   viewingPiece: null,
   drawingEnabled: false,
   gallery: [],
@@ -343,6 +347,7 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         agentStroke: [], // Clear agent stroke to prevent stale drawing
         agentStrokeStyle: null, // Clear agent stroke style too
         viewingPiece: action.pieceNumber,
+        pieceName: action.name ?? null,
         drawingStyle: loadedStyle,
         styleConfig: loadedStyleConfig,
       };
@@ -357,6 +362,7 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         strokes: action.strokes,
         gallery: action.gallery,
         pieceNumber: action.pieceNumber,
+        pieceName: action.name ?? null,
         paused: action.paused,
         viewingPiece: null, // Init shows current canvas
         drawingStyle: initStyle,

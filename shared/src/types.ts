@@ -458,6 +458,7 @@ export interface GalleryEntry {
   piece_number: number;
   drawing_style?: DrawingStyleType; // Style used for this piece (defaults to plotter)
   thumbnail_token?: string; // Capability token for thumbnail access
+  name?: string | null; // Artist-given name for the piece
 }
 
 // Backwards compatibility alias
@@ -479,6 +480,7 @@ export interface LoadCanvasMessage {
   piece_number: number;
   drawing_style?: DrawingStyleType;
   style_config?: DrawingStyleConfig;
+  name?: string | null; // Artist-given name for the piece
 }
 
 export interface InitMessage {
@@ -491,6 +493,7 @@ export interface InitMessage {
   monologue: string;
   drawing_style?: DrawingStyleType;
   style_config?: DrawingStyleConfig;
+  name?: string | null; // Artist-given name for the current piece
 }
 
 export interface PieceStateMessage {
@@ -511,7 +514,8 @@ export type ToolName =
   | 'generate_svg'
   | 'view_canvas'
   | 'mark_piece_done'
-  | 'imagine';
+  | 'imagine'
+  | 'name_canvas';
 
 /**
  * Human-readable display names for tools.
@@ -522,6 +526,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
   view_canvas: 'viewing canvas',
   mark_piece_done: 'marking done',
   imagine: 'imagining',
+  name_canvas: 'naming artwork',
 };
 
 export interface CodeExecutionMessage {

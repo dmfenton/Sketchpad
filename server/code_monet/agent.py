@@ -37,6 +37,7 @@ from code_monet.tools import (
     create_drawing_server,
     set_add_strokes_callback,
     set_canvas_dimensions,
+    set_canvas_name_callback,
     set_draw_callback,
     set_get_canvas_callback,
     set_workspace_dir_callback,
@@ -785,10 +786,15 @@ class DrawingAgent:
         def get_workspace_dir() -> str:
             return state.workspace_dir
 
+        # Set up canvas naming callback for name_canvas tool
+        async def set_name(name: str) -> None:
+            await state.set_name(name)
+
         set_draw_callback(on_draw)
         set_get_canvas_callback(get_canvas_png)
         set_add_strokes_callback(add_strokes_to_state)
         set_workspace_dir_callback(get_workspace_dir)
+        set_canvas_name_callback(set_name)
         set_canvas_dimensions(settings.canvas_width, settings.canvas_height)
 
         try:

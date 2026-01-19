@@ -56,6 +56,7 @@ export function GalleryItem({ piece, index, delay }: GalleryItemProps): React.Re
   }, [piece]);
 
   const displayNumber = piece?.piece_number ?? index + 1;
+  const displayLabel = piece?.name || `No. ${String(displayNumber).padStart(3, '0')}`;
 
   return (
     <div className="gallery-item" style={{ animationDelay: `${delay}s` }}>
@@ -90,7 +91,7 @@ export function GalleryItem({ piece, index, delay }: GalleryItemProps): React.Re
               ))}
         </svg>
       </div>
-      <span className="gallery-label">No. {String(displayNumber).padStart(3, '0')}</span>
+      <span className="gallery-label">{displayLabel}</span>
     </div>
   );
 }

@@ -139,9 +139,10 @@ async def handle_load_canvas(workspace: ActiveWorkspace, message: dict[str, Any]
     result = await workspace.state.load_from_gallery(piece_num)
 
     if result:
-        strokes, drawing_style = result
+        strokes, drawing_style, name = result
         workspace.state.canvas.strokes[:] = strokes
         workspace.state.canvas.drawing_style = drawing_style
+        workspace.state.name = name
         await workspace.state.save()
 
         style_config = get_style_config(drawing_style)
@@ -151,6 +152,7 @@ async def handle_load_canvas(workspace: ActiveWorkspace, message: dict[str, Any]
                 piece_number=piece_num,
                 drawing_style=drawing_style,
                 style_config=style_config,
+                name=name,
             )
         )
         logger.info(

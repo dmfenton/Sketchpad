@@ -279,6 +279,7 @@ _draw_callback: Any = None
 _get_canvas_callback: Any = None
 _add_strokes_callback: Any = None
 _get_workspace_dir_callback: Any = None
+_set_canvas_name_callback: Any = None
 
 
 def set_draw_callback(callback: Any) -> None:
@@ -310,6 +311,15 @@ def set_workspace_dir_callback(callback: Any) -> None:
     """
     global _get_workspace_dir_callback
     _get_workspace_dir_callback = callback
+
+
+def set_canvas_name_callback(callback: Any) -> None:
+    """Set the callback function for naming the current canvas.
+
+    Used by name_canvas tool to set a creative name for the artwork.
+    """
+    global _set_canvas_name_callback
+    _set_canvas_name_callback = callback
 
 
 def _inject_canvas_image(content: list[dict[str, Any]]) -> None:
@@ -948,6 +958,83 @@ async def imagine(args: dict[str, Any]) -> dict[str, Any]:
     return await handle_imagine(args)
 
 
+async def handle_name_canvas(args: dict[str, Any]) -> dict[str, Any]:
+    """Handle name_canvas tool call.
+
+    Sets a creative name for the current artwork piece.
+
+    Args:
+        args: Dictionary with 'name' (required string)
+
+    Returns:
+        Tool result confirming the name was set
+    """
+    name = args.get("name", "")
+
+    if not name or not isinstance(name, str):
+        return {
+            "content": [{"type": "text", "text": "Error: name must be a non-empty string"}],
+            "is_error": True,
+        }
+
+    # Limit name length to prevent abuse
+    max_length = 100
+    if len(name) > max_length:
+        name = name[:max_length]
+
+    if _set_canvas_name_callback is None:
+        return {
+            "content": [{"type": "text", "text": "Error: Canvas naming not available"}],
+            "is_error": True,
+        }
+
+    try:
+        await _set_canvas_name_callback(name)
+        return {
+            "content": [
+                {"type": "text", "text": f'Canvas named "{name}". This name will be displayed in the gallery.'}
+            ],
+        }
+    except Exception as e:
+        logger.exception(f"Failed to name canvas: {e}")
+        return {
+            "content": [{"type": "text", "text": f"Error naming canvas: {e!s}"}],
+            "is_error": True,
+        }
+
+
+@tool(
+    "name_canvas",
+    """Give your artwork a creative name.
+
+Call this when you've finished a piece to give it a meaningful title.
+The name will be displayed in the gallery instead of the piece number.
+
+Choose names that capture the essence, mood, or subject of your artwork.
+Keep names concise but evocative.
+
+Examples:
+- "Morning Light Through Willows"
+- "Urban Rhythm #3"
+- "Whispers of Autumn"
+- "Geometric Dreams"
+""",
+    {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+                "description": "A creative, descriptive name for the artwork (max 100 characters)",
+            },
+        },
+        "required": ["name"],
+    },
+)
+async def name_canvas(args: dict[str, Any]) -> dict[str, Any]:
+    """Name the current canvas artwork."""
+    return await handle_name_canvas(args)
+
+
 def create_drawing_server() -> Any:
     """Create the MCP server with drawing tools."""
     return create_sdk_mcp_server(
@@ -959,5 +1046,6 @@ def create_drawing_server() -> Any:
             generate_svg,
             view_canvas,
             imagine,
+            name_canvas,
         ],
     )

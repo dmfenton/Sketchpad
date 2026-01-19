@@ -762,6 +762,7 @@ async def websocket_endpoint(
                 "monologue": workspace.state.monologue or "",
                 "drawing_style": drawing_style.value,
                 "style_config": style_config.model_dump(),
+                "name": workspace.state.name,
             },
         )
         logger.info(

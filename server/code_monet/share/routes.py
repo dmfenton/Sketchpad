@@ -52,8 +52,8 @@ async def create_share(request: CreateShareRequest, user: CurrentUser) -> ShareR
     """Create a public share link for a gallery piece."""
     # Verify the piece exists
     state = await WorkspaceState.load_for_user(user.id)
-    strokes = await state.load_from_gallery(request.piece_number)
-    if strokes is None:
+    result = await state.load_from_gallery(request.piece_number)
+    if result is None:
         raise HTTPException(status_code=404, detail="Piece not found in gallery")
 
     async with get_session() as session:
@@ -134,7 +134,7 @@ async def load_shared_canvas(token: str) -> tuple[CanvasShare, list[Path]]:
         if result is None:
             raise HTTPException(status_code=404, detail="Artwork no longer exists")
 
-        strokes, _drawing_style = result
+        strokes, _drawing_style, _name = result
         return share, strokes
 
 

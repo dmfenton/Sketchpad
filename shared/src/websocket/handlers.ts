@@ -67,6 +67,8 @@ const TOOL_LABELS: Record<string, { started: string; completed: string }> = {
   generate_svg: { started: 'Generating SVG...', completed: 'SVG generated' },
   view_canvas: { started: 'Viewing canvas...', completed: 'Canvas viewed' },
   mark_piece_done: { started: 'Marking piece done...', completed: 'Piece marked done' },
+  imagine: { started: 'Imagining...', completed: 'Image generated' },
+  name_canvas: { started: 'Naming artwork...', completed: 'Artwork named' },
 };
 
 // Get path count from tool input for draw_paths
@@ -199,6 +201,7 @@ export const handleLoadCanvas: MessageHandler<LoadCanvasMessage> = (message, dis
     pieceNumber: message.piece_number,
     drawingStyle: message.drawing_style,
     styleConfig: message.style_config,
+    name: message.name,
   });
 };
 
@@ -211,6 +214,7 @@ export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
     paused: message.paused,
     drawingStyle: message.drawing_style,
     styleConfig: message.style_config,
+    name: message.name,
   });
 
   // Add previous monologue as a message if it exists

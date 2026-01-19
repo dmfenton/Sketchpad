@@ -468,6 +468,7 @@ class GalleryEntry(BaseModel):
     piece_number: int
     stroke_count: int
     drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
+    name: str | None = None  # Artist-given name for the piece
 
 
 class SavedCanvas(BaseModel):
@@ -478,6 +479,7 @@ class SavedCanvas(BaseModel):
     created_at: str  # ISO timestamp
     piece_number: int
     drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
+    name: str | None = None  # Artist-given name for the piece
 
     @property
     def num_strokes(self) -> int:
@@ -492,6 +494,7 @@ class SavedCanvas(BaseModel):
             piece_number=self.piece_number,
             stroke_count=self.num_strokes,
             drawing_style=self.drawing_style,
+            name=self.name,
         )
 
 
@@ -554,6 +557,7 @@ class LoadCanvasMessage(BaseModel):
     piece_number: int
     drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
     style_config: DrawingStyleConfig | None = None
+    name: str | None = None  # Artist-given name for the piece
 
 
 class ThinkingDeltaMessage(BaseModel):

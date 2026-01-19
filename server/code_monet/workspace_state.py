@@ -62,6 +62,7 @@ class WorkspaceState:
         self._piece_number: int = 0
         self._notes: str = ""
         self._monologue: str = ""
+        self._name: str | None = None  # Artist-given name for current piece
         self._loaded = False
 
         # Gallery index cache (loaded on demand)
@@ -147,6 +148,7 @@ class WorkspaceState:
             self._piece_number = data.get("piece_number", 0)
             self._notes = data.get("notes", "")
             self._monologue = data.get("monologue", "")
+            self._name = data.get("name")  # Artist-given name for current piece
             self._pending_strokes = data.get("pending_strokes", [])
             self._stroke_batch_id = data.get("stroke_batch_id", 0)
 
@@ -197,6 +199,7 @@ class WorkspaceState:
                 "piece_number": self._piece_number,
                 "notes": self._notes,
                 "monologue": self._monologue,
+                "name": self._name,
                 "pending_strokes": self._pending_strokes,
                 "stroke_batch_id": self._stroke_batch_id,
                 "updated_at": datetime.now(UTC).isoformat(),
@@ -264,6 +267,20 @@ class WorkspaceState:
     @monologue.setter
     def monologue(self, value: str) -> None:
         self._monologue = value
+
+    @property
+    def name(self) -> str | None:
+        """Artist-given name for the current piece."""
+        return self._name
+
+    @name.setter
+    def name(self, value: str | None) -> None:
+        self._name = value
+
+    async def set_name(self, name: str) -> None:
+        """Set the name for the current canvas and persist."""
+        self._name = name
+        await self.save()
 
     @property
     def has_pending_strokes(self) -> bool:
@@ -367,6 +384,7 @@ class WorkspaceState:
                 "strokes": [s.model_dump() for s in self._canvas.strokes],
                 "created_at": created_at,
                 "drawing_style": self._canvas.drawing_style.value,
+                "name": self._name,
             }
 
             # Atomic write for gallery piece
@@ -385,6 +403,7 @@ class WorkspaceState:
                 "stroke_count": len(self._canvas.strokes),
                 "created_at": created_at,
                 "drawing_style": self._canvas.drawing_style.value,
+                "name": self._name,
             }
 
         # Update gallery index outside the write lock
@@ -404,6 +423,7 @@ class WorkspaceState:
             self._piece_number += 1
             self._monologue = ""  # Clear thinking for new piece
             self._notes = ""  # Clear notes for new piece
+            self._name = None  # Clear name for new piece
 
         # Clear pending strokes from previous canvas to prevent them
         # from being rendered on the new canvas
@@ -472,6 +492,7 @@ class WorkspaceState:
                             "stroke_count": len(data.get("strokes", [])),
                             "created_at": data.get("created_at", ""),
                             "drawing_style": data.get("drawing_style", "plotter"),
+                            "name": data.get("name"),
                         }
                     )
                 except (json.JSONDecodeError, OSError) as e:
@@ -519,6 +540,7 @@ class WorkspaceState:
                     piece_number=entry["piece_number"],
                     stroke_count=entry.get("stroke_count", 0),
                     drawing_style=drawing_style,
+                    name=entry.get("name"),
                 )
             )
         return result
@@ -561,6 +583,7 @@ class WorkspaceState:
                             created_at=data.get("created_at", ""),
                             piece_number=piece_number,
                             drawing_style=drawing_style,
+                            name=data.get("name"),
                         )
                     )
                 except (json.JSONDecodeError, KeyError) as e:
@@ -573,10 +596,10 @@ class WorkspaceState:
 
     async def load_from_gallery(
         self, piece_number: int
-    ) -> tuple[list[Path], DrawingStyleType] | None:
-        """Load strokes and drawing style from a gallery piece.
+    ) -> tuple[list[Path], DrawingStyleType, str | None] | None:
+        """Load strokes, drawing style, and name from a gallery piece.
 
-        Returns (strokes, drawing_style) tuple or None if not found.
+        Returns (strokes, drawing_style, name) tuple or None if not found.
         """
         # Try both 3-digit and 6-digit formats for backwards compatibility
         for fmt in [f"piece_{piece_number:06d}.json", f"piece_{piece_number:03d}.json"]:
@@ -595,7 +618,8 @@ class WorkspaceState:
                     except ValueError:
                         drawing_style = DrawingStyleType.PLOTTER
 
-                    return (strokes, drawing_style)
+                    name = data.get("name")
+                    return (strokes, drawing_style, name)
                 except (json.JSONDecodeError, KeyError) as e:
                     logger.warning(f"Failed to load gallery piece {piece_number}: {e}")
                     return None
