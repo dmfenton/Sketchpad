@@ -30,6 +30,9 @@ FROM node:20-slim
 
 WORKDIR /app
 
+# Create non-root user for security
+RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
+
 # Install tsx for running TypeScript in production
 RUN npm install -g tsx
 
@@ -48,6 +51,10 @@ COPY --from=builder /app/web/dist ./web/dist
 
 # Copy server.ts for tsx to run
 COPY web/server.ts ./web/
+
+# Set ownership and switch to non-root user
+RUN chown -R nodejs:nodejs /app
+USER nodejs
 
 # Set production environment
 ENV NODE_ENV=production

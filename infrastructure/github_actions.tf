@@ -37,7 +37,10 @@ resource "aws_iam_user_policy" "github_actions_ecr" {
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload"
         ]
-        Resource = aws_ecr_repository.main.arn
+        Resource = [
+          aws_ecr_repository.main.arn,
+          aws_ecr_repository.web_ssr.arn
+        ]
       },
       {
         Sid    = "SyncConfigToS3"
