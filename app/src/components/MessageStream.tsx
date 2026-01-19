@@ -31,6 +31,8 @@ const TOOL_ICONS: Record<
   view_canvas: { name: 'eye', activeIcon: 'eye-outline' },
   mark_piece_done: { name: 'checkmark-done', activeIcon: 'checkmark-done-outline' },
   imagine: { name: 'sparkles', activeIcon: 'sparkles-outline' },
+  sign_canvas: { name: 'pencil', activeIcon: 'pencil-outline' },
+  name_piece: { name: 'text', activeIcon: 'text-outline' },
   unknown: { name: 'help-circle', activeIcon: 'help-circle-outline' },
 };
 

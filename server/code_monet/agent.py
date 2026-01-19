@@ -39,7 +39,7 @@ from code_monet.tools import (
     set_canvas_dimensions,
     set_draw_callback,
     set_get_canvas_callback,
-    set_get_piece_title_callback,
+    set_piece_title_callback,
     set_workspace_dir_callback,
 )
 from code_monet.types import (
@@ -808,7 +808,7 @@ class DrawingAgent:
         set_get_canvas_callback(get_canvas_png)
         set_add_strokes_callback(add_strokes_to_state)
         set_workspace_dir_callback(get_workspace_dir)
-        set_get_piece_title_callback(set_piece_title)
+        set_piece_title_callback(set_piece_title)
         set_canvas_dimensions(settings.canvas_width, settings.canvas_height)
 
         try:

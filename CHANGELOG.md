@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `sign_canvas` tool: Agent can sign completed pieces with "Code Monet" signature in elegant cursive script
+- `name_piece` tool: Agent can give evocative titles to completed artwork before saving
+- Piece titles stored in gallery entries and displayed with artwork
+- Agent now follows a finishing ritual: sign the canvas, name the piece, then mark done
+
 ## [1.27.3] - 2026-01-19
 
 ### Fixed

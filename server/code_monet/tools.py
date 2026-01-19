@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 import logging
+import re
 import tempfile
 import time
 from pathlib import Path as FilePath
@@ -948,14 +949,14 @@ async def imagine(args: dict[str, Any]) -> dict[str, Any]:
     return await handle_imagine(args)
 
 
-# Global callback for getting piece title (set by agent)
-_get_piece_title_callback: Any = None
+# Global callback for setting piece title (set by agent)
+_set_piece_title_callback: Any = None
 
 
-def set_get_piece_title_callback(callback: Any) -> None:
-    """Set the callback function for getting/setting the piece title."""
-    global _get_piece_title_callback
-    _get_piece_title_callback = callback
+def set_piece_title_callback(callback: Any) -> None:
+    """Set the callback function for saving the piece title."""
+    global _set_piece_title_callback
+    _set_piece_title_callback = callback
 
 
 # Signature SVG path data for "Code Monet" in elegant script
@@ -998,19 +999,21 @@ def _generate_signature_paths(
     sig_width = 310 * scale
     sig_height = 40 * scale
 
-    # Position calculations (canvas is 800x600)
+    # Position calculations using canvas dimensions from globals
     margin = 20.0
+    canvas_w = float(_canvas_width)
+    canvas_h = float(_canvas_height)
     offset_x: float
     offset_y: float
     if position == "bottom_left":
         offset_x = margin
-        offset_y = 600 - margin - sig_height
+        offset_y = canvas_h - margin - sig_height
     elif position == "bottom_center":
-        offset_x = (800 - sig_width) / 2
-        offset_y = 600 - margin - sig_height
+        offset_x = (canvas_w - sig_width) / 2
+        offset_y = canvas_h - margin - sig_height
     else:  # bottom_right (default)
-        offset_x = 800 - margin - sig_width
-        offset_y = 600 - margin - sig_height
+        offset_x = canvas_w - margin - sig_width
+        offset_y = canvas_h - margin - sig_height
 
     # Parse and transform the signature SVG
     # Split into individual path commands
@@ -1044,8 +1047,11 @@ def _generate_signature_paths(
 def _transform_svg_path(d: str, scale: float, offset_x: float, offset_y: float) -> str:
     """Transform an SVG path by scaling and translating.
 
+    Only handles absolute SVG commands (M, L, Q, C). The signature uses
+    absolute coordinates only, so relative commands are not supported.
+
     Args:
-        d: SVG path d-string
+        d: SVG path d-string with absolute commands only
         scale: Scale factor
         offset_x: X translation after scaling
         offset_y: Y translation after scaling
@@ -1053,17 +1059,15 @@ def _transform_svg_path(d: str, scale: float, offset_x: float, offset_y: float) 
     Returns:
         Transformed d-string
     """
-    import re
-
-    # This is a simplified transformer that handles basic SVG commands
-    # Split by commands, transform numbers
-    result = []
-    tokens = re.findall(r"[MLQCmlqc]|[-+]?\d*\.?\d+", d)
+    # This transformer handles absolute SVG commands only (uppercase)
+    # Split by commands, transform coordinate pairs
+    result: list[str] = []
+    tokens = re.findall(r"[MLQC]|[-+]?\d*\.?\d+", d)
 
     i = 0
     while i < len(tokens):
         token = tokens[i]
-        if token in "MLQCmlqc":
+        if token in "MLQC":
             result.append(token)
             i += 1
         else:
@@ -1217,9 +1221,9 @@ async def handle_name_piece(args: dict[str, Any]) -> dict[str, Any]:
         title = title[:100]
 
     # Store the title via callback if available
-    if _get_piece_title_callback is not None:
+    if _set_piece_title_callback is not None:
         try:
-            await _get_piece_title_callback(title)
+            await _set_piece_title_callback(title)
             logger.info(f"Piece titled: {title}")
         except Exception as e:
             logger.warning(f"Failed to save piece title: {e}")
