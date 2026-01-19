@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.3] - 2026-01-19
+
+### Fixed
+
+- Nginx now serves from `web/client` directory (SSR build output location)
+- Remove unsupported `awslogs-stream-prefix` option from docker-compose logging
+- Remove obsolete `version: '3.8'` from docker-compose.prod.yml
+
 ## [1.26.2] - 2026-01-19
 
 ### Fixed
