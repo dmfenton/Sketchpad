@@ -58,9 +58,8 @@ async def shutdown_all_workspaces() -> None:
 
 async def run_migrations() -> None:
     """Run database migrations on startup."""
-    from alembic.config import Config
-
     from alembic import command
+    from alembic.config import Config
 
     # Run alembic upgrade head
     alembic_cfg = Config("alembic.ini")
@@ -871,7 +870,7 @@ async def websocket_endpoint(
             await workspace.connections.send_to(
                 websocket,
                 {
-                    "type": "strokes_ready",
+                    "type": "agent_strokes_ready",
                     "count": workspace.state.pending_stroke_count,
                     "batch_id": workspace.state.stroke_batch_id,
                     "piece_number": workspace.state.piece_number,

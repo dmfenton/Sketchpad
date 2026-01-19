@@ -3,18 +3,18 @@
  */
 
 export {
+  handleAgentStrokesReady,
   handleClear,
   handleCodeExecution,
   handleError,
   handleGalleryUpdate,
+  handleHumanStroke,
   handleInit,
   handleIteration,
   handleLoadCanvas,
   handleNewCanvas,
   handlePaused,
   handlePieceState,
-  handleStrokeComplete,
-  handleStrokesReady,
   handleThinkingDelta,
   routeMessage,
 } from './handlers';

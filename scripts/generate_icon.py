@@ -4,7 +4,7 @@
 import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw
 
 
 def generate_spiral_points(size: int) -> list[tuple[float, float, float]]:

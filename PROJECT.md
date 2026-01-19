@@ -156,7 +156,7 @@ Server to client:
 Sent at 60fps during drawing. The app uses this to show pen position and extend the current stroke.
 
 ```json
-{"type": "stroke_complete", "path": {"type": "polyline", "points": [...]}}
+{"type": "human_stroke", "path": {"type": "polyline", "points": [...]}}
 ```
 
 Sent when a path finishes. App adds it to completed strokes.
@@ -378,7 +378,7 @@ When the server receives code from the agent:
     - Send position updates at 60fps
     - 16ms delay between updates
   - Raise pen
-  - Mark path complete, send stroke_complete event
+  - Mark path complete, send human_stroke event
 
 1. When all paths done, persist state, return to idle
 

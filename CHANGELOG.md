@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Race condition where agent strokes could be silently dropped if `strokes_ready` message arrived before `piece_state` update
+- Race condition where agent strokes could be silently dropped if `agent_strokes_ready` message arrived before `piece_state` update
 
 ## [1.24.0] - 2026-01-18
 
@@ -116,7 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Cross-canvas rendering bug where strokes from previous canvas could render on new canvas
-- Added `piece_id` to `strokes_ready` messages and `/strokes/pending` endpoint for canvas-scoped stroke fetching
+- Added `piece_id` to `agent_strokes_ready` messages and `/strokes/pending` endpoint for canvas-scoped stroke fetching
 - Thinking text accumulation bug - thinking now clears when new iteration starts
 - Server now clears pending strokes when `new_canvas()` is called
 

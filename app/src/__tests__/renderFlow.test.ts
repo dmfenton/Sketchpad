@@ -8,7 +8,7 @@
  * 4. Animation would trigger (mocking StrokeRenderer)
  *
  * Key scenarios tested:
- * - Full turn sequence from iteration to strokes_ready
+ * - Full turn sequence from iteration to agent_strokes_ready
  * - Thinking text accumulation and reset
  * - Status transitions that gate rendering
  * - canRender becoming true at correct time
@@ -81,7 +81,7 @@ describe('Render Flow - Complete Turn Sequence', () => {
       },
       iteration: 1,
     },
-    { type: 'strokes_ready', count: 1, batch_id: 1, piece_number: 0 },
+    { type: 'agent_strokes_ready', count: 1, batch_id: 1, piece_number: 0 },
     {
       type: 'code_execution',
       status: 'completed',
@@ -119,20 +119,20 @@ describe('Render Flow - Complete Turn Sequence', () => {
     // After code_execution started: executing (live message finalized, code_execution in progress)
     expect(statuses[3]).toBe('executing');
 
-    // After strokes_ready: still executing (code_execution not completed yet)
+    // After agent_strokes_ready: still executing (code_execution not completed yet)
     expect(statuses[4]).toBe('executing');
 
     // After code_execution completed: drawing (pendingStrokes set, no in-progress events)
     expect(statuses[5]).toBe('drawing');
   });
 
-  it('sets pendingStrokes when strokes_ready arrives', () => {
+  it('sets pendingStrokes when agent_strokes_ready arrives', () => {
     const { states } = processSequence(turnSequence);
 
-    // Before strokes_ready (index 3)
+    // Before agent_strokes_ready (index 3)
     expect(states[3]?.pendingStrokes).toBeNull();
 
-    // After strokes_ready (index 4)
+    // After agent_strokes_ready (index 4)
     expect(states[4]?.pendingStrokes).toEqual({ count: 1, batchId: 1, pieceNumber: 0 });
 
     // After code_execution completed (index 5) - still set
@@ -150,7 +150,7 @@ describe('Render Flow - Complete Turn Sequence', () => {
       false, // thinking_delta 1
       false, // thinking_delta 2
       false, // code_execution started
-      false, // strokes_ready (still executing!)
+      false, // agent_strokes_ready (still executing!)
       true, // code_execution completed
     ]);
   });
@@ -158,7 +158,7 @@ describe('Render Flow - Complete Turn Sequence', () => {
   it('has no in-progress events after code_execution completed', () => {
     const { states } = processSequence(turnSequence);
 
-    // After strokes_ready but before completed
+    // After agent_strokes_ready but before completed
     expect(hasInProgressEvents(states[4]!.messages)).toBe(true);
 
     // After completed
@@ -315,7 +315,7 @@ describe('Render Flow - Status Derivation Edge Cases', () => {
 
     // Add pending strokes
     state = processMessage(state, {
-      type: 'strokes_ready',
+      type: 'agent_strokes_ready',
       count: 1,
       batch_id: 1,
       piece_number: 0,
@@ -329,7 +329,7 @@ describe('Render Flow - Status Derivation Edge Cases', () => {
   it('CLEAR_PENDING_STROKES resets pendingStrokes', () => {
     let state: CanvasHookState = { ...initialState, paused: false };
     state = processMessage(state, {
-      type: 'strokes_ready',
+      type: 'agent_strokes_ready',
       count: 1,
       batch_id: 1,
       piece_number: 0,
@@ -356,7 +356,7 @@ describe('Render Flow - Multi-Turn Scenario', () => {
         tool_input: {},
         iteration: 1,
       },
-      { type: 'strokes_ready', count: 1, batch_id: 1, piece_number: 0 },
+      { type: 'agent_strokes_ready', count: 1, batch_id: 1, piece_number: 0 },
       {
         type: 'code_execution',
         status: 'completed',
@@ -378,7 +378,7 @@ describe('Render Flow - Multi-Turn Scenario', () => {
         tool_input: {},
         iteration: 2,
       },
-      { type: 'strokes_ready', count: 1, batch_id: 2, piece_number: 0 },
+      { type: 'agent_strokes_ready', count: 1, batch_id: 2, piece_number: 0 },
       {
         type: 'code_execution',
         status: 'completed',

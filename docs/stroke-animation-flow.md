@@ -42,7 +42,7 @@ SERVER                                  CLIENT
    - state.queue_strokes(paths)
      * Interpolates paths to points
      * Stores in _pending_strokes
-   - Broadcast: strokes_ready       --> Receives strokes_ready
+   - Broadcast: agent_strokes_ready       --> Receives agent_strokes_ready
      (count, batch_id, piece_number)        |
    - Sleep (animation wait)             v
                                     10. STROKES_READY action
@@ -120,7 +120,7 @@ case 'STROKES_READY':
   }
 ```
 
-**Symptom:** `strokes_ready` arrives but `pendingStrokes` is never set.
+**Symptom:** `agent_strokes_ready` arrives but `pendingStrokes` is never set.
 **Debug:** Add logging before the check.
 
 ### 2. canRender Never Becomes True

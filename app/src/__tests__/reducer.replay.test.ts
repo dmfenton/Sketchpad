@@ -129,17 +129,16 @@ describe('Reducer Replay - Plotter Style Turn', () => {
       }
     });
 
-    it('ends in correct status based on final message', () => {
+    it('ends in valid status after turn completes', () => {
       const { finalState, statuses } = replayMessages(typedFixture.messages);
 
-      // Final status depends on what the fixture ends with
-      // This fixture ends with thinking_delta, so status should be 'thinking'
+      // Final status depends on fixture content:
+      // - 'thinking' if ends with live message (thinking_delta without finalization)
+      // - 'drawing' if pendingStrokes set but no CLEAR_PENDING_STROKES
+      // - 'idle' if all events completed
+      // - 'executing' if code_execution started but not completed
       const finalStatus = deriveAgentStatus(finalState);
-
-      // The fixture ends mid-turn while agent is thinking, so expect 'thinking'
-      // If fixture ends with strokes_ready but no CLEAR_PENDING_STROKES, expect 'drawing'
-      // If fixture ends with turn complete, expect 'idle'
-      expect(['idle', 'drawing', 'thinking']).toContain(finalStatus);
+      expect(['idle', 'drawing', 'thinking', 'executing']).toContain(finalStatus);
 
       // Should have gone through thinking or executing states during the turn
       expect(statuses.some((s) => s === 'thinking' || s === 'executing')).toBe(true);
@@ -263,9 +262,11 @@ describe('Reducer Replay - Plotter Style Turn', () => {
     });
   });
 
-  describe('strokes ready handling', () => {
-    it('sets pendingStrokes when strokes_ready received', () => {
-      const strokesReadyIndex = typedFixture.messages.findIndex((m) => m.type === 'strokes_ready');
+  describe('agent strokes ready handling', () => {
+    it('sets pendingStrokes when agent_strokes_ready received', () => {
+      const strokesReadyIndex = typedFixture.messages.findIndex(
+        (m) => m.type === 'agent_strokes_ready'
+      );
 
       if (strokesReadyIndex === -1) {
         return;

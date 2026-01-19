@@ -11,6 +11,7 @@ from code_monet.agent_logger import AgentFileLogger
 from code_monet.brushes import expand_brush_stroke
 from code_monet.config import settings
 from code_monet.types import (
+    AgentStrokesReadyMessage,
     AgentTurnComplete,
     CodeExecutionMessage,
     DrawingStyleType,
@@ -18,7 +19,6 @@ from code_monet.types import (
     IterationMessage,
     Path,
     PieceStateMessage,
-    StrokesReadyMessage,
     ThinkingDeltaMessage,
 )
 
@@ -118,7 +118,7 @@ class AgentOrchestrator:
 
         # Notify clients that strokes are ready (include piece_number to prevent cross-canvas rendering)
         await self.broadcaster.broadcast(
-            StrokesReadyMessage(
+            AgentStrokesReadyMessage(
                 count=len(paths), batch_id=batch_id, piece_number=state.piece_number
             )
         )
