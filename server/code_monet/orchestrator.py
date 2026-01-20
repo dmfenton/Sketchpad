@@ -145,7 +145,7 @@ class AgentOrchestrator:
         try:
             await asyncio.wait_for(self._animation_done_event.wait(), timeout=timeout_s)
             logger.info(">>> Client signaled animation_done")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f">>> Animation wait timed out after {timeout_s:.2f}s")
 
     def create_callbacks(self) -> AgentCallbacks:

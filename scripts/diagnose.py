@@ -47,7 +47,7 @@ if "--category" in sys.argv:
     idx = sys.argv.index("--category")
     if idx + 1 < len(sys.argv):
         LOG_CATEGORY = sys.argv[idx + 1]
-        sys.argv = sys.argv[:idx] + sys.argv[idx + 2:]
+        sys.argv = sys.argv[:idx] + sys.argv[idx + 2 :]
     else:
         sys.argv = sys.argv[:idx]
 
@@ -59,12 +59,14 @@ if OUTPUT_FORMAT == "rich":
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
+
     console = Console()
 
 
 def get_xray_client() -> Any:
     """Get X-Ray client."""
     import os
+
     region = os.environ.get("AWS_REGION", "us-east-1")
     return boto3.client("xray", region_name=region)
 
@@ -72,6 +74,7 @@ def get_xray_client() -> Any:
 def get_logs_client() -> Any:
     """Get CloudWatch Logs client."""
     import os
+
     region = os.environ.get("AWS_REGION", "us-east-1")
     return boto3.client("logs", region_name=region)
 
@@ -178,9 +181,7 @@ def format_trace_summary(trace: dict[str, Any]) -> dict[str, Any]:
 
 
 def get_trace_summaries(
-    minutes: int = 30,
-    filter_expression: str | None = None,
-    limit: int = 50
+    minutes: int = 30, filter_expression: str | None = None, limit: int = 50
 ) -> list[dict[str, Any]]:
     """Get trace summaries from X-Ray."""
     client = get_xray_client()
@@ -231,29 +232,33 @@ def get_trace_details(trace_id: str) -> dict[str, Any]:
         # Extract subsegments for more detail
         subsegments = []
         for sub in doc.get("subsegments", []):
-            subsegments.append({
-                "name": sub.get("name"),
-                "duration": (sub.get("end_time", 0) - sub.get("start_time", 0)),
-                "error": sub.get("error"),
-                "fault": sub.get("fault"),
-                "sql": sub.get("sql"),
-                "http": sub.get("http"),
-                "metadata": sub.get("metadata"),
-            })
+            subsegments.append(
+                {
+                    "name": sub.get("name"),
+                    "duration": (sub.get("end_time", 0) - sub.get("start_time", 0)),
+                    "error": sub.get("error"),
+                    "fault": sub.get("fault"),
+                    "sql": sub.get("sql"),
+                    "http": sub.get("http"),
+                    "metadata": sub.get("metadata"),
+                }
+            )
 
-        segments.append({
-            "name": doc.get("name"),
-            "start_time": doc.get("start_time"),
-            "end_time": doc.get("end_time"),
-            "duration": (doc.get("end_time", 0) - doc.get("start_time", 0)),
-            "error": doc.get("error"),
-            "fault": doc.get("fault"),
-            "http": doc.get("http"),
-            "exception": doc.get("cause", {}).get("exceptions", []),
-            "annotations": doc.get("annotations"),
-            "metadata": doc.get("metadata"),
-            "subsegments": subsegments,
-        })
+        segments.append(
+            {
+                "name": doc.get("name"),
+                "start_time": doc.get("start_time"),
+                "end_time": doc.get("end_time"),
+                "duration": (doc.get("end_time", 0) - doc.get("start_time", 0)),
+                "error": doc.get("error"),
+                "fault": doc.get("fault"),
+                "http": doc.get("http"),
+                "exception": doc.get("cause", {}).get("exceptions", []),
+                "annotations": doc.get("annotations"),
+                "metadata": doc.get("metadata"),
+                "subsegments": subsegments,
+            }
+        )
 
     return {
         "id": trace.get("Id"),
@@ -263,6 +268,7 @@ def get_trace_details(trace_id: str) -> dict[str, Any]:
 
 
 # ============== Markdown Output ==============
+
 
 def md_print(text: str) -> None:
     """Print markdown text."""
@@ -293,7 +299,9 @@ def md_traces_table(traces: list[dict[str, Any]], title: str) -> None:
         elif t.get("has_error"):
             error = "ERROR"
 
-        md_print(f"| {time_str} | {method} | `{url}` | {status} | {duration} | {error} |")
+        md_print(
+            f"| {time_str} | {method} | `{url}` | {status} | {duration} | {error} |"
+        )
 
     md_print("")
 
@@ -324,7 +332,9 @@ def md_trace_details(details: dict[str, Any]) -> None:
             http = seg["http"]
             if "request" in http:
                 req = http["request"]
-                md_print(f"- **Request:** `{req.get('method', '')} {req.get('url', '')}`")
+                md_print(
+                    f"- **Request:** `{req.get('method', '')} {req.get('url', '')}`"
+                )
             if "response" in http:
                 resp = http["response"]
                 md_print(f"- **Response:** {resp.get('status', '')}")
@@ -337,7 +347,9 @@ def md_trace_details(details: dict[str, Any]) -> None:
                 if exc.get("stack"):
                     md_print("\n```")
                     for frame in exc["stack"][:10]:
-                        md_print(f"  {frame.get('path', '')}:{frame.get('line', '')} {frame.get('label', '')}")
+                        md_print(
+                            f"  {frame.get('path', '')}:{frame.get('line', '')} {frame.get('label', '')}"
+                        )
                     md_print("```\n")
 
         # Subsegments
@@ -386,7 +398,11 @@ def md_summary(traces: list[dict[str, Any]], minutes: int) -> None:
         endpoint_counts[url] = endpoint_counts.get(url, 0) + 1
 
     md_print(f"**Total Requests:** {total}")
-    md_print(f"**Errors:** {errors} ({100*errors/total:.1f}%)" if total else "**Errors:** 0")
+    md_print(
+        f"**Errors:** {errors} ({100 * errors / total:.1f}%)"
+        if total
+        else "**Errors:** 0"
+    )
     md_print(f"**Faults (5xx):** {faults}")
     md_print(f"**Avg Duration:** {avg_duration:.3f}s")
     md_print(f"**Max Duration:** {max_duration:.3f}s")
@@ -407,6 +423,7 @@ def md_summary(traces: list[dict[str, Any]], minutes: int) -> None:
 
 
 # ============== Rich Output ==============
+
 
 def rich_traces_table(traces: list[dict[str, Any]], title: str) -> None:
     """Display traces in a rich table."""
@@ -444,7 +461,12 @@ def rich_trace_details(details: dict[str, Any]) -> None:
         console.print(f"[red]{details['error']}[/red]")
         return
 
-    console.print(Panel(f"Trace ID: {details['id']}\nDuration: {details.get('duration', 0):.3f}s", title="Trace Details"))
+    console.print(
+        Panel(
+            f"Trace ID: {details['id']}\nDuration: {details.get('duration', 0):.3f}s",
+            title="Trace Details",
+        )
+    )
 
     for segment in details.get("segments", []):
         title = f"[bold]{segment.get('name', 'Unknown')}[/bold] ({segment.get('duration', 0):.3f}s)"
@@ -467,20 +489,29 @@ def rich_trace_details(details: dict[str, Any]) -> None:
         if segment.get("exception"):
             content.append("\n[red]Exceptions:[/red]")
             for exc in segment["exception"]:
-                content.append(f"  - {exc.get('type', 'Unknown')}: {exc.get('message', '')}")
+                content.append(
+                    f"  - {exc.get('type', 'Unknown')}: {exc.get('message', '')}"
+                )
                 if exc.get("stack"):
                     for frame in exc["stack"][:5]:
-                        content.append(f"      {frame.get('path', '')}:{frame.get('line', '')} {frame.get('label', '')}")
+                        content.append(
+                            f"      {frame.get('path', '')}:{frame.get('line', '')} {frame.get('label', '')}"
+                        )
 
         if segment.get("subsegments"):
             content.append("\n[cyan]Subsegments:[/cyan]")
             for sub in segment["subsegments"][:10]:
-                content.append(f"  - {sub.get('name', '?')} ({sub.get('duration', 0):.3f}s)")
+                content.append(
+                    f"  - {sub.get('name', '?')} ({sub.get('duration', 0):.3f}s)"
+                )
 
-        console.print(Panel("\n".join(content) if content else "No details", title=title))
+        console.print(
+            Panel("\n".join(content) if content else "No details", title=title)
+        )
 
 
 # ============== Commands ==============
+
 
 def cmd_recent(minutes: int = 30) -> None:
     """Show recent traces."""
@@ -502,8 +533,7 @@ def cmd_recent(minutes: int = 30) -> None:
 def cmd_errors(minutes: int = 60) -> None:
     """Show recent error traces."""
     traces = get_trace_summaries(
-        minutes=minutes,
-        filter_expression='fault = true OR error = true'
+        minutes=minutes, filter_expression="fault = true OR error = true"
     )
     title = f"Error Traces (last {minutes} min)"
 
@@ -512,7 +542,9 @@ def cmd_errors(minutes: int = 60) -> None:
     elif OUTPUT_FORMAT == "json":
         print(json.dumps(traces, indent=2, default=str))
     else:
-        console.print(f"[cyan]Fetching error traces from last {minutes} minutes...[/cyan]")
+        console.print(
+            f"[cyan]Fetching error traces from last {minutes} minutes...[/cyan]"
+        )
         if not traces:
             console.print("[green]No error traces found[/green]")
             return
@@ -522,8 +554,7 @@ def cmd_errors(minutes: int = 60) -> None:
 def cmd_slow(seconds: float = 1.0, minutes: int = 60) -> None:
     """Show slow traces."""
     traces = get_trace_summaries(
-        minutes=minutes,
-        filter_expression=f'duration > {seconds}'
+        minutes=minutes, filter_expression=f"duration > {seconds}"
     )
     title = f"Slow Traces (>{seconds}s, last {minutes} min)"
 
@@ -542,8 +573,7 @@ def cmd_slow(seconds: float = 1.0, minutes: int = 60) -> None:
 def cmd_ws(minutes: int = 60) -> None:
     """Show WebSocket traces."""
     traces = get_trace_summaries(
-        minutes=minutes,
-        filter_expression='http.url CONTAINS "/ws"'
+        minutes=minutes, filter_expression='http.url CONTAINS "/ws"'
     )
     title = f"WebSocket Traces (last {minutes} min)"
 
@@ -595,7 +625,9 @@ def cmd_status() -> None:
     # Get traces from last 5 minutes
     traces = get_trace_summaries(minutes=5)
     errors = [t for t in traces if t.get("has_error") or t.get("has_fault")]
-    ws_traces = [t for t in traces if t.get("http_url") and "/ws" in t.get("http_url", "")]
+    ws_traces = [
+        t for t in traces if t.get("http_url") and "/ws" in t.get("http_url", "")
+    ]
 
     if OUTPUT_FORMAT == "markdown":
         md_print("\n## Service Status (last 5 min)\n")
@@ -606,36 +638,52 @@ def cmd_status() -> None:
         if errors:
             md_print("\n### Recent Errors\n")
             for e in errors[:5]:
-                md_print(f"- `{e.get('http_method')} {e.get('http_url')}` - {e.get('http_status')}")
+                md_print(
+                    f"- `{e.get('http_method')} {e.get('http_url')}` - {e.get('http_status')}"
+                )
 
         if ws_traces:
             md_print("\n### WebSocket Sessions\n")
             for ws in ws_traces[:5]:
-                md_print(f"- Duration: {ws.get('duration_str')} at {ws.get('start_time', '')[:19]}")
+                md_print(
+                    f"- Duration: {ws.get('duration_str')} at {ws.get('start_time', '')[:19]}"
+                )
         md_print("")
     elif OUTPUT_FORMAT == "json":
-        print(json.dumps({
-            "total_requests": len(traces),
-            "errors": len(errors),
-            "websocket_connections": len(ws_traces),
-            "recent_errors": errors[:5],
-            "websocket_sessions": ws_traces[:5],
-        }, indent=2, default=str))
+        print(
+            json.dumps(
+                {
+                    "total_requests": len(traces),
+                    "errors": len(errors),
+                    "websocket_connections": len(ws_traces),
+                    "recent_errors": errors[:5],
+                    "websocket_sessions": ws_traces[:5],
+                },
+                indent=2,
+                default=str,
+            )
+        )
     else:
-        console.print(Panel(
-            f"Total requests: {len(traces)}\n"
-            f"Errors: {len(errors)}\n"
-            f"WebSocket connections: {len(ws_traces)}",
-            title="Service Status (last 5 min)"
-        ))
+        console.print(
+            Panel(
+                f"Total requests: {len(traces)}\n"
+                f"Errors: {len(errors)}\n"
+                f"WebSocket connections: {len(ws_traces)}",
+                title="Service Status (last 5 min)",
+            )
+        )
         if errors:
             console.print("\n[bold]Recent Errors:[/bold]")
             for e in errors[:5]:
-                console.print(f"  - {e.get('http_method')} {e.get('http_url')} - {e.get('http_status')}")
+                console.print(
+                    f"  - {e.get('http_method')} {e.get('http_url')} - {e.get('http_status')}"
+                )
         if ws_traces:
             console.print("\n[bold]WebSocket Sessions:[/bold]")
             for ws in ws_traces[:5]:
-                console.print(f"  - Duration: {ws.get('duration_str')} at {ws.get('start_time', '')[:19]}")
+                console.print(
+                    f"  - Duration: {ws.get('duration_str')} at {ws.get('start_time', '')[:19]}"
+                )
 
 
 def cmd_summary(minutes: int = 60) -> None:
@@ -649,13 +697,18 @@ def cmd_summary(minutes: int = 60) -> None:
         total = len(traces)
         errors = sum(1 for t in traces if t.get("has_error") or t.get("has_fault"))
         durations = [t.get("duration", 0) for t in traces]
-        print(json.dumps({
-            "minutes": minutes,
-            "total": total,
-            "errors": errors,
-            "avg_duration": sum(durations) / len(durations) if durations else 0,
-            "max_duration": max(durations) if durations else 0,
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "minutes": minutes,
+                    "total": total,
+                    "errors": errors,
+                    "avg_duration": sum(durations) / len(durations) if durations else 0,
+                    "max_duration": max(durations) if durations else 0,
+                },
+                indent=2,
+            )
+        )
     else:
         console.print("[cyan]Generating traffic summary...[/cyan]")
         # Rich output - create a simple summary
@@ -665,16 +718,21 @@ def cmd_summary(minutes: int = 60) -> None:
         avg_duration = sum(durations) / len(durations) if durations else 0
         max_duration = max(durations) if durations else 0
 
-        console.print(Panel(
-            f"Total Requests: {total}\n"
-            f"Errors: {errors} ({100*errors/total:.1f}%)\n" if total else "Errors: 0\n"
-            f"Avg Duration: {avg_duration:.3f}s\n"
-            f"Max Duration: {max_duration:.3f}s",
-            title=f"Traffic Summary (last {minutes} min)"
-        ))
+        console.print(
+            Panel(
+                f"Total Requests: {total}\n"
+                f"Errors: {errors} ({100 * errors / total:.1f}%)\n"
+                if total
+                else "Errors: 0\n"
+                f"Avg Duration: {avg_duration:.3f}s\n"
+                f"Max Duration: {max_duration:.3f}s",
+                title=f"Traffic Summary (last {minutes} min)",
+            )
+        )
 
 
 # ============== Log Output ==============
+
 
 def md_logs_table(logs: list[dict[str, Any]], title: str) -> None:
     """Output logs as markdown table."""
@@ -738,6 +796,7 @@ def rich_logs_table(logs: list[dict[str, Any]], title: str) -> None:
 
 # ============== Log Commands ==============
 
+
 def cmd_logs(minutes: int = 30) -> None:
     """Show recent application logs."""
     title = f"Application Logs (last {minutes} min)"
@@ -799,7 +858,9 @@ def cmd_logs_errors(minutes: int = 60) -> None:
         elif OUTPUT_FORMAT == "json":
             print(json.dumps(logs, indent=2, default=str))
         else:
-            console.print(f"[cyan]Fetching error logs from last {minutes} minutes...[/cyan]")
+            console.print(
+                f"[cyan]Fetching error logs from last {minutes} minutes...[/cyan]"
+            )
             if not logs:
                 console.print("[green]No error logs found[/green]")
                 return

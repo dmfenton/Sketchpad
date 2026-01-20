@@ -311,9 +311,7 @@ class TestPostToolUseHook:
         just like draw_paths and generate_svg. Without this, signatures appear
         instantly instead of being animated.
         """
-        agent = self._create_agent_with_paths(
-            [Path(type="svg", points=[], d="M 0 0 L 100 100")]
-        )
+        agent = self._create_agent_with_paths([Path(type="svg", points=[], d="M 0 0 L 100 100")])
         on_draw_mock = AsyncMock()
         agent.set_on_draw(on_draw_mock)
 

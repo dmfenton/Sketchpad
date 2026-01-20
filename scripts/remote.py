@@ -67,7 +67,9 @@ def docker_exec(cmd: str, timeout: int = 30) -> tuple[int, str, str]:
 def migrate():
     """Run database migrations."""
     print("Running migrations...")
-    code, stdout, stderr = docker_exec("uv run python -m alembic upgrade head", timeout=60)
+    code, stdout, stderr = docker_exec(
+        "uv run python -m alembic upgrade head", timeout=60
+    )
     print(stdout)
     if stderr:
         print(stderr, file=sys.stderr)
@@ -124,7 +126,9 @@ asyncio.run(create())
 def create_invite():
     """Create an invite code."""
     print("Creating invite code...")
-    code, stdout, stderr = docker_exec("uv run python -m drawing_agent.cli invite create")
+    code, stdout, stderr = docker_exec(
+        "uv run python -m drawing_agent.cli invite create"
+    )
     print(stdout)
     if stderr:
         print(stderr, file=sys.stderr)

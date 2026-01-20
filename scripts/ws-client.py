@@ -163,7 +163,9 @@ async def fetch_and_animate_strokes(token: str) -> int:
         if strokes:
             # Simulate animation time (100ms per stroke, max 2s)
             anim_time = min(len(strokes) * 0.1, 2.0)
-            print(f"{MAGENTA}[{ts()}] animating{RESET} {len(strokes)} strokes ({anim_time:.1f}s)")
+            print(
+                f"{MAGENTA}[{ts()}] animating{RESET} {len(strokes)} strokes ({anim_time:.1f}s)"
+            )
             await asyncio.sleep(anim_time)
         return len(strokes)
 
@@ -373,17 +375,42 @@ async def test(prompt: str, expected_strokes: int, timeout: int = 120):
         print(f"\n{GREEN}✓ PASS{RESET}")
         return True
     else:
-        print(f"\n{RED}✗ FAIL{RESET} (expected {expected_strokes}, got {actual_strokes})")
+        print(
+            f"\n{RED}✗ FAIL{RESET} (expected {expected_strokes}, got {actual_strokes})"
+        )
         return False
 
 
 def main():
     parser = argparse.ArgumentParser(description="Code Monet WebSocket client")
-    parser.add_argument("command", choices=["watch", "start", "pause", "resume", "nudge", "clear", "status", "view", "test"])
+    parser.add_argument(
+        "command",
+        choices=[
+            "watch",
+            "start",
+            "pause",
+            "resume",
+            "nudge",
+            "clear",
+            "status",
+            "view",
+            "test",
+        ],
+    )
     parser.add_argument("args", nargs="*", help="Command arguments")
-    parser.add_argument("--duration", "-d", type=int, default=60, help="Watch duration for start command")
-    parser.add_argument("--strokes", "-s", type=int, help="Expected stroke count for test command")
-    parser.add_argument("--timeout", "-t", type=int, default=120, help="Timeout for test command")
+    parser.add_argument(
+        "--duration",
+        "-d",
+        type=int,
+        default=60,
+        help="Watch duration for start command",
+    )
+    parser.add_argument(
+        "--strokes", "-s", type=int, help="Expected stroke count for test command"
+    )
+    parser.add_argument(
+        "--timeout", "-t", type=int, default=120, help="Timeout for test command"
+    )
 
     args = parser.parse_args()
 
@@ -410,11 +437,11 @@ def main():
         elif args.command == "test":
             if not args.args:
                 print(f"{RED}Error: test command requires a prompt{RESET}")
-                print("Usage: ws-client.py test \"prompt\" --strokes N")
+                print('Usage: ws-client.py test "prompt" --strokes N')
                 sys.exit(1)
             if args.strokes is None:
                 print(f"{RED}Error: test command requires --strokes{RESET}")
-                print("Usage: ws-client.py test \"prompt\" --strokes N")
+                print('Usage: ws-client.py test "prompt" --strokes N')
                 sys.exit(1)
             prompt = " ".join(args.args)
             success = asyncio.run(test(prompt, args.strokes, args.timeout))

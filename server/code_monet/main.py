@@ -276,6 +276,26 @@ def _render_user_png_sync(state: WorkspaceState, highlight_human: bool = True) -
     return buffer.getvalue()
 
 
+def _render_strokes_to_png_sync(strokes: list, width: int = 800, height: int = 600) -> bytes:
+    """Render strokes to PNG (synchronous, CPU-bound)."""
+    img = Image.new("RGB", (width, height), "#FFFFFF")
+    draw = ImageDraw.Draw(img)
+
+    for path in strokes:
+        points = path_to_point_list(path)
+        if len(points) >= 2:
+            draw.line(points, fill="#000000", width=2)
+
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+async def render_strokes_to_png(strokes: list, width: int = 800, height: int = 600) -> bytes:
+    """Render strokes to PNG (async, non-blocking)."""
+    return await asyncio.to_thread(_render_strokes_to_png_sync, strokes, width, height)
+
+
 async def render_user_png(state: WorkspaceState, highlight_human: bool = True) -> bytes:
     """Render user's canvas to PNG (async, non-blocking).
 
@@ -343,6 +363,43 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
     return [entry.model_dump() for entry in entries]
 
 
+@app.get("/gallery/thumbnail/{piece_id}.png")
+async def get_gallery_thumbnail(piece_id: str, user: CurrentUser) -> Response:
+    """Get gallery piece as thumbnail PNG. Requires auth.
+
+    Args:
+        piece_id: Gallery piece ID like "piece_000001"
+
+    Returns:
+        PNG image of the piece with long cache headers.
+    """
+    import re
+
+    # Validate and parse piece_id (e.g., "piece_000001" -> 1)
+    match = re.match(r"^piece_(\d+)$", piece_id)
+    if not match:
+        raise HTTPException(status_code=400, detail="Invalid piece_id format")
+
+    piece_number = int(match.group(1))
+
+    state = await get_user_state(user)
+    result = await state.load_from_gallery(piece_number)
+
+    if result is None:
+        raise HTTPException(status_code=404, detail="Piece not found")
+
+    strokes, _style = result
+    if not strokes:
+        raise HTTPException(status_code=404, detail="Piece has no strokes")
+
+    png_bytes = await render_strokes_to_png(strokes)
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=604800, immutable"},
+    )
+
+
 @app.get("/settings/gallery")
 async def get_gallery_settings(user: CurrentUser) -> dict[str, Any]:
     """Get user's gallery visibility settings."""
@@ -395,25 +452,22 @@ async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict
         if not gallery_dir.exists():
             continue
 
-        # Load gallery index
-        index_file = gallery_dir / "_index.json"
-        if index_file.exists():
+        # Scan piece files directly (async I/O to avoid blocking)
+        for entry_name in await aiofiles.os.listdir(gallery_dir):
+            if not entry_name.startswith("piece_") or not entry_name.endswith(".json"):
+                continue
             try:
-                index_data = json.loads(index_file.read_text())
-                # Handle both list format and {"pieces": [...]} format
-                entries = (
-                    index_data if isinstance(index_data, list) else index_data.get("pieces", [])
+                async with aiofiles.open(gallery_dir / entry_name) as f:
+                    data = json.loads(await f.read())
+                pieces.append(
+                    {
+                        "id": f"piece_{data.get('piece_number', 0):06d}",
+                        "user_id": str(user.id),
+                        "piece_number": data.get("piece_number", 0),
+                        "stroke_count": len(data.get("strokes", [])),
+                        "created_at": data.get("created_at", ""),
+                    }
                 )
-                for entry in entries:
-                    pieces.append(
-                        {
-                            "id": entry.get("id", ""),
-                            "user_id": str(user.id),
-                            "piece_number": entry.get("piece_number", 0),
-                            "stroke_count": entry.get("stroke_count", 0),
-                            "created_at": entry.get("created_at", ""),
-                        }
-                    )
             except (json.JSONDecodeError, OSError):
                 pass
 
@@ -578,31 +632,34 @@ async def get_sitemap() -> Response:
 
         for user in public_users:
             gallery_dir = workspace_base / str(user.id) / "gallery"
-            index_file = gallery_dir / "_index.json"
-            if index_file.exists():
+            if not gallery_dir.exists():
+                continue
+
+            # Scan piece files directly (async I/O to avoid blocking)
+            for entry_name in await aiofiles.os.listdir(gallery_dir):
+                if not entry_name.startswith("piece_") or not entry_name.endswith(".json"):
+                    continue
                 try:
-                    index_data = json.loads(index_file.read_text())
-                    entries = (
-                        index_data if isinstance(index_data, list) else index_data.get("pieces", [])
-                    )
-                    for entry in entries:
-                        piece_id = entry.get("id", "")
-                        created_at = entry.get("created_at", "")
-                        if piece_id:
-                            url_entry: dict[str, Any] = {
-                                "loc": f"{base_url}/gallery/{user.id}/{piece_id}",
-                                "priority": "0.6",
-                                "changefreq": "monthly",
-                            }
-                            # Add lastmod if we have created_at
-                            if created_at:
-                                try:
-                                    # Parse and format date
-                                    dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-                                    url_entry["lastmod"] = dt.strftime("%Y-%m-%d")
-                                except ValueError:
-                                    pass
-                            urls.append(url_entry)
+                    async with aiofiles.open(gallery_dir / entry_name) as f:
+                        data = json.loads(await f.read())
+                    piece_number = data.get("piece_number", 0)
+                    piece_id = f"piece_{piece_number:06d}"
+                    created_at = data.get("created_at", "")
+
+                    url_entry: dict[str, Any] = {
+                        "loc": f"{base_url}/gallery/{user.id}/{piece_id}",
+                        "priority": "0.6",
+                        "changefreq": "monthly",
+                    }
+                    # Add lastmod if we have created_at
+                    if created_at:
+                        try:
+                            # Parse and format date
+                            dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                            url_entry["lastmod"] = dt.strftime("%Y-%m-%d")
+                        except ValueError:
+                            pass
+                    urls.append(url_entry)
                 except (json.JSONDecodeError, OSError):
                     pass
 
@@ -905,7 +962,7 @@ async def debug_log_session(request: Request) -> dict[str, Any]:
     session_id = data.get("session_id", "unknown")
     timestamp = datetime.now().isoformat()
 
-    marker = f"\n{'='*60}\n[SESSION START] {session_id} at {timestamp}\n{'='*60}\n"
+    marker = f"\n{'=' * 60}\n[SESSION START] {session_id} at {timestamp}\n{'=' * 60}\n"
     async with aiofiles.open(BROWSER_LOG_FILE, "a") as f:
         await f.write(marker)
     return {"ok": True, "session_id": session_id}
