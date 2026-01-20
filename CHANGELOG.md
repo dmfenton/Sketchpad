@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Gallery listing now scans piece files directly instead of using `_index.json` index file
+- Simplified gallery architecture by removing redundant state tracking
+
 ## [1.29.0] - 2026-01-20
 
 ### Added

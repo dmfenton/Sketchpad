@@ -456,12 +456,13 @@ async def get_public_gallery(limit: int = Query(default=12, le=50)) -> list[dict
         if not gallery_dir.exists():
             continue
 
-        # Scan piece files directly
-        for entry in gallery_dir.iterdir():
-            if not entry.name.startswith("piece_") or not entry.name.endswith(".json"):
+        # Scan piece files directly (async I/O to avoid blocking)
+        for entry_name in await aiofiles.os.listdir(gallery_dir):
+            if not entry_name.startswith("piece_") or not entry_name.endswith(".json"):
                 continue
             try:
-                data = json.loads(entry.read_text())
+                async with aiofiles.open(gallery_dir / entry_name) as f:
+                    data = json.loads(await f.read())
                 pieces.append(
                     {
                         "id": f"piece_{data.get('piece_number', 0):06d}",
@@ -638,12 +639,13 @@ async def get_sitemap() -> Response:
             if not gallery_dir.exists():
                 continue
 
-            # Scan piece files directly
-            for entry in gallery_dir.iterdir():
-                if not entry.name.startswith("piece_") or not entry.name.endswith(".json"):
+            # Scan piece files directly (async I/O to avoid blocking)
+            for entry_name in await aiofiles.os.listdir(gallery_dir):
+                if not entry_name.startswith("piece_") or not entry_name.endswith(".json"):
                     continue
                 try:
-                    data = json.loads(entry.read_text())
+                    async with aiofiles.open(gallery_dir / entry_name) as f:
+                        data = json.loads(await f.read())
                     piece_number = data.get("piece_number", 0)
                     piece_id = f"piece_{piece_number:06d}"
                     created_at = data.get("created_at", "")
