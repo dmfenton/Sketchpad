@@ -7,11 +7,16 @@ export interface StrokePoint {
   y: number;
 }
 
+export type PathDataType = 'line' | 'quadratic' | 'cubic' | 'polyline' | 'svg';
+
 export interface PathData {
-  type: string;
+  type: PathDataType;
   points?: StrokePoint[];
   d?: string;
   author?: string;
+  color?: string;
+  stroke_width?: number;
+  opacity?: number;
 }
 
 export interface GalleryPiece {

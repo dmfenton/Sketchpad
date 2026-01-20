@@ -33,11 +33,16 @@ export interface PieceStrokesData {
   created_at: string;
 }
 
+export type PathDataType = 'line' | 'quadratic' | 'cubic' | 'polyline' | 'svg';
+
 export interface PathData {
-  type: string;
+  type: PathDataType;
   points?: { x: number; y: number }[];
   d?: string;
   author?: string;
+  color?: string;
+  stroke_width?: number;
+  opacity?: number;
 }
 
 export interface RenderResult {
