@@ -113,7 +113,7 @@ async def process_turn_messages(
         # Check for abort
         if is_aborted():
             logger.info("Turn aborted - new canvas requested")
-            return TurnResult(thinking=all_thinking, done=False, aborted=True)
+            return TurnResult(thinking=all_thinking, aborted=True)
 
         if isinstance(message, StreamEvent):
             # Handle streaming events for real-time text
