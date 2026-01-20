@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { getApiUrl } from '../config';
-import { LiveCanvas, ThoughtStream, GalleryItem, GalleryPiece } from './homepage';
+import { LiveCanvas, ThoughtStream, GalleryItem, GalleryPiece } from './homepage/index';
 
 interface HomepageProps {
   onEnter: () => void;

@@ -248,7 +248,7 @@ describe('Render Flow - Live Message Management', () => {
       iteration: 1,
     });
 
-    // Live message should be finalized (no longer has LIVE_MESSAGE_ID)
+    // Live message should be finalized immediately (no longer has LIVE_MESSAGE_ID)
     const liveMessage = state.messages.find((m) => m.id === LIVE_MESSAGE_ID);
     expect(liveMessage).toBeUndefined();
 

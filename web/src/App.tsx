@@ -48,7 +48,23 @@ function App(): React.ReactElement {
   // Gate on: not paused AND no in-progress tool calls
   // This ensures tool completion events are shown before animation starts,
   // but allows animation while agent is thinking (so it's not blocked forever)
-  const canRenderStrokes = !state.paused && !hasInProgressEvents(state.messages);
+  const inProgressEvents = hasInProgressEvents(state.messages);
+  const canRenderStrokes = !state.paused && !inProgressEvents;
+
+  // Debug logging for stroke rendering
+  console.log('[DEBUG] Stroke state:', {
+    pendingStrokes: state.pendingStrokes,
+    paused: state.paused,
+    inProgressEvents,
+    canRenderStrokes,
+    strokeCount: state.strokes.length,
+    messages: state.messages.map((m) => ({
+      type: m.type,
+      tool: m.metadata?.tool_name,
+      returnCode: m.metadata?.return_code,
+    })),
+  });
+
   useStrokeAnimation({
     pendingStrokes: state.pendingStrokes,
     dispatch,

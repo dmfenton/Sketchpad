@@ -18,6 +18,8 @@ export interface UseStrokeAnimationOptions {
   dispatch: (action: CanvasAction) => void;
   /** Function to fetch pending strokes from server */
   fetchStrokes: () => Promise<PendingStroke[]>;
+  /** Function to signal animation complete to server */
+  onAnimationDone?: () => void;
   /** Delay between animation frames in ms (default: 16.67ms / 60fps) */
   frameDelayMs?: number;
   /** Gate for rendering - strokes wait until this is true (default: true) */
@@ -44,6 +46,7 @@ export function useStrokeAnimation({
   pendingStrokes,
   dispatch,
   fetchStrokes,
+  onAnimationDone,
   frameDelayMs = 1000 / 60,
   canRender = true,
   renderDelayMs = 800,
@@ -52,8 +55,8 @@ export function useStrokeAnimation({
   const rendererRef = useRef<StrokeRenderer | null>(null);
 
   // Track the latest dependencies to avoid stale closures
-  const depsRef = useRef({ dispatch, fetchStrokes, frameDelayMs, renderDelayMs });
-  depsRef.current = { dispatch, fetchStrokes, frameDelayMs, renderDelayMs };
+  const depsRef = useRef({ dispatch, fetchStrokes, onAnimationDone, frameDelayMs, renderDelayMs });
+  depsRef.current = { dispatch, fetchStrokes, onAnimationDone, frameDelayMs, renderDelayMs };
 
   // Track if we're waiting to render (pendingStrokes set but canRender is false)
   const waitingToRenderRef = useRef<number | null>(null);
@@ -66,6 +69,7 @@ export function useStrokeAnimation({
     rendererRef.current = new StrokeRenderer({
       fetchStrokes: () => depsRef.current.fetchStrokes(),
       dispatch: (action) => depsRef.current.dispatch(action),
+      onAnimationDone: () => depsRef.current.onAnimationDone?.(),
       frameDelayMs: depsRef.current.frameDelayMs,
       log: console.log,
     });

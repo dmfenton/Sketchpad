@@ -631,6 +631,10 @@ export interface ClientSetStyleMessage {
   drawing_style: DrawingStyleType;
 }
 
+export interface ClientAnimationDoneMessage {
+  type: 'animation_done';
+}
+
 export type ClientMessage =
   | ClientStrokeMessage
   | ClientNudgeMessage
@@ -639,7 +643,8 @@ export type ClientMessage =
   | ClientResumeMessage
   | ClientNewCanvasMessage
   | ClientLoadCanvasMessage
-  | ClientSetStyleMessage;
+  | ClientSetStyleMessage
+  | ClientAnimationDoneMessage;
 
 // Agent message types for MessageStream component
 export type AgentMessageType =

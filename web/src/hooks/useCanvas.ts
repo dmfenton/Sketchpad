@@ -29,13 +29,17 @@ export function useCanvas(): UseCanvasReturn {
   const [state, dispatch] = useReducer(canvasReducer, initialState);
 
   const handleMessage = useCallback((message: ServerMessage) => {
-    // Debug logging for stroke-related messages
-    if (
-      message.type === 'human_stroke' ||
-      message.type === 'init' ||
-      message.type === 'agent_strokes_ready'
-    ) {
-      console.log('[useCanvas] Received:', message.type, message);
+    // Debug logging for all messages
+    if (message.type === 'thinking_delta') {
+      const delta = message as { text: string };
+      console.log(`[WS] thinking_delta: "${delta.text.slice(0, 50)}..." (len=${delta.text.length})`);
+    } else if (message.type === 'agent_strokes_ready') {
+      console.log('[WS] agent_strokes_ready:', message);
+    } else if (message.type === 'code_execution') {
+      const exec = message as { status: string; tool_name?: string };
+      console.log(`[WS] code_execution: ${exec.tool_name} status=${exec.status}`);
+    } else {
+      console.log('[WS] message:', message.type);
     }
     routeMessage(message, dispatch);
   }, []);

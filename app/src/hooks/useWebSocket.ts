@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ClientMessage, ServerMessage } from '@code-monet/shared';
 
+import { debugWS } from '../utils/debugLog';
 import { tracer } from '../utils/tracing';
 
 export interface WebSocketState {
@@ -111,7 +112,21 @@ export function useWebSocket({
       ws.onmessage = (event: MessageEvent<string>) => {
         try {
           const message = JSON.parse(event.data) as ServerMessage;
-          console.log('[WebSocket] Message:', message.type);
+
+          // Detailed logging for debugging
+          if (message.type === 'thinking_delta') {
+            const delta = message as { type: string; text: string };
+            debugWS(`thinking_delta: "${delta.text.slice(0, 50)}..." (len=${delta.text.length})`);
+          } else if (message.type === 'agent_strokes_ready') {
+            const ready = message as { type: string; count: number; batch_id: number };
+            debugWS(`agent_strokes_ready: count=${ready.count} batch=${ready.batch_id}`);
+          } else if (message.type === 'code_execution') {
+            const exec = message as { type: string; status: string; tool_name?: string };
+            debugWS(`code_execution: ${exec.tool_name} status=${exec.status}`);
+          } else {
+            debugWS(`message: ${message.type}`);
+          }
+
           onMessageRef.current(message);
         } catch (e) {
           console.error('Failed to handle message:', e, '\nData:', event.data.substring(0, 200));

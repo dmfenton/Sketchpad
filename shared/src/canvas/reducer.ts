@@ -66,8 +66,9 @@ export function hasInProgressEvents(messages: AgentMessage[]): boolean {
   }
 
   return messages.some((m) => {
-    // Live thinking = still streaming, not yet finalized
-    if (m.id === LIVE_MESSAGE_ID) return true;
+    // NOTE: We allow strokes to render while thinking (live message exists)
+    // Only block during code execution to ensure tool status is shown first
+    // This allows parallel display of thinking + stroke animation
 
     // Code execution without return_code = check if completed message exists
     if (m.type === 'code_execution' && m.metadata?.return_code === undefined) {
@@ -212,6 +213,9 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         agentStroke: [],
         agentStrokeStyle: null,
         viewingPiece: null,
+        pendingStrokes: null,
+        messages: [],
+        thinking: '',
       };
 
     case 'START_STROKE':
@@ -361,6 +365,13 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         viewingPiece: null, // Init shows current canvas
         drawingStyle: initStyle,
         styleConfig: initStyleConfig,
+        // Reset transient state on init
+        pendingStrokes: null,
+        messages: [],
+        thinking: '',
+        currentStroke: [],
+        agentStroke: [],
+        agentStrokeStyle: null,
       };
     }
 

@@ -4,7 +4,7 @@
  */
 
 import * as Linking from 'expo-linking';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,12 +18,15 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { PendingStroke, ToolName } from '@code-monet/shared';
+import type { ClientMessage, PendingStroke, ToolName } from '@code-monet/shared';
 import {
   deriveAgentStatus,
+  forwardLogs,
   hasInProgressEvents,
+  initLogForwarder,
   LIVE_MESSAGE_ID,
   shouldShowIdleAnimation,
+  startLogSession,
   useStrokeAnimation,
 } from '@code-monet/shared';
 
@@ -59,6 +62,9 @@ function MainApp(): React.JSX.Element {
   const canvas = useCanvas();
   const paused = canvas.state.paused;
 
+  // Ref to store send function for animation done callback (avoids hook ordering issues)
+  const sendRef = useRef<((message: ClientMessage) => void) | null>(null);
+
   // canvas.handleMessage is already stable (useCallback with [])
   const { handleMessage, dispatch } = canvas;
 
@@ -93,6 +99,11 @@ function MainApp(): React.JSX.Element {
     return null;
   }, [canvas.state.messages]);
 
+  // Callback to signal animation complete to server
+  const handleAnimationDone = useCallback(() => {
+    sendRef.current?.({ type: 'animation_done' });
+  }, []);
+
   // Use shared animation hook for agent-drawn strokes
   // Gate on: not paused AND no in-progress tool calls
   // This ensures tool completion events are shown before animation starts,
@@ -102,6 +113,7 @@ function MainApp(): React.JSX.Element {
     pendingStrokes: canvas.state.pendingStrokes,
     dispatch,
     fetchStrokes,
+    onAnimationDone: handleAnimationDone,
     canRender: canRenderStrokes,
   });
 
@@ -118,6 +130,11 @@ function MainApp(): React.JSX.Element {
     onMessage: handleMessage,
     onAuthError: handleAuthError,
   });
+
+  // Keep sendRef in sync with send for animation done callback
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
 
   const handleDrawToggle = useCallback(() => {
     canvas.toggleDrawing();
@@ -451,8 +468,15 @@ function AppContent(): React.JSX.Element {
 }
 
 export default function App(): React.JSX.Element {
-  // Initialize tracing on app mount
+  // Initialize tracing and log forwarding on app mount
   useEffect(() => {
+    // Initialize log forwarder (only in dev mode)
+    if (__DEV__) {
+      initLogForwarder(getApiUrl());
+      forwardLogs();
+      void startLogSession('app-start');
+    }
+
     // Record app launch
     tracer.recordEvent('app.launch');
 
