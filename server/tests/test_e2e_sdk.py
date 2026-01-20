@@ -18,7 +18,7 @@ import pytest
 
 from code_monet.agent import DrawingAgent
 from code_monet.types import AgentTurnComplete, DrawingStyleType
-from code_monet.workspace_state import WorkspaceState
+from code_monet.workspace import WorkspaceState
 
 # Mark all tests as e2e (excluded from default pytest run, use -m e2e to include)
 pytestmark = pytest.mark.e2e

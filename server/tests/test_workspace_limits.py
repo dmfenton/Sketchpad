@@ -3,7 +3,7 @@
 import pytest
 
 from code_monet.types import Path, PathType, Point
-from code_monet.workspace_state import WorkspaceState
+from code_monet.workspace import WorkspaceState
 
 
 @pytest.fixture

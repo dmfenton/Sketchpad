@@ -15,7 +15,7 @@ from code_monet.canvas import path_to_point_list, render_path_to_svg_d
 from code_monet.config import settings
 from code_monet.db import CanvasShare, get_session, repository
 from code_monet.types import Path
-from code_monet.workspace_state import WorkspaceState
+from code_monet.workspace import WorkspaceState
 
 router = APIRouter(prefix="/s", tags=["share"])
 

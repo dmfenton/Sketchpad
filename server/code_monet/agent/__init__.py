@@ -42,7 +42,7 @@ from code_monet.types import (
 )
 
 if TYPE_CHECKING:
-    from code_monet.workspace_state import WorkspaceState
+    from code_monet.workspace import WorkspaceState
 
 
 # Public exports (backward compat)

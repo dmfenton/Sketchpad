@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Refactored `workspace_state.py` into modular `workspace/` package with 4 focused modules
 - Refactored `types.py` into modular `types/` package with 6 focused modules
 - Refactored `main.py` routes into modular `routes/` package with 11 focused modules
 - Refactored `tools.py` into modular `tools/` package with focused submodules for maintainability

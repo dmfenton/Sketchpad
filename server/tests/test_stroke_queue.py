@@ -6,7 +6,7 @@ import pytest
 
 from code_monet.types import Path as DrawPath
 from code_monet.types import Point
-from code_monet.workspace_state import WorkspaceState
+from code_monet.workspace import WorkspaceState
 
 
 class TestWorkspaceStateStrokeQueue:

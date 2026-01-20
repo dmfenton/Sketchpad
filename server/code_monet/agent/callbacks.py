@@ -16,7 +16,7 @@ from code_monet.tools import (
 
 if TYPE_CHECKING:
     from code_monet.types import Path
-    from code_monet.workspace_state import WorkspaceState
+    from code_monet.workspace import WorkspaceState
 
 
 def setup_tool_callbacks(
