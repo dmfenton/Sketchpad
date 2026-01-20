@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Agent uses Claude Haiku in dev mode for cost reduction, Opus in production
+- Agent loop only runs on explicit user actions (nudge, resume, new_canvas) - no automatic retries
+
 ## [1.28.0] - 2026-01-19
 
 ### Added
