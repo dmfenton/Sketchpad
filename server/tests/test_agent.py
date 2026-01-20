@@ -304,6 +304,26 @@ class TestPostToolUseHook:
         assert agent._piece_done is True
 
     @pytest.mark.asyncio
+    async def test_hook_calls_on_draw_for_sign_canvas(self) -> None:
+        """Hook calls _on_draw when sign_canvas tool completes with collected paths.
+
+        Regression test: sign_canvas generates signature paths that must be animated
+        just like draw_paths and generate_svg. Without this, signatures appear
+        instantly instead of being animated.
+        """
+        agent = self._create_agent_with_paths(
+            [Path(type="svg", points=[], d="M 0 0 L 100 100")]
+        )
+        on_draw_mock = AsyncMock()
+        agent.set_on_draw(on_draw_mock)
+
+        input_data = {"tool_name": "mcp__drawing__sign_canvas", "tool_input": {}}
+        await agent._post_tool_use_hook(input_data, None, MagicMock())
+
+        on_draw_mock.assert_called_once()
+        assert len(agent._collected_paths) == 0  # Cleared after draw
+
+    @pytest.mark.asyncio
     async def test_hook_ignores_other_tools(self) -> None:
         """Hook does not trigger drawing for unrelated tools."""
         agent = self._create_agent_with_paths(
