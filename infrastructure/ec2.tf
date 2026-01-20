@@ -125,8 +125,8 @@ resource "aws_instance" "main" {
   # Allow containers on bridge network to access instance metadata (for SSM)
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "required"  # IMDSv2
-    http_put_response_hop_limit = 2           # Allow containers to reach IMDS
+    http_tokens                 = "required" # IMDSv2
+    http_put_response_hop_limit = 2          # Allow containers to reach IMDS
   }
 
   root_block_device {
@@ -139,7 +139,10 @@ resource "aws_instance" "main" {
     }
   }
 
-  user_data = file("${path.module}/user_data.sh")
+  user_data = templatefile("${path.module}/user_data.sh", {
+    domain       = "monet.${var.domain_name}"
+    alert_email  = var.alert_email
+  })
 
   tags = {
     Name = "drawing-agent"

@@ -13,13 +13,29 @@ Usage:
 
 import sys
 import time
+from functools import lru_cache
 
 import boto3
 
 # Configuration
 REGION = "us-east-1"
-INSTANCE_ID = "i-03b732d0f345beb3e"
 CONTAINER = "drawing-agent"
+
+
+@lru_cache(maxsize=1)
+def get_instance_id() -> str:
+    """Fetch EC2 instance ID by Name tag (drawing-agent)."""
+    ec2 = boto3.client("ec2", region_name=REGION)
+    response = ec2.describe_instances(
+        Filters=[
+            {"Name": "tag:Name", "Values": ["drawing-agent"]},
+            {"Name": "instance-state-name", "Values": ["running"]},
+        ]
+    )
+    for reservation in response["Reservations"]:
+        for instance in reservation["Instances"]:
+            return instance["InstanceId"]
+    raise RuntimeError("No running instance found with Name=drawing-agent")
 
 
 def get_ssm_client():
@@ -29,9 +45,10 @@ def get_ssm_client():
 def run_command(command: str, timeout: int = 30) -> tuple[int, str, str]:
     """Run a command on the EC2 instance via SSM."""
     ssm = get_ssm_client()
+    instance_id = get_instance_id()
 
     response = ssm.send_command(
-        InstanceIds=[INSTANCE_ID],
+        InstanceIds=[instance_id],
         DocumentName="AWS-RunShellScript",
         Parameters={"commands": [command]},
         TimeoutSeconds=timeout,
@@ -45,7 +62,7 @@ def run_command(command: str, timeout: int = 30) -> tuple[int, str, str]:
         try:
             result = ssm.get_command_invocation(
                 CommandId=command_id,
-                InstanceId=INSTANCE_ID,
+                InstanceId=instance_id,
             )
             if result["Status"] in ("Success", "Failed", "Cancelled", "TimedOut"):
                 return (

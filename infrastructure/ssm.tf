@@ -19,7 +19,7 @@ locals {
 
   # Dev config overrides
   dev_config = {
-    "apple-team-id" = "NONE"  # SSM doesn't allow empty strings
+    "apple-team-id" = "NONE" # SSM doesn't allow empty strings
     "database-url"  = "sqlite+aiosqlite:///./data/drawing_agent.db"
   }
 }
@@ -97,6 +97,55 @@ resource "aws_ssm_parameter" "dev_config" {
 }
 
 # =============================================================================
+# SSL Certificate Parameters (persisted to survive instance replacement)
+# =============================================================================
+
+resource "aws_ssm_parameter" "ssl_fullchain" {
+  name        = "${local.ssm_prefix}/ssl/fullchain"
+  description = "SSL certificate fullchain.pem (Let's Encrypt)"
+  type        = "SecureString"
+  value       = "PLACEHOLDER"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = {
+    Type = "ssl"
+  }
+}
+
+resource "aws_ssm_parameter" "ssl_privkey" {
+  name        = "${local.ssm_prefix}/ssl/privkey"
+  description = "SSL certificate private key (Let's Encrypt)"
+  type        = "SecureString"
+  value       = "PLACEHOLDER"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = {
+    Type = "ssl"
+  }
+}
+
+resource "aws_ssm_parameter" "ssl_cert_timestamp" {
+  name        = "${local.ssm_prefix}/ssl/cert-timestamp"
+  description = "SSL certificate last update timestamp"
+  type        = "String"
+  value       = "never"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = {
+    Type = "ssl"
+  }
+}
+
+# =============================================================================
 # Umami Analytics Parameters
 # =============================================================================
 
@@ -155,9 +204,32 @@ resource "aws_iam_role_policy" "ec2_ssm_parameters" {
         ]
       },
       {
-        Sid    = "DecryptSecrets"
+        Sid    = "ReadWriteSslParameters"
         Effect = "Allow"
-        Action = ["kms:Decrypt"]
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:PutParameter"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:*:parameter${local.ssm_prefix}/ssl/*"
+        ]
+      },
+      {
+        Sid      = "DecryptSecrets"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
+      },
+      {
+        Sid      = "EncryptSecrets"
+        Effect   = "Allow"
+        Action   = ["kms:Encrypt", "kms:GenerateDataKey"]
         Resource = "*"
         Condition = {
           StringEquals = {
