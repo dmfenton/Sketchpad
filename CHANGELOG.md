@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Static Open Graph image (1200x630) for improved social media link previews
+- Complete Open Graph and Twitter Card meta tags with image dimensions and alt text
+
 ### Changed
 
 - App now pauses agent and returns to home screen when going to background

@@ -61,9 +61,13 @@ function HomepageRoute({ initialData }: { initialData?: SSRData }): React.ReactE
           content="Watch as artificial intelligence creates original artwork, stroke by stroke. Each piece emerges from a continuous stream of creative consciousness."
         />
         <meta property="og:type" content="website" />
-        <meta property="og:image" content="/og-image.png" />
+        <meta property="og:image" content="https://monet.dmfenton.net/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Code Monet - AI-Powered Generative Art" />
         <meta property="og:url" content="https://monet.dmfenton.net/" />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://monet.dmfenton.net/og-image.png" />
         <link rel="canonical" href="https://monet.dmfenton.net/" />
       </Helmet>
       <Homepage onEnter={handleEnter} initialGalleryPieces={initialData?.galleryPieces} />
@@ -86,8 +90,13 @@ function GalleryRoute({ initialData }: { initialData?: SSRData }): React.ReactEl
           content="Original artwork created by an autonomous AI artist. Browse the ever-growing collection of AI-generated paintings."
         />
         <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://monet.dmfenton.net/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Code Monet - AI-Powered Generative Art" />
         <meta property="og:url" content="https://monet.dmfenton.net/gallery" />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://monet.dmfenton.net/og-image.png" />
         <link rel="canonical" href="https://monet.dmfenton.net/gallery" />
       </Helmet>
       <GalleryPage initialGalleryPieces={initialData?.galleryPieces} />
@@ -118,6 +127,8 @@ function GalleryPieceRoute({ initialData }: { initialData?: SSRData }): React.Re
         <meta property="og:description" content={description} />
         <meta property="og:type" content="article" />
         <meta property="og:image" content={ogImageUrl} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <meta
           property="og:url"
           content={`https://monet.dmfenton.net/gallery/${userId}/${pieceId}`}
