@@ -58,30 +58,51 @@ export function pointsToPath(points: StrokePoint[], progress: number): string {
 }
 
 /**
- * Convert server path data to SVG path string
+ * Convert server path data to SVG path string.
+ * Matches the rendering behavior of Canvas.tsx pathToSvgD.
  */
 export function pathDataToSvg(path: PathData, scale: number = 1): string {
+  // SVG paths with 'd' attribute - scale coordinates
   if (path.d) {
     if (scale === 1) return path.d;
     return path.d.replace(/[\d.]+/g, (match) => String(parseFloat(match) * scale));
   }
 
-  if (path.points && path.points.length >= 2) {
-    const pts = path.points;
-    let d = `M ${pts[0].x * scale} ${pts[0].y * scale}`;
+  if (!path.points || path.points.length === 0) return '';
 
-    if (path.type === 'line' && pts.length === 2) {
-      d += ` L ${pts[1].x * scale} ${pts[1].y * scale}`;
-    } else {
-      for (let i = 1; i < pts.length; i++) {
-        const prev = pts[i - 1];
-        const curr = pts[i];
-        const midX = ((prev.x + curr.x) / 2) * scale;
-        const midY = ((prev.y + curr.y) / 2) * scale;
-        d += ` Q ${prev.x * scale} ${prev.y * scale} ${midX} ${midY}`;
+  const pts = path.points;
+  const s = scale; // shorthand
+
+  switch (path.type) {
+    case 'line':
+      if (pts.length >= 2) {
+        return `M ${pts[0].x * s} ${pts[0].y * s} L ${pts[1].x * s} ${pts[1].y * s}`;
       }
-    }
-    return d;
+      break;
+
+    case 'quadratic':
+      if (pts.length >= 3) {
+        return `M ${pts[0].x * s} ${pts[0].y * s} Q ${pts[1].x * s} ${pts[1].y * s} ${pts[2].x * s} ${pts[2].y * s}`;
+      }
+      break;
+
+    case 'cubic':
+      if (pts.length >= 4) {
+        return `M ${pts[0].x * s} ${pts[0].y * s} C ${pts[1].x * s} ${pts[1].y * s} ${pts[2].x * s} ${pts[2].y * s} ${pts[3].x * s} ${pts[3].y * s}`;
+      }
+      break;
+
+    case 'polyline':
+    default:
+      // Polyline: straight line segments between points
+      if (pts.length >= 2) {
+        let d = `M ${pts[0].x * s} ${pts[0].y * s}`;
+        for (let i = 1; i < pts.length; i++) {
+          d += ` L ${pts[i].x * s} ${pts[i].y * s}`;
+        }
+        return d;
+      }
+      break;
   }
 
   return '';

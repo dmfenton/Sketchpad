@@ -135,11 +135,11 @@ export function LiveCanvas(): React.ReactElement {
               key={i}
               d={pathDataToSvg(stroke, 0.5)}
               fill="none"
-              stroke={stroke.author === 'human' ? '#6a9fb5' : '#2c3e50'}
-              strokeWidth={2}
+              stroke={stroke.color ?? (stroke.author === 'human' ? '#6a9fb5' : '#2c3e50')}
+              strokeWidth={(stroke.stroke_width ?? 8) * 0.5}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.85}
+              opacity={stroke.opacity ?? 0.85}
             />
           ))
       ) : (

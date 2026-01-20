@@ -71,10 +71,10 @@ export function GalleryItem({ piece, index, delay }: GalleryItemProps): React.Re
                     key={i}
                     d={pathDataToSvg(stroke, 100 / 800)}
                     fill="none"
-                    stroke={stroke.author === 'human' ? '#6a9fb5' : '#2c3e50'}
-                    strokeWidth={1}
+                    stroke={stroke.color ?? (stroke.author === 'human' ? '#6a9fb5' : '#2c3e50')}
+                    strokeWidth={(stroke.stroke_width ?? 8) * (100 / 800)}
                     strokeLinecap="round"
-                    opacity={0.8}
+                    opacity={stroke.opacity ?? 0.8}
                   />
                 ))
             : fallbackStrokes.map((stroke, i) => (

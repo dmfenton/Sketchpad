@@ -12,6 +12,9 @@ export interface PathData {
   points?: StrokePoint[];
   d?: string;
   author?: string;
+  color?: string;
+  stroke_width?: number;
+  opacity?: number;
 }
 
 export interface GalleryPiece {
