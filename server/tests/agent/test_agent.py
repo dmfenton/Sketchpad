@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from PIL import Image
 
-from code_monet.agent import DrawingAgent, extract_tool_name
+from code_monet.agent import DrawingAgent
 from code_monet.types import AgentTurnComplete, DrawingStyleType, Path, Point
 
 
@@ -179,41 +179,6 @@ class TestDrawingAgentContainerManagement:
         agent.reset_container()
         assert agent._abort is True
         # Client disconnect happens async - just verify abort is set
-
-
-class TestExtractToolName:
-    """Tests for extract_tool_name helper function."""
-
-    def test_extract_from_dict(self) -> None:
-        """Extract tool_name from a dict (runtime SDK format)."""
-        input_data = {"tool_name": "mcp__drawing__draw_paths", "tool_input": {}}
-        assert extract_tool_name(input_data) == "mcp__drawing__draw_paths"
-
-    def test_extract_from_dict_missing_key(self) -> None:
-        """Return empty string when tool_name key is missing."""
-        input_data: dict[str, Any] = {"tool_input": {}}
-        assert extract_tool_name(input_data) == ""
-
-    def test_extract_from_dict_none_value(self) -> None:
-        """Return empty string when tool_name is None."""
-        input_data: dict[str, Any] = {"tool_name": None}
-        assert extract_tool_name(input_data) == ""
-
-    def test_extract_from_dict_empty_string(self) -> None:
-        """Return empty string when tool_name is empty."""
-        input_data = {"tool_name": ""}
-        assert extract_tool_name(input_data) == ""
-
-    def test_extract_from_object(self) -> None:
-        """Extract tool_name from an object with attributes."""
-        mock_input = MagicMock()
-        mock_input.tool_name = "mcp__drawing__generate_svg"
-        assert extract_tool_name(mock_input) == "mcp__drawing__generate_svg"
-
-    def test_extract_from_object_missing_attr(self) -> None:
-        """Return empty string when object lacks tool_name attribute."""
-        mock_input = MagicMock(spec=[])  # No attributes
-        assert extract_tool_name(mock_input) == ""
 
 
 class TestPostToolUseHook:
