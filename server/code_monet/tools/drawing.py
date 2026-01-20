@@ -127,21 +127,28 @@ async def handle_view_canvas() -> dict[str, Any]:
             "is_error": True,
         }
 
-    png_bytes = _get_canvas_callback()
-    image_b64 = base64.standard_b64encode(png_bytes).decode("utf-8")
+    try:
+        png_bytes = _get_canvas_callback()
+        image_b64 = base64.standard_b64encode(png_bytes).decode("utf-8")
 
-    return {
-        "content": [
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": image_b64,
-                },
-            }
-        ],
-    }
+        return {
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/png",
+                        "data": image_b64,
+                    },
+                }
+            ],
+        }
+    except Exception as e:
+        logger.warning(f"Failed to get canvas image: {e}")
+        return {
+            "content": [{"type": "text", "text": f"Error: Failed to render canvas: {e}"}],
+            "is_error": True,
+        }
 
 
 @tool(
