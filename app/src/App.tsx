@@ -139,11 +139,15 @@ function MainApp(): React.JSX.Element {
     sendRef.current = send;
   }, [send]);
 
+  // Track paused state in ref for AppState callback (avoids stale closure)
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+
   // Pause agent and return to home when app goes to background
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'background') {
-        if (!canvas.state.paused) {
+        if (!pausedRef.current) {
           send({ type: 'pause' });
           canvas.setPaused(true);
         }
@@ -151,7 +155,7 @@ function MainApp(): React.JSX.Element {
       }
     });
     return () => subscription.remove();
-  }, [send, canvas]);
+  }, [send, canvas.setPaused]);
 
   const handleDrawToggle = useCallback(() => {
     canvas.toggleDrawing();
@@ -358,7 +362,7 @@ function MainApp(): React.JSX.Element {
             </>
           ) : (
             <KeyboardAvoidingView
-              style={{ flex: 1 }}
+              style={styles.keyboardView}
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
               keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
             >
@@ -585,5 +589,8 @@ const styles = StyleSheet.create({
   canvasContainer: {
     flex: 1,
     justifyContent: 'center',
+  },
+  keyboardView: {
+    flex: 1,
   },
 });
