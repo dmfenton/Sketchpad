@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- App now pauses agent and returns to home screen when going to background
+
+### Fixed
+
+- Stroke animation no longer triggers on home screen (was firing behind HomePanel)
+- Server no longer sends `agent_strokes_ready` notification when agent is paused
+
 ## [1.29.1] - 2026-01-20
 
 ### Changed

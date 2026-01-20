@@ -110,7 +110,8 @@ function MainApp(): React.JSX.Element {
   // Gate on: not paused AND no in-progress tool calls
   // This ensures tool completion events are shown before animation starts,
   // but allows animation while agent is thinking (so it's not blocked forever)
-  const canRenderStrokes = !canvas.state.paused && !hasInProgressEvents(canvas.state.messages);
+  const canRenderStrokes =
+    inStudio && !canvas.state.paused && !hasInProgressEvents(canvas.state.messages);
   useStrokeAnimation({
     pendingStrokes: canvas.state.pendingStrokes,
     dispatch,
@@ -137,6 +138,27 @@ function MainApp(): React.JSX.Element {
   useEffect(() => {
     sendRef.current = send;
   }, [send]);
+
+  // Track paused state in ref for AppState callback (avoids stale closure)
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+
+  // Destructure for stable reference in effect
+  const { setPaused } = canvas;
+
+  // Pause agent and return to home when app goes to background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background') {
+        if (!pausedRef.current) {
+          send({ type: 'pause' });
+          setPaused(true);
+        }
+        setInStudio(false);
+      }
+    });
+    return () => subscription.remove();
+  }, [send, setPaused]);
 
   const handleDrawToggle = useCallback(() => {
     canvas.toggleDrawing();
@@ -342,44 +364,24 @@ function MainApp(): React.JSX.Element {
               />
             </>
           ) : (
-            <>
-              {/* Canvas preview in background (dimmed) */}
-              <View style={styles.canvasContainer}>
-                <Canvas
-                  strokes={canvas.state.strokes}
-                  currentStroke={[]}
-                  agentStroke={[]}
-                  agentStrokeStyle={null}
-                  penPosition={null}
-                  penDown={false}
-                  drawingEnabled={false}
-                  styleConfig={canvas.state.styleConfig}
-                  showIdleAnimation={false}
-                  onStrokeStart={() => {}}
-                  onStrokeMove={() => {}}
-                  onStrokeEnd={() => {}}
-                />
-              </View>
-
-              {/* Home Panel - Overlaid on canvas */}
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-              >
-                <HomePanel
-                  connected={wsState.connected}
-                  hasCurrentWork={canvas.state.strokes.length > 0}
-                  recentCanvas={recentCanvas}
-                  drawingStyle={canvas.state.drawingStyle}
-                  galleryCount={canvas.state.gallery.length}
-                  onStyleChange={(style) => send({ type: 'set_style', drawing_style: style })}
-                  onContinue={handleContinueFromHome}
-                  onStartWithPrompt={handleStartWithPrompt}
-                  onSurpriseMe={handleSurpriseMe}
-                  onOpenGallery={handleGalleryPress}
-                />
-              </KeyboardAvoidingView>
-            </>
+            <KeyboardAvoidingView
+              style={styles.keyboardView}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+            >
+              <HomePanel
+                connected={wsState.connected}
+                hasCurrentWork={canvas.state.strokes.length > 0}
+                recentCanvas={recentCanvas}
+                drawingStyle={canvas.state.drawingStyle}
+                galleryCount={canvas.state.gallery.length}
+                onStyleChange={(style) => send({ type: 'set_style', drawing_style: style })}
+                onContinue={handleContinueFromHome}
+                onStartWithPrompt={handleStartWithPrompt}
+                onSurpriseMe={handleSurpriseMe}
+                onOpenGallery={handleGalleryPress}
+              />
+            </KeyboardAvoidingView>
           )}
         </View>
 
@@ -590,5 +592,8 @@ const styles = StyleSheet.create({
   canvasContainer: {
     flex: 1,
     justifyContent: 'center',
+  },
+  keyboardView: {
+    flex: 1,
   },
 });
