@@ -508,7 +508,7 @@ class DrawingAgent:
                 "Bash",
             ],
             "permission_mode": "acceptEdits",
-            "model": settings.agent_model if hasattr(settings, "agent_model") else None,
+            "model": settings.agent_model if settings.dev_mode else settings.agent_model_prod,
             "include_partial_messages": True,
             "hooks": {"PostToolUse": [HookMatcher(hooks=[self._post_tool_use_hook])]},
             "env": {"ANTHROPIC_API_KEY": settings.anthropic_api_key},
