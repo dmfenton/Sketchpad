@@ -27,7 +27,9 @@ def hash_password_cmd(password: str) -> None:
     hashed = hash_password(password)
     print(f"Password hash: {hashed}")
     print("\nTo insert via sqlite3:")
-    print(f"sqlite3 data/drawing_agent.db \"INSERT INTO users (email, password_hash, is_active, created_at) VALUES ('EMAIL', '{hashed}', 1, datetime('now'));\"")
+    print(
+        f"sqlite3 data/drawing_agent.db \"INSERT INTO users (email, password_hash, is_active, created_at) VALUES ('EMAIL', '{hashed}', 1, datetime('now'));\""
+    )
 
 
 async def create_user_async(email: str, password: str) -> None:
@@ -50,7 +52,9 @@ async def list_users_async() -> None:
     from sqlalchemy import text
 
     async with get_session() as session:
-        result = await session.execute(text("SELECT id, email, is_active, created_at FROM users"))
+        result = await session.execute(
+            text("SELECT id, email, is_active, created_at FROM users")
+        )
         users = result.fetchall()
 
         if not users:

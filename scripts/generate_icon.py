@@ -38,7 +38,9 @@ def generate_spiral_points(size: int) -> list[tuple[float, float, float]]:
     return points
 
 
-def draw_smooth_stroke(draw: ImageDraw.Draw, points: list[tuple[float, float, float]], color: str) -> None:
+def draw_smooth_stroke(
+    draw: ImageDraw.Draw, points: list[tuple[float, float, float]], color: str
+) -> None:
     """Draw a smooth brush stroke using filled ellipses along the path."""
     for i, (x, y, w) in enumerate(points):
         # Draw filled circle at each point
@@ -46,7 +48,9 @@ def draw_smooth_stroke(draw: ImageDraw.Draw, points: list[tuple[float, float, fl
         draw.ellipse([x - r, y - r, x + r, y + r], fill=color)
 
 
-def draw_stroke_polygon(draw: ImageDraw.Draw, points: list[tuple[float, float, float]], color: str) -> None:
+def draw_stroke_polygon(
+    draw: ImageDraw.Draw, points: list[tuple[float, float, float]], color: str
+) -> None:
     """Draw brush stroke as a filled polygon for smooth edges."""
     if len(points) < 2:
         return
