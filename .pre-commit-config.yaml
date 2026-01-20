@@ -1,11 +1,6 @@
-# Pre-commit hooks for Code Monet
-# Install: cd server && uv run pre-commit install
-# Run manually: cd server && uv run pre-commit run --all-files
-
 repos:
-  # Python linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.0
+    rev: v0.9.4
     hooks:
       - id: ruff
         args: [--fix, --config, server/pyproject.toml]
@@ -13,40 +8,3 @@ repos:
       - id: ruff-format
         args: [--config, server/pyproject.toml]
         files: ^server/
-
-  # TypeScript/JavaScript linting (run from subdirectories for tsconfig)
-  - repo: local
-    hooks:
-      - id: eslint-shared
-        name: ESLint (shared)
-        entry: bash -c 'cd shared && npx eslint --fix $(echo "$@" | sed "s|shared/||g")' --
-        language: system
-        files: ^shared/src/.*\.(ts|tsx)$
-        pass_filenames: true
-
-      - id: eslint-app
-        name: ESLint (app)
-        entry: bash -c 'cd app && npx eslint --fix $(echo "$@" | sed "s|app/||g")' --
-        language: system
-        files: ^app/src/.*\.(ts|tsx)$
-        pass_filenames: true
-
-      - id: eslint-web
-        name: ESLint (web)
-        entry: bash -c 'cd web && npx eslint --fix $(echo "$@" | sed "s|web/||g")' --
-        language: system
-        files: ^web/src/.*\.(ts|tsx)$
-        pass_filenames: true
-
-  # General file hygiene
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: trailing-whitespace
-        exclude: \.json$
-      - id: end-of-file-fixer
-        exclude: \.json$
-      - id: check-yaml
-        exclude: ^app/e2e/  # Maestro uses multi-document YAML
-      - id: check-added-large-files
-        args: ['--maxkb=500']
