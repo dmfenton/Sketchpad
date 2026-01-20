@@ -276,9 +276,7 @@ def _render_user_png_sync(state: WorkspaceState, highlight_human: bool = True) -
     return buffer.getvalue()
 
 
-def _render_strokes_to_png_sync(
-    strokes: list, width: int = 800, height: int = 600
-) -> bytes:
+def _render_strokes_to_png_sync(strokes: list, width: int = 800, height: int = 600) -> bytes:
     """Render strokes to PNG (synchronous, CPU-bound)."""
     img = Image.new("RGB", (width, height), "#FFFFFF")
     draw = ImageDraw.Draw(img)
@@ -293,9 +291,7 @@ def _render_strokes_to_png_sync(
     return buffer.getvalue()
 
 
-async def render_strokes_to_png(
-    strokes: list, width: int = 800, height: int = 600
-) -> bytes:
+async def render_strokes_to_png(strokes: list, width: int = 800, height: int = 600) -> bytes:
     """Render strokes to PNG (async, non-blocking)."""
     return await asyncio.to_thread(_render_strokes_to_png_sync, strokes, width, height)
 
@@ -966,7 +962,7 @@ async def debug_log_session(request: Request) -> dict[str, Any]:
     session_id = data.get("session_id", "unknown")
     timestamp = datetime.now().isoformat()
 
-    marker = f"\n{'='*60}\n[SESSION START] {session_id} at {timestamp}\n{'='*60}\n"
+    marker = f"\n{'=' * 60}\n[SESSION START] {session_id} at {timestamp}\n{'=' * 60}\n"
     async with aiofiles.open(BROWSER_LOG_FILE, "a") as f:
         await f.write(marker)
     return {"ok": True, "session_id": session_id}
