@@ -21,6 +21,8 @@ export interface StrokeRendererDeps {
   fetchStrokes: () => Promise<PendingStroke[]>;
   /** Dispatch function for canvas actions */
   dispatch: (action: CanvasAction) => void;
+  /** Function to signal animation complete to server */
+  onAnimationDone?: () => void;
   /** Custom requestAnimationFrame for testing (defaults to global) */
   requestFrame?: (callback: () => void) => void;
   /** Delay between animation frames in ms (default: 16.67ms / 60fps) */
@@ -44,6 +46,7 @@ export class StrokeRenderer {
 
   private readonly fetchStrokes: () => Promise<PendingStroke[]>;
   private readonly dispatch: (action: CanvasAction) => void;
+  private readonly onAnimationDone: (() => void) | null;
   private readonly requestFrame: (callback: () => void) => void;
   private readonly frameDelayMs: number;
   private readonly log: (message: string, ...args: unknown[]) => void;
@@ -51,6 +54,7 @@ export class StrokeRenderer {
   constructor(deps: StrokeRendererDeps) {
     this.fetchStrokes = deps.fetchStrokes;
     this.dispatch = deps.dispatch;
+    this.onAnimationDone = deps.onAnimationDone ?? null;
     this.requestFrame = deps.requestFrame ?? ((cb) => requestAnimationFrame(cb));
     this.frameDelayMs = deps.frameDelayMs ?? 1000 / 60;
     this.log = deps.log ?? (() => {});
@@ -175,6 +179,11 @@ export class StrokeRenderer {
     } finally {
       this.animating = false;
       this.log('[StrokeRenderer] Animation complete');
+      // Signal server that animation is done
+      if (this.onAnimationDone) {
+        this.log('[StrokeRenderer] Signaling animation_done to server');
+        this.onAnimationDone();
+      }
     }
   }
 

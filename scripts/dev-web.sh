@@ -12,9 +12,9 @@ lsof -ti:5173 | xargs kill 2>/dev/null || true
 sleep 1
 
 echo "Starting Python server on :8000..."
-(cd server && uv run python -m drawing_agent.main) &
+(cd server && uv run python -m code_monet.main) &
 
 echo "Starting Vite on :5173..."
-(cd web && pnpm dev) &
+(cd web && npm run dev) &
 
 wait

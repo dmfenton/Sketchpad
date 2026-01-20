@@ -41,3 +41,11 @@ export {
   createTaperedStrokePath,
   simplifyPoints,
 } from './utils/strokeSmoothing';
+
+// Log forwarding utilities
+export {
+  initLogForwarder,
+  startLogSession,
+  forwardLogs,
+  stopForwarding,
+} from './utils/logForwarder';

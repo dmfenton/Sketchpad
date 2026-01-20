@@ -3,6 +3,10 @@
  *
  * Used for "bionic reading" style text reveal where words appear
  * in chunks at a readable pace, creating a typewriter-like effect.
+ *
+ * This hook handles buffering internally - it keeps displaying text
+ * until the animation catches up, even if the input becomes null.
+ * This ensures smooth transitions when live messages are finalized.
  */
 
 import { useEffect, useMemo, useState, useRef } from 'react';
@@ -32,10 +36,12 @@ export interface UseProgressiveTextResult {
  *
  * Features:
  * - Reveals words in chunks (default: 3 words every 150ms)
- * - Resets when text becomes null or significantly shorter
+ * - Internal buffering: keeps displaying until caught up, even if input becomes null
+ * - Only clears when display has caught up AND input is null
+ * - Accepts new/longer text immediately
  * - Cleans up timers on unmount
  *
- * @param text - The text to reveal, or null to reset
+ * @param text - The text to reveal, or null to signal end of stream
  * @param options - Optional configuration for chunk size and interval
  * @returns Object with displayedWords, displayedText, isBuffering, wordCount
  *
@@ -58,29 +64,52 @@ export function useProgressiveText(
   const chunkSize = options?.chunkSize ?? BIONIC_CHUNK_SIZE;
   const intervalMs = options?.intervalMs ?? BIONIC_CHUNK_INTERVAL_MS;
 
+  // Internal buffer: keeps the last non-null text until display catches up
+  const [bufferedText, setBufferedText] = useState<string | null>(null);
+
   // Track how many words to display (accumulating, not replacing)
   const [displayedWordCount, setDisplayedWordCount] = useState(0);
 
-  // Track previous text length to detect resets
+  // Track previous text length to detect new messages (significant shortening)
   const prevTextLengthRef = useRef(0);
 
-  // Split text into individual words (memoized)
-  const allWords = useMemo(() => {
-    if (!text) return [];
-    return splitWords(text);
-  }, [text]);
-
-  // Reset when text is cleared or significantly shorter (new turn)
+  // Update buffer when text changes
   useEffect(() => {
     const currentLength = text?.length ?? 0;
 
-    // Reset if text is null or much shorter than before (likely a new message)
-    if (!text || currentLength < prevTextLengthRef.current / 2) {
-      setDisplayedWordCount(0);
+    if (text !== null) {
+      // New or longer text - accept immediately
+      if (currentLength >= prevTextLengthRef.current) {
+        setBufferedText(text);
+      }
+      // Significantly shorter - likely a new message, reset
+      else if (currentLength < prevTextLengthRef.current / 2) {
+        setBufferedText(text);
+        setDisplayedWordCount(0);
+      }
+      prevTextLengthRef.current = currentLength;
     }
-
-    prevTextLengthRef.current = currentLength;
+    // When text becomes null, we DON'T clear the buffer yet
+    // We let the display finish catching up first (handled below)
   }, [text]);
+
+  // Split buffered text into individual words (memoized)
+  const allWords = useMemo(() => {
+    if (!bufferedText) return [];
+    return splitWords(bufferedText);
+  }, [bufferedText]);
+
+  // Check if display has caught up
+  const displayComplete = displayedWordCount >= allWords.length;
+
+  // Clear buffer when: input is null AND display is complete
+  useEffect(() => {
+    if (text === null && displayComplete && bufferedText !== null) {
+      setBufferedText(null);
+      setDisplayedWordCount(0);
+      prevTextLengthRef.current = 0;
+    }
+  }, [text, displayComplete, bufferedText]);
 
   // Progressively reveal words at a readable pace
   // Effect cleanup cancels timer when deps change, so each run is independent

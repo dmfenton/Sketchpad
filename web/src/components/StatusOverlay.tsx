@@ -41,6 +41,7 @@ function BionicWord({ word }: { word: string }): React.ReactElement {
  * Thinking display with progressive bionic reading.
  * Accumulates words at a readable pace, showing a few words at a time.
  * Uses bionic formatting (bold first 40% of each word) to guide eye movement.
+ * The hook handles buffering internally - keeps displaying until caught up.
  */
 function ThinkingDisplay({
   text,
@@ -50,6 +51,7 @@ function ThinkingDisplay({
   isAnimating?: boolean;
 }): React.ReactElement {
   // Progressive text display via shared hook (only when animating)
+  // Hook handles buffering internally - keeps displaying until caught up
   const { displayedWords, isBuffering } = useProgressiveText(isAnimating ? text : null);
 
   // All words for when not animating (show everything immediately)

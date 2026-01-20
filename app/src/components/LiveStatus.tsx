@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { AgentMessage, AgentStatus, ToolName } from '@code-monet/shared';
 import { bionicWord, TOOL_DISPLAY_NAMES, useProgressiveText } from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
+import { debugRender } from '../utils/debugLog';
 
 interface LiveStatusProps {
   /** The live streaming message (or null if not thinking) */
@@ -79,9 +80,18 @@ export function LiveStatus({
 }: LiveStatusProps): React.JSX.Element | null {
   const { colors, shadows } = useTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const prevDisplayedCountRef = useRef(0);
 
-  // Progressive text display via shared hook
-  const { displayedWords, isBuffering } = useProgressiveText(liveMessage?.text ?? null);
+  // Progressive text display via shared hook (handles buffering internally)
+  const { displayedWords, isBuffering, wordCount } = useProgressiveText(liveMessage?.text ?? null);
+
+  // Log progressive text state changes
+  if (displayedWords.length !== prevDisplayedCountRef.current) {
+    debugRender(
+      `LiveStatus: displayed=${displayedWords.length}/${wordCount} words, buffering=${isBuffering}`
+    );
+    prevDisplayedCountRef.current = displayedWords.length;
+  }
 
   // Pulse animation for active states
   useEffect(() => {

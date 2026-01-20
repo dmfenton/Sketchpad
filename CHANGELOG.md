@@ -10,11 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `scripts/ws-client.py` - Terminal WebSocket client for testing agent interactions (view, test, watch, start, pause, resume, nudge, clear, status commands)
+- Animation done signaling: Client signals server when stroke animation completes
+- Debug log forwarding infrastructure (dev mode only)
 
 ### Changed
 
 - Agent uses Claude Haiku in dev mode for cost reduction, Opus in production
 - Agent loop only runs on explicit user actions (nudge, resume, new_canvas) - no automatic retries
+- Agent waits for animation_done signal from client (with timeout fallback) instead of fixed sleep
 
 ## [1.28.0] - 2026-01-19
 

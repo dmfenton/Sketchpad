@@ -186,6 +186,13 @@ async def handle_resume(workspace: ActiveWorkspace, message: dict[str, Any] | No
     logger.info(f"User {workspace.user_id}: agent resumed")
 
 
+async def handle_animation_done(workspace: ActiveWorkspace) -> None:
+    """Handle client signaling animation complete."""
+    if workspace.orchestrator:
+        workspace.orchestrator.signal_animation_done()
+    logger.info(f"User {workspace.user_id}: animation_done received")
+
+
 async def handle_set_style(workspace: ActiveWorkspace, message: dict[str, Any]) -> None:
     """Handle drawing style change request.
 
@@ -240,6 +247,7 @@ HANDLERS: dict[str, Any] = {
     "pause": handle_pause,
     "resume": handle_resume,
     "set_style": handle_set_style,
+    "animation_done": handle_animation_done,
 }
 
 

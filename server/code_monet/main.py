@@ -6,8 +6,11 @@ import json
 import logging
 import traceback
 from contextlib import asynccontextmanager
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
+import aiofiles
 import uvicorn
 from fastapi import Body, FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,7 +30,7 @@ from code_monet.share import share_router
 from code_monet.shutdown import shutdown_manager
 from code_monet.tracing import get_current_trace_id, record_client_spans, setup_tracing
 from code_monet.types import AgentStatus, PausedMessage
-from code_monet.user_handlers import handle_user_message
+from code_monet.user_handlers import handle_new_canvas, handle_user_message
 from code_monet.workspace_state import WorkspaceState
 
 # Configure logging with clean format
@@ -776,6 +779,36 @@ async def reset_workspace_debug(user: CurrentUser) -> dict[str, Any]:
     return {"status": "reset", "piece_number": 0, "paused": True}
 
 
+@app.post("/debug/new-canvas")
+async def debug_new_canvas(
+    user: CurrentUser,
+    direction: str | None = Body(default=None, embed=True),
+    drawing_style: str | None = Body(default=None, embed=True),
+) -> dict[str, Any]:
+    """Trigger new canvas from server side (dev mode only)."""
+    if not settings.dev_mode:
+        raise HTTPException(status_code=403, detail="Only available in dev mode")
+
+    workspace = await workspace_registry.get_or_activate(user.id)
+
+    # Build message matching client format
+    message: dict[str, Any] = {}
+    if direction:
+        message["direction"] = direction
+    if drawing_style:
+        message["drawing_style"] = drawing_style
+
+    # Reuse existing handler
+    await handle_new_canvas(workspace, message if message else None)
+
+    return {
+        "status": "new_canvas_triggered",
+        "direction": direction,
+        "drawing_style": drawing_style,
+        "piece_number": workspace.state.piece_number,
+    }
+
+
 @app.get("/debug/logs")
 async def get_debug_logs(_user: CurrentUser, lines: int = 100) -> dict[str, Any]:
     """Get recent server logs."""
@@ -840,6 +873,42 @@ async def get_agent_logs(
         "returned_files": len(logs),
         "logs": [dict(log) for log in logs],
     }
+
+
+# Browser console log forwarding
+BROWSER_LOG_FILE = Path("/tmp/code-monet-browser.log")
+
+
+@app.post("/debug/log")
+async def debug_log(request: Request) -> dict[str, bool]:
+    """Receive forwarded browser/app console logs to dedicated file (dev mode only)."""
+    if not settings.dev_mode:
+        raise HTTPException(status_code=404, detail="Not found")
+    data = await request.json()
+    timestamp = datetime.now().isoformat()
+    session_id = data.get("session_id", "unknown")
+    level = data.get("level", "log")
+    message = data.get("message", "")
+
+    line = f"[{timestamp}][{session_id}][{level}] {message}\n"
+    async with aiofiles.open(BROWSER_LOG_FILE, "a") as f:
+        await f.write(line)
+    return {"ok": True}
+
+
+@app.post("/debug/log/session")
+async def debug_log_session(request: Request) -> dict[str, Any]:
+    """Start a new logging session with clear marker (dev mode only)."""
+    if not settings.dev_mode:
+        raise HTTPException(status_code=404, detail="Not found")
+    data = await request.json()
+    session_id = data.get("session_id", "unknown")
+    timestamp = datetime.now().isoformat()
+
+    marker = f"\n{'='*60}\n[SESSION START] {session_id} at {timestamp}\n{'='*60}\n"
+    async with aiofiles.open(BROWSER_LOG_FILE, "a") as f:
+        await f.write(marker)
+    return {"ok": True, "session_id": session_id}
 
 
 @app.websocket("/ws")

@@ -8,6 +8,7 @@ locals {
   secrets = {
     "anthropic-api-key" = "CHANGE_ME_IN_CONSOLE"
     "jwt-secret"        = "CHANGE_ME_IN_CONSOLE_MIN_32_CHARS"
+    "google-api-key"    = "CHANGE_ME_IN_CONSOLE"
   }
 
   # Config (String) - can have real defaults
@@ -190,6 +191,9 @@ output "ssm_setup_instructions" {
         --value "$(python -c 'import secrets; print(secrets.token_hex(32))')" \
         --type SecureString --overwrite --region ${var.aws_region}
 
+      aws ssm put-parameter --name "${local.ssm_prefix}/prod/google-api-key" \
+        --value "YOUR_GEMINI_API_KEY" --type SecureString --overwrite --region ${var.aws_region}
+
       # Umami analytics secrets:
       aws ssm put-parameter --name "${local.ssm_prefix}/umami-db-password" \
         --value "$(python -c 'import secrets; print(secrets.token_urlsafe(24))')" \
@@ -202,5 +206,8 @@ output "ssm_setup_instructions" {
       # For local dev:
       aws ssm put-parameter --name "${local.ssm_prefix}/dev/anthropic-api-key" \
         --value "sk-ant-..." --type SecureString --overwrite --region ${var.aws_region}
+
+      aws ssm put-parameter --name "${local.ssm_prefix}/dev/google-api-key" \
+        --value "YOUR_GEMINI_API_KEY" --type SecureString --overwrite --region ${var.aws_region}
   EOT
 }

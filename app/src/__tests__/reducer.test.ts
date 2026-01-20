@@ -18,11 +18,13 @@ describe('hasInProgressEvents', () => {
     expect(hasInProgressEvents([])).toBe(false);
   });
 
-  it('returns true when live thinking message exists', () => {
+  it('returns false when only live thinking message exists (thinking does not block)', () => {
+    // NOTE: hasInProgressEvents only blocks on code_execution, not thinking
+    // This allows strokes to render while agent is thinking
     const messages: AgentMessage[] = [
       { id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Thinking...', timestamp: Date.now() },
     ];
-    expect(hasInProgressEvents(messages)).toBe(true);
+    expect(hasInProgressEvents(messages)).toBe(false);
   });
 
   it('returns false for finalized thinking message', () => {
