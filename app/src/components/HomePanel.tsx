@@ -3,7 +3,7 @@
  * Shows last canvas prominently, quick prompt input, and expandable options.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -64,6 +64,12 @@ export function HomePanel({
   const [imageError, setImageError] = useState(false);
 
   const hasRecentWork = hasCurrentWork || recentCanvas !== null;
+
+  // Reset image state when canvas changes to avoid stale loading/error state
+  useEffect(() => {
+    setImageLoading(true);
+    setImageError(false);
+  }, [recentCanvas?.thumbnail_token]);
 
   const handleSubmitPrompt = () => {
     if (prompt.trim()) {

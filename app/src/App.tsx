@@ -169,10 +169,6 @@ function MainApp(): React.JSX.Element {
     ]);
   }, [send, canvas]);
 
-  const handleNewCanvas = useCallback(() => {
-    setNewCanvasModalVisible(true);
-  }, []);
-
   const handleNewCanvasStart = useCallback(
     (direction?: string, style?: 'plotter' | 'paint') => {
       tracer.recordEvent('action.new_canvas', { hasDirection: !!direction, style });
