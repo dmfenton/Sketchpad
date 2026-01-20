@@ -37,12 +37,12 @@ import {
   ActionBar,
   Canvas,
   GalleryModal,
+  HomePanel,
   LiveStatus,
   MessageStream,
   NewCanvasModal,
   NudgeModal,
   SplashScreen,
-  StartPanel,
 } from './components';
 import { getApiUrl, getWebSocketUrl } from './config';
 import { useAuth } from './context';
@@ -58,6 +58,8 @@ function MainApp(): React.JSX.Element {
   const [nudgeModalVisible, setNudgeModalVisible] = useState(false);
   const [galleryModalVisible, setGalleryModalVisible] = useState(false);
   const [newCanvasModalVisible, setNewCanvasModalVisible] = useState(false);
+  // New: Track whether we're in the studio (canvas view) or on home screen
+  const [inStudio, setInStudio] = useState(false);
 
   const canvas = useCanvas();
   const paused = canvas.state.paused;
@@ -167,36 +169,71 @@ function MainApp(): React.JSX.Element {
     ]);
   }, [send, canvas]);
 
-  const handleNewCanvas = useCallback(() => {
-    setNewCanvasModalVisible(true);
-  }, []);
-
   const handleNewCanvasStart = useCallback(
     (direction?: string, style?: 'plotter' | 'paint') => {
       tracer.recordEvent('action.new_canvas', { hasDirection: !!direction, style });
       tracer.newSession(); // Start fresh trace for new piece
       // Send style atomically with new_canvas to avoid race condition
       send({ type: 'new_canvas', direction, drawing_style: style });
-    },
-    [send]
-  );
-
-  // Handle start from the StartPanel (sends new_canvas and resumes)
-  const handleStartFromPanel = useCallback(
-    (direction?: string) => {
-      tracer.recordEvent('session.start', { hasDirection: !!direction });
-      tracer.newSession(); // Start fresh trace for new piece
-      send({ type: 'new_canvas', direction });
       send({ type: 'resume' });
       canvas.setPaused(false);
+      setInStudio(true);
     },
     [send, canvas]
   );
 
-  // Determine if we should show the start panel
-  // Show when: canvas is empty, paused, and no messages (fresh start)
-  const showStartPanel =
-    canvas.state.strokes.length === 0 && canvas.state.paused && canvas.state.messages.length === 0;
+  // Handle continue from HomePanel (go to studio with current/recent work)
+  const handleContinueFromHome = useCallback(() => {
+    tracer.recordEvent('session.continue');
+    // If paused, resume the agent
+    if (canvas.state.paused) {
+      send({ type: 'resume' });
+      canvas.setPaused(false);
+    }
+    setInStudio(true);
+  }, [send, canvas]);
+
+  // Handle start with prompt from HomePanel
+  const handleStartWithPrompt = useCallback(
+    (prompt: string) => {
+      tracer.recordEvent('session.start', { hasDirection: true });
+      tracer.newSession();
+      send({ type: 'new_canvas', direction: prompt });
+      send({ type: 'resume' });
+      canvas.setPaused(false);
+      setInStudio(true);
+    },
+    [send, canvas]
+  );
+
+  // Handle surprise me from HomePanel
+  const handleSurpriseMe = useCallback(() => {
+    tracer.recordEvent('session.start', { hasDirection: false });
+    tracer.newSession();
+    send({ type: 'new_canvas' });
+    send({ type: 'resume' });
+    canvas.setPaused(false);
+    setInStudio(true);
+  }, [send, canvas]);
+
+  // Handle going back to home from studio
+  const handleBackToHome = useCallback(() => {
+    tracer.recordEvent('session.back_to_home');
+    // Pause the agent when leaving studio
+    if (!canvas.state.paused) {
+      send({ type: 'pause' });
+      canvas.setPaused(true);
+    }
+    setInStudio(false);
+  }, [send, canvas]);
+
+  // Get most recent canvas from gallery for HomePanel
+  const recentCanvas = useMemo(() => {
+    const gallery = canvas.state.gallery;
+    if (gallery.length === 0) return null;
+    // Gallery is ordered oldest first, so get the last one
+    return gallery[gallery.length - 1] ?? null;
+  }, [canvas.state.gallery]);
 
   const handleGalleryPress = useCallback(() => {
     setGalleryModalVisible(true);
@@ -206,6 +243,7 @@ function MainApp(): React.JSX.Element {
     (pieceNumber: number) => {
       send({ type: 'load_canvas', piece_number: pieceNumber });
       setGalleryModalVisible(false);
+      setInStudio(true);
     },
     [send]
   );
@@ -262,44 +300,30 @@ function MainApp(): React.JSX.Element {
         edges={['top', 'left', 'right']}
       >
         <View style={styles.content}>
-          {/* Live Status - Above canvas for visibility */}
-          {!showStartPanel && (
-            <LiveStatus liveMessage={liveMessage} status={agentStatus} currentTool={currentTool} />
-          )}
-
-          {/* Canvas - Main area */}
-          <View style={styles.canvasContainer}>
-            <Canvas
-              strokes={canvas.state.strokes}
-              currentStroke={canvas.state.currentStroke}
-              agentStroke={canvas.state.agentStroke}
-              agentStrokeStyle={canvas.state.agentStrokeStyle}
-              penPosition={canvas.state.penPosition}
-              penDown={canvas.state.penDown}
-              drawingEnabled={canvas.state.drawingEnabled}
-              styleConfig={canvas.state.styleConfig}
-              showIdleAnimation={shouldShowIdleAnimation(canvas.state)}
-              onStrokeStart={handleStrokeStart}
-              onStrokeMove={handleStrokeMove}
-              onStrokeEnd={handleStrokeEnd}
-            />
-          </View>
-
-          {/* Start Panel or Message Stream + Action Bar */}
-          {showStartPanel ? (
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-            >
-              <StartPanel
-                connected={wsState.connected}
-                drawingStyle={canvas.state.drawingStyle}
-                onStyleChange={(style) => send({ type: 'set_style', drawing_style: style })}
-                onStart={handleStartFromPanel}
-              />
-            </KeyboardAvoidingView>
-          ) : (
+          {/* Studio View (Canvas + Controls) or Home Panel */}
+          {inStudio ? (
             <>
+              {/* Live Status - Above canvas for visibility */}
+              <LiveStatus liveMessage={liveMessage} status={agentStatus} currentTool={currentTool} />
+
+              {/* Canvas - Main area */}
+              <View style={styles.canvasContainer}>
+                <Canvas
+                  strokes={canvas.state.strokes}
+                  currentStroke={canvas.state.currentStroke}
+                  agentStroke={canvas.state.agentStroke}
+                  agentStrokeStyle={canvas.state.agentStrokeStyle}
+                  penPosition={canvas.state.penPosition}
+                  penDown={canvas.state.penDown}
+                  drawingEnabled={canvas.state.drawingEnabled}
+                  styleConfig={canvas.state.styleConfig}
+                  showIdleAnimation={shouldShowIdleAnimation(canvas.state)}
+                  onStrokeStart={handleStrokeStart}
+                  onStrokeMove={handleStrokeMove}
+                  onStrokeEnd={handleStrokeEnd}
+                />
+              </View>
+
               {/* Message History - Collapsible */}
               <MessageStream messages={canvas.state.messages} />
 
@@ -313,9 +337,48 @@ function MainApp(): React.JSX.Element {
                 onNudge={handleNudgePress}
                 onClear={handleClear}
                 onPauseToggle={handlePauseToggle}
-                onNewCanvas={handleNewCanvas}
+                onNewCanvas={handleBackToHome}
                 onGallery={handleGalleryPress}
               />
+            </>
+          ) : (
+            <>
+              {/* Canvas preview in background (dimmed) */}
+              <View style={styles.canvasContainer}>
+                <Canvas
+                  strokes={canvas.state.strokes}
+                  currentStroke={[]}
+                  agentStroke={[]}
+                  agentStrokeStyle={null}
+                  penPosition={null}
+                  penDown={false}
+                  drawingEnabled={false}
+                  styleConfig={canvas.state.styleConfig}
+                  showIdleAnimation={false}
+                  onStrokeStart={() => {}}
+                  onStrokeMove={() => {}}
+                  onStrokeEnd={() => {}}
+                />
+              </View>
+
+              {/* Home Panel - Overlaid on canvas */}
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+              >
+                <HomePanel
+                  connected={wsState.connected}
+                  hasCurrentWork={canvas.state.strokes.length > 0}
+                  recentCanvas={recentCanvas}
+                  drawingStyle={canvas.state.drawingStyle}
+                  galleryCount={canvas.state.gallery.length}
+                  onStyleChange={(style) => send({ type: 'set_style', drawing_style: style })}
+                  onContinue={handleContinueFromHome}
+                  onStartWithPrompt={handleStartWithPrompt}
+                  onSurpriseMe={handleSurpriseMe}
+                  onOpenGallery={handleGalleryPress}
+                />
+              </KeyboardAvoidingView>
             </>
           )}
         </View>

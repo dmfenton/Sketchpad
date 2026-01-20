@@ -130,12 +130,12 @@ export function ActionBar({
           </>
         )}
         <ActionButton
-          icon="add-circle-outline"
-          label="New"
+          icon="home-outline"
+          label="Home"
           disabled={!connected}
           onPress={onNewCanvas}
           colors={colors}
-          testID="action-new"
+          testID="action-home"
         />
         <ActionButton
           icon="images-outline"

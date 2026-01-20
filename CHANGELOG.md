@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Agent uses Claude Haiku in dev mode for cost reduction, Opus in production
 - Agent loop only runs on explicit user actions (nudge, resume, new_canvas) - no automatic retries
 - Agent waits for animation_done signal from client (with timeout fallback) instead of fixed sleep
+- Redesigned app launch experience with new HomePanel showing last canvas thumbnail, quick prompt input, and expandable options
+- App now always starts on HomePanel instead of directly entering canvas view
+- Replaced ActionBar "New" button with "Home" button for navigating back from studio
 
 ## [1.28.0] - 2026-01-19
 
