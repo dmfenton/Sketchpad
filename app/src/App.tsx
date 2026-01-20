@@ -143,19 +143,22 @@ function MainApp(): React.JSX.Element {
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
 
+  // Destructure for stable reference in effect
+  const { setPaused } = canvas;
+
   // Pause agent and return to home when app goes to background
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'background') {
         if (!pausedRef.current) {
           send({ type: 'pause' });
-          canvas.setPaused(true);
+          setPaused(true);
         }
         setInStudio(false);
       }
     });
     return () => subscription.remove();
-  }, [send, canvas.setPaused]);
+  }, [send, setPaused]);
 
   const handleDrawToggle = useCallback(() => {
     canvas.toggleDrawing();
