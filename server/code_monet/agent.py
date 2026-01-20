@@ -557,9 +557,14 @@ class DrawingAgent:
         tool_name = extract_tool_name(input_data)
         logger.info(f"PostToolUse: tool={tool_name}, collected_paths={len(self._collected_paths)}")
 
-        # After draw_paths or generate_svg, execute drawing and wait
+        # After drawing tools, execute drawing and wait
         if (
-            tool_name in ("mcp__drawing__draw_paths", "mcp__drawing__generate_svg")
+            tool_name
+            in (
+                "mcp__drawing__draw_paths",
+                "mcp__drawing__generate_svg",
+                "mcp__drawing__sign_canvas",
+            )
             and self._collected_paths
         ):
             if self._on_draw:

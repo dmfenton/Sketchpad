@@ -91,7 +91,7 @@ class Settings(BaseSettings):
     workspace_base_dir: str = "data/agent_workspace/users"  # Per-user workspace directories
     max_agent_iterations: int = 5  # max iterations per turn
     agent_max_tokens: int = 8192  # max tokens for Claude response
-    agent_model: str = "claude-haiku-4-20250414"  # Haiku for dev, override in prod
+    agent_model: str = "claude-haiku-4-5-20251001"  # Haiku for dev, override in prod
     agent_model_prod: str = "claude-opus-4-5-20251101"  # Production model
 
     # Agent file logging

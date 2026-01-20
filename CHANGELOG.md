@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Animation done signaling: Client signals server when stroke animation completes
 - Debug log forwarding infrastructure (dev mode only)
 
+### Fixed
+
+- `sign_canvas` tool now triggers stroke animation (was appearing instantly instead of animating)
+- Fixed dev model name from invalid `claude-haiku-4-20250414` to `claude-haiku-4-5-20251001`
+
 ### Changed
 
 - Agent uses Claude Haiku in dev mode for cost reduction, Opus in production
