@@ -1069,7 +1069,8 @@ async def websocket_endpoint(
         )
 
         # Notify if there are pending strokes to fetch (reconnection scenario)
-        if workspace.state.has_pending_strokes:
+        # Only send if not paused - paused canvases shouldn't trigger animation
+        if workspace.state.has_pending_strokes and not workspace.agent.paused:
             await workspace.connections.send_to(
                 websocket,
                 {

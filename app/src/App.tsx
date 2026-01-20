@@ -110,7 +110,8 @@ function MainApp(): React.JSX.Element {
   // Gate on: not paused AND no in-progress tool calls
   // This ensures tool completion events are shown before animation starts,
   // but allows animation while agent is thinking (so it's not blocked forever)
-  const canRenderStrokes = !canvas.state.paused && !hasInProgressEvents(canvas.state.messages);
+  const canRenderStrokes =
+    inStudio && !canvas.state.paused && !hasInProgressEvents(canvas.state.messages);
   useStrokeAnimation({
     pendingStrokes: canvas.state.pendingStrokes,
     dispatch,
@@ -137,6 +138,20 @@ function MainApp(): React.JSX.Element {
   useEffect(() => {
     sendRef.current = send;
   }, [send]);
+
+  // Pause agent and return to home when app goes to background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background') {
+        if (!canvas.state.paused) {
+          send({ type: 'pause' });
+          canvas.setPaused(true);
+        }
+        setInStudio(false);
+      }
+    });
+    return () => subscription.remove();
+  }, [send, canvas]);
 
   const handleDrawToggle = useCallback(() => {
     canvas.toggleDrawing();
@@ -342,44 +357,24 @@ function MainApp(): React.JSX.Element {
               />
             </>
           ) : (
-            <>
-              {/* Canvas preview in background (dimmed) */}
-              <View style={styles.canvasContainer}>
-                <Canvas
-                  strokes={canvas.state.strokes}
-                  currentStroke={[]}
-                  agentStroke={[]}
-                  agentStrokeStyle={null}
-                  penPosition={null}
-                  penDown={false}
-                  drawingEnabled={false}
-                  styleConfig={canvas.state.styleConfig}
-                  showIdleAnimation={false}
-                  onStrokeStart={() => {}}
-                  onStrokeMove={() => {}}
-                  onStrokeEnd={() => {}}
-                />
-              </View>
-
-              {/* Home Panel - Overlaid on canvas */}
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-              >
-                <HomePanel
-                  connected={wsState.connected}
-                  hasCurrentWork={canvas.state.strokes.length > 0}
-                  recentCanvas={recentCanvas}
-                  drawingStyle={canvas.state.drawingStyle}
-                  galleryCount={canvas.state.gallery.length}
-                  onStyleChange={(style) => send({ type: 'set_style', drawing_style: style })}
-                  onContinue={handleContinueFromHome}
-                  onStartWithPrompt={handleStartWithPrompt}
-                  onSurpriseMe={handleSurpriseMe}
-                  onOpenGallery={handleGalleryPress}
-                />
-              </KeyboardAvoidingView>
-            </>
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+            >
+              <HomePanel
+                connected={wsState.connected}
+                hasCurrentWork={canvas.state.strokes.length > 0}
+                recentCanvas={recentCanvas}
+                drawingStyle={canvas.state.drawingStyle}
+                galleryCount={canvas.state.gallery.length}
+                onStyleChange={(style) => send({ type: 'set_style', drawing_style: style })}
+                onContinue={handleContinueFromHome}
+                onStartWithPrompt={handleStartWithPrompt}
+                onSurpriseMe={handleSurpriseMe}
+                onOpenGallery={handleGalleryPress}
+              />
+            </KeyboardAvoidingView>
           )}
         </View>
 
