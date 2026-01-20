@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Gallery stroke rendering now uses actual stroke colors, widths, and opacity instead of hardcoded values
+- Gallery path rendering now correctly handles all path types (line, quadratic, cubic, polyline)
+
 ### Changed
 
 - Refactored `workspace_state.py` into modular `workspace/` package with 4 focused modules

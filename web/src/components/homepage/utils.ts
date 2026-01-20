@@ -78,21 +78,22 @@ export function pathDataToSvg(path: PathData, scale: number = 1): string {
       if (pts.length >= 2) {
         return `M ${pts[0].x * s} ${pts[0].y * s} L ${pts[1].x * s} ${pts[1].y * s}`;
       }
-      break;
+      return '';
 
     case 'quadratic':
       if (pts.length >= 3) {
         return `M ${pts[0].x * s} ${pts[0].y * s} Q ${pts[1].x * s} ${pts[1].y * s} ${pts[2].x * s} ${pts[2].y * s}`;
       }
-      break;
+      return '';
 
     case 'cubic':
       if (pts.length >= 4) {
         return `M ${pts[0].x * s} ${pts[0].y * s} C ${pts[1].x * s} ${pts[1].y * s} ${pts[2].x * s} ${pts[2].y * s} ${pts[3].x * s} ${pts[3].y * s}`;
       }
-      break;
+      return '';
 
     case 'polyline':
+    case 'svg':
     default:
       // Polyline: straight line segments between points
       if (pts.length >= 2) {
@@ -102,8 +103,6 @@ export function pathDataToSvg(path: PathData, scale: number = 1): string {
         }
         return d;
       }
-      break;
+      return '';
   }
-
-  return '';
 }
