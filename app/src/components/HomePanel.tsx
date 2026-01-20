@@ -90,10 +90,11 @@ export function HomePanel({
 
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
-      <View style={[styles.container, { backgroundColor: colors.surface }, shadows.md]}>
+      <View testID="home-panel" style={[styles.container, { backgroundColor: colors.surface }, shadows.md]}>
         {/* Last Canvas Section */}
         {hasRecentWork ? (
           <Pressable
+            testID="home-continue-button"
             style={({ pressed }) => [
               styles.canvasSection,
               { backgroundColor: colors.canvasBackground },
@@ -165,6 +166,7 @@ export function HomePanel({
             ]}
           >
             <TextInput
+              testID="home-prompt-input"
               style={[styles.promptInput, { color: colors.textPrimary }]}
               value={prompt}
               onChangeText={(t) => setPrompt(t.slice(0, MAX_PROMPT_LENGTH))}
@@ -175,6 +177,7 @@ export function HomePanel({
               editable={connected}
             />
             <Pressable
+              testID="home-prompt-submit"
               style={[
                 styles.promptSubmit,
                 { backgroundColor: prompt.trim() && connected ? colors.primary : colors.surfaceElevated },
@@ -196,6 +199,7 @@ export function HomePanel({
 
         {/* More Options Toggle */}
         <Pressable
+          testID="home-more-options"
           style={({ pressed }) => [
             styles.moreOptionsToggle,
             pressed && { opacity: 0.7 },
@@ -226,6 +230,7 @@ export function HomePanel({
             {/* Action Buttons */}
             <View style={styles.actionButtons}>
               <Pressable
+                testID="home-surprise-me"
                 style={({ pressed }) => [
                   styles.actionButton,
                   { backgroundColor: colors.surfaceElevated },
@@ -242,6 +247,7 @@ export function HomePanel({
               </Pressable>
 
               <Pressable
+                testID="home-gallery"
                 style={({ pressed }) => [
                   styles.actionButton,
                   { backgroundColor: colors.surfaceElevated },

@@ -4,6 +4,7 @@ appId: net.dmfenton.sketchpad
 - runFlow:
     file: ../helpers/inject-auth.yaml
 
+# Now in studio mode, canvas should be visible
 - assertVisible:
     id: 'canvas-view'
 
