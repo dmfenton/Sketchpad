@@ -19,6 +19,8 @@ uv run python scripts/ws-client.py [command] [args]
 | `nudge [message]` | Send nudge to agent |
 | `clear` | Clear the canvas |
 | `status` | Get agent status from debug endpoint |
+| `view [path]` | Save canvas image to file (default: canvas.png) |
+| `test "prompt" --strokes N` | Run E2E test with stroke verification |
 
 ## Event Display
 

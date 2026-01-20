@@ -18,6 +18,7 @@ import argparse
 import asyncio
 import json
 import sys
+import time
 from datetime import datetime
 
 import httpx
@@ -90,7 +91,13 @@ async def get_token() -> str:
     """Get dev authentication token."""
     async with httpx.AsyncClient() as client:
         resp = await client.get(f"{BASE_URL}/auth/dev-token")
-        resp.raise_for_status()
+        if resp.status_code == 403:
+            print(f"{RED}Error: Dev tokens only available in dev mode{RESET}")
+            print("Set DEV_MODE=true on server")
+            sys.exit(1)
+        if resp.status_code != 200:
+            print(f"{RED}Error: Failed to get token: {resp.status_code}{RESET}")
+            sys.exit(1)
         return resp.json()["access_token"]
 
 
@@ -120,9 +127,9 @@ async def send_and_watch(message: dict, watch_duration: int = 0):
 
         if watch_duration > 0:
             print(f"\n{GREEN}Watching for {watch_duration}s (Ctrl+C to stop){RESET}\n")
-            start = asyncio.get_event_loop().time()
+            start = time.monotonic()
             try:
-                while asyncio.get_event_loop().time() - start < watch_duration:
+                while time.monotonic() - start < watch_duration:
                     try:
                         raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
                         msg = json.loads(raw)
@@ -179,9 +186,9 @@ async def start(prompt: str | None = None, duration: int = 60):
         print(f"{GREEN}Sent:{RESET} {json.dumps(resume_msg)}")
 
         print(f"\n{GREEN}Watching for {duration}s (Ctrl+C to stop){RESET}\n")
-        start_time = asyncio.get_event_loop().time()
+        start_time = time.monotonic()
         try:
-            while asyncio.get_event_loop().time() - start_time < duration:
+            while time.monotonic() - start_time < duration:
                 try:
                     raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
                     msg = json.loads(raw)
@@ -231,6 +238,9 @@ async def status():
             f"{BASE_URL}/debug/agent",
             headers={"Authorization": f"Bearer {token}"},
         )
+        if resp.status_code != 200:
+            print(f"{RED}Failed to get status: {resp.status_code}{RESET}")
+            return
         data = resp.json()
         print(f"{GREEN}Agent Status:{RESET}")
         print(f"  status: {data.get('status')}")
@@ -291,10 +301,10 @@ async def test(prompt: str, expected_strokes: int, timeout: int = 120):
 
         # Watch until idle or timeout
         # We need to see the agent become non-idle first, then wait for it to go idle
-        start_time = asyncio.get_event_loop().time()
+        start_time = time.monotonic()
         seen_active = False
 
-        while asyncio.get_event_loop().time() - start_time < timeout:
+        while time.monotonic() - start_time < timeout:
             try:
                 raw = await asyncio.wait_for(ws.recv(), timeout=2.0)
                 msg = json.loads(raw)
