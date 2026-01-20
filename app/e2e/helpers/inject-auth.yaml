@@ -1,6 +1,7 @@
 appId: net.dmfenton.sketchpad
 ---
-# Auth injected via simctl before Maestro runs
+# Dev auto-auth: App automatically authenticates in dev mode when no tokens exist
+# This helper navigates from HomePanel to studio mode via Surprise Me
 
 # Handle "Open in Code Monet?" dialog (appears on fresh simulator)
 - tapOn:
@@ -16,6 +17,7 @@ appId: net.dmfenton.sketchpad
 # Dismiss debugger warning (if shown)
 - tapOn:
     point: '95%,92%'
+    optional: true
 
 # Expand "More options" to reveal Surprise Me
 - tapOn:
