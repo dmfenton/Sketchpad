@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/ws-client.py` - Terminal WebSocket client for testing agent interactions (view, test, watch, start, pause, resume, nudge, clear, status commands)
+
 ### Changed
 
 - Agent uses Claude Haiku in dev mode for cost reduction, Opus in production
