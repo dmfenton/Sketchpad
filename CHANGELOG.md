@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.31.0] - 2026-01-20
+
 ### Fixed
 
 - Gallery stroke rendering now uses actual stroke colors, widths, and opacity instead of hardcoded values
