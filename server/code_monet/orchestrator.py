@@ -1,7 +1,6 @@
 """Agent orchestrator - manages the agent loop and callbacks."""
 
 import asyncio
-import contextlib
 import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
@@ -273,23 +272,16 @@ class AgentOrchestrator:
     async def run_loop(self) -> None:
         """Main agent loop that runs continuously.
 
-        Uses event-driven wake-up instead of polling to reduce latency:
-        - Wakes immediately when signaled (client connect, resume, nudge)
-        - Falls back to interval timeout for safety
+        Only runs turns when explicitly woken (new_canvas, resume, nudge).
+        No automatic retries - user must trigger each turn.
         """
         logger.info("[ORCH] run_loop started")
         while True:
             try:
-                # Wait for wake signal or timeout
-                with contextlib.suppress(TimeoutError):
-                    await asyncio.wait_for(
-                        self._wake_event.wait(),
-                        timeout=settings.agent_interval,
-                    )
-
-                # Clear event for next wait cycle
+                # Wait for explicit wake signal (no timeout-based auto-run)
+                await self._wake_event.wait()
                 self._wake_event.clear()
-                logger.debug("[ORCH] woke up")
+                logger.debug("[ORCH] woke up (explicit signal)")
 
                 # Only run when clients are connected (cost control)
                 if not self.broadcaster.active_connections:
