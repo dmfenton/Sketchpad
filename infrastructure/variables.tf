@@ -25,7 +25,7 @@ variable "subdomain" {
 variable "instance_type" {
   description = "EC2 instance type (t3.medium recommended for production)"
   type        = string
-  default     = "t3.medium"  # 4GB RAM - sufficient headroom for Python + Docker + agents
+  default     = "t3.medium" # 4GB RAM - sufficient headroom for Python + Docker + agents
 }
 
 variable "ssh_key_name" {

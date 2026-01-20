@@ -403,6 +403,23 @@ jobs:
           echo "Expected SSR: healthy, got: $SSR_STATUS"
           exit 1
 
+      - name: Cleanup old Docker images
+        run: |
+          echo "Cleaning up old Docker images on EC2..."
+
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=drawing-agent" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" \
+            --output text)
+
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=["docker system prune -af --filter until=24h && df -h /"]' \
+            --comment "Post-deploy Docker cleanup"
+
+          echo "✅ Cleanup command sent (runs async)"
+
       - name: Summary
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}

@@ -54,9 +54,9 @@ resource "aws_iam_user_policy" "local_dev_ssm" {
         Resource = "arn:aws:ssm:${var.aws_region}:*:parameter${local.ssm_prefix}/dev/*"
       },
       {
-        Sid    = "DecryptDevSecrets"
-        Effect = "Allow"
-        Action = ["kms:Decrypt"]
+        Sid      = "DecryptDevSecrets"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
         Resource = "*"
         Condition = {
           StringEquals = {

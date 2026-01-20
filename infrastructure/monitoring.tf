@@ -56,6 +56,32 @@ resource "aws_cloudwatch_metric_alarm" "status_check" {
   }
 }
 
+# Disk Usage Warning (early warning at 60%)
+resource "aws_cloudwatch_metric_alarm" "disk_warning" {
+  alarm_name          = "drawing-agent-disk-warning"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "disk_used_percent"
+  namespace           = "CWAgent"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 60
+  alarm_description   = "Early warning: Disk usage > 60%"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    InstanceId = aws_instance.main.id
+    path       = "/"
+    fstype     = "xfs"
+  }
+
+  treat_missing_data = "notBreaching"
+
+  tags = {
+    Name = "drawing-agent-disk-warning"
+  }
+}
+
 # Disk Usage Alarm (requires CloudWatch agent)
 resource "aws_cloudwatch_metric_alarm" "disk_high" {
   alarm_name          = "drawing-agent-disk-high"
