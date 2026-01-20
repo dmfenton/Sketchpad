@@ -80,7 +80,6 @@ class TurnResult:
     """Result of processing a turn's messages."""
 
     thinking: str
-    done: bool
     aborted: bool
 
 
@@ -109,7 +108,6 @@ async def process_turn_messages(
     all_thinking = ""
     last_tool_name: str | None = None
     last_tool_input: dict[str, Any] | None = None
-    piece_done = False
 
     async for message in client.receive_response():
         # Check for abort
@@ -201,4 +199,4 @@ async def process_turn_messages(
             if message.is_error and callbacks.on_error:
                 await callbacks.on_error(message.result or "Unknown error", None)
 
-    return TurnResult(thinking=all_thinking, done=piece_done, aborted=False)
+    return TurnResult(thinking=all_thinking, aborted=False)
