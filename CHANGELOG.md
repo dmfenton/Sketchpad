@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.30.0] - 2026-01-20
+
 ### Added
 
 - Static Open Graph image (1200x630) for improved social media link previews
@@ -15,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - App now pauses agent and returns to home screen when going to background
+- Umami analytics database moved to EBS volume for persistence
 
 ### Fixed
 
