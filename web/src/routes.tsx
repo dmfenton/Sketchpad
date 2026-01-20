@@ -64,6 +64,7 @@ function HomepageRoute({ initialData }: { initialData?: SSRData }): React.ReactE
         <meta property="og:image" content="https://monet.dmfenton.net/og-image.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Code Monet - AI-Powered Generative Art" />
         <meta property="og:url" content="https://monet.dmfenton.net/" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:image" content="https://monet.dmfenton.net/og-image.png" />
@@ -92,6 +93,7 @@ function GalleryRoute({ initialData }: { initialData?: SSRData }): React.ReactEl
         <meta property="og:image" content="https://monet.dmfenton.net/og-image.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Code Monet - AI-Powered Generative Art" />
         <meta property="og:url" content="https://monet.dmfenton.net/gallery" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:image" content="https://monet.dmfenton.net/og-image.png" />

@@ -2,6 +2,8 @@
 """
 Generate Open Graph image for Code Monet social sharing.
 Creates a 1200x630 PNG with logo and branding.
+
+Note: Uses macOS system fonts. Falls back to default bitmap font on other platforms.
 """
 
 from pathlib import Path
@@ -37,9 +39,9 @@ def generate_og_image(output_path: Path) -> None:
                 new_data.append((255, 255, 255, 0))
             else:
                 new_data.append(item)
-        logo.putdata(new_data)
+        logo.putdata(new_data)  # type: ignore[arg-type]
 
-        # Make logo 300px wide, maintaining aspect ratio
+        # Scale logo to fit nicely
         logo_size = 280
         logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
 
@@ -51,20 +53,16 @@ def generate_og_image(output_path: Path) -> None:
         img.paste(logo, (logo_x, logo_y), logo)
 
     # Try to load nice fonts, fall back to default
+    title_font: ImageFont.FreeTypeFont | ImageFont.ImageFont
+    tagline_font: ImageFont.FreeTypeFont | ImageFont.ImageFont
     try:
-        # Try system fonts
+        # Try system fonts (macOS)
         title_font = ImageFont.truetype("/System/Library/Fonts/NewYork.ttf", 72)
-        tagline_font = ImageFont.truetype(
-            "/System/Library/Fonts/NewYork.ttf", 28
-        )
+        tagline_font = ImageFont.truetype("/System/Library/Fonts/NewYork.ttf", 28)
     except OSError:
         try:
-            title_font = ImageFont.truetype(
-                "/System/Library/Fonts/Georgia.ttf", 72
-            )
-            tagline_font = ImageFont.truetype(
-                "/System/Library/Fonts/Georgia.ttf", 28
-            )
+            title_font = ImageFont.truetype("/System/Library/Fonts/Georgia.ttf", 72)
+            tagline_font = ImageFont.truetype("/System/Library/Fonts/Georgia.ttf", 28)
         except OSError:
             # Fall back to default font
             title_font = ImageFont.load_default()
