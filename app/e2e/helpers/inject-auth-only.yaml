@@ -1,7 +1,7 @@
 appId: net.dmfenton.sketchpad
 ---
 # Dev auto-auth: App automatically authenticates in dev mode when no tokens exist
-# This helper launches the app and waits for canvas after auto-auth completes
+# This helper launches the app and waits for HomePanel after auto-auth completes
 
 # Launch the app
 - launchApp
@@ -11,10 +11,10 @@ appId: net.dmfenton.sketchpad
     text: 'Open'
     optional: true
 
-# Wait for canvas (auto-auth happens during app startup)
+# Wait for HomePanel (auto-auth happens during app startup)
 - extendedWaitUntil:
     visible:
-      id: 'canvas-view'
+      id: 'home-panel'
     timeout: 30000
 
 # Dismiss debugger warning (if shown)

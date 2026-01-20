@@ -7,22 +7,31 @@ appId: net.dmfenton.sketchpad
     text: 'Open'
     optional: true
 
-# Wait for canvas
+# Wait for HomePanel (app now starts here, not directly in studio)
 - extendedWaitUntil:
     visible:
-      id: 'canvas-view'
+      id: 'home-panel'
     timeout: 15000
 
 # Dismiss debugger warning (if shown)
 - tapOn:
     point: '95%,92%'
 
-# Tap Surprise Me by testID (optional - modal may already be dismissed)
+# Expand "More options" to reveal Surprise Me
 - tapOn:
-    id: 'surprise-me-button'
-    optional: true
+    id: 'home-more-options'
 
-# Wait for action bar
+# Wait for options to expand
+- extendedWaitUntil:
+    visible:
+      id: 'home-surprise-me'
+    timeout: 3000
+
+# Tap Surprise Me to enter studio
+- tapOn:
+    id: 'home-surprise-me'
+
+# Wait for studio mode (action bar appears)
 - extendedWaitUntil:
     visible:
       id: 'action-bar'

@@ -4,6 +4,7 @@ appId: net.dmfenton.sketchpad
 - runFlow:
     file: ../helpers/inject-auth.yaml
 
+# Now in studio mode, action bar should be visible
 - assertVisible:
     id: 'action-bar'
 
@@ -29,7 +30,6 @@ appId: net.dmfenton.sketchpad
     id: 'nudge-close-button'
 
 # Test Pause button is tappable
-# Note: Tapping pause when no strokes shows StartPanel modal, so we just verify the tap works
 - tapOn:
     id: 'action-pause'
 # Test complete - all action bar buttons verified

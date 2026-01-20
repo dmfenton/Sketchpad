@@ -1,9 +1,10 @@
 appId: net.dmfenton.sketchpad
 ---
-# Test canvas interaction after auth
+# Test canvas interaction after navigating from HomePanel
 - runFlow:
     file: ../helpers/inject-auth.yaml
 
+# Now in studio mode, canvas should be visible
 - assertVisible:
     id: 'canvas-view'
 

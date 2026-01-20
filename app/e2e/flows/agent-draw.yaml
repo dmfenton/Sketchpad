@@ -7,11 +7,11 @@ appId: net.dmfenton.sketchpad
 
 - takeScreenshot: 01-after-auth
 
-# Tap "Describe your vision" on StartPanel
+# Tap on the prompt input to focus it
 - tapOn:
-    id: 'describe-vision-button'
+    id: 'home-prompt-input'
 
-- takeScreenshot: 02-input-visible
+- takeScreenshot: 02-input-focused
 
 # Handle iOS keyboard tutorial if it appears
 - tapOn:
@@ -23,17 +23,19 @@ appId: net.dmfenton.sketchpad
 
 - takeScreenshot: 03-text-entered
 
-# Tap Start
+# Tap submit button to start
 - tapOn:
-    id: 'start-panel-start-button'
+    id: 'home-prompt-submit'
 
 - takeScreenshot: 04-after-start
 
-# Wait a moment then screenshot (swipe dismisses keyboard if open)
-- swipe:
-    direction: DOWN
-    duration: 100
-- takeScreenshot: 05-waiting
+# Wait for studio mode (action bar visible)
+- extendedWaitUntil:
+    visible:
+      id: 'action-bar'
+    timeout: 10000
+
+- takeScreenshot: 05-in-studio
 
 # Wait for agent to start working (LiveStatus appears when thinking/drawing)
 - extendedWaitUntil:
