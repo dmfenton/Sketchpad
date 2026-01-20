@@ -55,12 +55,23 @@ class AgentOrchestrator:
     # Event-driven wake-up (replaces polling)
     _wake_event: asyncio.Event = field(default_factory=asyncio.Event)
 
+    # Event for client animation completion
+    _animation_done_event: asyncio.Event = field(default_factory=asyncio.Event)
+
     # Track piece completion - prevents auto-starting new turns
     _piece_completed: bool = field(default=False)
 
     def __post_init__(self) -> None:
         # Set up the agent's draw callback to use our _draw_paths method
         self.agent.set_on_draw(self._draw_paths)
+
+    def signal_animation_done(self) -> None:
+        """Signal that client has finished animating strokes.
+
+        Called from user_handlers when client sends animation_done message.
+        """
+        logger.info("[ORCH] animation_done signal received")
+        self._animation_done_event.set()
 
     def wake(self) -> None:
         """Signal the agent loop to wake up immediately.
@@ -122,15 +133,20 @@ class AgentOrchestrator:
             )
         )
 
-        # Wait for client animation to complete
-        # Calculate based on client frame rate, with buffer for network latency
-        # Cap to prevent very long waits that block agent responsiveness
+        # Wait for client animation_done signal with timeout fallback
+        # Calculate timeout based on client frame rate, with buffer for network latency
         animation_time_ms = (
             total_points * (1000 / settings.client_animation_fps)
         ) + settings.animation_wait_buffer_ms
-        animation_time_s = min(animation_time_ms / 1000, settings.max_animation_wait_s)
-        logger.info(f">>> Waiting {animation_time_s:.2f}s for {total_points} points to animate")
-        await asyncio.sleep(animation_time_s)
+        timeout_s = min(animation_time_ms / 1000, settings.max_animation_wait_s)
+
+        logger.info(f">>> Waiting for animation_done signal (timeout: {timeout_s:.2f}s)")
+        self._animation_done_event.clear()
+        try:
+            await asyncio.wait_for(self._animation_done_event.wait(), timeout=timeout_s)
+            logger.info(">>> Client signaled animation_done")
+        except asyncio.TimeoutError:
+            logger.warning(f">>> Animation wait timed out after {timeout_s:.2f}s")
 
     def create_callbacks(self) -> AgentCallbacks:
         """Create callbacks for agent events."""

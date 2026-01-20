@@ -881,7 +881,9 @@ BROWSER_LOG_FILE = Path("/tmp/code-monet-browser.log")
 
 @app.post("/debug/log")
 async def debug_log(request: Request) -> dict[str, bool]:
-    """Receive forwarded browser/app console logs to dedicated file."""
+    """Receive forwarded browser/app console logs to dedicated file (dev mode only)."""
+    if not settings.dev_mode:
+        raise HTTPException(status_code=404, detail="Not found")
     data = await request.json()
     timestamp = datetime.now().isoformat()
     session_id = data.get("session_id", "unknown")
@@ -896,7 +898,9 @@ async def debug_log(request: Request) -> dict[str, bool]:
 
 @app.post("/debug/log/session")
 async def debug_log_session(request: Request) -> dict[str, Any]:
-    """Start a new logging session with clear marker."""
+    """Start a new logging session with clear marker (dev mode only)."""
+    if not settings.dev_mode:
+        raise HTTPException(status_code=404, detail="Not found")
     data = await request.json()
     session_id = data.get("session_id", "unknown")
     timestamp = datetime.now().isoformat()
