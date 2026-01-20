@@ -14,7 +14,7 @@ class TestTracesEndpoint:
     @pytest.fixture
     def client(self):
         """Create test client with mocked tracing."""
-        with patch("code_monet.main.record_client_spans") as mock_record:
+        with patch("code_monet.routes.tracing.record_client_spans") as mock_record:
             mock_record.return_value = 1
             # Import app after patching
             from code_monet.main import app
@@ -154,7 +154,7 @@ class TestTracesRateLimiting:
     @pytest.fixture
     def client(self):
         """Create test client with mocked tracing."""
-        with patch("code_monet.main.record_client_spans") as mock_record:
+        with patch("code_monet.routes.tracing.record_client_spans") as mock_record:
             mock_record.return_value = 1
             from code_monet.main import app
 

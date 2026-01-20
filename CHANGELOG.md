@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Refactored `main.py` routes into modular `routes/` package with 11 focused modules
 - Refactored `tools.py` into modular `tools/` package with focused submodules for maintainability
 
 ## [1.30.0] - 2026-01-20

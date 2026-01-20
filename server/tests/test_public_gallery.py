@@ -54,9 +54,9 @@ class TestPublicGalleryStrokes:
     def client(self, temp_workspace, mock_public_user):
         """Create test client with mocked workspace and repository."""
         with (
-            patch("code_monet.main.settings") as mock_settings,
-            patch("code_monet.main.repository") as mock_repo,
-            patch("code_monet.main.get_session") as mock_get_session,
+            patch("code_monet.routes.public_gallery.settings") as mock_settings,
+            patch("code_monet.routes.public_gallery.repository") as mock_repo,
+            patch("code_monet.routes.public_gallery.get_session") as mock_get_session,
         ):
             mock_settings.workspace_base_dir = temp_workspace
 
@@ -181,9 +181,9 @@ class TestPublicGalleryStrokes:
     def test_private_gallery_returns_404(self, temp_workspace, mock_private_user):
         """Test that private gallery is not accessible."""
         with (
-            patch("code_monet.main.settings") as mock_settings,
-            patch("code_monet.main.repository") as mock_repo,
-            patch("code_monet.main.get_session") as mock_get_session,
+            patch("code_monet.routes.public_gallery.settings") as mock_settings,
+            patch("code_monet.routes.public_gallery.repository") as mock_repo,
+            patch("code_monet.routes.public_gallery.get_session") as mock_get_session,
         ):
             mock_settings.workspace_base_dir = temp_workspace
 
