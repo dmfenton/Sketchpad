@@ -165,7 +165,7 @@ app.add_typer(user_app, name="user")
 async def _list_users_with_workspace_async() -> list[tuple[str, str, str, bool, int, int, str]]:
     """List users with workspace summary."""
     from code_monet.db import get_session, repository
-    from code_monet.workspace_state import WorkspaceState
+    from code_monet.workspace import WorkspaceState
 
     results: list[tuple[str, str, str, bool, int, int, str]] = []
 
@@ -205,7 +205,7 @@ async def _get_workspace_state_async(
     user_id: str,
 ) -> dict[str, Any]:
     """Get detailed workspace state for a user."""
-    from code_monet.workspace_state import WorkspaceState
+    from code_monet.workspace import WorkspaceState
 
     state = await WorkspaceState.load_for_user(user_id)
     gallery = await state.list_gallery()

@@ -1,4 +1,10 @@
-"""Filesystem-backed workspace state for multi-user isolation."""
+"""Filesystem-backed workspace state for multi-user isolation.
+
+This package provides per-user workspace management with:
+- Atomic file persistence
+- Gallery management
+- Stroke queue for client-side rendering
+"""
 
 from __future__ import annotations
 
@@ -12,7 +18,6 @@ from typing import TYPE_CHECKING
 import aiofiles
 import aiofiles.os
 
-from code_monet.config import settings
 from code_monet.types import (
     AgentStatus,
     CanvasState,
@@ -22,18 +27,29 @@ from code_monet.types import (
     PendingStrokeDict,
     SavedCanvas,
 )
+from code_monet.workspace.gallery import (
+    load_gallery_piece,
+    parse_drawing_style,
+    scan_gallery_entries,
+    scan_gallery_with_strokes,
+)
+from code_monet.workspace.persistence import (
+    atomic_write,
+    ensure_user_dirs,
+    get_user_dir,
+)
+from code_monet.workspace.strokes import (
+    enforce_pending_limit,
+    interpolate_paths_to_pending,
+)
 
 if TYPE_CHECKING:
     from code_monet.config import Settings
 
 logger = logging.getLogger(__name__)
 
-
-def _get_base_dir() -> FilePath:
-    """Get the base directory for user workspaces, resolved relative to server dir."""
-    # Resolve relative paths from the server directory
-    server_dir = FilePath(__file__).parent.parent
-    return (server_dir / settings.workspace_base_dir).resolve()
+# Re-export for backwards compatibility
+__all__ = ["WorkspaceState"]
 
 
 class WorkspaceState:
@@ -84,25 +100,8 @@ class WorkspaceState:
     @classmethod
     async def load_for_user(cls, user_id: str) -> WorkspaceState:
         """Load or create workspace state for a user."""
-        # Validate user_id is a valid UUID string (path traversal protection)
-        import re
-
-        uuid_pattern = re.compile(
-            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I
-        )
-        if not isinstance(user_id, str) or not uuid_pattern.match(user_id):
-            raise ValueError(f"Invalid user_id (must be UUID): {user_id}")
-
-        base_dir = _get_base_dir()
-        user_dir = (base_dir / str(user_id)).resolve()
-
-        # Ensure path stays within base directory (path traversal protection)
-        if not str(user_dir).startswith(str(base_dir)):
-            raise ValueError(f"Invalid user directory path for user {user_id}")
-
-        # Create directories if needed
-        await aiofiles.os.makedirs(user_dir, exist_ok=True)
-        await aiofiles.os.makedirs(user_dir / "gallery", exist_ok=True)
+        user_dir = get_user_dir(user_id)
+        await ensure_user_dirs(user_dir)
 
         state = cls(user_id, user_dir)
         await state._load_from_file()
@@ -126,19 +125,11 @@ class WorkspaceState:
                 return
 
             canvas_data = data.get("canvas", {})
-            # Parse drawing_style with fallback to plotter
-            style_str = canvas_data.get("drawing_style", "plotter")
-            try:
-                drawing_style = DrawingStyleType(style_str)
-            except ValueError:
-                logger.warning(f"Invalid drawing_style '{style_str}', defaulting to plotter")
-                drawing_style = DrawingStyleType.PLOTTER
-
             self._canvas = CanvasState(
                 width=canvas_data.get("width", 800),
                 height=canvas_data.get("height", 600),
                 strokes=[Path.model_validate(s) for s in canvas_data.get("strokes", [])],
-                drawing_style=drawing_style,
+                drawing_style=parse_drawing_style(canvas_data.get("drawing_style", "plotter")),
             )
             self._status = AgentStatus(data.get("status", "paused"))
             self._piece_number = data.get("piece_number", 0)
@@ -218,13 +209,7 @@ class WorkspaceState:
                     data["canvas"] = self._canvas.model_dump()
                     json_data = json.dumps(data, indent=2)
 
-            # Write to temp file first, then atomically rename
-            temp_file = self._workspace_file.with_suffix(".json.tmp")
-            async with aiofiles.open(temp_file, "w") as f:
-                await f.write(json_data)
-
-            # Atomic rename (on POSIX systems)
-            await aiofiles.os.replace(temp_file, self._workspace_file)
+            await atomic_write(self._workspace_file, json_data)
 
     # --- Properties ---
 
@@ -297,34 +282,23 @@ class WorkspaceState:
         Enforces max_pending_strokes limit to prevent memory exhaustion.
         """
         from code_monet.config import settings
-        from code_monet.interpolation import interpolate_path
-
-        total_points = 0
 
         async with self._stroke_lock:
             # Check pending strokes limit
-            if len(self._pending_strokes) >= settings.max_pending_strokes:
-                logger.warning(
-                    f"User {self.user_id}: pending strokes limit reached "
-                    f"({settings.max_pending_strokes}), dropping oldest"
-                )
-                # Drop oldest strokes to make room
-                drop_count = len(paths)
-                self._pending_strokes = self._pending_strokes[drop_count:]
+            self._pending_strokes = enforce_pending_limit(
+                self._pending_strokes,
+                len(paths),
+                settings.max_pending_strokes,
+                self.user_id,
+            )
 
             self._stroke_batch_id += 1
             batch_id = self._stroke_batch_id
 
-            for path in paths:
-                points = interpolate_path(path, settings.path_steps_per_unit)
-                total_points += len(points)
-                self._pending_strokes.append(
-                    {
-                        "batch_id": batch_id,
-                        "path": path.model_dump(),
-                        "points": [{"x": p.x, "y": p.y} for p in points],
-                    }
-                )
+            new_strokes, total_points = interpolate_paths_to_pending(
+                paths, batch_id, settings.path_steps_per_unit
+            )
+            self._pending_strokes.extend(new_strokes)
 
         await self.save()
         return batch_id, total_points
@@ -377,11 +351,7 @@ class WorkspaceState:
                 "title": self._current_piece_title,
             }
 
-            # Atomic write for gallery piece
-            temp_file = piece_file.with_suffix(".json.tmp")
-            async with aiofiles.open(temp_file, "w") as f:
-                await f.write(json.dumps(piece_data, indent=2))
-            await aiofiles.os.replace(temp_file, piece_file)
+            await atomic_write(piece_file, json.dumps(piece_data, indent=2))
 
             saved_id = f"piece_{self._piece_number:06d}"
             title_info = (
@@ -417,44 +387,7 @@ class WorkspaceState:
 
     async def list_gallery(self) -> list[GalleryEntry]:
         """List gallery pieces by scanning piece files."""
-        if not await aiofiles.os.path.exists(self._gallery_dir):
-            return []
-
-        result = []
-        for entry in await aiofiles.os.listdir(self._gallery_dir):
-            if not entry.startswith("piece_") or not entry.endswith(".json"):
-                continue
-
-            piece_file = self._gallery_dir / entry
-            try:
-                async with aiofiles.open(piece_file) as f:
-                    data = json.loads(await f.read())
-
-                piece_number = data.get("piece_number")
-                if piece_number is None:
-                    continue
-
-                style_str = data.get("drawing_style", "plotter")
-                try:
-                    drawing_style = DrawingStyleType(style_str)
-                except ValueError:
-                    drawing_style = DrawingStyleType.PLOTTER
-
-                result.append(
-                    GalleryEntry(
-                        id=f"piece_{piece_number:06d}",
-                        created_at=data.get("created_at", ""),
-                        piece_number=piece_number,
-                        stroke_count=len(data.get("strokes", [])),
-                        drawing_style=drawing_style,
-                        title=data.get("title"),
-                    )
-                )
-            except (json.JSONDecodeError, OSError):
-                continue
-
-        result.sort(key=lambda p: p.piece_number)
-        return result
+        return await scan_gallery_entries(self._gallery_dir)
 
     async def list_gallery_with_strokes(self) -> list[SavedCanvas]:
         """List gallery pieces with full stroke data.
@@ -462,48 +395,7 @@ class WorkspaceState:
         This loads all strokes for each piece - use sparingly.
         For listings, prefer list_gallery() which returns metadata only.
         """
-        pieces: list[SavedCanvas] = []
-
-        if not await aiofiles.os.path.exists(self._gallery_dir):
-            return pieces
-
-        # List all piece files
-        for entry in await aiofiles.os.listdir(self._gallery_dir):
-            if entry.startswith("piece_") and entry.endswith(".json"):
-                piece_file = self._gallery_dir / entry
-                try:
-                    async with aiofiles.open(piece_file) as f:
-                        data = json.loads(await f.read())
-
-                    piece_number = data.get("piece_number")
-                    if piece_number is None:
-                        logger.warning(f"Gallery file {entry} missing piece_number, skipping")
-                        continue
-
-                    # Parse drawing_style with fallback
-                    style_str = data.get("drawing_style", "plotter")
-                    try:
-                        drawing_style = DrawingStyleType(style_str)
-                    except ValueError:
-                        drawing_style = DrawingStyleType.PLOTTER
-
-                    pieces.append(
-                        SavedCanvas(
-                            id=f"piece_{piece_number:06d}",
-                            strokes=[Path.model_validate(s) for s in data.get("strokes", [])],
-                            created_at=data.get("created_at", ""),
-                            piece_number=piece_number,
-                            drawing_style=drawing_style,
-                            title=data.get("title"),
-                        )
-                    )
-                except (json.JSONDecodeError, KeyError) as e:
-                    logger.warning(f"Skipping corrupted gallery file {entry}: {e}")
-                    continue
-
-        # Sort by piece number
-        pieces.sort(key=lambda p: p.piece_number)
-        return pieces
+        return await scan_gallery_with_strokes(self._gallery_dir)
 
     async def load_from_gallery(
         self, piece_number: int
@@ -512,26 +404,4 @@ class WorkspaceState:
 
         Returns (strokes, drawing_style) tuple or None if not found.
         """
-        # Try both 3-digit and 6-digit formats for backwards compatibility
-        for fmt in [f"piece_{piece_number:06d}.json", f"piece_{piece_number:03d}.json"]:
-            piece_file = self._gallery_dir / fmt
-            if await aiofiles.os.path.exists(piece_file):
-                try:
-                    async with aiofiles.open(piece_file) as f:
-                        data = json.loads(await f.read())
-
-                    strokes = [Path.model_validate(s) for s in data.get("strokes", [])]
-
-                    # Parse drawing_style with fallback
-                    style_str = data.get("drawing_style", "plotter")
-                    try:
-                        drawing_style = DrawingStyleType(style_str)
-                    except ValueError:
-                        drawing_style = DrawingStyleType.PLOTTER
-
-                    return (strokes, drawing_style)
-                except (json.JSONDecodeError, KeyError) as e:
-                    logger.warning(f"Failed to load gallery piece {piece_number}: {e}")
-                    return None
-
-        return None
+        return await load_gallery_piece(self._gallery_dir, piece_number)

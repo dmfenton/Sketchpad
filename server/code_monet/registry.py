@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import WebSocket
 
-from code_monet.workspace_state import WorkspaceState
+from code_monet.workspace import WorkspaceState
 
 logger = logging.getLogger(__name__)
 

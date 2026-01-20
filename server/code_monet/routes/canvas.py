@@ -13,7 +13,7 @@ from code_monet.auth.dependencies import CurrentUser
 from code_monet.canvas import path_to_point_list, render_path_to_svg_d
 from code_monet.db import User
 from code_monet.registry import workspace_registry
-from code_monet.workspace_state import WorkspaceState
+from code_monet.workspace import WorkspaceState
 
 router = APIRouter()
 

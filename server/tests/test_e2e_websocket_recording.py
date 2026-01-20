@@ -33,7 +33,7 @@ from pydantic import BaseModel
 from code_monet.agent import DrawingAgent
 from code_monet.orchestrator import AgentOrchestrator
 from code_monet.types import DrawingStyleType
-from code_monet.workspace_state import WorkspaceState
+from code_monet.workspace import WorkspaceState
 
 
 @dataclass
