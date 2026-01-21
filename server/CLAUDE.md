@@ -321,7 +321,8 @@ from code_monet.tools import create_drawing_server
 **Key files:**
 - `__init__.py` - Server factory, exports
 - `drawing.py` - draw_paths, mark_piece_done, view_canvas
-- `svg_generation.py` - generate_svg with Python sandbox
+- `svg_generation.py` - generate_svg tool handler
+- `python_sandbox.py` - Python subprocess execution for generate_svg
 - `image_generation.py` - imagine (Gemini integration)
 - `signature.py` - sign_canvas
 - `naming.py` - name_piece
