@@ -254,6 +254,160 @@ The `/debug/agent` endpoint returns:
 - `pending_nudges`, `connected_clients`
 - `notes` and `monologue_preview` (first 500 chars)
 
+### WebSocket Remote Control (`scripts/ws-client.py`)
+
+Control the agent from terminal without the UI:
+
+```bash
+# Check current state
+uv run python scripts/ws-client.py status
+
+# Pause the agent (stops drawing)
+uv run python scripts/ws-client.py pause
+
+# Resume the agent
+uv run python scripts/ws-client.py resume
+
+# Clear canvas
+uv run python scripts/ws-client.py clear
+
+# Watch all WebSocket events (debug)
+uv run python scripts/ws-client.py watch
+
+# Save current canvas to file
+uv run python scripts/ws-client.py view output.png
+
+# Start new canvas with prompt
+uv run python scripts/ws-client.py start "draw a cat"
+```
+
+### Full Development Loop
+
+The complete cycle for UI changes: **Investigate → Plan → Code → Test → Verify → Loop**
+
+Uses Claude skills (`/command`), scripts, and tools together.
+
+#### 1. Investigate
+
+| Method | Use For |
+|--------|---------|
+| `/diagnose` | X-Ray traces, CloudWatch logs, service health |
+| `ws-client.py status` | Current agent state (paused, piece count) |
+| `ws-client.py watch` | Live WebSocket event stream |
+| Task tool (Explore) | Open-ended codebase searches |
+
+```bash
+# Direct script usage
+uv run python scripts/ws-client.py status
+uv run python scripts/ws-client.py watch
+```
+
+#### 2. Plan
+
+Use `EnterPlanMode` for non-trivial changes. Consider:
+- Which codebase? `app/src/` (mobile) vs `web/src/` (web) vs `shared/src/`
+- Rebuild shared after changes: `cd shared && npm run build`
+
+#### 3. Code
+
+Implement the fix. Run typecheck:
+
+```bash
+npm run -w app typecheck    # Mobile app
+npm run -w web typecheck    # Web app
+npm run -w shared build     # Rebuild shared if changed
+```
+
+#### 4. Remote Control (Set Up Test State)
+
+| Method | Use For |
+|--------|---------|
+| `/remote` | Run commands on production server via SSM |
+| `ws-client.py pause` | Stop agent drawing |
+| `ws-client.py clear` | Empty the canvas |
+| `ws-client.py start "prompt"` | Start new canvas with direction |
+| `ws-client.py resume` | Resume paused agent |
+
+```bash
+# Check state, then pause
+uv run python scripts/ws-client.py status
+uv run python scripts/ws-client.py pause
+```
+
+#### 5. Screenshot & Verify
+
+| Method | Use For |
+|--------|---------|
+| `/app-screenshot` | Capture Expo/Vite web app |
+| `/screenshot` | Capture iOS simulator |
+
+**Critical: Two different web servers**
+
+| Port | Server | Codebase | Test For |
+|------|--------|----------|----------|
+| 8081 | Expo Web | `app/src/` | Mobile UI (HomePanel, GalleryModal, Canvas) |
+| 5173 | Vite | `web/src/` | Web app (studio, homepage) |
+
+```bash
+# Mobile app (port 8081)
+/app-screenshot --auth --wait 3 --expo-port 8081
+
+# Web app (port 5173)
+/app-screenshot --auth --wait 3 --expo-port 5173
+
+# Wait for specific element
+/app-screenshot --auth --selector "[data-testid='home-panel']" --expo-port 8081
+```
+
+Then use Read tool on `server/screenshots/app-*.png` to view.
+
+#### 6. Loop Back
+
+If screenshot shows issues:
+1. `/diagnose` or `/diagnose logs` to check for errors
+2. Adjust code
+3. Re-run from step 4
+
+#### 7. Ship
+
+| Method | Use For |
+|--------|---------|
+| `/pr` | Create PR with code review |
+| `/release` | Cut a release tag |
+
+#### Available Skills Reference
+
+| Skill | Purpose |
+|-------|---------|
+| `/dev` | Start dev servers (server + Expo mobile on 8081) |
+| `/dev-web` | Start dev servers (server + Vite web on 5173) |
+| `/diagnose` | X-Ray traces and CloudWatch logs |
+| `/app-screenshot` | Screenshot Expo/Vite web app |
+| `/screenshot` | Screenshot iOS simulator |
+| `/remote` | Run commands on prod via SSM |
+| `/pr` | Create PR, run code review |
+| `/release` | Cut a release |
+| `/sync-prod` | Sync production data to dev |
+
+#### Quick Reference
+
+**TestIDs for `--selector`:**
+
+| Element | Selector |
+|---------|----------|
+| HomePanel | `[data-testid="home-panel"]` |
+| Canvas | `[data-testid="canvas-view"]` |
+| Continue button | `[data-testid="home-continue-button"]` |
+| Gallery button | `[data-testid="home-gallery"]` |
+| Surprise Me | `[data-testid="home-surprise-me"]` |
+
+**Common Issues:**
+
+- **Agent auto-starts**: Workspaces persist. Use `ws-client.py pause` first.
+- **Wrong screen**: Mobile app `inStudio` state. Background app returns to HomePanel.
+- **Wrong port**: 8081 for mobile features, 5173 for web features.
+- **Stale code**: Rebuild shared library after changes.
+
 ## Code Standards
 
 ### Python (Backend)
@@ -1005,7 +1159,7 @@ Production uses OpenTelemetry with AWS X-Ray for distributed tracing:
 
 ### Diagnose CLI
 
-Use the `/diagnose` or `/logs` skills, or run `scripts/diagnose.py` directly:
+Use the `/diagnose` skill, or run `scripts/diagnose.py` directly:
 
 ```bash
 # === Trace commands (X-Ray) ===
