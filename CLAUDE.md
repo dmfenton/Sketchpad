@@ -84,6 +84,8 @@ uv run mypy .
 - `pre-commit` not found -> Run `uv sync --extra dev`
 - Tests fail with import errors -> Rebuild shared library: `cd shared && npm run build`
 
+See [docs/claude-sandbox.md](docs/claude-sandbox.md) for Claude Code sandbox configuration.
+
 ## Git Workflow
 
 **Always use Pull Requests** - never push directly to main, even if you have bypass permissions.
@@ -363,6 +365,12 @@ If screenshot shows issues:
 - **Wrong port**: 8081 for mobile features, 5173 for web features.
 - **Stale code**: Rebuild shared library after changes.
 
+## Code Standards
+
+**Python (Backend):** Type hints, ruff format/check, async/await, Pydantic. See `server/CLAUDE.md`.
+
+**TypeScript (Frontend):** Strict mode, no `any`, functional components, named exports. See `shared/CLAUDE.md`.
+
 ## Key Architecture Decisions
 
 1. **WebSocket for real-time**: All drawing updates stream via WebSocket at 60fps
@@ -520,6 +528,15 @@ Edit `server/code_monet/agent.py` - the `SYSTEM_PROMPT` constant
 1. Add type to `PathType` enum in `server/code_monet/types.py`
 2. Add interpolation in `server/code_monet/interpolation.py`
 3. Add SVG rendering in `app/src/components/Canvas.tsx`
+
+## File Locations
+
+| Directory | Description | Details |
+|-----------|-------------|---------|
+| `server/code_monet/` | Python backend (FastAPI, agent, WebSocket) | See `server/CLAUDE.md` |
+| `app/src/` | React Native mobile app | Components, hooks, utils |
+| `web/src/` | Vite web app | Canvas, debug panel, action bar |
+| `shared/src/` | Shared TypeScript library | See `shared/CLAUDE.md` |
 
 ---
 

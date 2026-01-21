@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Reduced CLAUDE.md from 41KB to 18KB by extracting detailed docs to modular files
+- Added docs/infrastructure.md, docs/database.md, docs/auth.md, docs/ios-deployment.md, docs/observability.md, docs/analytics.md, docs/troubleshooting.md, docs/claude-sandbox.md
+
 ## [1.32.0] - 2026-01-21
 
 ### Added
