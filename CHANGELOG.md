@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- HomePanel layout reordered: Start Drawing section now at top, Continue section below with smaller 16:9 thumbnail
+- Removed "More options" toggle - style picker and Surprise Me button always visible
+
 ### Documentation
 
 - Reduced CLAUDE.md from 41KB to 18KB by extracting detailed docs to modular files
