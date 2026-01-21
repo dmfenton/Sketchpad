@@ -155,7 +155,7 @@ function MainApp(): React.JSX.Element {
       }
     };
 
-    fetchGallery();
+    void fetchGallery();
   }, [accessToken, api, dispatch]);
 
   // Track paused state in ref for AppState callback (avoids stale closure)

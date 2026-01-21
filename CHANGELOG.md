@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `scripts/app-screenshot.py` - Playwright-based screenshot tool for debugging Expo web app with mobile viewport simulation
 - `/app-screenshot` Claude command for capturing mobile app screenshots during development
+- Centralized API client (`app/src/api/client.ts`) with authenticated fetch and image source helpers
+- `useAuthenticatedImage` hook for loading images with authentication (blob URL workaround for web)
+- Gallery images now load via authenticated API on both native and web platforms
+- `/sync-prod` Claude command for syncing production data to local development
+
+### Changed
+
+- Consolidated `/diagnose` and `/logs` Claude skills into unified `/diagnose` command
+- Renamed `/dev-mobile` to `/dev`, added `/dev-web` for Vite web development
+- Gallery thumbnails now use authenticated image loading instead of public token URLs
 
 ### Fixed
 
