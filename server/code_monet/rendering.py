@@ -24,8 +24,21 @@ if TYPE_CHECKING:
 
 
 def hex_to_rgba(hex_color: str, opacity: float = 1.0) -> tuple[int, int, int, int]:
-    """Convert hex color and opacity to RGBA tuple."""
+    """Convert hex color and opacity to RGBA tuple.
+
+    Args:
+        hex_color: Hex color string like "#FF0000" or "FF0000"
+        opacity: Opacity value from 0.0 to 1.0
+
+    Returns:
+        RGBA tuple (r, g, b, a) with values 0-255
+
+    Raises:
+        ValueError: If hex_color is not a valid 6-character hex string
+    """
     hex_color = hex_color.lstrip("#")
+    if len(hex_color) != 6:
+        raise ValueError(f"Invalid hex color: expected 6 characters, got {len(hex_color)}")
     r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
     return (r, g, b, int(opacity * 255))
 
@@ -317,7 +330,3 @@ def options_for_share_preview(
         drawing_style=drawing_style,
         optimize_png=True,
     )
-
-
-# Keep _hex_to_rgba as alias for backwards compatibility in tests
-_hex_to_rgba = hex_to_rgba

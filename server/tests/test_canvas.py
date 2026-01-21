@@ -15,9 +15,6 @@ from code_monet.rendering import (
 )
 from code_monet.types import DrawingStyleType, Path, PathType, Point
 
-# Alias for backwards compatibility in tests
-_hex_to_rgba = hex_to_rgba
-
 
 def _render_strokes_to_png_sync(
     strokes: list[Path],
@@ -96,19 +93,31 @@ class TestSvgPathRendering:
 
 class TestHexToRgba:
     def test_opaque_black(self) -> None:
-        assert _hex_to_rgba("#000000", 1.0) == (0, 0, 0, 255)
+        assert hex_to_rgba("#000000", 1.0) == (0, 0, 0, 255)
 
     def test_opaque_white(self) -> None:
-        assert _hex_to_rgba("#FFFFFF", 1.0) == (255, 255, 255, 255)
+        assert hex_to_rgba("#FFFFFF", 1.0) == (255, 255, 255, 255)
 
     def test_half_opacity(self) -> None:
-        assert _hex_to_rgba("#FF0000", 0.5) == (255, 0, 0, 127)
+        assert hex_to_rgba("#FF0000", 0.5) == (255, 0, 0, 127)
 
     def test_no_hash(self) -> None:
-        assert _hex_to_rgba("00FF00", 1.0) == (0, 255, 0, 255)
+        assert hex_to_rgba("00FF00", 1.0) == (0, 255, 0, 255)
 
     def test_zero_opacity(self) -> None:
-        assert _hex_to_rgba("#0000FF", 0.0) == (0, 0, 255, 0)
+        assert hex_to_rgba("#0000FF", 0.0) == (0, 0, 255, 0)
+
+    def test_invalid_short_hex(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="expected 6 characters"):
+            hex_to_rgba("#FF")
+
+    def test_invalid_long_hex(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="expected 6 characters"):
+            hex_to_rgba("#FF00FF00")
 
 
 class TestPngRasterization:
