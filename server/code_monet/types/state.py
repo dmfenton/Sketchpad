@@ -46,6 +46,7 @@ class GalleryEntry(BaseModel):
     stroke_count: int
     drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER
     title: str | None = None  # Piece title (set by agent via name_piece tool)
+    thumbnail_token: str | None = None  # Token for thumbnail URL (same as id)
 
 
 class SavedCanvas(BaseModel):
@@ -72,6 +73,7 @@ class SavedCanvas(BaseModel):
             stroke_count=self.num_strokes,
             drawing_style=self.drawing_style,
             title=self.title,
+            thumbnail_token=self.id,  # Use id as token for thumbnail URL
         )
 
 

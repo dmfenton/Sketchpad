@@ -18,7 +18,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import type { SavedCanvas } from '@code-monet/shared';
-import { getApiUrl } from '../config';
+import type { ApiClient } from '../api';
+import { useAuthenticatedImage } from '../hooks';
 import {
   spacing,
   borderRadius,
@@ -29,6 +30,7 @@ import {
 } from '../theme';
 
 interface GalleryModalProps {
+  api: ApiClient;
   visible: boolean;
   canvases: SavedCanvas[];
   onClose: () => void;
@@ -49,25 +51,37 @@ function formatDate(isoString: string): string {
 }
 
 interface GalleryItemProps {
+  api: ApiClient;
   canvas: SavedCanvas;
   thumbnailSize: number;
-  thumbnailUrl: string;
   onPress: () => void;
   colors: ColorScheme;
   shadows: ShadowScheme;
 }
 
 function GalleryItem({
+  api,
   canvas,
   thumbnailSize,
-  thumbnailUrl,
   onPress,
   colors,
   shadows,
 }: GalleryItemProps): React.JSX.Element {
-  const [loading, setLoading] = useState(true);
+  const [nativeLoading, setNativeLoading] = useState(true);
   const [error, setError] = useState(false);
   const imageSize = thumbnailSize - spacing.sm * 2;
+
+  // Build thumbnail path for hook
+  const thumbnailPath = canvas.thumbnail_token
+    ? `/gallery/thumbnail/${canvas.thumbnail_token}.png`
+    : undefined;
+
+  // Use authenticated image hook for web blob URL workaround
+  const { source: thumbnailSource, loading: hookLoading } =
+    useAuthenticatedImage(api, thumbnailPath);
+
+  // Combine loading states: hook loading (web) + native image loading
+  const loading = hookLoading || nativeLoading;
 
   return (
     <Pressable
@@ -94,19 +108,19 @@ function GalleryItem({
           <View style={styles.errorOverlay}>
             <Ionicons name="image-outline" size={32} color={colors.textMuted} />
           </View>
-        ) : (
+        ) : thumbnailSource ? (
           <Image
-            source={{ uri: thumbnailUrl }}
+            source={thumbnailSource}
             style={{ width: imageSize, height: imageSize }}
             resizeMode="contain"
-            onLoadStart={() => setLoading(true)}
-            onLoadEnd={() => setLoading(false)}
+            onLoadStart={() => setNativeLoading(true)}
+            onLoadEnd={() => setNativeLoading(false)}
             onError={() => {
-              setLoading(false);
+              setNativeLoading(false);
               setError(true);
             }}
           />
-        )}
+        ) : null}
       </View>
       <View style={styles.itemInfo}>
         <Text style={[styles.itemTitle, { color: colors.textPrimary }]} numberOfLines={1}>
@@ -121,6 +135,7 @@ function GalleryItem({
 }
 
 export function GalleryModal({
+  api,
   visible,
   canvases,
   onClose,
@@ -136,27 +151,18 @@ export function GalleryModal({
   // Reverse the order so newest is first
   const sortedCanvases = useMemo(() => [...canvases].reverse(), [canvases]);
 
-  // Build thumbnail URL using capability token (no auth required)
-  const getThumbnailUrl = useCallback((thumbnailToken: string | undefined) => {
-    if (!thumbnailToken) {
-      return '';
-    }
-    const baseUrl = getApiUrl();
-    return `${baseUrl}/gallery/thumbnail/${thumbnailToken}.png`;
-  }, []);
-
   const renderItem = useCallback(
     ({ item }: { item: SavedCanvas }) => (
       <GalleryItem
+        api={api}
         canvas={item}
         thumbnailSize={thumbnailSize}
-        thumbnailUrl={getThumbnailUrl(item.thumbnail_token)}
         onPress={() => onSelect(item.piece_number)}
         colors={colors}
         shadows={shadows}
       />
     ),
-    [thumbnailSize, getThumbnailUrl, onSelect, colors, shadows]
+    [api, thumbnailSize, onSelect, colors, shadows]
   );
 
   const keyExtractor = useCallback((item: SavedCanvas) => item.id, []);
