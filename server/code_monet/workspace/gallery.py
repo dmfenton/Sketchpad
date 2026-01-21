@@ -48,14 +48,16 @@ async def scan_gallery_entries(gallery_dir: FilePath) -> list[GalleryEntry]:
             if piece_number is None:
                 continue
 
+            piece_id = f"piece_{piece_number:06d}"
             result.append(
                 GalleryEntry(
-                    id=f"piece_{piece_number:06d}",
+                    id=piece_id,
                     created_at=data.get("created_at", ""),
                     piece_number=piece_number,
                     stroke_count=len(data.get("strokes", [])),
                     drawing_style=parse_drawing_style(data.get("drawing_style", "plotter")),
                     title=data.get("title"),
+                    thumbnail_token=piece_id,
                 )
             )
         except (json.JSONDecodeError, OSError):

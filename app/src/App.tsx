@@ -44,6 +44,7 @@ import {
   NudgeModal,
   SplashScreen,
 } from './components';
+import { createApiClient } from './api';
 import { getApiUrl, getWebSocketUrl } from './config';
 import { useAuth } from './context';
 import { useCanvas } from './hooks/useCanvas';
@@ -54,6 +55,7 @@ import { spacing, useTheme } from './theme';
 function MainApp(): React.JSX.Element {
   const { colors, isDark } = useTheme();
   const { accessToken, signOut, refreshToken } = useAuth();
+  const api = useMemo(() => createApiClient(accessToken), [accessToken]);
   const [showSplash, setShowSplash] = useState(true);
   const [nudgeModalVisible, setNudgeModalVisible] = useState(false);
   const [galleryModalVisible, setGalleryModalVisible] = useState(false);
@@ -73,13 +75,11 @@ function MainApp(): React.JSX.Element {
   // Fetch pending strokes from server
   const fetchStrokes = useCallback(async (): Promise<PendingStroke[]> => {
     if (!accessToken) throw new Error('No auth token');
-    const response = await fetch(`${getApiUrl()}/strokes/pending`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const response = await api.fetch('/strokes/pending');
     if (!response.ok) throw new Error('Failed to fetch strokes');
     const data = (await response.json()) as { strokes: PendingStroke[] };
     return data.strokes;
-  }, [accessToken]);
+  }, [accessToken, api]);
 
   // Derive status from messages (source of truth)
   const agentStatus = deriveAgentStatus(canvas.state);
@@ -138,6 +138,25 @@ function MainApp(): React.JSX.Element {
   useEffect(() => {
     sendRef.current = send;
   }, [send]);
+
+  // Fetch gallery via HTTP on mount (more reliable than WebSocket init)
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const fetchGallery = async () => {
+      try {
+        const response = await api.fetch('/gallery');
+        if (response.ok) {
+          const gallery = await response.json();
+          dispatch({ type: 'SET_GALLERY', canvases: gallery });
+        }
+      } catch {
+        // Silently fail - WebSocket init will provide gallery as backup
+      }
+    };
+
+    fetchGallery();
+  }, [accessToken, api, dispatch]);
 
   // Track paused state in ref for AppState callback (avoids stale closure)
   const pausedRef = useRef(paused);
@@ -370,6 +389,7 @@ function MainApp(): React.JSX.Element {
               keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
             >
               <HomePanel
+                api={api}
                 connected={wsState.connected}
                 hasCurrentWork={canvas.state.strokes.length > 0}
                 recentCanvas={recentCanvas}
@@ -402,6 +422,7 @@ function MainApp(): React.JSX.Element {
 
         {/* Gallery Modal */}
         <GalleryModal
+          api={api}
           visible={galleryModalVisible}
           canvases={canvas.state.gallery}
           onClose={() => setGalleryModalVisible(false)}

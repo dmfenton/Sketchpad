@@ -18,11 +18,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import type { DrawingStyleType, SavedCanvas } from '@code-monet/shared';
-import { getApiUrl } from '../config';
+import type { ApiClient } from '../api';
+import { useAuthenticatedImage } from '../hooks';
 import { spacing, borderRadius, typography, useTheme } from '../theme';
 import { StylePicker } from './StylePicker';
 
 interface HomePanelProps {
+  api: ApiClient;
   connected: boolean;
   /** Current strokes on canvas (to show "in progress" work) */
   hasCurrentWork: boolean;
@@ -46,6 +48,7 @@ interface HomePanelProps {
 const MAX_PROMPT_LENGTH = 200;
 
 export function HomePanel({
+  api,
   connected,
   hasCurrentWork,
   recentCanvas,
@@ -60,14 +63,26 @@ export function HomePanel({
   const { colors, shadows } = useTheme();
   const [prompt, setPrompt] = useState('');
   const [showMoreOptions, setShowMoreOptions] = useState(false);
-  const [imageLoading, setImageLoading] = useState(true);
+  const [nativeImageLoading, setNativeImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
   const hasRecentWork = hasCurrentWork || recentCanvas !== null;
 
+  // Build thumbnail path for hook
+  const thumbnailPath = recentCanvas?.thumbnail_token
+    ? `/gallery/thumbnail/${recentCanvas.thumbnail_token}.png`
+    : undefined;
+
+  // Use authenticated image hook for web blob URL workaround
+  const { source: thumbnailSource, loading: hookLoading } =
+    useAuthenticatedImage(api, thumbnailPath);
+
+  // Combine loading states: hook loading (web) + native image loading
+  const imageLoading = hookLoading || nativeImageLoading;
+
   // Reset image state when canvas changes to avoid stale loading/error state
   useEffect(() => {
-    setImageLoading(true);
+    setNativeImageLoading(true);
     setImageError(false);
   }, [recentCanvas?.thumbnail_token]);
 
@@ -77,11 +92,6 @@ export function HomePanel({
       setPrompt('');
       Keyboard.dismiss();
     }
-  };
-
-  const getThumbnailUrl = (token: string | undefined) => {
-    if (!token) return '';
-    return `${getApiUrl()}/gallery/thumbnail/${token}.png`;
   };
 
   const dismissKeyboard = () => {
@@ -104,7 +114,7 @@ export function HomePanel({
             disabled={!connected}
           >
             <View style={styles.canvasPreview}>
-              {recentCanvas?.thumbnail_token && !imageError ? (
+              {thumbnailSource && !imageError ? (
                 <>
                   {imageLoading && (
                     <View style={styles.loadingOverlay}>
@@ -112,13 +122,13 @@ export function HomePanel({
                     </View>
                   )}
                   <Image
-                    source={{ uri: getThumbnailUrl(recentCanvas.thumbnail_token) }}
+                    source={thumbnailSource}
                     style={styles.thumbnailImage}
                     resizeMode="contain"
-                    onLoadStart={() => setImageLoading(true)}
-                    onLoadEnd={() => setImageLoading(false)}
+                    onLoadStart={() => setNativeImageLoading(true)}
+                    onLoadEnd={() => setNativeImageLoading(false)}
                     onError={() => {
-                      setImageLoading(false);
+                      setNativeImageLoading(false);
                       setImageError(true);
                     }}
                   />
