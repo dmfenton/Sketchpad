@@ -32,6 +32,7 @@ Prerequisites:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -48,6 +49,7 @@ if "--json" in sys.argv:
     OUTPUT_FORMAT = "json"
     sys.argv = [a for a in sys.argv if a != "--json"]
 
+console: Console | None = None
 if OUTPUT_FORMAT == "rich":
     try:
         from rich.console import Console
@@ -56,7 +58,6 @@ if OUTPUT_FORMAT == "rich":
     except ImportError:
         # Fall back to plain output
         OUTPUT_FORMAT = "plain"
-        console = None
 
 
 def print_status(msg: str, style: str = "cyan") -> None:
@@ -181,9 +182,11 @@ def screenshot_app(
 
         # Inject auth token before navigation
         if token:
+            # Use json.dumps to safely escape the token for JavaScript
+            token_js = json.dumps(token)
             context.add_init_script(f"""
-                localStorage.setItem('access_token', '{token}');
-                localStorage.setItem('refresh_token', '{token}');
+                localStorage.setItem('access_token', {token_js});
+                localStorage.setItem('refresh_token', {token_js});
             """)
             print_status("Injected auth token into localStorage")
 
@@ -286,6 +289,11 @@ Prerequisites:
     )
 
     args = parser.parse_args()
+
+    # Validate wait time
+    if args.wait < 0:
+        print_error("--wait must be a non-negative number")
+        sys.exit(1)
 
     viewport = parse_viewport(args.viewport)
 
