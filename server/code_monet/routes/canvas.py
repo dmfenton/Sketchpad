@@ -1,18 +1,17 @@
 """Canvas state and rendering endpoints."""
 
-import asyncio
-import io
 from typing import Any
 from xml.etree import ElementTree as ET
 
 from fastapi import APIRouter
 from fastapi.responses import Response
-from PIL import Image, ImageDraw
 
 from code_monet.auth.dependencies import CurrentUser
-from code_monet.canvas import path_to_point_list, render_path_to_svg_d
+from code_monet.canvas import render_path_to_svg_d
 from code_monet.db import User
 from code_monet.registry import workspace_registry
+from code_monet.rendering import RenderOptions, render_strokes_async, render_workspace_async
+from code_monet.types import DrawingStyleType, Path
 from code_monet.workspace import WorkspaceState
 
 router = APIRouter()
@@ -27,41 +26,22 @@ async def get_user_state(user: User) -> WorkspaceState:
     return await WorkspaceState.load_for_user(user.id)
 
 
-def _render_user_png_sync(state: WorkspaceState, highlight_human: bool = True) -> bytes:
-    """Render user's canvas to PNG (synchronous, CPU-bound)."""
-    canvas = state.canvas
-    img = Image.new("RGB", (canvas.width, canvas.height), "#FFFFFF")
-    draw = ImageDraw.Draw(img)
-
-    for path in canvas.strokes:
-        points = path_to_point_list(path)
-        if len(points) >= 2:
-            color = "#0066CC" if highlight_human and path.author == "human" else "#000000"
-            draw.line(points, fill=color, width=2)
-
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
-    return buffer.getvalue()
-
-
-def _render_strokes_to_png_sync(strokes: list, width: int = 800, height: int = 600) -> bytes:
-    """Render strokes to PNG (synchronous, CPU-bound)."""
-    img = Image.new("RGB", (width, height), "#FFFFFF")
-    draw = ImageDraw.Draw(img)
-
-    for path in strokes:
-        points = path_to_point_list(path)
-        if len(points) >= 2:
-            draw.line(points, fill="#000000", width=2)
-
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
-    return buffer.getvalue()
-
-
-async def render_strokes_to_png(strokes: list, width: int = 800, height: int = 600) -> bytes:
+async def render_strokes_to_png(
+    strokes: list[Path],
+    width: int = 800,
+    height: int = 600,
+    drawing_style: DrawingStyleType = DrawingStyleType.PLOTTER,
+) -> bytes:
     """Render strokes to PNG (async, non-blocking)."""
-    return await asyncio.to_thread(_render_strokes_to_png_sync, strokes, width, height)
+    options = RenderOptions(
+        width=width,
+        height=height,
+        drawing_style=drawing_style,
+        output_format="bytes",
+    )
+    result = await render_strokes_async(strokes, options)
+    assert isinstance(result, bytes)
+    return result
 
 
 async def render_user_png(state: WorkspaceState, highlight_human: bool = True) -> bytes:
@@ -69,7 +49,9 @@ async def render_user_png(state: WorkspaceState, highlight_human: bool = True) -
 
     Offloads rendering to thread pool to avoid blocking the event loop.
     """
-    return await asyncio.to_thread(_render_user_png_sync, state, highlight_human)
+    result = await render_workspace_async(state, highlight_human=highlight_human)
+    assert isinstance(result, bytes)
+    return result
 
 
 @router.get("/state")
