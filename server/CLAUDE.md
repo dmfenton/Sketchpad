@@ -197,12 +197,78 @@ logger.warning(f"User {user_id}: rate limited ({remaining} remaining)")
 raise RateLimitError(...)
 ```
 
+## Image Rendering
+
+All canvas-to-image rendering uses the centralized `rendering.py` module.
+
+### RenderOptions Dataclass
+
+Configure rendering with `RenderOptions`:
+
+```python
+from code_monet.rendering import RenderOptions, render_strokes
+
+options = RenderOptions(
+    width=800,
+    height=600,
+    background_color="#FFFFFF",  # or tuple (r, g, b, a)
+    drawing_style=DrawingStyleType.PLOTTER,
+    highlight_human=False,
+    expand_brushes=False,  # True for paint mode visibility
+    scale_from=(800, 600),  # Source dims for scaling
+    scale_padding=50,
+    output_format="bytes",  # "image", "bytes", or "base64"
+    optimize_png=False,
+)
+result = render_strokes(strokes, options)
+```
+
+### Preset Factories
+
+Use preset factories for common scenarios:
+
+```python
+from code_monet.rendering import (
+    options_for_agent_view,    # Agent sees canvas with human highlights
+    options_for_og_image,      # 1200x630 social sharing
+    options_for_thumbnail,     # 800x600 gallery thumbnail
+    options_for_share_preview, # 800x600 optimized PNG
+)
+
+# Agent view (returns PIL Image)
+options = options_for_agent_view(canvas)
+img = render_strokes(canvas.strokes, options)
+
+# OG image (dark bg, scaled, white strokes for plotter)
+options = options_for_og_image(drawing_style)
+png_bytes = await render_strokes_async(strokes, options)
+```
+
+### Async Rendering
+
+Use `render_strokes_async` for non-blocking rendering:
+
+```python
+from code_monet.rendering import render_strokes_async
+
+# Runs in thread pool, doesn't block event loop
+result = await render_strokes_async(strokes, options)
+```
+
+### Adding New Rendering Scenarios
+
+1. Add a preset factory in `rendering.py` if the scenario is reusable
+2. Or construct `RenderOptions` directly for one-off cases
+3. Never duplicate rendering logic - always use `render_strokes()`
+
 ## File Organization
 
 | Type | Location |
 |------|----------|
-| Pydantic models, TypedDicts, Enums | `types.py` |
+| Pydantic models, TypedDicts, Enums | `types/` package |
 | Configuration | `config.py` |
+| Image rendering | `rendering.py` |
 | Reusable utilities | New file (e.g., `rate_limiter.py`) |
 | WebSocket handlers | `user_handlers.py` |
+| Routes | `routes/` package |
 | Tests | `tests/test_<module>.py` |
