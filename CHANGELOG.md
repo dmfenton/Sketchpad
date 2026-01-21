@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.32.0] - 2026-01-21
+
 ### Added
 
 - `scripts/app-screenshot.py` - Playwright-based screenshot tool for debugging Expo web app with mobile viewport simulation
@@ -21,15 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consolidated `/diagnose` and `/logs` Claude skills into unified `/diagnose` command
 - Renamed `/dev-mobile` to `/dev`, added `/dev-web` for Vite web development
 - Gallery thumbnails now use authenticated image loading instead of public token URLs
+- Centralized image rendering into new `rendering.py` module for consistency and reduced duplication
 
 ### Fixed
 
 - Gallery thumbnails and share previews now render with correct drawing styles (paint mode shows actual colors)
 - OG social sharing images now respect the artwork's drawing style
-
-### Changed
-
-- Centralized image rendering into new `rendering.py` module for consistency and reduced duplication
 
 ### Documentation
 
