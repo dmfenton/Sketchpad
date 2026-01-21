@@ -215,6 +215,28 @@ Use `/screenshot` to capture the iOS simulator screen when debugging mobile issu
 
 Screenshots are saved to `screenshots/` (gitignored) and displayed for analysis.
 
+### App Screenshots (Web/Expo)
+
+Use `/app-screenshot` or `scripts/app-screenshot.py` to capture the Expo app running in web mode:
+
+```bash
+# Basic screenshot
+uv run python scripts/app-screenshot.py --expo-port 5173
+
+# With auth (loads user workspace)
+uv run python scripts/app-screenshot.py --auth --expo-port 5173
+
+# Wait for content and specific selector
+uv run python scripts/app-screenshot.py --auth --wait 3 --selector "[data-testid='canvas-view']"
+
+# Custom viewport (iPhone 15 Pro Max)
+uv run python scripts/app-screenshot.py --viewport 430x932
+```
+
+**Ports:** Use `--expo-port 5173` for Vite web, `--expo-port 8081` for Expo web.
+
+**Prerequisites:** `cd server && uv sync --extra dev && uv run playwright install chromium`
+
 ### Debug API Endpoints
 
 ```bash

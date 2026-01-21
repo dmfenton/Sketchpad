@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/app-screenshot.py` - Playwright-based screenshot tool for debugging Expo web app with mobile viewport simulation
+- `/app-screenshot` Claude command for capturing mobile app screenshots during development
+
 ### Fixed
 
 - Gallery thumbnails and share previews now render with correct drawing styles (paint mode shows actual colors)
