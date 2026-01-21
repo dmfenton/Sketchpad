@@ -44,11 +44,11 @@ async def get_gallery_thumbnail(piece_id: str, user: CurrentUser) -> Response:
     if result is None:
         raise HTTPException(status_code=404, detail="Piece not found")
 
-    strokes, _style = result
+    strokes, style = result
     if not strokes:
         raise HTTPException(status_code=404, detail="Piece has no strokes")
 
-    png_bytes = await render_strokes_to_png(strokes)
+    png_bytes = await render_strokes_to_png(strokes, drawing_style=style)
     return Response(
         content=png_bytes,
         media_type="image/png",

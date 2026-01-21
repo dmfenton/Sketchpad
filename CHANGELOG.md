@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Gallery thumbnails and share previews now render with correct drawing styles (paint mode shows actual colors)
+- OG social sharing images now respect the artwork's drawing style
+
+### Changed
+
+- Centralized image rendering into new `rendering.py` module for consistency and reduced duplication
+
 ## [1.31.0] - 2026-01-20
 
 ### Fixed

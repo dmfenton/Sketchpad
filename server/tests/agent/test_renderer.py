@@ -1,12 +1,14 @@
 """Tests for the agent renderer module."""
 
 import base64
+from dataclasses import replace
 from unittest.mock import MagicMock
 
 from PIL import Image
 
-from code_monet.agent.renderer import image_to_base64, render_canvas_to_image
-from code_monet.types import DrawingStyleType, Path, Point, get_style_config
+from code_monet.agent.renderer import image_to_base64
+from code_monet.rendering import options_for_agent_view, render_strokes
+from code_monet.types import DrawingStyleType, Path, PathType, Point
 
 
 def _create_mock_canvas(
@@ -25,15 +27,16 @@ def _create_mock_canvas(
 
 
 class TestRenderCanvasToImage:
-    """Tests for render_canvas_to_image function."""
+    """Tests for render_strokes with options_for_agent_view."""
 
     def test_empty_canvas_renders_white_background(self) -> None:
         """Empty canvas renders as white image."""
         canvas = _create_mock_canvas()
-        style_config = get_style_config(DrawingStyleType.PLOTTER)
+        options = options_for_agent_view(canvas)
 
-        img = render_canvas_to_image(canvas, style_config)
+        img = render_strokes(canvas.strokes, options)
 
+        assert isinstance(img, Image.Image)
         assert img.mode == "RGB"
         assert img.size == (800, 600)
         # Check that center pixel is white
@@ -44,15 +47,16 @@ class TestRenderCanvasToImage:
         """Strokes render with style-appropriate colors."""
         # Create a simple line stroke
         stroke = Path(
-            type="line",
+            type=PathType.LINE,
             points=[Point(x=100, y=100), Point(x=200, y=100)],
             author="agent",
         )
         canvas = _create_mock_canvas(strokes=[stroke])
-        style_config = get_style_config(DrawingStyleType.PLOTTER)
+        options = options_for_agent_view(canvas)
 
-        img = render_canvas_to_image(canvas, style_config)
+        img = render_strokes(canvas.strokes, options)
 
+        assert isinstance(img, Image.Image)
         # The stroke should be drawn (not white)
         # Check a pixel along the line
         pixel = img.getpixel((150, 100))
@@ -61,15 +65,16 @@ class TestRenderCanvasToImage:
     def test_human_strokes_highlighted(self) -> None:
         """Human strokes render in highlight color when highlight_human=True."""
         stroke = Path(
-            type="line",
+            type=PathType.LINE,
             points=[Point(x=100, y=100), Point(x=200, y=100)],
             author="human",
         )
         canvas = _create_mock_canvas(strokes=[stroke])
-        style_config = get_style_config(DrawingStyleType.PLOTTER)
+        options = options_for_agent_view(canvas)  # highlight_human=True by default
 
-        img = render_canvas_to_image(canvas, style_config, highlight_human=True)
+        img = render_strokes(canvas.strokes, options)
 
+        assert isinstance(img, Image.Image)
         # The stroke should be drawn (not white)
         pixel = img.getpixel((150, 100))
         assert pixel != (255, 255, 255)
@@ -77,15 +82,16 @@ class TestRenderCanvasToImage:
     def test_human_strokes_not_highlighted(self) -> None:
         """Human strokes render normally when highlight_human=False."""
         stroke = Path(
-            type="line",
+            type=PathType.LINE,
             points=[Point(x=100, y=100), Point(x=200, y=100)],
             author="human",
         )
         canvas = _create_mock_canvas(strokes=[stroke])
-        style_config = get_style_config(DrawingStyleType.PLOTTER)
+        options = replace(options_for_agent_view(canvas), highlight_human=False)
 
-        img = render_canvas_to_image(canvas, style_config, highlight_human=False)
+        img = render_strokes(canvas.strokes, options)
 
+        assert isinstance(img, Image.Image)
         # The stroke should still be drawn
         pixel = img.getpixel((150, 100))
         assert pixel != (255, 255, 255)
@@ -93,19 +99,20 @@ class TestRenderCanvasToImage:
     def test_returns_pil_image(self) -> None:
         """Function returns a PIL Image object."""
         canvas = _create_mock_canvas()
-        style_config = get_style_config(DrawingStyleType.PLOTTER)
+        options = options_for_agent_view(canvas)
 
-        result = render_canvas_to_image(canvas, style_config)
+        result = render_strokes(canvas.strokes, options)
 
         assert isinstance(result, Image.Image)
 
     def test_custom_canvas_size(self) -> None:
         """Respects custom canvas dimensions."""
         canvas = _create_mock_canvas(width=400, height=300)
-        style_config = get_style_config(DrawingStyleType.PLOTTER)
+        options = options_for_agent_view(canvas)
 
-        img = render_canvas_to_image(canvas, style_config)
+        img = render_strokes(canvas.strokes, options)
 
+        assert isinstance(img, Image.Image)
         assert img.size == (400, 300)
 
 

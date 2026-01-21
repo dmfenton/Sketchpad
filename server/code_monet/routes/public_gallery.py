@@ -1,7 +1,5 @@
 """Public gallery endpoints for unauthenticated access."""
 
-import asyncio
-import io
 import json
 import re
 from pathlib import Path as FilePath
@@ -11,12 +9,11 @@ import aiofiles
 import aiofiles.os
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
-from PIL import Image, ImageDraw
 
-from code_monet.canvas import path_to_point_list
 from code_monet.config import settings
 from code_monet.db import get_session, repository
-from code_monet.types import Path
+from code_monet.rendering import options_for_og_image, render_strokes_async
+from code_monet.types import DrawingStyleType, Path
 
 router = APIRouter()
 
@@ -155,32 +152,20 @@ async def get_public_piece_og_image(user_id: str, piece_id: str) -> Response:
     try:
         data = json.loads(piece_file.read_text())
         strokes = [Path(**s) for s in data.get("strokes", [])]
+        # Parse drawing style with fallback to plotter
+        style_str = data.get("drawing_style", "plotter")
+        try:
+            drawing_style = DrawingStyleType(style_str)
+        except ValueError:
+            drawing_style = DrawingStyleType.PLOTTER
     except (json.JSONDecodeError, OSError) as e:
         raise HTTPException(status_code=500, detail=f"Failed to load piece: {e}") from e
 
     # Render to PNG (1200x630 is optimal OG image size)
-    # Scale from 800x600 canvas to 1200x630 with padding
-    def render_og_image() -> bytes:
-        img = Image.new("RGB", (1200, 630), "#1a1a2e")  # Dark background matching site
-        draw = ImageDraw.Draw(img)
-
-        # Scale and center: 800x600 -> fit in 1200x630 with padding
-        scale = min(1100 / 800, 580 / 600)  # Leave 50px padding
-        offset_x = (1200 - 800 * scale) / 2
-        offset_y = (630 - 600 * scale) / 2
-
-        for path in strokes:
-            points = path_to_point_list(path)
-            if len(points) >= 2:
-                scaled_points = [(x * scale + offset_x, y * scale + offset_y) for x, y in points]
-                draw.line(scaled_points, fill="#FFFFFF", width=2)
-
-        buffer = io.BytesIO()
-        img.save(buffer, format="PNG", optimize=True)
-        return buffer.getvalue()
-
-    # Run CPU-bound rendering in thread pool
-    image_bytes = await asyncio.to_thread(render_og_image)
+    options = options_for_og_image(drawing_style)
+    result = await render_strokes_async(strokes, options)
+    assert isinstance(result, bytes)
+    image_bytes = result
 
     return Response(
         content=image_bytes,

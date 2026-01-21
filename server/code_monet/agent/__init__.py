@@ -28,8 +28,9 @@ from code_monet.agent.processor import (
 # Internal implementation - not part of public API
 from code_monet.agent.processor import process_turn_messages as _process_turn_messages
 from code_monet.agent.prompts import SYSTEM_PROMPT, build_system_prompt
-from code_monet.agent.renderer import image_to_base64, render_canvas_to_image
+from code_monet.agent.renderer import image_to_base64
 from code_monet.config import settings
+from code_monet.rendering import options_for_agent_view, render_strokes
 from code_monet.tools import create_drawing_server
 from code_monet.types import (
     AgentEvent,
@@ -307,10 +308,14 @@ class DrawingAgent:
         Note: This is a synchronous CPU-bound operation. Use _get_canvas_image_async
         when calling from async code to avoid blocking the event loop.
         """
+        from dataclasses import replace
+
         state = self.get_state()
         canvas = state.canvas
-        style_config = self.get_style_config()
-        return render_canvas_to_image(canvas, style_config, highlight_human)
+        options = options_for_agent_view(canvas)
+        if not highlight_human:
+            options = replace(options, highlight_human=False)
+        return render_strokes(canvas.strokes, options)
 
     async def _get_canvas_image_async(self, highlight_human: bool = True) -> Any:
         """Get canvas as PIL Image from current state (async, non-blocking).
