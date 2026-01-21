@@ -1,6 +1,7 @@
 /**
- * HomePanel - Simplified home screen shown on app load.
- * Shows last canvas prominently, quick prompt input, and expandable options.
+ * HomePanel - Home screen shown on app load.
+ * Prioritizes new drawing creation with prompt input and style picker.
+ * Shows continue option with thumbnail when recent work exists.
  */
 
 import React, { useEffect, useState } from 'react';
