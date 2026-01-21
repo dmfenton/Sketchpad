@@ -62,7 +62,6 @@ export function HomePanel({
 }: HomePanelProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const [prompt, setPrompt] = useState('');
-  const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [nativeImageLoading, setNativeImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
@@ -101,74 +100,13 @@ export function HomePanel({
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <View testID="home-panel" style={[styles.container, { backgroundColor: colors.surface }, shadows.md]}>
-        {/* Last Canvas Section */}
-        {hasRecentWork ? (
-          <Pressable
-            testID="home-continue-button"
-            style={({ pressed }) => [
-              styles.canvasSection,
-              { backgroundColor: colors.canvasBackground },
-              pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
-            ]}
-            onPress={onContinue}
-            disabled={!connected}
-          >
-            <View style={styles.canvasPreview}>
-              {thumbnailSource && !imageError ? (
-                <>
-                  {imageLoading && (
-                    <View style={styles.loadingOverlay}>
-                      <ActivityIndicator size="small" color={colors.textMuted} />
-                    </View>
-                  )}
-                  <Image
-                    source={thumbnailSource}
-                    style={styles.thumbnailImage}
-                    resizeMode="contain"
-                    onLoadStart={() => setNativeImageLoading(true)}
-                    onLoadEnd={() => setNativeImageLoading(false)}
-                    onError={() => {
-                      setNativeImageLoading(false);
-                      setImageError(true);
-                    }}
-                  />
-                </>
-              ) : (
-                <View style={styles.canvasPlaceholder}>
-                  <Ionicons name="brush-outline" size={48} color={colors.textMuted} />
-                  <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
-                    {hasCurrentWork ? 'Work in progress' : 'Recent drawing'}
-                  </Text>
-                </View>
-              )}
-            </View>
+        {/* Start Drawing Section */}
+        <View style={styles.startSection}>
+          <Text style={[styles.sectionHeader, { color: colors.textPrimary }]}>
+            Start Drawing
+          </Text>
 
-            <View style={styles.canvasInfo}>
-              <Text style={[styles.canvasTitle, { color: colors.textPrimary }]}>
-                {recentCanvas?.title || (hasCurrentWork ? 'Current Drawing' : `#${recentCanvas?.piece_number ?? ''}`)}
-              </Text>
-              <View style={[styles.continueButton, { backgroundColor: colors.primary }]}>
-                <Text style={[styles.continueText, { color: colors.textOnPrimary }]}>
-                  Continue
-                </Text>
-                <Ionicons name="arrow-forward" size={16} color={colors.textOnPrimary} />
-              </View>
-            </View>
-          </Pressable>
-        ) : (
-          <View style={[styles.emptyCanvasSection, { backgroundColor: colors.surfaceElevated }]}>
-            <Ionicons name="sparkles" size={48} color={colors.primary} />
-            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
-              Ready to create
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-              Enter a prompt below or tap Surprise Me
-            </Text>
-          </View>
-        )}
-
-        {/* Prompt Input */}
-        <View style={styles.promptSection}>
+          {/* Prompt Input */}
           <View
             style={[
               styles.promptInputContainer,
@@ -202,75 +140,117 @@ export function HomePanel({
               />
             </Pressable>
           </View>
-          <Text style={[styles.promptHint, { color: colors.textMuted }]}>
-            Uses {drawingStyle} style
-          </Text>
+
+          {/* Style Picker */}
+          <StylePicker
+            value={drawingStyle}
+            onChange={onStyleChange}
+            variant="segmented"
+            label="Style"
+          />
+
+          {/* Surprise Me Button */}
+          <Pressable
+            testID="home-surprise-me"
+            style={({ pressed }) => [
+              styles.surpriseMeButton,
+              { backgroundColor: colors.surfaceElevated },
+              pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
+              !connected && styles.disabled,
+            ]}
+            onPress={onSurpriseMe}
+            disabled={!connected}
+          >
+            <Ionicons name="sparkles" size={20} color={colors.primary} />
+            <Text style={[styles.surpriseMeText, { color: colors.textPrimary }]}>
+              Surprise Me
+            </Text>
+          </Pressable>
         </View>
 
-        {/* More Options Toggle */}
-        <Pressable
-          testID="home-more-options"
-          style={({ pressed }) => [
-            styles.moreOptionsToggle,
-            pressed && { opacity: 0.7 },
-          ]}
-          onPress={() => setShowMoreOptions(!showMoreOptions)}
-        >
-          <Text style={[styles.moreOptionsText, { color: colors.textSecondary }]}>
-            {showMoreOptions ? 'Less options' : 'More options'}
-          </Text>
-          <Ionicons
-            name={showMoreOptions ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={colors.textSecondary}
-          />
-        </Pressable>
+        {/* OR Divider - only show when there's recent work */}
+        {hasRecentWork && (
+          <View style={styles.divider}>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dividerText, { color: colors.textMuted }]}>OR</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          </View>
+        )}
 
-        {/* Expanded Options */}
-        {showMoreOptions && (
-          <View style={styles.expandedOptions}>
-            {/* Style Picker */}
-            <StylePicker
-              value={drawingStyle}
-              onChange={onStyleChange}
-              variant="segmented"
-              label="Drawing style"
-            />
+        {/* Continue Section */}
+        {hasRecentWork && (
+          <View style={styles.continueSection}>
+            <Text style={[styles.sectionHeader, { color: colors.textPrimary }]}>
+              Continue where you left off
+            </Text>
 
-            {/* Action Buttons */}
-            <View style={styles.actionButtons}>
-              <Pressable
-                testID="home-surprise-me"
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  { backgroundColor: colors.surfaceElevated },
-                  pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
-                  !connected && styles.disabled,
-                ]}
-                onPress={onSurpriseMe}
-                disabled={!connected}
-              >
-                <Ionicons name="sparkles" size={20} color={colors.primary} />
-                <Text style={[styles.actionButtonText, { color: colors.textPrimary }]}>
-                  Surprise Me
+            <Pressable
+              testID="home-continue-button"
+              style={({ pressed }) => [
+                styles.canvasSection,
+                { backgroundColor: colors.canvasBackground },
+                pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+              ]}
+              onPress={onContinue}
+              disabled={!connected}
+            >
+              <View style={styles.canvasPreview}>
+                {thumbnailSource && !imageError ? (
+                  <>
+                    {imageLoading && (
+                      <View style={styles.loadingOverlay}>
+                        <ActivityIndicator size="small" color={colors.textMuted} />
+                      </View>
+                    )}
+                    <Image
+                      source={thumbnailSource}
+                      style={styles.thumbnailImage}
+                      resizeMode="contain"
+                      onLoadStart={() => setNativeImageLoading(true)}
+                      onLoadEnd={() => setNativeImageLoading(false)}
+                      onError={() => {
+                        setNativeImageLoading(false);
+                        setImageError(true);
+                      }}
+                    />
+                  </>
+                ) : (
+                  <View style={styles.canvasPlaceholder}>
+                    <Ionicons name="brush-outline" size={32} color={colors.textMuted} />
+                    <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
+                      {hasCurrentWork ? 'Work in progress' : 'Recent drawing'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.canvasInfo}>
+                <Text style={[styles.canvasTitle, { color: colors.textPrimary }]}>
+                  {recentCanvas?.title || (hasCurrentWork ? 'Current Drawing' : `#${recentCanvas?.piece_number ?? ''}`)}
                 </Text>
-              </Pressable>
+                <View style={[styles.continueButton, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.continueText, { color: colors.textOnPrimary }]}>
+                    Continue
+                  </Text>
+                  <Ionicons name="arrow-forward" size={16} color={colors.textOnPrimary} />
+                </View>
+              </View>
+            </Pressable>
 
-              <Pressable
-                testID="home-gallery"
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  { backgroundColor: colors.surfaceElevated },
-                  pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
-                ]}
-                onPress={onOpenGallery}
-              >
-                <Ionicons name="images-outline" size={20} color={colors.textSecondary} />
-                <Text style={[styles.actionButtonText, { color: colors.textPrimary }]}>
-                  Gallery {galleryCount > 0 ? `(${galleryCount})` : ''}
-                </Text>
-              </Pressable>
-            </View>
+            {/* Gallery Link */}
+            <Pressable
+              testID="home-gallery"
+              style={({ pressed }) => [
+                styles.galleryLink,
+                pressed && { opacity: 0.7 },
+              ]}
+              onPress={onOpenGallery}
+            >
+              <Ionicons name="images-outline" size={16} color={colors.textSecondary} />
+              <Text style={[styles.galleryLinkText, { color: colors.textSecondary }]}>
+                View Gallery{galleryCount > 0 ? ` (${galleryCount})` : ''}
+              </Text>
+            </Pressable>
           </View>
         )}
 
@@ -294,13 +274,75 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.lg,
   },
+  // Section headers
+  sectionHeader: {
+    ...typography.body,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+  },
+  // Start Drawing section
+  startSection: {
+    gap: spacing.md,
+  },
+  // Prompt input
+  promptInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.xs,
+  },
+  promptInput: {
+    flex: 1,
+    ...typography.body,
+    paddingVertical: spacing.md,
+  },
+  promptSubmit: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Surprise Me button (full-width)
+  surpriseMeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+  },
+  surpriseMeText: {
+    ...typography.body,
+    fontWeight: '500',
+  },
+  // OR Divider
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    ...typography.small,
+    fontWeight: '500',
+  },
+  // Continue section
+  continueSection: {
+    gap: spacing.sm,
+  },
   // Canvas preview section
   canvasSection: {
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
   },
   canvasPreview: {
-    aspectRatio: 1,
+    aspectRatio: 16 / 9,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -343,80 +385,16 @@ const styles = StyleSheet.create({
     ...typography.small,
     fontWeight: '600',
   },
-  // Empty state
-  emptyCanvasSection: {
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  emptyTitle: {
-    ...typography.heading,
-    marginTop: spacing.sm,
-  },
-  emptySubtitle: {
-    ...typography.body,
-    textAlign: 'center',
-  },
-  // Prompt input
-  promptSection: {
-    gap: spacing.xs,
-  },
-  promptInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    paddingLeft: spacing.md,
-    paddingRight: spacing.xs,
-  },
-  promptInput: {
-    flex: 1,
-    ...typography.body,
-    paddingVertical: spacing.md,
-  },
-  promptSubmit: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  promptHint: {
-    ...typography.small,
-    paddingLeft: spacing.xs,
-  },
-  // More options toggle
-  moreOptionsToggle: {
+  // Gallery link
+  galleryLink: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
   },
-  moreOptionsText: {
+  galleryLinkText: {
     ...typography.small,
-    fontWeight: '500',
-  },
-  // Expanded options
-  expandedOptions: {
-    gap: spacing.md,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-  },
-  actionButtonText: {
-    ...typography.body,
     fontWeight: '500',
   },
   disabled: {
