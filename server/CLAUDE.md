@@ -261,6 +261,181 @@ result = await render_strokes_async(strokes, options)
 2. Or construct `RenderOptions` directly for one-off cases
 3. Never duplicate rendering logic - always use `render_strokes()`
 
+## Module Architecture
+
+The server is organized into focused packages:
+
+```
+code_monet/
+├── agent/           # Claude Agent SDK integration
+├── tools/           # MCP drawing tools
+├── workspace/       # Per-user state management
+├── types/           # Type definitions
+├── routes/          # HTTP route handlers
+├── auth/            # Authentication (JWT, magic links)
+├── db/              # Database models and repository
+├── share/           # Public sharing functionality
+└── *.py             # Core modules (config, rendering, etc.)
+```
+
+### agent/ - Claude Agent SDK Integration
+
+The drawing agent using Claude Agent SDK:
+
+```python
+from code_monet.agent import DrawingAgent, AgentCallbacks, SYSTEM_PROMPT
+
+# Create agent with user workspace
+agent = DrawingAgent(state=workspace_state)
+
+# Run a turn with callbacks
+async for event in agent.run_turn(callbacks):
+    if isinstance(event, AgentTurnComplete):
+        print(f"Done: {event.done}, Thinking: {event.thinking[:100]}")
+```
+
+**Key files:**
+- `__init__.py` - DrawingAgent class, public API
+- `prompts.py` - System prompt and style-specific instructions
+- `processor.py` - Message stream processing
+- `callbacks.py` - Tool callback setup
+- `renderer.py` - Canvas image helpers
+
+### tools/ - MCP Drawing Tools
+
+All agent tools as an MCP server:
+
+```python
+from code_monet.tools import create_drawing_server
+
+# Tools available to agent:
+# - draw_paths: Draw paths on canvas
+# - generate_svg: Generate paths via Python code
+# - view_canvas: View current canvas state
+# - mark_piece_done: Signal piece completion
+# - imagine: Generate AI reference image (Gemini)
+# - sign_canvas: Add artist signature
+# - name_piece: Title the artwork
+```
+
+**Key files:**
+- `__init__.py` - Server factory, exports
+- `drawing.py` - draw_paths, mark_piece_done, view_canvas
+- `svg_generation.py` - generate_svg with Python sandbox
+- `image_generation.py` - imagine (Gemini integration)
+- `signature.py` - sign_canvas
+- `naming.py` - name_piece
+- `callbacks.py` - Callback injection for tool handlers
+- `path_parsing.py` - Parse path data from various formats
+
+### workspace/ - Per-User State Management
+
+Filesystem-backed workspace state:
+
+```python
+from code_monet.workspace import WorkspaceState
+
+# Load workspace for a user
+state = await WorkspaceState.load_for_user(user_id)
+
+# Canvas operations
+await state.add_stroke(path)
+await state.clear_canvas()
+saved_id = await state.new_canvas()  # Save to gallery and start fresh
+
+# Stroke queue for client-side rendering
+batch_id, point_count = await state.queue_strokes(paths)
+pending = await state.pop_strokes()
+
+# Gallery operations
+entries = await state.list_gallery()
+strokes, style = await state.load_from_gallery(piece_number)
+```
+
+**Key files:**
+- `__init__.py` - WorkspaceState class
+- `persistence.py` - Atomic file writes, directory helpers
+- `gallery.py` - Gallery scanning and loading
+- `strokes.py` - Stroke interpolation and limits
+
+**Filesystem layout:**
+```
+agent_workspace/users/{user_id}/
+├── workspace.json       # Current state
+└── gallery/
+    └── piece_000001.json  # Saved artwork
+```
+
+### types/ - Type Definitions
+
+Organized into focused modules:
+
+```python
+from code_monet.types import (
+    # Geometry
+    Point, PathType, PendingStrokeDict,
+    # Paths
+    Path,
+    # State
+    CanvasState, AgentStatus, GalleryEntry,
+    # Styles
+    DrawingStyleType, DrawingStyleConfig, get_style_config,
+    # Brushes
+    BrushPreset, get_brush_preset,
+    # Messages
+    ServerMessage, ClientMessage, AgentTurnComplete,
+)
+```
+
+**Modules:**
+- `geometry.py` - Point, PathType, coordinate types
+- `paths.py` - Path model for drawable strokes
+- `state.py` - Canvas, agent, gallery state models
+- `styles.py` - Drawing style configurations (PLOTTER, PAINT)
+- `brushes.py` - Brush presets
+- `messages.py` - WebSocket message types
+
+### routes/ - HTTP Route Handlers
+
+FastAPI routers extracted from main.py:
+
+```python
+from code_monet.routes import create_api_router
+
+app = FastAPI()
+app.include_router(create_api_router())
+```
+
+**Routes:**
+- `health.py` - /health, /api/version
+- `canvas.py` - Canvas state endpoints
+- `gallery.py` - User gallery endpoints
+- `public_gallery.py` - Public piece viewing
+- `strokes.py` - Stroke data endpoints
+- `seo.py` - OG image generation
+- `apple.py` - Apple app-site-association
+- `debug.py` - Debug endpoints (dev only)
+- `auth_dev.py` - Dev auth token endpoint
+- `tracing.py` - X-Ray trace ID endpoint
+
+### Other Core Modules
+
+| Module | Purpose |
+|--------|---------|
+| `config.py` | Settings from environment |
+| `rendering.py` | Canvas-to-image rendering |
+| `orchestrator.py` | Agent loop management |
+| `connections.py` | WebSocket ConnectionManager |
+| `user_handlers.py` | WebSocket message handlers |
+| `interpolation.py` | Path interpolation functions |
+| `brushes.py` | Brush expansion for paint mode |
+| `svg_parser.py` | SVG path parsing |
+| `rate_limiter.py` | Rate limiting utility |
+| `tracing.py` | OpenTelemetry setup |
+| `shutdown.py` | Graceful shutdown handling |
+| `registry.py` | User orchestrator registry |
+| `cli.py` | CLI commands (invite, user, workspace) |
+
 ## File Organization
 
 | Type | Location |
