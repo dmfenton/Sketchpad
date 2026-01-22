@@ -15,6 +15,9 @@ import type { CanvasAction, PerformanceState } from '../canvas/reducer';
 import type { PendingStroke, StrokeStyle } from '../types';
 import { BIONIC_CHUNK_INTERVAL_MS, BIONIC_CHUNK_SIZE } from '../utils';
 
+// Hold completed text for this duration before advancing to next chunk
+const HOLD_AFTER_WORDS_MS = 800;
+
 export interface UsePerformerOptions {
   /** Current performance state */
   performance: PerformanceState;
@@ -56,6 +59,7 @@ export function usePerformer({
   const lastWordTimeRef = useRef<number>(0);
   const lastStrokeTimeRef = useRef<number>(0);
   const strokePointIndexRef = useRef<number>(0);
+  const holdStartRef = useRef<number | null>(null);
   const onStrokesCompleteRef = useRef(onStrokesComplete);
 
   // Keep callback ref up to date
@@ -91,8 +95,9 @@ export function usePerformer({
       if (onStage === null) {
         if (buffer.length > 0) {
           dispatch({ type: 'ADVANCE_STAGE' });
-          // Reset point index for new stroke animation
+          // Reset animation refs for new item
           strokePointIndexRef.current = 0;
+          holdStartRef.current = null;
         }
         frameRef.current = requestAnimationFrame(animate);
         return;
@@ -103,14 +108,22 @@ export function usePerformer({
         case 'words': {
           const words = onStage.text.split(/\s+/).filter((w) => w.length > 0);
           if (wordIndex < words.length) {
+            // Still revealing words
+            holdStartRef.current = null; // Reset hold timer while revealing
             // Check if enough time has passed since last word
             if (time - lastWordTimeRef.current >= wordDelayMs) {
               dispatch({ type: 'REVEAL_WORD' });
               lastWordTimeRef.current = time;
             }
           } else {
-            // All words revealed, complete this item
-            dispatch({ type: 'STAGE_COMPLETE' });
+            // All words revealed - hold for a moment before advancing
+            if (holdStartRef.current === null) {
+              holdStartRef.current = time;
+            }
+            if (time - holdStartRef.current >= HOLD_AFTER_WORDS_MS) {
+              holdStartRef.current = null;
+              dispatch({ type: 'STAGE_COMPLETE' });
+            }
           }
           break;
         }
