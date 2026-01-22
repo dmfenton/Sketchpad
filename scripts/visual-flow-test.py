@@ -218,15 +218,28 @@ class VisualFlowTest:
             sys.exit(1)
 
         # Inject auth token into localStorage
+        # Web app (5173) uses 'auth_' prefix, mobile app uses no prefix
         token_js = json.dumps(self.token)
-        await self.page.evaluate(f"""
-            localStorage.setItem('access_token', {token_js});
-            localStorage.setItem('refresh_token', {token_js});
-        """)
+        if self.expo_port == 5173:
+            await self.page.evaluate(f"""
+                localStorage.setItem('auth_access_token', {token_js});
+                localStorage.setItem('auth_refresh_token', {token_js});
+            """)
+        else:
+            await self.page.evaluate(f"""
+                localStorage.setItem('access_token', {token_js});
+                localStorage.setItem('refresh_token', {token_js});
+            """)
         self.log("Injected auth token", GREEN)
 
-        # Reload to pick up auth
-        await self.page.reload(wait_until="networkidle")
+        # For Vite web app, navigate to /studio after auth injection
+        # (homepage is marketing, /studio is the actual app)
+        if self.expo_port == 5173:
+            await self.page.goto(f"http://localhost:{self.expo_port}/studio", wait_until="networkidle")
+            self.log("Navigated to /studio", GREEN)
+        else:
+            # Expo web - reload to pick up auth
+            await self.page.reload(wait_until="networkidle")
         self.log("Browser ready", GREEN)
 
         # Wait for WebSocket to connect
@@ -256,7 +269,45 @@ class VisualFlowTest:
 
     async def enter_studio_via_ui(self) -> None:
         """Enter studio mode by typing prompt and submitting via UI."""
-        # Wait for home panel input to be ready
+        # Different flow for web app (port 5173) vs mobile app
+        if self.expo_port == 5173:
+            await self._enter_studio_web()
+        else:
+            await self._enter_studio_mobile()
+
+    async def _enter_studio_web(self) -> None:
+        """Web app flow: click Start button, enter direction in modal."""
+        self.log("Waiting for Start button...", CYAN)
+        start_btn_selector = "button.start-btn"
+
+        try:
+            await self.page.wait_for_selector(start_btn_selector, timeout=10000)
+        except Exception:
+            self.log("Start button not found - agent may already be running", YELLOW)
+            return
+
+        # Click Start button to open modal
+        await self.page.click(start_btn_selector)
+        await asyncio.sleep(0.3)
+
+        # Type in modal input
+        modal_input_selector = ".modal input[type='text']"
+        try:
+            await self.page.wait_for_selector(modal_input_selector, timeout=5000)
+            await self.page.fill(modal_input_selector, self.prompt)
+            self.record_event("prompt_entered", {"prompt": self.prompt})
+
+            # Click modal Start button
+            await self.page.click(".modal button.primary")
+            self.log("Started agent with direction", GREEN)
+            self.record_event("prompt_submitted")
+        except Exception as e:
+            self.log(f"Modal interaction failed: {e}", YELLOW)
+
+        await asyncio.sleep(1)
+
+    async def _enter_studio_mobile(self) -> None:
+        """Mobile app flow: type in home panel input and submit."""
         self.log("Waiting for home panel...", CYAN)
         input_selector = '[data-testid="home-prompt-input"]'
         submit_selector = '[data-testid="home-prompt-submit"]'
@@ -268,7 +319,6 @@ class VisualFlowTest:
             return
 
         # Type the prompt
-        self.log(f"Entering prompt: {self.prompt}", CYAN)
         await self.page.fill(input_selector, self.prompt)
         self.record_event("prompt_entered", {"prompt": self.prompt})
 

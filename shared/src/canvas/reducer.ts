@@ -22,6 +22,9 @@ export const MAX_MESSAGES = 50;
 // Max history items to keep (completed performance items)
 export const MAX_HISTORY = 100;
 
+// Max words per chunk before starting a new buffer item (~5 seconds at 50ms/word)
+export const MAX_WORDS_PER_CHUNK = 25;
+
 // Generate unique message ID for archived thinking
 const generateThinkingId = (): string =>
   `thinking_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -491,17 +494,42 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
     // Performance Actions
     // ========================================================================
 
-    case 'ENQUEUE_WORDS':
+    case 'ENQUEUE_WORDS': {
+      const perf = state.performance;
+      const lastBufferItem = perf.buffer[perf.buffer.length - 1];
+
+      // Merge with last buffer item if it's words AND under limit
+      if (lastBufferItem?.type === 'words') {
+        const currentWordCount = lastBufferItem.text.split(/\s+/).filter((w) => w).length;
+        if (currentWordCount < MAX_WORDS_PER_CHUNK) {
+          const mergedText = lastBufferItem.text + action.text;
+          return {
+            ...state,
+            performance: {
+              ...perf,
+              buffer: [
+                ...perf.buffer.slice(0, -1),
+                { type: 'words', text: mergedText, id: lastBufferItem.id },
+              ],
+            },
+          };
+        }
+        // Over limit - fall through to create new chunk
+      }
+
+      // Don't merge with onStage - let current display finish before new text
+      // Create new buffer item
       return {
         ...state,
         performance: {
-          ...state.performance,
+          ...perf,
           buffer: [
-            ...state.performance.buffer,
+            ...perf.buffer,
             { type: 'words', text: action.text, id: generatePerformanceId() },
           ],
         },
       };
+    }
 
     case 'ENQUEUE_EVENT':
       return {
