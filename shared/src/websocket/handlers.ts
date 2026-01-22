@@ -39,9 +39,11 @@ export const handleHumanStroke: MessageHandler<HumanStrokeMessage> = (message, d
 };
 
 export const handleThinkingDelta: MessageHandler<ThinkingDeltaMessage> = (message, dispatch) => {
-  // Update both the legacy thinking state and the live message
+  // Dual dispatch: both for performance model and legacy state
+  // ENQUEUE_WORDS: Goes to performance.buffer for progressive reveal animation
+  // APPEND_THINKING: Accumulates in state.thinking for archiving when iteration ends
+  dispatch({ type: 'ENQUEUE_WORDS', text: message.text });
   dispatch({ type: 'APPEND_THINKING', text: message.text });
-  dispatch({ type: 'APPEND_LIVE_MESSAGE', text: message.text });
 };
 
 export const handlePaused: MessageHandler<PausedMessage> = (message, dispatch) => {
@@ -49,10 +51,8 @@ export const handlePaused: MessageHandler<PausedMessage> = (message, dispatch) =
 };
 
 export const handleIteration: MessageHandler<IterationMessage> = (message, dispatch) => {
-  // Finalize any streaming thinking before showing iteration
-  dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
-  // Clear accumulated thinking text for the new iteration
-  dispatch({ type: 'SET_THINKING', text: '' });
+  // Archive current thinking to message history before new iteration
+  dispatch({ type: 'ARCHIVE_THINKING' });
   dispatch({
     type: 'SET_ITERATION',
     current: message.current,
@@ -80,8 +80,8 @@ const getPathCount = (toolInput: Record<string, unknown> | null | undefined): nu
 };
 
 export const handleCodeExecution: MessageHandler<CodeExecutionMessage> = (message, dispatch) => {
-  // Finalize any streaming thinking before showing code execution
-  dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
+  // NOTE: Don't archive thinking here - let progressive reveal continue
+  // while code executes. Strokes wait for isBuffering=false.
 
   const toolName = message.tool_name ?? 'unknown';
   const labels = TOOL_LABELS[toolName] ?? { started: 'Executing...', completed: 'Completed' };
@@ -91,6 +91,7 @@ export const handleCodeExecution: MessageHandler<CodeExecutionMessage> = (messag
     type: 'code_execution',
     timestamp: Date.now(),
     iteration: message.iteration,
+    status: message.status,
     metadata: {
       tool_name: message.tool_name,
       tool_input: message.tool_input,
@@ -107,10 +108,12 @@ export const handleCodeExecution: MessageHandler<CodeExecutionMessage> = (messag
       }
     }
 
-    dispatch({
-      type: 'ADD_MESSAGE',
-      message: { ...baseMessage, text },
-    });
+    const agentMessage = { ...baseMessage, text };
+    // Dual dispatch: both for performance model and status derivation
+    // ENQUEUE_EVENT: Goes to performance.buffer for event display animation
+    // ADD_MESSAGE: Goes to state.messages for hasInProgressEvents (status derivation)
+    dispatch({ type: 'ENQUEUE_EVENT', message: agentMessage });
+    dispatch({ type: 'ADD_MESSAGE', message: agentMessage });
   } else if (message.status === 'completed') {
     let text = labels.completed;
     if (message.return_code !== 0) {
@@ -122,25 +125,25 @@ export const handleCodeExecution: MessageHandler<CodeExecutionMessage> = (messag
       }
     }
 
-    dispatch({
-      type: 'ADD_MESSAGE',
-      message: {
-        ...baseMessage,
-        text,
-        metadata: {
-          ...baseMessage.metadata,
-          stdout: message.stdout,
-          stderr: message.stderr,
-          return_code: message.return_code,
-        },
+    const agentMessage = {
+      ...baseMessage,
+      text,
+      metadata: {
+        ...baseMessage.metadata,
+        stdout: message.stdout,
+        stderr: message.stderr,
+        return_code: message.return_code,
       },
-    });
+    };
+    // Dual dispatch (same as started): both for performance model and status derivation
+    dispatch({ type: 'ENQUEUE_EVENT', message: agentMessage });
+    dispatch({ type: 'ADD_MESSAGE', message: agentMessage });
   }
 };
 
 export const handleError: MessageHandler<ErrorMessage> = (message, dispatch) => {
-  // Finalize any streaming thinking before showing error
-  dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
+  // Archive thinking before showing error (errors end the turn)
+  dispatch({ type: 'ARCHIVE_THINKING' });
   dispatch({
     type: 'ADD_MESSAGE',
     message: {
@@ -161,8 +164,8 @@ export const handlePieceState: MessageHandler<PieceStateMessage> = (message, dis
 
   // If piece just completed, show completion message
   if (message.completed) {
-    // Finalize any streaming thinking before showing piece complete
-    dispatch({ type: 'FINALIZE_LIVE_MESSAGE' });
+    // Archive thinking when piece completes (ends the turn)
+    dispatch({ type: 'ARCHIVE_THINKING' });
     dispatch({
       type: 'ADD_MESSAGE',
       message: {
@@ -179,11 +182,13 @@ export const handlePieceState: MessageHandler<PieceStateMessage> = (message, dis
 };
 
 export const handleClear: MessageHandler<ClearMessage> = (_message, dispatch) => {
+  dispatch({ type: 'CLEAR_PERFORMANCE' });
   dispatch({ type: 'CLEAR' });
   dispatch({ type: 'CLEAR_MESSAGES' });
 };
 
 export const handleNewCanvas: MessageHandler<NewCanvasMessage> = (_message, dispatch) => {
+  dispatch({ type: 'CLEAR_PERFORMANCE' });
   dispatch({ type: 'CLEAR' });
   dispatch({ type: 'CLEAR_MESSAGES' });
 };
@@ -212,19 +217,6 @@ export const handleInit: MessageHandler<InitMessage> = (message, dispatch) => {
     drawingStyle: message.drawing_style,
     styleConfig: message.style_config,
   });
-
-  // Add previous monologue as a message if it exists
-  if (message.monologue) {
-    dispatch({
-      type: 'ADD_MESSAGE',
-      message: {
-        id: generateMessageId(),
-        type: 'thinking',
-        text: message.monologue,
-        timestamp: Date.now(),
-      },
-    });
-  }
 };
 
 export const handleStyleChange: MessageHandler<StyleChangeMessage> = (message, dispatch) => {

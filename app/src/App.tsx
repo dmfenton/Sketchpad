@@ -4,15 +4,14 @@
  */
 
 import * as Linking from 'expo-linking';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   AppState,
-  KeyboardAvoidingView,
-  Platform,
   StatusBar,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -22,24 +21,13 @@ import type { ClientMessage, PendingStroke, ToolName } from '@code-monet/shared'
 import {
   deriveAgentStatus,
   forwardLogs,
-  hasInProgressEvents,
   initLogForwarder,
-  LIVE_MESSAGE_ID,
-  shouldShowIdleAnimation,
   startLogSession,
-  useStrokeAnimation,
+  usePerformer,
 } from '@code-monet/shared';
 
-import { useTokenRefresh } from './hooks/useTokenRefresh';
-import { tracer } from './utils/tracing';
-
 import {
-  ActionBar,
-  Canvas,
   GalleryModal,
-  HomePanel,
-  LiveStatus,
-  MessageStream,
   NewCanvasModal,
   NudgeModal,
   SplashScreen,
@@ -47,48 +35,116 @@ import {
 import { createApiClient } from './api';
 import { getApiUrl, getWebSocketUrl } from './config';
 import { useAuth } from './context';
-import { useCanvas } from './hooks/useCanvas';
-import { useWebSocket } from './hooks/useWebSocket';
-import { AuthScreen } from './screens';
+import { useAppNavigation, useCanvas, useModals, useWebSocket } from './hooks';
+import { useTokenRefresh } from './hooks/useTokenRefresh';
+import { AuthScreen, HomeScreen, StudioScreen } from './screens';
+import type { StudioAction } from './screens';
 import { spacing, useTheme } from './theme';
+import { tracer } from './utils/tracing';
+
+// Debug overlay for diagnosing render loops (only in __DEV__)
+const DebugOverlay = React.memo(function DebugOverlay({
+  data,
+}: {
+  data: Record<string, string | number | boolean | null>;
+}) {
+  if (!__DEV__) return null;
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        padding: 6,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 999,
+      }}
+    >
+      {Object.entries(data).map(([key, val]) => (
+        <Text key={key} style={{ color: '#0f0', fontFamily: 'monospace', fontSize: 10 }}>
+          {key}: {String(val)}
+        </Text>
+      ))}
+    </View>
+  );
+});
 
 function MainApp(): React.JSX.Element {
   const { colors, isDark } = useTheme();
   const { accessToken, signOut, refreshToken } = useAuth();
   const api = useMemo(() => createApiClient(accessToken), [accessToken]);
   const [showSplash, setShowSplash] = useState(true);
-  const [nudgeModalVisible, setNudgeModalVisible] = useState(false);
-  const [galleryModalVisible, setGalleryModalVisible] = useState(false);
-  const [newCanvasModalVisible, setNewCanvasModalVisible] = useState(false);
-  // New: Track whether we're in the studio (canvas view) or on home screen
-  const [inStudio, setInStudio] = useState(false);
 
+  // Core state
   const canvas = useCanvas();
-  const paused = canvas.state.paused;
-
-  // Ref to store send function for animation done callback (avoids hook ordering issues)
-  const sendRef = useRef<((message: ClientMessage) => void) | null>(null);
-
-  // canvas.handleMessage is already stable (useCallback with [])
   const { handleMessage, dispatch } = canvas;
 
-  // Fetch pending strokes from server
-  const fetchStrokes = useCallback(async (): Promise<PendingStroke[]> => {
-    if (!accessToken) throw new Error('No auth token');
-    const response = await api.fetch('/strokes/pending');
-    if (!response.ok) throw new Error('Failed to fetch strokes');
-    const data = (await response.json()) as { strokes: PendingStroke[] };
-    return data.strokes;
-  }, [accessToken, api]);
+  // Modal management
+  const { activeModal, openModal, closeModal } = useModals();
 
-  // Derive status from messages (source of truth)
+  // Handle auth errors from WebSocket
+  const { handleAuthError } = useTokenRefresh({
+    refreshToken,
+    signOut,
+    cooldownMs: 5000,
+  });
+
+  // WebSocket connection
+  const { state: wsState, send } = useWebSocket({
+    url: getWebSocketUrl(),
+    token: accessToken,
+    onMessage: handleMessage,
+    onAuthError: handleAuthError,
+  });
+
+  // Navigation (studio/home state)
+  const { inStudio, enterStudio, exitStudio, setInStudio } = useAppNavigation({
+    send,
+    paused: canvas.state.paused,
+    setPaused: canvas.setPaused,
+  });
+
+  // Fetch and enqueue strokes when pendingStrokes arrives
+  const lastFetchedBatchRef = React.useRef<number>(0);
+  React.useEffect(() => {
+    const { pendingStrokes } = canvas.state;
+    if (!pendingStrokes || !accessToken) return;
+    if (pendingStrokes.batchId <= lastFetchedBatchRef.current) return;
+
+    const fetchAndEnqueue = async () => {
+      try {
+        const response = await api.fetch('/strokes/pending');
+        if (!response.ok) throw new Error('Failed to fetch strokes');
+        const data = (await response.json()) as { strokes: PendingStroke[] };
+        lastFetchedBatchRef.current = pendingStrokes.batchId;
+        dispatch({ type: 'ENQUEUE_STROKES', strokes: data.strokes });
+        dispatch({ type: 'CLEAR_PENDING_STROKES' });
+      } catch (error) {
+        console.error('[App] Failed to fetch strokes:', error);
+      }
+    };
+
+    void fetchAndEnqueue();
+  }, [canvas.state.pendingStrokes, accessToken, api, dispatch]);
+
+  // Callback when stroke animation completes
+  const handleStrokesComplete = React.useCallback(() => {
+    send({ type: 'animation_done' });
+  }, [send]);
+
+  // Performance animation loop - drives text and stroke animation
+  usePerformer({
+    performance: canvas.state.performance,
+    dispatch,
+    paused: canvas.state.paused,
+    inStudio,
+    onStrokesComplete: handleStrokesComplete,
+  });
+
+  // Derive agent status from canvas state
   const agentStatus = deriveAgentStatus(canvas.state);
-
-  // Extract live message for LiveStatus component
-  const liveMessage = useMemo(
-    () => canvas.state.messages.find((m) => m.id === LIVE_MESSAGE_ID) ?? null,
-    [canvas.state.messages]
-  );
 
   // Get current tool from the last code_execution message
   const currentTool = useMemo((): ToolName | null => {
@@ -101,47 +157,10 @@ function MainApp(): React.JSX.Element {
     return null;
   }, [canvas.state.messages]);
 
-  // Callback to signal animation complete to server
-  const handleAnimationDone = useCallback(() => {
-    sendRef.current?.({ type: 'animation_done' });
-  }, []);
-
-  // Use shared animation hook for agent-drawn strokes
-  // Gate on: not paused AND no in-progress tool calls
-  // This ensures tool completion events are shown before animation starts,
-  // but allows animation while agent is thinking (so it's not blocked forever)
-  const canRenderStrokes =
-    inStudio && !canvas.state.paused && !hasInProgressEvents(canvas.state.messages);
-  useStrokeAnimation({
-    pendingStrokes: canvas.state.pendingStrokes,
-    dispatch,
-    fetchStrokes,
-    onAnimationDone: handleAnimationDone,
-    canRender: canRenderStrokes,
-  });
-
-  // Handle auth errors from WebSocket with proper mutex pattern
-  const { handleAuthError } = useTokenRefresh({
-    refreshToken,
-    signOut,
-    cooldownMs: 5000,
-  });
-
-  const { state: wsState, send } = useWebSocket({
-    url: getWebSocketUrl(),
-    token: accessToken,
-    onMessage: handleMessage,
-    onAuthError: handleAuthError,
-  });
-
-  // Keep sendRef in sync with send for animation done callback
-  useEffect(() => {
-    sendRef.current = send;
-  }, [send]);
-
-  // Fetch gallery via HTTP on mount (more reliable than WebSocket init)
+  // Fetch gallery via HTTP on mount
   useEffect(() => {
     if (!accessToken) return;
+    if (canvas.state.gallery.length > 0) return;
 
     const fetchGallery = async () => {
       try {
@@ -156,151 +175,56 @@ function MainApp(): React.JSX.Element {
     };
 
     void fetchGallery();
-  }, [accessToken, api, dispatch]);
+  }, [accessToken, api, dispatch, canvas.state.gallery.length]);
 
-  // Track paused state in ref for AppState callback (avoids stale closure)
-  const pausedRef = useRef(paused);
-  pausedRef.current = paused;
-
-  // Destructure for stable reference in effect
-  const { setPaused } = canvas;
-
-  // Pause agent and return to home when app goes to background
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'background') {
-        if (!pausedRef.current) {
-          send({ type: 'pause' });
-          setPaused(true);
-        }
-        setInStudio(false);
+  // Studio action handler
+  const handleStudioAction = useCallback(
+    (action: StudioAction) => {
+      switch (action.type) {
+        case 'draw_toggle':
+          canvas.toggleDrawing();
+          break;
+        case 'nudge':
+          openModal('nudge');
+          break;
+        case 'clear':
+          Alert.alert('Clear Canvas', 'Clear the canvas and start fresh?', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Clear',
+              style: 'destructive',
+              onPress: () => {
+                tracer.recordEvent('action.clear');
+                send({ type: 'clear' });
+                canvas.clear();
+              },
+            },
+          ]);
+          break;
+        case 'pause_toggle':
+          if (canvas.state.paused) {
+            tracer.recordEvent('action.resume');
+            send({ type: 'resume' });
+            canvas.setPaused(false);
+          } else {
+            tracer.recordEvent('action.pause');
+            send({ type: 'pause' });
+            canvas.setPaused(true);
+          }
+          break;
+        case 'home':
+          tracer.recordEvent('session.back_to_home');
+          exitStudio();
+          break;
+        case 'gallery':
+          openModal('gallery');
+          break;
       }
-    });
-    return () => subscription.remove();
-  }, [send, setPaused]);
-
-  const handleDrawToggle = useCallback(() => {
-    canvas.toggleDrawing();
-  }, [canvas]);
-
-  const handleNudgePress = useCallback(() => {
-    setNudgeModalVisible(true);
-  }, []);
-
-  const handleNudgeSend = useCallback(
-    (text: string) => {
-      tracer.recordEvent('action.nudge', { hasText: text.length > 0 });
-      send({ type: 'nudge', text });
     },
-    [send]
+    [canvas, send, openModal, exitStudio]
   );
 
-  const handleClear = useCallback(() => {
-    Alert.alert('Clear Canvas', 'Clear the canvas and start fresh?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: () => {
-          tracer.recordEvent('action.clear');
-          send({ type: 'clear' });
-          canvas.clear();
-        },
-      },
-    ]);
-  }, [send, canvas]);
-
-  const handleNewCanvasStart = useCallback(
-    (direction?: string, style?: 'plotter' | 'paint') => {
-      tracer.recordEvent('action.new_canvas', { hasDirection: !!direction, style });
-      tracer.newSession(); // Start fresh trace for new piece
-      // Send style atomically with new_canvas to avoid race condition
-      send({ type: 'new_canvas', direction, drawing_style: style });
-      send({ type: 'resume' });
-      canvas.setPaused(false);
-      setInStudio(true);
-    },
-    [send, canvas]
-  );
-
-  // Handle continue from HomePanel (go to studio with current/recent work)
-  const handleContinueFromHome = useCallback(() => {
-    tracer.recordEvent('session.continue');
-    // If paused, resume the agent
-    if (canvas.state.paused) {
-      send({ type: 'resume' });
-      canvas.setPaused(false);
-    }
-    setInStudio(true);
-  }, [send, canvas]);
-
-  // Handle start with prompt from HomePanel
-  const handleStartWithPrompt = useCallback(
-    (prompt: string) => {
-      tracer.recordEvent('session.start', { hasDirection: true });
-      tracer.newSession();
-      send({ type: 'new_canvas', direction: prompt });
-      send({ type: 'resume' });
-      canvas.setPaused(false);
-      setInStudio(true);
-    },
-    [send, canvas]
-  );
-
-  // Handle surprise me from HomePanel
-  const handleSurpriseMe = useCallback(() => {
-    tracer.recordEvent('session.start', { hasDirection: false });
-    tracer.newSession();
-    send({ type: 'new_canvas' });
-    send({ type: 'resume' });
-    canvas.setPaused(false);
-    setInStudio(true);
-  }, [send, canvas]);
-
-  // Handle going back to home from studio
-  const handleBackToHome = useCallback(() => {
-    tracer.recordEvent('session.back_to_home');
-    // Pause the agent when leaving studio
-    if (!canvas.state.paused) {
-      send({ type: 'pause' });
-      canvas.setPaused(true);
-    }
-    setInStudio(false);
-  }, [send, canvas]);
-
-  // Get most recent canvas from gallery for HomePanel
-  const recentCanvas = useMemo(() => {
-    const gallery = canvas.state.gallery;
-    if (gallery.length === 0) return null;
-    // Gallery is ordered oldest first, so get the last one
-    return gallery[gallery.length - 1] ?? null;
-  }, [canvas.state.gallery]);
-
-  const handleGalleryPress = useCallback(() => {
-    setGalleryModalVisible(true);
-  }, []);
-
-  const handleGallerySelect = useCallback(
-    (pieceNumber: number) => {
-      send({ type: 'load_canvas', piece_number: pieceNumber });
-      setGalleryModalVisible(false);
-      setInStudio(true);
-    },
-    [send]
-  );
-
-  const handlePauseToggle = useCallback(() => {
-    if (paused) {
-      tracer.recordEvent('action.resume');
-      send({ type: 'resume' });
-      canvas.setPaused(false);
-    } else {
-      tracer.recordEvent('action.pause');
-      send({ type: 'pause' });
-      canvas.setPaused(true);
-    }
-  }, [paused, send, canvas]);
-
+  // Stroke handlers
   const handleStrokeStart = useCallback(
     (x: number, y: number) => {
       canvas.startStroke(x, y);
@@ -322,6 +246,74 @@ function MainApp(): React.JSX.Element {
     }
   }, [canvas, send]);
 
+  // Home screen handlers
+  const handleStyleChange = useCallback(
+    (style: 'plotter' | 'paint') => {
+      send({ type: 'set_style', drawing_style: style });
+    },
+    [send]
+  );
+
+  const handleContinue = useCallback(() => {
+    tracer.recordEvent('session.continue');
+    if (canvas.state.paused) {
+      send({ type: 'resume' });
+      canvas.setPaused(false);
+    }
+    enterStudio();
+  }, [send, canvas, enterStudio]);
+
+  const handleStartWithPrompt = useCallback(
+    (prompt: string) => {
+      tracer.recordEvent('session.start', { hasDirection: true });
+      tracer.newSession();
+      send({ type: 'new_canvas', direction: prompt });
+      send({ type: 'resume' });
+      canvas.setPaused(false);
+      enterStudio();
+    },
+    [send, canvas, enterStudio]
+  );
+
+  const handleSurpriseMe = useCallback(() => {
+    tracer.recordEvent('session.start', { hasDirection: false });
+    tracer.newSession();
+    send({ type: 'new_canvas' });
+    send({ type: 'resume' });
+    canvas.setPaused(false);
+    enterStudio();
+  }, [send, canvas, enterStudio]);
+
+  // Modal handlers
+  const handleNudgeSend = useCallback(
+    (text: string) => {
+      tracer.recordEvent('action.nudge', { hasText: text.length > 0 });
+      send({ type: 'nudge', text });
+    },
+    [send]
+  );
+
+  const handleNewCanvasStart = useCallback(
+    (direction?: string, style?: 'plotter' | 'paint') => {
+      tracer.recordEvent('action.new_canvas', { hasDirection: !!direction, style });
+      tracer.newSession();
+      send({ type: 'new_canvas', direction, drawing_style: style });
+      send({ type: 'resume' });
+      canvas.setPaused(false);
+      enterStudio();
+    },
+    [send, canvas, enterStudio]
+  );
+
+  const handleGallerySelect = useCallback(
+    (pieceNumber: number) => {
+      send({ type: 'load_canvas', piece_number: pieceNumber });
+      closeModal();
+      setInStudio(true);
+    },
+    [send, closeModal, setInStudio]
+  );
+
   const handleSplashFinish = useCallback(() => {
     setShowSplash(false);
   }, []);
@@ -340,92 +332,66 @@ function MainApp(): React.JSX.Element {
         style={[styles.container, { backgroundColor: colors.background }]}
         edges={['top', 'left', 'right']}
       >
+        <DebugOverlay
+          data={{
+            inStudio,
+            paused: canvas.state.paused,
+            status: agentStatus,
+            strokes: canvas.state.strokes.length,
+            pending: canvas.state.pendingStrokes?.batchId ?? null,
+            thinking: canvas.state.thinking.length,
+            ws: wsState.connected,
+            gallery: canvas.state.gallery.length,
+          }}
+        />
         <View style={styles.content}>
-          {/* Studio View (Canvas + Controls) or Home Panel */}
           {inStudio ? (
-            <>
-              {/* Live Status - Above canvas for visibility */}
-              <LiveStatus liveMessage={liveMessage} status={agentStatus} currentTool={currentTool} />
-
-              {/* Canvas - Main area */}
-              <View style={styles.canvasContainer}>
-                <Canvas
-                  strokes={canvas.state.strokes}
-                  currentStroke={canvas.state.currentStroke}
-                  agentStroke={canvas.state.agentStroke}
-                  agentStrokeStyle={canvas.state.agentStrokeStyle}
-                  penPosition={canvas.state.penPosition}
-                  penDown={canvas.state.penDown}
-                  drawingEnabled={canvas.state.drawingEnabled}
-                  styleConfig={canvas.state.styleConfig}
-                  showIdleAnimation={shouldShowIdleAnimation(canvas.state)}
-                  onStrokeStart={handleStrokeStart}
-                  onStrokeMove={handleStrokeMove}
-                  onStrokeEnd={handleStrokeEnd}
-                />
-              </View>
-
-              {/* Message History - Collapsible */}
-              <MessageStream messages={canvas.state.messages} />
-
-              {/* Action Bar - Bottom */}
-              <ActionBar
-                drawingEnabled={canvas.state.drawingEnabled}
-                paused={paused}
-                connected={wsState.connected}
-                galleryCount={canvas.state.gallery.length}
-                onDrawToggle={handleDrawToggle}
-                onNudge={handleNudgePress}
-                onClear={handleClear}
-                onPauseToggle={handlePauseToggle}
-                onNewCanvas={handleBackToHome}
-                onGallery={handleGalleryPress}
-              />
-            </>
+            <StudioScreen
+              canvas={canvas}
+              agentStatus={agentStatus}
+              currentTool={currentTool}
+              wsConnected={wsState.connected}
+              galleryCount={canvas.state.gallery.length}
+              onAction={handleStudioAction}
+              onStrokeStart={handleStrokeStart}
+              onStrokeMove={handleStrokeMove}
+              onStrokeEnd={handleStrokeEnd}
+            />
           ) : (
-            <KeyboardAvoidingView
-              style={styles.keyboardView}
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-            >
-              <HomePanel
-                api={api}
-                connected={wsState.connected}
-                hasCurrentWork={canvas.state.strokes.length > 0}
-                recentCanvas={recentCanvas}
-                drawingStyle={canvas.state.drawingStyle}
-                galleryCount={canvas.state.gallery.length}
-                onStyleChange={(style) => send({ type: 'set_style', drawing_style: style })}
-                onContinue={handleContinueFromHome}
-                onStartWithPrompt={handleStartWithPrompt}
-                onSurpriseMe={handleSurpriseMe}
-                onOpenGallery={handleGalleryPress}
-              />
-            </KeyboardAvoidingView>
+            <HomeScreen
+              api={api}
+              wsConnected={wsState.connected}
+              hasCurrentWork={canvas.state.strokes.length > 0}
+              gallery={canvas.state.gallery}
+              drawingStyle={canvas.state.drawingStyle}
+              onStyleChange={handleStyleChange}
+              onContinue={handleContinue}
+              onStartWithPrompt={handleStartWithPrompt}
+              onSurpriseMe={handleSurpriseMe}
+              onOpenGallery={() => openModal('gallery')}
+            />
           )}
         </View>
 
-        {/* Nudge Modal */}
+        {/* Modals */}
         <NudgeModal
-          visible={nudgeModalVisible}
-          onClose={() => setNudgeModalVisible(false)}
+          visible={activeModal === 'nudge'}
+          onClose={closeModal}
           onSend={handleNudgeSend}
         />
 
-        {/* New Canvas Modal */}
         <NewCanvasModal
-          visible={newCanvasModalVisible}
+          visible={activeModal === 'newCanvas'}
           currentStyle={canvas.state.drawingStyle}
-          onClose={() => setNewCanvasModalVisible(false)}
+          onClose={closeModal}
           onStart={handleNewCanvasStart}
         />
 
-        {/* Gallery Modal */}
         <GalleryModal
           api={api}
-          visible={galleryModalVisible}
+          visible={activeModal === 'gallery'}
           canvases={canvas.state.gallery}
-          onClose={() => setGalleryModalVisible(false)}
+          onClose={closeModal}
           onSelect={handleGallerySelect}
         />
       </SafeAreaView>
@@ -482,7 +448,7 @@ function AppContent(): React.JSX.Element {
           return;
         }
 
-        // Handle magic_token from expo-router redirect (when Universal Link goes through /auth/verify route)
+        // Handle magic_token from expo-router redirect
         if (parsed.queryParams?.magic_token) {
           const token = parsed.queryParams.magic_token as string;
           console.log('[App] Verifying magic link token from redirect');
@@ -497,7 +463,7 @@ function AppContent(): React.JSX.Element {
           return;
         }
 
-        // Handle tokens from expo-router redirect (when deep link goes through /auth/callback route)
+        // Handle tokens from expo-router redirect
         if (parsed.queryParams?.access_token && parsed.queryParams?.refresh_token) {
           const accessToken = parsed.queryParams.access_token as string;
           const refreshToken = parsed.queryParams.refresh_token as string;
@@ -542,7 +508,7 @@ function AppContent(): React.JSX.Element {
     );
   }
 
-  // Show auth screen if not authenticated (pass magic link error if any)
+  // Show auth screen if not authenticated
   if (!isAuthenticated) {
     return (
       <AuthScreen magicLinkError={magicLinkError} onClearError={() => setMagicLinkError(null)} />
@@ -609,12 +575,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingBottom: spacing.sm,
     gap: spacing.sm,
-  },
-  canvasContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  keyboardView: {
-    flex: 1,
   },
 });

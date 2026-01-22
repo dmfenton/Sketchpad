@@ -1,0 +1,190 @@
+/**
+ * React hook for the Performance Model animation pipeline.
+ *
+ * The agent's output is a "performance" - events buffer until the stage is free,
+ * then perform one at a time with animations.
+ *
+ * Server -> Buffer (queue) -> Stage (one item) -> UI
+ *                                 ^
+ *                         [stage free? -> advance]
+ */
+
+import { useCallback, useEffect, useRef } from 'react';
+
+import type { CanvasAction, PerformanceState } from '../canvas/reducer';
+import type { PendingStroke, StrokeStyle } from '../types';
+import { BIONIC_CHUNK_INTERVAL_MS, BIONIC_CHUNK_SIZE } from '../utils';
+
+export interface UsePerformerOptions {
+  /** Current performance state */
+  performance: PerformanceState;
+  /** Dispatch function for canvas actions */
+  dispatch: (action: CanvasAction) => void;
+  /** Whether animation is paused */
+  paused: boolean;
+  /** Whether user is in the studio (animation only runs in studio) */
+  inStudio: boolean;
+  /** Callback when strokes animation completes (to signal server) */
+  onStrokesComplete?: () => void;
+  /** Delay between word reveals in ms (default: BIONIC_CHUNK_INTERVAL_MS / BIONIC_CHUNK_SIZE) */
+  wordDelayMs?: number;
+  /** Animation frame delay in ms (default: 16.67 = 60fps) */
+  frameDelayMs?: number;
+}
+
+/**
+ * Hook that drives the performance animation loop.
+ *
+ * Watches the performance state and:
+ * 1. Advances items from buffer to stage when stage is empty
+ * 2. Reveals words one at a time for 'words' items
+ * 3. Animates strokes point by point for 'strokes' items
+ * 4. Instantly processes 'event' items
+ * 5. Moves completed items to history
+ */
+export function usePerformer({
+  performance,
+  dispatch,
+  paused,
+  inStudio,
+  onStrokesComplete,
+  wordDelayMs = BIONIC_CHUNK_INTERVAL_MS / BIONIC_CHUNK_SIZE,
+  frameDelayMs = 1000 / 60,
+}: UsePerformerOptions): void {
+  // Refs to track animation state
+  const frameRef = useRef<number | null>(null);
+  const lastWordTimeRef = useRef<number>(0);
+  const lastStrokeTimeRef = useRef<number>(0);
+  const strokePointIndexRef = useRef<number>(0);
+  const onStrokesCompleteRef = useRef(onStrokesComplete);
+
+  // Keep callback ref up to date
+  useEffect(() => {
+    onStrokesCompleteRef.current = onStrokesComplete;
+  }, [onStrokesComplete]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, []);
+
+  // Main animation loop
+  useEffect(() => {
+    // Don't animate when paused or not in studio
+    if (paused || !inStudio) {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+      return;
+    }
+
+    const animate = (time: number) => {
+      const { onStage, buffer, wordIndex, strokeIndex } = performance;
+
+      // If stage is empty, try to advance
+      if (onStage === null) {
+        if (buffer.length > 0) {
+          dispatch({ type: 'ADVANCE_STAGE' });
+          // Reset point index for new stroke animation
+          strokePointIndexRef.current = 0;
+        }
+        frameRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      // Process current stage item
+      switch (onStage.type) {
+        case 'words': {
+          const words = onStage.text.split(/\s+/).filter((w) => w.length > 0);
+          if (wordIndex < words.length) {
+            // Check if enough time has passed since last word
+            if (time - lastWordTimeRef.current >= wordDelayMs) {
+              dispatch({ type: 'REVEAL_WORD' });
+              lastWordTimeRef.current = time;
+            }
+          } else {
+            // All words revealed, complete this item
+            dispatch({ type: 'STAGE_COMPLETE' });
+          }
+          break;
+        }
+
+        case 'event': {
+          // Events are instant - just complete
+          // The event message is already in the performance history
+          dispatch({ type: 'STAGE_COMPLETE' });
+          break;
+        }
+
+        case 'strokes': {
+          const strokes = onStage.strokes;
+          if (strokeIndex < strokes.length) {
+            const stroke = strokes[strokeIndex];
+            const points = stroke.points;
+            const pointIndex = strokePointIndexRef.current;
+
+            if (pointIndex < points.length) {
+              // Check if enough time has passed since last frame
+              if (time - lastStrokeTimeRef.current >= frameDelayMs) {
+                const point = points[pointIndex];
+                // Extract style from path for first point
+                const style: Partial<StrokeStyle> | undefined =
+                  pointIndex === 0
+                    ? {
+                        ...(stroke.path.color !== undefined && { color: stroke.path.color }),
+                        ...(stroke.path.stroke_width !== undefined && {
+                          stroke_width: stroke.path.stroke_width,
+                        }),
+                        ...(stroke.path.opacity !== undefined && { opacity: stroke.path.opacity }),
+                      }
+                    : undefined;
+
+                dispatch({
+                  type: 'STROKE_PROGRESS',
+                  point,
+                  style: Object.keys(style ?? {}).length > 0 ? style : undefined,
+                });
+                strokePointIndexRef.current = pointIndex + 1;
+                lastStrokeTimeRef.current = time;
+              }
+            } else {
+              // Stroke complete, move to next
+              dispatch({ type: 'STROKE_COMPLETE' });
+              strokePointIndexRef.current = 0;
+            }
+          } else {
+            // All strokes done
+            dispatch({ type: 'STAGE_COMPLETE' });
+            // Signal server that animation is done
+            onStrokesCompleteRef.current?.();
+          }
+          break;
+        }
+      }
+
+      frameRef.current = requestAnimationFrame(animate);
+    };
+
+    frameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, [
+    performance,
+    dispatch,
+    paused,
+    inStudio,
+    wordDelayMs,
+    frameDelayMs,
+  ]);
+}

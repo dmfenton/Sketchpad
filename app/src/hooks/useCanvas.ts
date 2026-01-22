@@ -1,6 +1,6 @@
 /**
  * Canvas state and touch handling hook.
- * Uses shared reducer from @code-monet/shared.
+ * App-specific wrapper with debug logging around shared hook.
  */
 
 import { useCallback, useReducer, useRef } from 'react';
@@ -9,55 +9,38 @@ import type { CanvasAction, Path, ServerMessage } from '@code-monet/shared';
 import {
   canvasReducer,
   initialState,
-  LIVE_MESSAGE_ID as LIVE_ID,
   routeMessage,
   type CanvasHookState,
 } from '@code-monet/shared';
 
 import { debugReducer, debugThinking } from '../utils/debugLog';
 
-// Re-export types and constants from shared for backwards compatibility
-export { LIVE_MESSAGE_ID, type CanvasAction, type CanvasHookState } from '@code-monet/shared';
+// Re-export types and core hook from shared
+export { type CanvasAction, type CanvasHookState, type UseCanvasReturn } from '@code-monet/shared';
 
-export interface UseCanvasReturn {
-  state: CanvasHookState;
-  dispatch: React.Dispatch<CanvasAction>;
-  handleMessage: (message: ServerMessage) => void;
-  startStroke: (x: number, y: number) => void;
-  addPoint: (x: number, y: number) => void;
-  endStroke: () => Path | null;
-  toggleDrawing: () => void;
-  clear: () => void;
-  clearMessages: () => void;
-  setPaused: (paused: boolean) => void;
-}
-
-// Logging wrapper for reducer
+// Logging wrapper for reducer - app-specific debug output
 function loggingReducer(state: CanvasHookState, action: CanvasAction): CanvasHookState {
   const newState = canvasReducer(state, action);
 
   // Log relevant state changes
-  if (action.type === 'APPEND_LIVE_MESSAGE') {
-    const liveMsg = newState.messages.find((m) => m.id === LIVE_ID);
-    debugThinking(
-      `APPEND_LIVE_MESSAGE: live msg len=${liveMsg?.text.length ?? 0}, total msgs=${newState.messages.length}`
-    );
-  } else if (action.type === 'FINALIZE_LIVE_MESSAGE') {
-    debugThinking(`FINALIZE_LIVE_MESSAGE: total msgs=${newState.messages.length}`);
+  if (action.type === 'APPEND_THINKING') {
+    debugThinking(`APPEND_THINKING: thinking len=${newState.thinking.length}`);
+  } else if (action.type === 'ARCHIVE_THINKING') {
+    debugThinking(`ARCHIVE_THINKING: total msgs=${newState.messages.length}`);
   } else if (action.type === 'STROKES_READY') {
     debugReducer(
       `STROKES_READY: count=${action.count} batch=${action.batchId} piece=${action.pieceNumber}`
     );
   } else if (action.type === 'ADD_STROKE') {
     debugReducer(`ADD_STROKE: total strokes=${newState.strokes.length}`);
-  } else if (action.type === 'SET_PEN') {
-    // Only log pen down transitions to reduce noise
-    if (action.down && !state.penDown) {
-      debugReducer(`SET_PEN: pen DOWN at (${action.x.toFixed(0)}, ${action.y.toFixed(0)})`);
-    } else if (!action.down && state.penDown) {
-      debugReducer(`SET_PEN: pen UP, agentStroke points=${state.agentStroke.length}`);
+  } else if (action.type === 'STROKE_PROGRESS') {
+    // Only log first point to reduce noise
+    if (state.performance.agentStroke.length === 0) {
+      debugReducer(`STROKE_PROGRESS: pen DOWN at (${action.point.x.toFixed(0)}, ${action.point.y.toFixed(0)})`);
     }
-  } else if (action.type !== 'ADD_POINT' && action.type !== 'APPEND_THINKING') {
+  } else if (action.type === 'STROKE_COMPLETE') {
+    debugReducer(`STROKE_COMPLETE: stroke ${newState.performance.strokeIndex}`);
+  } else if (action.type !== 'ADD_POINT') {
     // Log all other actions except noisy ones
     debugReducer(`${action.type}`);
   }
@@ -65,20 +48,22 @@ function loggingReducer(state: CanvasHookState, action: CanvasAction): CanvasHoo
   return newState;
 }
 
-export function useCanvas(): UseCanvasReturn {
+/**
+ * App-specific useCanvas with debug logging.
+ * Wraps the shared hook's reducer with logging instrumentation.
+ */
+export function useCanvas() {
   const [state, dispatch] = useReducer(loggingReducer, initialState);
-  const prevLiveMsgLenRef = useRef(0);
+  const prevThinkingLenRef = useRef(0);
 
-  // Track live message changes for debugging
-  const liveMsg = state.messages.find((m) => m.id === LIVE_ID);
-  if (liveMsg && liveMsg.text.length !== prevLiveMsgLenRef.current) {
-    debugThinking(
-      `Live msg updated: ${prevLiveMsgLenRef.current} -> ${liveMsg.text.length} chars`
-    );
-    prevLiveMsgLenRef.current = liveMsg.text.length;
-  } else if (!liveMsg && prevLiveMsgLenRef.current > 0) {
-    debugThinking(`Live msg cleared (was ${prevLiveMsgLenRef.current} chars)`);
-    prevLiveMsgLenRef.current = 0;
+  // Track thinking changes for debugging
+  if (state.thinking.length !== prevThinkingLenRef.current) {
+    if (state.thinking.length > 0) {
+      debugThinking(`Thinking updated: ${prevThinkingLenRef.current} -> ${state.thinking.length} chars`);
+    } else if (prevThinkingLenRef.current > 0) {
+      debugThinking(`Thinking cleared (was ${prevThinkingLenRef.current} chars)`);
+    }
+    prevThinkingLenRef.current = state.thinking.length;
   }
 
   const handleMessage = useCallback((message: ServerMessage) => {

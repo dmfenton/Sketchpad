@@ -238,6 +238,43 @@ uv run python scripts/ws-client.py view output.png
 uv run python scripts/ws-client.py start "draw a cat"
 ```
 
+### Visual Flow Testing (`scripts/visual-flow-test.py`)
+
+Time-lapse screenshot capture during agent execution to verify rendering flow:
+
+```bash
+# Run from server directory (for uv dependencies)
+cd server
+
+# Basic test - screenshots every 1 second
+uv run python ../scripts/visual-flow-test.py "draw a simple line"
+
+# Fast interval to capture progressive text reveal
+uv run python ../scripts/visual-flow-test.py "draw a landscape" --interval 0.5
+
+# Use Vite web app (port 5173) instead of Expo (8081)
+uv run python ../scripts/visual-flow-test.py "draw shapes" --expo-port 5173
+
+# Show browser window for debugging
+uv run python ../scripts/visual-flow-test.py "draw a cat" --no-headless
+```
+
+**Output:** `screenshots/flow-{timestamp}/` containing:
+- Numbered screenshots: `001-00000ms.png`, `002-01000ms.png`, ...
+- `events.json`: WebSocket event log with timestamps
+- `summary.txt`: Test results and ffmpeg command for time-lapse
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--interval N` | 1.0 | Screenshot interval in seconds |
+| `--timeout N` | 120 | Max test duration in seconds |
+| `--output DIR` | auto | Custom output directory |
+| `--expo-port N` | 8081 | Expo port (8081 mobile, 5173 web) |
+| `--no-headless` | false | Show browser window |
+| `--no-clear` | false | Skip clearing canvas |
+
 ### Full Development Loop
 
 The complete cycle for UI changes: **Investigate -> Plan -> Code -> Test -> Verify -> Loop**

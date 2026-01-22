@@ -7,9 +7,17 @@ export {
   deriveAgentStatus,
   hasInProgressEvents,
   initialState,
-  LIVE_MESSAGE_ID,
+  initialPerformanceState,
   MAX_MESSAGES,
+  MAX_HISTORY,
   shouldShowIdleAnimation,
 } from './reducer';
 
-export type { CanvasAction, CanvasHookState, PendingStrokesInfo } from './reducer';
+export type {
+  CanvasAction,
+  CanvasHookState,
+  PendingStrokesInfo,
+  PerformanceAction,
+  PerformanceItem,
+  PerformanceState,
+} from './reducer';

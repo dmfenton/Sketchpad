@@ -9,8 +9,9 @@ import {
   CANVAS_WIDTH,
   getEffectiveStyle,
   PLOTTER_STYLE,
-  smoothPolylineToPath,
   createTaperedStrokePath,
+  pathToSvgD,
+  pointsToSvgD,
 } from '@code-monet/shared';
 import { IdleParticles } from './IdleParticles';
 
@@ -39,84 +40,6 @@ function screenToCanvas(clientX: number, clientY: number, rect: DOMRect): Point 
     x: (clientX - rect.left) * scaleX,
     y: (clientY - rect.top) * scaleY,
   };
-}
-
-/**
- * Convert a path to SVG path 'd' attribute.
- * @param path - The path to convert
- * @param smooth - If true, use bezier smoothing for polylines (paint mode)
- */
-function pathToSvgD(path: Path, smooth = false): string {
-  if (path.type === 'svg') {
-    return path.d || '';
-  }
-
-  if (path.points.length === 0) return '';
-
-  const points = path.points;
-
-  // For polylines in paint mode, use smooth bezier curves
-  if (path.type === 'polyline' && smooth && points.length > 2) {
-    return smoothPolylineToPath(points, 0.5);
-  }
-
-  const parts: string[] = [];
-
-  switch (path.type) {
-    case 'line':
-      if (points.length >= 2) {
-        parts.push(`M ${points[0]?.x} ${points[0]?.y}`);
-        parts.push(`L ${points[1]?.x} ${points[1]?.y}`);
-      }
-      break;
-
-    case 'polyline':
-      if (points.length > 0) {
-        parts.push(`M ${points[0]?.x} ${points[0]?.y}`);
-        for (let i = 1; i < points.length; i++) {
-          parts.push(`L ${points[i]?.x} ${points[i]?.y}`);
-        }
-      }
-      break;
-
-    case 'quadratic':
-      if (points.length >= 3) {
-        parts.push(`M ${points[0]?.x} ${points[0]?.y}`);
-        parts.push(`Q ${points[1]?.x} ${points[1]?.y} ${points[2]?.x} ${points[2]?.y}`);
-      }
-      break;
-
-    case 'cubic':
-      if (points.length >= 4) {
-        parts.push(`M ${points[0]?.x} ${points[0]?.y}`);
-        parts.push(
-          `C ${points[1]?.x} ${points[1]?.y} ${points[2]?.x} ${points[2]?.y} ${points[3]?.x} ${points[3]?.y}`
-        );
-      }
-      break;
-  }
-
-  return parts.join(' ');
-}
-
-/**
- * Convert points to SVG polyline path.
- * @param points - Array of points
- * @param smooth - If true, use bezier smoothing (paint mode)
- */
-function pointsToSvgD(points: Point[], smooth = false): string {
-  if (points.length === 0) return '';
-
-  // Use smooth bezier curves for paint mode
-  if (smooth && points.length > 2) {
-    return smoothPolylineToPath(points, 0.5);
-  }
-
-  const parts = [`M ${points[0]?.x} ${points[0]?.y}`];
-  for (let i = 1; i < points.length; i++) {
-    parts.push(`L ${points[i]?.x} ${points[i]?.y}`);
-  }
-  return parts.join(' ');
 }
 
 export function Canvas({

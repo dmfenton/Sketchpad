@@ -181,11 +181,44 @@ Shared library tests go in `app/src/__tests__/` since shared/ doesn't have its o
 shared/src/
 ├── index.ts           # All public exports
 ├── types.ts           # Type definitions
-├── utils.ts           # Pure utility functions
+├── utils.ts           # Pure utility functions (formatTime, getCodeFromInput, bionic)
 ├── canvas/
-│   └── reducer.ts     # State machine
+│   ├── index.ts       # Canvas exports
+│   └── reducer.ts     # State machine with performance model
 ├── hooks/
-│   └── useX.ts        # Reusable hooks
+│   ├── index.ts       # Hook exports
+│   ├── useCanvas.ts   # Canvas state and WebSocket connection
+│   └── usePerformer.ts # Progressive reveal animation
+├── utils/
+│   ├── logForwarder.ts    # Browser console log forwarding
+│   ├── strokeSmoothing.ts # Stroke interpolation algorithms
+│   └── svgPath.ts         # SVG path conversion (pathToSvgD, pointsToSvgD)
 └── websocket/
     └── handlers.ts    # Message routing
+```
+
+## App Component Organization
+
+The app/ codebase uses component folders for complex components:
+
+```
+app/src/components/
+├── messages/          # MessageStream subcomponents
+│   ├── MessageBubble.tsx      # Dispatcher by message type
+│   ├── MessageCodeExecution.tsx
+│   ├── MessageError.tsx
+│   ├── MessageIteration.tsx
+│   ├── MessagePieceComplete.tsx
+│   ├── MessageThinking.tsx
+│   ├── styles.ts              # Shared styles
+│   ├── types.ts               # Shared types
+│   └── useMessageAnimation.ts # Entry animation hook
+├── home/              # HomePanel subcomponents
+│   ├── ContinueCard.tsx
+│   └── PromptInput.tsx
+└── splash/            # SplashScreen subcomponents
+    ├── BrushStroke.tsx
+    ├── GradientOrb.tsx
+    ├── PaintSplatter.tsx
+    └── useSplashAnimation.ts
 ```

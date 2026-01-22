@@ -15,7 +15,6 @@ interface ActionBarProps {
   galleryCount: number;
   onDrawToggle: () => void;
   onNudge: () => void;
-  onClear: () => void;
   onPauseToggle: () => void;
   onNewCanvas: () => void;
   onGallery: () => void;
@@ -96,14 +95,11 @@ export function ActionBar({
   galleryCount,
   onDrawToggle,
   onNudge,
-  onClear: _onClear,
   onPauseToggle,
   onNewCanvas,
   onGallery,
 }: ActionBarProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
-  // Note: onClear is still in props for API compatibility but removed from UI
-  void _onClear;
   return (
     <View style={styles.container} testID="action-bar">
       <View style={[styles.bar, { backgroundColor: colors.surface }, shadows.lg]}>

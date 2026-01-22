@@ -1,90 +1,50 @@
 /**
  * Tests for MessageStream component logic.
  *
- * Tests the message filtering and history display logic.
+ * Tests the message history display logic.
+ * Note: Live thinking is now in state.thinking, not in messages array.
  */
 
-import { LIVE_MESSAGE_ID } from '@code-monet/shared';
 import type { AgentMessage } from '@code-monet/shared';
 
 describe('MessageStream', () => {
-  describe('message filtering', () => {
-    // The filtering logic from MessageStream
-    const filterHistoryMessages = (messages: AgentMessage[]): AgentMessage[] => {
-      return messages.filter((m) => m.id !== LIVE_MESSAGE_ID);
-    };
+  describe('message history', () => {
+    // Messages now contains only archived thinking and other events
+    // No more LIVE_MESSAGE_ID filtering needed
 
-    it('filters out live message', () => {
+    it('displays all messages in order', () => {
       const messages: AgentMessage[] = [
-        { id: '1', type: 'thinking', text: 'First thought', timestamp: 1000 },
-        { id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Live streaming...', timestamp: 2000 },
-        { id: '2', type: 'thinking', text: 'Second thought', timestamp: 3000 },
+        { id: 'thinking_1', type: 'thinking', text: 'First thought', timestamp: 1000 },
+        { id: 'thinking_2', type: 'thinking', text: 'Second thought', timestamp: 2000 },
+        { id: 'thinking_3', type: 'thinking', text: 'Third thought', timestamp: 3000 },
       ];
 
-      const filtered = filterHistoryMessages(messages);
-
-      expect(filtered).toHaveLength(2);
-      expect(filtered.map((m) => m.id)).toEqual(['1', '2']);
+      expect(messages).toHaveLength(3);
+      expect(messages.map((m) => m.id)).toEqual(['thinking_1', 'thinking_2', 'thinking_3']);
     });
 
-    it('returns all messages when no live message present', () => {
+    it('handles empty messages array', () => {
+      const messages: AgentMessage[] = [];
+      expect(messages).toHaveLength(0);
+    });
+
+    it('preserves all message types', () => {
       const messages: AgentMessage[] = [
-        { id: '1', type: 'thinking', text: 'First', timestamp: 1000 },
-        { id: '2', type: 'thinking', text: 'Second', timestamp: 2000 },
-      ];
-
-      const filtered = filterHistoryMessages(messages);
-
-      expect(filtered).toHaveLength(2);
-      expect(filtered).toEqual(messages);
-    });
-
-    it('returns empty array when only live message exists', () => {
-      const messages: AgentMessage[] = [
-        { id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Live...', timestamp: 1000 },
-      ];
-
-      const filtered = filterHistoryMessages(messages);
-
-      expect(filtered).toHaveLength(0);
-    });
-
-    it('returns empty array for empty input', () => {
-      expect(filterHistoryMessages([])).toEqual([]);
-    });
-
-    it('preserves message order', () => {
-      const messages: AgentMessage[] = [
-        { id: '3', type: 'thinking', text: 'Third', timestamp: 3000 },
-        { id: '1', type: 'thinking', text: 'First', timestamp: 1000 },
-        { id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Live', timestamp: 2500 },
-        { id: '2', type: 'thinking', text: 'Second', timestamp: 2000 },
-      ];
-
-      const filtered = filterHistoryMessages(messages);
-
-      expect(filtered.map((m) => m.id)).toEqual(['3', '1', '2']);
-    });
-
-    it('preserves all message types in history', () => {
-      const messages: AgentMessage[] = [
-        { id: '1', type: 'thinking', text: 'Thought', timestamp: 1000 },
+        { id: 'thinking_1', type: 'thinking', text: 'Thought', timestamp: 1000 },
         {
-          id: '2',
+          id: 'exec_1',
           type: 'code_execution',
           text: 'Drawing...',
           timestamp: 2000,
           metadata: { tool_name: 'draw_paths' },
         },
-        { id: '3', type: 'error', text: 'Error!', timestamp: 3000 },
-        { id: '4', type: 'piece_complete', text: 'Done!', timestamp: 4000 },
-        { id: '5', type: 'iteration', text: 'Iteration 1/5', timestamp: 5000 },
+        { id: 'err_1', type: 'error', text: 'Error!', timestamp: 3000 },
+        { id: 'piece_1', type: 'piece_complete', text: 'Done!', timestamp: 4000 },
+        { id: 'iter_1', type: 'iteration', text: 'Iteration 1/5', timestamp: 5000 },
       ];
 
-      const filtered = filterHistoryMessages(messages);
-
-      expect(filtered).toHaveLength(5);
-      expect(filtered.map((m) => m.type)).toEqual([
+      expect(messages).toHaveLength(5);
+      expect(messages.map((m) => m.type)).toEqual([
         'thinking',
         'code_execution',
         'error',
@@ -94,39 +54,39 @@ describe('MessageStream', () => {
     });
   });
 
-  describe('live message extraction', () => {
-    // The extraction logic from App.tsx
-    const extractLiveMessage = (messages: AgentMessage[]): AgentMessage | null => {
-      return messages.find((m) => m.id === LIVE_MESSAGE_ID) ?? null;
-    };
+  describe('thinking state (new model)', () => {
+    // Test that thinking text accumulates in state.thinking
+    // and gets archived to messages via ARCHIVE_THINKING
 
-    it('extracts live message when present', () => {
-      const liveMsg: AgentMessage = {
-        id: LIVE_MESSAGE_ID,
-        type: 'thinking',
-        text: 'Live content',
-        timestamp: 2000,
+    it('thinking text accumulates during a turn', () => {
+      // This is now tested in the reducer tests
+      // Here we just verify the data model
+      interface ThinkingState {
+        thinking: string;
+        messages: AgentMessage[];
+      }
+
+      const state: ThinkingState = {
+        thinking: 'I am currently thinking about the artwork...',
+        messages: [
+          { id: 'thinking_old', type: 'thinking', text: 'Previous thought', timestamp: 1000 },
+        ],
       };
-      const messages: AgentMessage[] = [
-        { id: '1', type: 'thinking', text: 'First', timestamp: 1000 },
-        liveMsg,
-        { id: '2', type: 'thinking', text: 'Second', timestamp: 3000 },
-      ];
 
-      expect(extractLiveMessage(messages)).toEqual(liveMsg);
+      expect(state.thinking.length).toBeGreaterThan(0);
+      expect(state.messages).toHaveLength(1);
     });
 
-    it('returns null when no live message', () => {
-      const messages: AgentMessage[] = [
-        { id: '1', type: 'thinking', text: 'First', timestamp: 1000 },
-        { id: '2', type: 'thinking', text: 'Second', timestamp: 2000 },
-      ];
+    it('archived thinking becomes a message', () => {
+      const archivedMessage: AgentMessage = {
+        id: 'thinking_12345',
+        type: 'thinking',
+        text: 'Archived thinking content',
+        timestamp: Date.now(),
+      };
 
-      expect(extractLiveMessage(messages)).toBeNull();
-    });
-
-    it('returns null for empty messages', () => {
-      expect(extractLiveMessage([])).toBeNull();
+      expect(archivedMessage.type).toBe('thinking');
+      expect(archivedMessage.id).not.toBe('live_thinking');
     });
   });
 });

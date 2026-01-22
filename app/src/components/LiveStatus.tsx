@@ -2,22 +2,22 @@
  * LiveStatus - Always-visible display of current agent activity.
  *
  * Shows:
- * - Streaming thoughts as they arrive
+ * - Streaming thoughts as they arrive (from performance.revealedText)
  * - Current action: Drawing, Executing, etc.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import type { AgentMessage, AgentStatus, ToolName } from '@code-monet/shared';
-import { bionicWord, TOOL_DISPLAY_NAMES, useProgressiveText } from '@code-monet/shared';
+import type { AgentStatus, PerformanceState, ToolName } from '@code-monet/shared';
+import { bionicWord, TOOL_DISPLAY_NAMES } from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
 import { debugRender } from '../utils/debugLog';
 
 interface LiveStatusProps {
-  /** The live streaming message (or null if not thinking) */
-  liveMessage: AgentMessage | null;
+  /** Performance state (used for revealedText display) */
+  performance: PerformanceState;
   /** Current agent status */
   status: AgentStatus;
   /** Current tool being used (for more specific status) */
@@ -74,7 +74,7 @@ function BionicWord({ word }: { word: string }): React.JSX.Element {
 }
 
 export function LiveStatus({
-  liveMessage,
+  performance,
   status,
   currentTool,
 }: LiveStatusProps): React.JSX.Element | null {
@@ -82,8 +82,30 @@ export function LiveStatus({
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const prevDisplayedCountRef = useRef(0);
 
-  // Progressive text display via shared hook (handles buffering internally)
-  const { displayedWords, isBuffering, wordCount } = useProgressiveText(liveMessage?.text ?? null);
+  // Get revealed text from performance state
+  const revealedText = performance.revealedText;
+
+  // Split revealed text into words for bionic rendering
+  const displayedWords = useMemo(
+    () => revealedText.split(/\s+/).filter((w) => w.length > 0),
+    [revealedText]
+  );
+
+  // Check if there are more words to reveal (buffer has words OR stage has words with more to reveal)
+  const isBuffering = useMemo(() => {
+    // Check if there are words items in the buffer
+    const hasWordsInBuffer = performance.buffer.some((item) => item.type === 'words');
+    // Check if current stage item is words and has more words to reveal
+    if (performance.onStage?.type === 'words') {
+      const totalWords = performance.onStage.text.split(/\s+/).filter((w) => w.length > 0).length;
+      if (performance.wordIndex < totalWords) {
+        return true;
+      }
+    }
+    return hasWordsInBuffer;
+  }, [performance.buffer, performance.onStage, performance.wordIndex]);
+
+  const wordCount = displayedWords.length;
 
   // Log progressive text state changes
   if (displayedWords.length !== prevDisplayedCountRef.current) {
@@ -117,8 +139,9 @@ export function LiveStatus({
     }
   }, [status, pulseAnim]);
 
-  // Don't show anything when idle
-  if (status === 'idle' && !liveMessage) {
+  // Don't show anything when idle and no words displayed
+  const hasContent = displayedWords.length > 0 || performance.buffer.length > 0;
+  if (status === 'idle' && !hasContent) {
     return null;
   }
 

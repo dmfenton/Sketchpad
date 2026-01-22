@@ -19,7 +19,6 @@ import {
   deriveAgentStatus,
   hasInProgressEvents,
   initialState,
-  LIVE_MESSAGE_ID,
   routeMessage,
   type CanvasHookState,
 } from '@code-monet/shared';
@@ -107,23 +106,25 @@ describe('Render Flow - Complete Turn Sequence', () => {
   it('transitions through correct statuses during turn', () => {
     const { statuses } = processSequence(turnSequence);
 
-    // After iteration: idle (no live message yet)
+    // After iteration: idle (thinking archived, no new thinking yet)
     expect(statuses[0]).toBe('idle');
 
-    // After first thinking_delta: thinking (live message exists)
+    // After first thinking_delta: thinking (thinking text exists)
     expect(statuses[1]).toBe('thinking');
 
     // After second thinking_delta: still thinking
     expect(statuses[2]).toBe('thinking');
 
-    // After code_execution started: executing (live message finalized, code_execution in progress)
-    expect(statuses[3]).toBe('executing');
+    // After code_execution started: thinking (thinking text still exists during code execution)
+    // Note: In the new model, thinking persists during code execution so words can finish revealing
+    expect(statuses[3]).toBe('thinking');
 
-    // After agent_strokes_ready: still executing (code_execution not completed yet)
-    expect(statuses[4]).toBe('executing');
+    // After agent_strokes_ready: still thinking
+    expect(statuses[4]).toBe('thinking');
 
-    // After code_execution completed: drawing (pendingStrokes set, no in-progress events)
-    expect(statuses[5]).toBe('drawing');
+    // After code_execution completed: thinking (still has thinking text)
+    // Status becomes drawing only after thinking is archived (on iteration or turn end)
+    expect(statuses[5]).toBe('thinking');
   });
 
   it('sets pendingStrokes when agent_strokes_ready arrives', () => {
@@ -139,20 +140,16 @@ describe('Render Flow - Complete Turn Sequence', () => {
     expect(states[5]?.pendingStrokes).toEqual({ count: 1, batchId: 1, pieceNumber: 0 });
   });
 
-  it('canRender becomes true only after code_execution completed', () => {
+  it('status is thinking while thinking text exists', () => {
     const { statuses } = processSequence(turnSequence);
 
-    // canRender = agentStatus === 'drawing'
-    const canRenderAt = statuses.map((s) => s === 'drawing');
+    // In the new model, status is 'thinking' while thinking text exists
+    // This allows progressive text animation to continue during code execution
+    // Strokes are gated by waitForThinking (isBuffering) rather than status
 
-    expect(canRenderAt).toEqual([
-      false, // iteration
-      false, // thinking_delta 1
-      false, // thinking_delta 2
-      false, // code_execution started
-      false, // agent_strokes_ready (still executing!)
-      true, // code_execution completed
-    ]);
+    // All statuses after first thinking_delta should be 'thinking'
+    // (until thinking is archived, which happens on iteration)
+    expect(statuses.slice(1).every((s) => s === 'thinking')).toBe(true);
   });
 
   it('has no in-progress events after code_execution completed', () => {
@@ -216,28 +213,26 @@ describe('Render Flow - Thinking Text Accumulation Bug', () => {
   });
 });
 
-describe('Render Flow - Live Message Management', () => {
-  it('creates live message on first thinking_delta', () => {
+describe('Render Flow - Thinking State Management', () => {
+  it('sets thinking text on first thinking_delta', () => {
     let state: CanvasHookState = { ...initialState, paused: false };
     state = processMessage(state, { type: 'thinking_delta', text: 'Hello', iteration: 1 });
 
-    const liveMessage = state.messages.find((m) => m.id === LIVE_MESSAGE_ID);
-    expect(liveMessage).toBeDefined();
-    expect(liveMessage?.text).toBe('Hello');
+    expect(state.thinking).toBe('Hello');
+    // No messages yet (thinking is not archived until iteration ends)
+    expect(state.messages.length).toBe(0);
   });
 
-  it('appends to existing live message', () => {
+  it('appends to existing thinking text', () => {
     let state: CanvasHookState = { ...initialState, paused: false };
     state = processMessage(state, { type: 'thinking_delta', text: 'Hello ', iteration: 1 });
     state = processMessage(state, { type: 'thinking_delta', text: 'world', iteration: 1 });
 
-    const liveMessage = state.messages.find((m) => m.id === LIVE_MESSAGE_ID);
-    expect(liveMessage?.text).toBe('Hello world');
-    // Should only have one message
-    expect(state.messages.length).toBe(1);
+    expect(state.thinking).toBe('Hello world');
+    expect(state.messages.length).toBe(0);
   });
 
-  it('finalizes live message on code_execution', () => {
+  it('thinking persists during code_execution (for progressive reveal)', () => {
     let state: CanvasHookState = { ...initialState, paused: false };
     state = processMessage(state, { type: 'thinking_delta', text: 'Thinking...', iteration: 1 });
     state = processMessage(state, {
@@ -248,48 +243,56 @@ describe('Render Flow - Live Message Management', () => {
       iteration: 1,
     });
 
-    // Live message should be finalized immediately (no longer has LIVE_MESSAGE_ID)
-    const liveMessage = state.messages.find((m) => m.id === LIVE_MESSAGE_ID);
-    expect(liveMessage).toBeUndefined();
+    // Thinking text should persist during code execution
+    // This allows the progressive text animation to finish
+    expect(state.thinking).toBe('Thinking...');
 
-    // But the text should be preserved in a permanent message
-    const thinkingMessages = state.messages.filter((m) => m.type === 'thinking');
-    expect(thinkingMessages.length).toBe(1);
-    expect(thinkingMessages[0]?.text).toBe('Thinking...');
+    // Code execution message should be added
+    const codeExecMessages = state.messages.filter((m) => m.type === 'code_execution');
+    expect(codeExecMessages.length).toBe(1);
   });
 
-  it('creates new live message after finalization', () => {
+  it('archives thinking on new iteration', () => {
     let state: CanvasHookState = { ...initialState, paused: false };
 
     // First turn's thinking
+    state = processMessage(state, { type: 'thinking_delta', text: 'First thought', iteration: 1 });
+    expect(state.thinking).toBe('First thought');
+
+    // New iteration starts - archives old thinking
+    state = processMessage(state, { type: 'iteration', current: 2, max: 5 });
+
+    // Thinking should be cleared
+    expect(state.thinking).toBe('');
+
+    // And archived thinking should be in messages
+    const thinkingMessages = state.messages.filter((m) => m.type === 'thinking');
+    expect(thinkingMessages.length).toBe(1);
+    expect(thinkingMessages[0]?.text).toBe('First thought');
+  });
+
+  it('accumulates new thinking after iteration', () => {
+    let state: CanvasHookState = { ...initialState, paused: false };
+
+    // First turn
     state = processMessage(state, { type: 'thinking_delta', text: 'First', iteration: 1 });
-    // Finalize
-    state = processMessage(state, {
-      type: 'code_execution',
-      status: 'started',
-      tool_name: 'draw_paths',
-      tool_input: {},
-      iteration: 1,
-    });
-    // New thinking (e.g., new iteration)
+    state = processMessage(state, { type: 'iteration', current: 2, max: 5 });
+
+    // Second turn
     state = processMessage(state, { type: 'thinking_delta', text: 'Second', iteration: 2 });
 
-    // Should have a new live message
-    const liveMessage = state.messages.find((m) => m.id === LIVE_MESSAGE_ID);
-    expect(liveMessage).toBeDefined();
-    expect(liveMessage?.text).toBe('Second');
+    // New thinking should be separate
+    expect(state.thinking).toBe('Second');
 
-    // And the finalized message from before
-    const thinkingMessages = state.messages.filter(
-      (m) => m.type === 'thinking' && m.id !== LIVE_MESSAGE_ID
-    );
+    // Archived thinking should be preserved
+    const thinkingMessages = state.messages.filter((m) => m.type === 'thinking');
     expect(thinkingMessages.length).toBe(1);
     expect(thinkingMessages[0]?.text).toBe('First');
   });
 });
 
 describe('Render Flow - Status Derivation Edge Cases', () => {
-  it('live message takes precedence over pendingStrokes', () => {
+  it('thinking takes precedence over pendingStrokes', () => {
     let state: CanvasHookState = {
       ...initialState,
       paused: false,
@@ -297,12 +300,15 @@ describe('Render Flow - Status Derivation Edge Cases', () => {
     };
     state = processMessage(state, { type: 'thinking_delta', text: 'Thinking', iteration: 1 });
 
-    // Even with pendingStrokes, status is 'thinking' because live message exists
+    // Even with pendingStrokes, status is 'thinking' because thinking text exists
     expect(deriveAgentStatus(state)).toBe('thinking');
   });
 
-  it('executing takes precedence over pendingStrokes when code_execution in progress', () => {
+  it('thinking takes precedence over executing when thinking text exists', () => {
     let state: CanvasHookState = { ...initialState, paused: false };
+
+    // Add thinking
+    state = processMessage(state, { type: 'thinking_delta', text: 'Thinking...', iteration: 1 });
 
     // Start code execution
     state = processMessage(state, {
@@ -313,17 +319,25 @@ describe('Render Flow - Status Derivation Edge Cases', () => {
       iteration: 1,
     });
 
-    // Add pending strokes
+    // Status should be 'thinking' because thinking text exists
+    // This allows progressive text animation to continue
+    expect(deriveAgentStatus(state)).toBe('thinking');
+  });
+
+  it('executing shows when no thinking text but code_execution in progress', () => {
+    let state: CanvasHookState = { ...initialState, paused: false };
+
+    // Start code execution without thinking
     state = processMessage(state, {
-      type: 'agent_strokes_ready',
-      count: 1,
-      batch_id: 1,
-      piece_number: 0,
+      type: 'code_execution',
+      status: 'started',
+      tool_name: 'draw_paths',
+      tool_input: {},
+      iteration: 1,
     });
 
-    // Status should be 'executing', not 'drawing'
+    // Status should be 'executing'
     expect(deriveAgentStatus(state)).toBe('executing');
-    expect(state.pendingStrokes).not.toBeNull();
   });
 
   it('CLEAR_PENDING_STROKES resets pendingStrokes', () => {
@@ -368,7 +382,7 @@ describe('Render Flow - Multi-Turn Scenario', () => {
       // Simulate CLEAR_PENDING_STROKES (happens when StrokeRenderer starts animating)
       // (We can't simulate this via ServerMessage, but it happens in the hook)
 
-      // Turn 2
+      // Turn 2 - iteration archives turn 1's thinking
       { type: 'iteration', current: 2, max: 3 },
       { type: 'thinking_delta', text: 'Adding second stroke.', iteration: 2 },
       {
@@ -395,14 +409,20 @@ describe('Render Flow - Multi-Turn Scenario', () => {
     const finalState = states[states.length - 1]!;
     const finalStatus = statuses[statuses.length - 1];
 
-    // Should be in 'drawing' status at the end (pendingStrokes set, no in-progress events)
-    expect(finalStatus).toBe('drawing');
+    // Final status is 'thinking' because thinking text still exists for turn 2
+    // (it would be archived on the next iteration or turn end)
+    expect(finalStatus).toBe('thinking');
+    expect(finalState.thinking).toBe('Adding second stroke.');
     expect(finalState.pendingStrokes).toEqual({ count: 1, batchId: 2, pieceNumber: 0 });
 
-    // Should have finalized thinking from both turns plus the code execution messages
-    const messageTypes = finalState.messages.map((m) => m.type);
-    expect(messageTypes.filter((t) => t === 'thinking').length).toBe(2);
-    expect(messageTypes.filter((t) => t === 'code_execution').length).toBe(4);
+    // Should have archived thinking from turn 1 plus the code execution messages
+    const thinkingMessages = finalState.messages.filter((m) => m.type === 'thinking');
+    expect(thinkingMessages.length).toBe(1);
+    expect(thinkingMessages[0]?.text).toBe('Drawing first stroke.');
+
+    // Code execution messages from both turns
+    const codeExecMessages = finalState.messages.filter((m) => m.type === 'code_execution');
+    expect(codeExecMessages.length).toBe(4);
   });
 });
 

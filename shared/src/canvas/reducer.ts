@@ -9,6 +9,7 @@ import type {
   DrawingStyleType,
   GalleryEntry,
   Path,
+  PendingStroke,
   Point,
   StrokeStyle,
 } from '../types';
@@ -18,8 +19,16 @@ import { boundedPush } from '../utils';
 // Max messages to keep in state to prevent memory issues
 export const MAX_MESSAGES = 50;
 
-// Special ID for the live streaming message
-export const LIVE_MESSAGE_ID = 'live_thinking';
+// Max history items to keep (completed performance items)
+export const MAX_HISTORY = 100;
+
+// Generate unique message ID for archived thinking
+const generateThinkingId = (): string =>
+  `thinking_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+// Generate unique performance item ID
+const generatePerformanceId = (): string =>
+  `perf_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
 export interface PendingStrokesInfo {
   count: number;
@@ -27,15 +36,99 @@ export interface PendingStrokesInfo {
   pieceNumber: number;
 }
 
+// ============================================================================
+// Performance Model Types
+// ============================================================================
+
+/**
+ * Performance item types - things that can be "performed" (animated) on stage.
+ */
+export type PerformanceItem =
+  | { type: 'words'; text: string; id: string }
+  | { type: 'event'; message: AgentMessage; id: string }
+  | { type: 'strokes'; strokes: PendingStroke[]; id: string };
+
+/**
+ * Performance state manages the animation queue for progressive reveal.
+ *
+ * Data flow:
+ *   Server message → ENQUEUE_* → buffer → ADVANCE_STAGE → onStage → STAGE_COMPLETE → history
+ *
+ * Display reads:
+ *   - revealedText: Current text being shown (progressive word reveal)
+ *   - agentStroke: Current stroke being drawn (progressive point reveal)
+ *   - penPosition/penDown: Cursor position for pen indicator
+ */
+export interface PerformanceState {
+  /** Items waiting in the buffer */
+  buffer: PerformanceItem[];
+  /** Currently performing item (null = stage is empty) */
+  onStage: PerformanceItem | null;
+  /** Completed items (for collapsed panel) */
+  history: PerformanceItem[];
+
+  // Progress tracking for current item
+  /** For 'words': which word we're on */
+  wordIndex: number;
+  /** For 'strokes': which stroke we're on */
+  strokeIndex: number;
+  /** For 'strokes': 0-1 within current stroke */
+  strokeProgress: number;
+
+  // Live display state (what audience sees now)
+  /** Current chunk being revealed */
+  revealedText: string;
+  /** Current pen location */
+  penPosition: Point | null;
+  /** Is pen drawing? */
+  penDown: boolean;
+  /** In-progress stroke points */
+  agentStroke: Point[];
+  /** Style for in-progress agent stroke */
+  agentStrokeStyle: Partial<StrokeStyle> | null;
+}
+
+/**
+ * Initial performance state.
+ */
+export const initialPerformanceState: PerformanceState = {
+  buffer: [],
+  onStage: null,
+  history: [],
+  wordIndex: 0,
+  strokeIndex: 0,
+  strokeProgress: 0,
+  revealedText: '',
+  penPosition: null,
+  penDown: false,
+  agentStroke: [],
+  agentStrokeStyle: null,
+};
+
+/**
+ * Canvas state has two text representations:
+ *   - thinking: Accumulates for archiving when iteration ends (legacy, used for history)
+ *   - performance.revealedText: What's currently displayed (progressive animation)
+ *
+ * Both exist because:
+ *   - thinking enables archiving complete thoughts to message history
+ *   - revealedText shows animated partial text during streaming
+ */
 export interface CanvasHookState {
+  // Performance system (new)
+  performance: PerformanceState;
+
+  // Strokes
   strokes: Path[];
   currentStroke: Point[];
-  agentStroke: Point[]; // Agent's in-progress stroke
-  agentStrokeStyle: Partial<StrokeStyle> | null; // Style for in-progress agent stroke
-  penPosition: Point | null;
-  penDown: boolean;
+
+  // Thinking text (legacy - used for loading history, display via performance.revealedText)
   thinking: string;
+
+  // Event history
   messages: AgentMessage[];
+
+  // Canvas metadata
   pieceNumber: number;
   viewingPiece: number | null; // Which gallery piece is being viewed (null = current)
   drawingEnabled: boolean;
@@ -59,8 +152,8 @@ export function hasInProgressEvents(messages: AgentMessage[]): boolean {
   // Build a set of completed tool executions (by tool_name + iteration)
   const completedTools = new Set<string>();
   for (const m of messages) {
-    if (m.type === 'code_execution' && m.metadata?.return_code !== undefined) {
-      const key = `${m.metadata.tool_name ?? 'unknown'}_${m.iteration ?? 0}`;
+    if (m.type === 'code_execution' && m.status === 'completed') {
+      const key = `${m.metadata?.tool_name ?? 'unknown'}_${m.iteration ?? 0}`;
       completedTools.add(key);
     }
   }
@@ -70,8 +163,8 @@ export function hasInProgressEvents(messages: AgentMessage[]): boolean {
     // Only block during code execution to ensure tool status is shown first
     // This allows parallel display of thinking + stroke animation
 
-    // Code execution without return_code = check if completed message exists
-    if (m.type === 'code_execution' && m.metadata?.return_code === undefined) {
+    // Code execution started = check if completed message exists
+    if (m.type === 'code_execution' && m.status === 'started') {
       const key = `${m.metadata?.tool_name ?? 'unknown'}_${m.iteration ?? 0}`;
       // If we have a completed message for this tool+iteration, it's not in-progress
       if (completedTools.has(key)) return false;
@@ -87,6 +180,14 @@ export function hasInProgressEvents(messages: AgentMessage[]): boolean {
 /**
  * Derive agent status from messages and state.
  * Status is computed entirely from messages and state - no server-side status.
+ *
+ * Status priority (highest to lowest):
+ * 1. paused - explicitly paused
+ * 2. error - last message is error
+ * 3. thinking - words in buffer/onStage OR thinking text
+ * 4. executing - code_execution started but not completed
+ * 5. drawing - strokes in buffer/onStage or pendingStrokes
+ * 6. idle - default
  */
 export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
   // Paused overrides everything
@@ -96,14 +197,28 @@ export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
   const lastMessage = state.messages[state.messages.length - 1];
   if (lastMessage?.type === 'error') return 'error';
 
-  // Live message = actively thinking
-  const hasLiveMessage = state.messages.some((m) => m.id === LIVE_MESSAGE_ID);
-  if (hasLiveMessage) return 'thinking';
+  const perf = state.performance;
 
-  // Any in-progress event blocks drawing and shows as executing
+  // Check performance state for active items
+  const hasWordsOnStage = perf.onStage?.type === 'words';
+  const hasWordsInBuffer = perf.buffer.some((item) => item.type === 'words');
+  const hasStrokesOnStage = perf.onStage?.type === 'strokes';
+  const hasStrokesInBuffer = perf.buffer.some((item) => item.type === 'strokes');
+  const hasEventOnStage = perf.onStage?.type === 'event';
+
+  // Thinking = words being revealed or waiting
+  if (hasWordsOnStage || hasWordsInBuffer || state.thinking) return 'thinking';
+
+  // Executing = event on stage
+  if (hasEventOnStage) return 'executing';
+
+  // Any in-progress event blocks drawing and shows as executing (legacy check)
   if (hasInProgressEvents(state.messages)) return 'executing';
 
-  // Pending strokes = drawing phase (only when no in-progress events)
+  // Drawing = strokes being animated or waiting
+  if (hasStrokesOnStage || hasStrokesInBuffer) return 'drawing';
+
+  // Pending strokes = drawing phase (legacy check)
   if (state.pendingStrokes !== null) return 'drawing';
 
   return 'idle';
@@ -117,9 +232,27 @@ export function shouldShowIdleAnimation(state: CanvasHookState): boolean {
   return (
     state.strokes.length === 0 &&
     state.currentStroke.length === 0 &&
+    state.performance.buffer.length === 0 &&
+    state.performance.onStage === null &&
     deriveAgentStatus(state) === 'idle'
   );
 }
+
+// Performance actions
+export type PerformanceAction =
+  // Enqueueing (from server messages)
+  | { type: 'ENQUEUE_WORDS'; text: string }
+  | { type: 'ENQUEUE_EVENT'; message: AgentMessage }
+  | { type: 'ENQUEUE_STROKES'; strokes: PendingStroke[] }
+  // Stage advancement
+  | { type: 'ADVANCE_STAGE' }
+  | { type: 'STAGE_COMPLETE' }
+  // Progress updates (from animation loop)
+  | { type: 'REVEAL_WORD' }
+  | { type: 'STROKE_PROGRESS'; point: Point; style?: Partial<StrokeStyle> }
+  | { type: 'STROKE_COMPLETE' }
+  // Control
+  | { type: 'CLEAR_PERFORMANCE' };
 
 export type CanvasAction =
   | { type: 'ADD_STROKE'; path: Path }
@@ -128,20 +261,9 @@ export type CanvasAction =
   | { type: 'START_STROKE'; point: Point }
   | { type: 'ADD_POINT'; point: Point }
   | { type: 'END_STROKE' }
-  | {
-      type: 'SET_PEN';
-      x: number;
-      y: number;
-      down: boolean;
-      // Optional style for in-progress stroke (paint mode)
-      color?: string;
-      stroke_width?: number;
-      opacity?: number;
-    }
   | { type: 'SET_THINKING'; text: string }
   | { type: 'APPEND_THINKING'; text: string }
-  | { type: 'APPEND_LIVE_MESSAGE'; text: string }
-  | { type: 'FINALIZE_LIVE_MESSAGE' }
+  | { type: 'ARCHIVE_THINKING' }
   | { type: 'ADD_MESSAGE'; message: AgentMessage }
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'TOGGLE_DRAWING' }
@@ -168,17 +290,25 @@ export type CanvasAction =
   | { type: 'RESET_TURN' }
   | { type: 'STROKES_READY'; count: number; batchId: number; pieceNumber: number }
   | { type: 'CLEAR_PENDING_STROKES' }
-  | { type: 'SET_STYLE'; drawingStyle: DrawingStyleType; styleConfig: DrawingStyleConfig };
+  | { type: 'SET_STYLE'; drawingStyle: DrawingStyleType; styleConfig: DrawingStyleConfig }
+  // Performance actions (merged into CanvasAction for single reducer)
+  | PerformanceAction;
 
 export const initialState: CanvasHookState = {
+  // Performance system
+  performance: initialPerformanceState,
+
+  // Strokes
   strokes: [],
   currentStroke: [],
-  agentStroke: [],
-  agentStrokeStyle: null,
-  penPosition: null,
-  penDown: false,
+
+  // Thinking (legacy - used for loading history, display via performance.revealedText)
   thinking: '',
+
+  // Messages
   messages: [],
+
+  // Canvas metadata
   pieceNumber: 0,
   viewingPiece: null,
   drawingEnabled: false,
@@ -194,12 +324,9 @@ export const initialState: CanvasHookState = {
 export function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHookState {
   switch (action.type) {
     case 'ADD_STROKE':
-      // Clear agentStroke and agentStrokeStyle when stroke is finalized
       return {
         ...state,
         strokes: [...state.strokes, action.path],
-        agentStroke: [],
-        agentStrokeStyle: null,
       };
 
     case 'SET_STROKES':
@@ -208,10 +335,11 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
     case 'CLEAR':
       return {
         ...state,
+        // Clear performance state
+        performance: initialPerformanceState,
+        // Clear strokes
         strokes: [],
         currentStroke: [],
-        agentStroke: [],
-        agentStrokeStyle: null,
         viewingPiece: null,
         pendingStrokes: null,
         messages: [],
@@ -227,92 +355,30 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
     case 'END_STROKE':
       return { ...state, currentStroke: [] };
 
-    case 'SET_PEN': {
-      const newPoint = { x: action.x, y: action.y };
-      // Accumulate points when pen is down for live stroke preview
-      // Don't clear on pen up - wait for ADD_STROKE to clear
-      const newAgentStroke = action.down ? [...state.agentStroke, newPoint] : state.agentStroke;
-
-      // Capture stroke style when pen first goes down with style info
-      // Only update style when starting a new stroke (agentStroke was empty)
-      let newAgentStrokeStyle = state.agentStrokeStyle;
-      if (action.down && state.agentStroke.length === 0) {
-        // Starting a new stroke - capture style if provided
-        const hasStyleInfo =
-          action.color !== undefined ||
-          action.stroke_width !== undefined ||
-          action.opacity !== undefined;
-        if (hasStyleInfo) {
-          newAgentStrokeStyle = {
-            ...(action.color !== undefined && { color: action.color }),
-            ...(action.stroke_width !== undefined && { stroke_width: action.stroke_width }),
-            ...(action.opacity !== undefined && { opacity: action.opacity }),
-          };
-        }
-      }
-
-      return {
-        ...state,
-        penPosition: newPoint,
-        penDown: action.down,
-        agentStroke: newAgentStroke,
-        agentStrokeStyle: newAgentStrokeStyle,
-      };
-    }
-
+    // Note: SET_THINKING, APPEND_THINKING, ARCHIVE_THINKING are used for loading history.
+    // Live thinking goes through ENQUEUE_WORDS -> performance model -> revealedText.
     case 'SET_THINKING':
       return { ...state, thinking: action.text };
 
     case 'APPEND_THINKING':
       return { ...state, thinking: state.thinking + action.text };
 
-    case 'APPEND_LIVE_MESSAGE': {
-      const existingIndex = state.messages.findIndex((m) => m.id === LIVE_MESSAGE_ID);
-      const existing = state.messages[existingIndex];
-      if (existingIndex >= 0 && existing) {
-        // Update existing live message
-        const updated = [...state.messages];
-        updated[existingIndex] = {
-          id: existing.id,
-          type: existing.type,
-          text: existing.text + action.text,
-          timestamp: Date.now(),
-        };
-        return { ...state, messages: updated };
-      } else {
-        // Create new live message
-        const liveMessage: AgentMessage = {
-          id: LIVE_MESSAGE_ID,
-          type: 'thinking',
-          text: action.text,
-          timestamp: Date.now(),
-        };
-        return { ...state, messages: [...state.messages, liveMessage] };
+    case 'ARCHIVE_THINKING': {
+      // Move current thinking to message history (used when loading/archiving)
+      if (!state.thinking.trim()) {
+        return { ...state, thinking: '' };
       }
-    }
-
-    case 'FINALIZE_LIVE_MESSAGE': {
-      // Convert live message to a permanent message (with unique ID)
-      const liveIndex = state.messages.findIndex((m) => m.id === LIVE_MESSAGE_ID);
-      if (liveIndex >= 0) {
-        const liveMsg = state.messages[liveIndex];
-        if (liveMsg && liveMsg.text.trim()) {
-          // Replace with permanent message
-          const updated = [...state.messages];
-          updated[liveIndex] = {
-            ...liveMsg,
-            id: `thinking_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-          };
-          return { ...state, messages: updated };
-        } else {
-          // Empty message, just remove it
-          return {
-            ...state,
-            messages: state.messages.filter((m) => m.id !== LIVE_MESSAGE_ID),
-          };
-        }
-      }
-      return state;
+      const archived: AgentMessage = {
+        id: generateThinkingId(),
+        type: 'thinking',
+        text: state.thinking,
+        timestamp: Date.now(),
+      };
+      return {
+        ...state,
+        thinking: '',
+        messages: boundedPush(state.messages, archived, MAX_MESSAGES),
+      };
     }
 
     case 'ADD_MESSAGE':
@@ -342,10 +408,10 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         (action.drawingStyle ? getStyleConfig(action.drawingStyle) : state.styleConfig);
       return {
         ...state,
+        // Clear performance state when loading from gallery (no animation needed)
+        performance: initialPerformanceState,
         strokes: action.strokes,
         currentStroke: [],
-        agentStroke: [], // Clear agent stroke to prevent stale drawing
-        agentStrokeStyle: null, // Clear agent stroke style too
         viewingPiece: action.pieceNumber,
         drawingStyle: loadedStyle,
         styleConfig: loadedStyleConfig,
@@ -358,6 +424,8 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
       const initStyleConfig = action.styleConfig || getStyleConfig(initStyle);
       return {
         ...state,
+        // Reset performance state on init
+        performance: initialPerformanceState,
         strokes: action.strokes,
         gallery: action.gallery,
         pieceNumber: action.pieceNumber,
@@ -370,8 +438,6 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         messages: [],
         thinking: '',
         currentStroke: [],
-        agentStroke: [],
-        agentStrokeStyle: null,
       };
     }
 
@@ -420,6 +486,155 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
 
     case 'CLEAR_PENDING_STROKES':
       return { ...state, pendingStrokes: null };
+
+    // ========================================================================
+    // Performance Actions
+    // ========================================================================
+
+    case 'ENQUEUE_WORDS':
+      return {
+        ...state,
+        performance: {
+          ...state.performance,
+          buffer: [
+            ...state.performance.buffer,
+            { type: 'words', text: action.text, id: generatePerformanceId() },
+          ],
+        },
+      };
+
+    case 'ENQUEUE_EVENT':
+      return {
+        ...state,
+        performance: {
+          ...state.performance,
+          buffer: [
+            ...state.performance.buffer,
+            { type: 'event', message: action.message, id: generatePerformanceId() },
+          ],
+        },
+      };
+
+    case 'ENQUEUE_STROKES':
+      return {
+        ...state,
+        performance: {
+          ...state.performance,
+          buffer: [
+            ...state.performance.buffer,
+            { type: 'strokes', strokes: action.strokes, id: generatePerformanceId() },
+          ],
+        },
+      };
+
+    case 'ADVANCE_STAGE': {
+      const perf = state.performance;
+      // Only advance if stage is empty and buffer has items
+      if (perf.onStage !== null || perf.buffer.length === 0) {
+        return state;
+      }
+      const [next, ...rest] = perf.buffer;
+      return {
+        ...state,
+        performance: {
+          ...perf,
+          buffer: rest,
+          onStage: next,
+          wordIndex: 0,
+          strokeIndex: 0,
+          strokeProgress: 0,
+          // Reset text when new words chunk starts
+          revealedText: next.type === 'words' ? '' : perf.revealedText,
+          // Reset stroke state when strokes start
+          agentStroke: next.type === 'strokes' ? [] : perf.agentStroke,
+          agentStrokeStyle: next.type === 'strokes' ? null : perf.agentStrokeStyle,
+        },
+      };
+    }
+
+    case 'REVEAL_WORD': {
+      const perf = state.performance;
+      if (perf.onStage?.type !== 'words') return state;
+      const words = perf.onStage.text.split(/\s+/).filter((w) => w.length > 0);
+      const nextWordIndex = perf.wordIndex + 1;
+      const revealedWords = words.slice(0, nextWordIndex);
+      return {
+        ...state,
+        performance: {
+          ...perf,
+          wordIndex: nextWordIndex,
+          revealedText: revealedWords.join(' '),
+        },
+      };
+    }
+
+    case 'STROKE_PROGRESS': {
+      const perf = state.performance;
+      // Accumulate points when pen is down
+      const newAgentStroke = [...perf.agentStroke, action.point];
+      // Capture style on first point
+      const newStyle =
+        perf.agentStroke.length === 0 && action.style ? action.style : perf.agentStrokeStyle;
+
+      return {
+        ...state,
+        performance: {
+          ...perf,
+          penPosition: action.point,
+          penDown: true,
+          agentStroke: newAgentStroke,
+          agentStrokeStyle: newStyle,
+        },
+      };
+    }
+
+    case 'STROKE_COMPLETE': {
+      const perf = state.performance;
+      if (perf.onStage?.type !== 'strokes') return state;
+      const currentStroke = perf.onStage.strokes[perf.strokeIndex];
+      if (!currentStroke) return state;
+
+      return {
+        ...state,
+        performance: {
+          ...perf,
+          strokeIndex: perf.strokeIndex + 1,
+          strokeProgress: 0,
+          agentStroke: [],
+          agentStrokeStyle: null,
+          penDown: false,
+        },
+        // Add stroke to main strokes array
+        strokes: [...state.strokes, currentStroke.path],
+      };
+    }
+
+    case 'STAGE_COMPLETE': {
+      const perf = state.performance;
+      // Bound history size to prevent memory issues
+      const newHistory = perf.onStage
+        ? [...perf.history, perf.onStage].slice(-MAX_HISTORY)
+        : perf.history;
+
+      return {
+        ...state,
+        performance: {
+          ...perf,
+          history: newHistory,
+          onStage: null,
+          penPosition: null,
+          penDown: false,
+          agentStroke: [],
+          agentStrokeStyle: null,
+        },
+      };
+    }
+
+    case 'CLEAR_PERFORMANCE':
+      return {
+        ...state,
+        performance: initialPerformanceState,
+      };
 
     default:
       return state;

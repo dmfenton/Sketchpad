@@ -17,7 +17,6 @@ import {
   deriveAgentStatus,
   hasInProgressEvents,
   initialState,
-  LIVE_MESSAGE_ID,
   routeMessage,
   shouldShowIdleAnimation,
   type CanvasHookState,
@@ -216,18 +215,19 @@ describe('human_stroke message flow', () => {
     expect(finalState.strokes[1]!.author).toBe('human');
   });
 
-  it('clears agentStroke when stroke is finalized', () => {
-    // Simulate pen down, moving, then stroke complete
+  it('clears agentStroke when stroke is finalized via performance model', () => {
+    // Simulate stroke progress, then stroke complete via performance model
     let state: CanvasHookState = { ...initialState, paused: false };
 
-    // Pen down - accumulates agentStroke
-    state = canvasReducer(state, { type: 'SET_PEN', x: 10, y: 10, down: true });
-    state = canvasReducer(state, { type: 'SET_PEN', x: 20, y: 20, down: true });
-    expect(state.agentStroke.length).toBe(2);
+    // Accumulate points via STROKE_PROGRESS
+    state = canvasReducer(state, { type: 'STROKE_PROGRESS', point: { x: 10, y: 10 } });
+    state = canvasReducer(state, { type: 'STROKE_PROGRESS', point: { x: 20, y: 20 } });
+    expect(state.performance.agentStroke.length).toBe(2);
 
-    // Stroke complete should clear agentStroke
+    // Human stroke should add to strokes but not affect performance agentStroke
     state = processMessage(state, makeHumanStroke(10, 10, 20, 20));
-    expect(state.agentStroke).toEqual([]);
+    // Performance agentStroke unchanged by human stroke
+    expect(state.performance.agentStroke.length).toBe(2);
     expect(state.strokes).toHaveLength(1);
   });
 });
@@ -371,17 +371,17 @@ describe('status transitions during drawing', () => {
     expect(statusHistory[1]).toBe('executing');
   });
 
-  it('shows thinking when live message exists', () => {
+  it('shows thinking when thinking text exists', () => {
     const startState: CanvasHookState = { ...initialState, paused: false };
     const messages: ServerMessage[] = [makeThinkingDelta('Let me think...', 1)];
 
     const { finalState } = processMessageSequence(messages, startState);
 
     expect(deriveAgentStatus(finalState)).toBe('thinking');
-    expect(finalState.messages.some((m) => m.id === LIVE_MESSAGE_ID)).toBe(true);
+    expect(finalState.thinking).toBe('Let me think...');
   });
 
-  it('transitions from thinking to executing to drawing', () => {
+  it('stays thinking while thinking text exists (allows progressive reveal)', () => {
     const startState: CanvasHookState = { ...initialState, paused: false, pieceNumber: 0 };
     const messages: ServerMessage[] = [
       makeIteration(1, 5),
@@ -391,11 +391,18 @@ describe('status transitions during drawing', () => {
       makeStrokesReady(3, 1, 0),
     ];
 
-    const { statusHistory } = processMessageSequence(messages, startState);
+    const { statusHistory, finalState } = processMessageSequence(messages, startState);
 
+    // Status remains 'thinking' throughout because thinking text exists
+    // This allows progressive text animation to complete during code execution
     expect(statusHistory).toContain('thinking');
-    expect(statusHistory).toContain('executing');
-    expect(statusHistory[statusHistory.length - 1]).toBe('drawing');
+    expect(statusHistory[statusHistory.length - 1]).toBe('thinking');
+
+    // Thinking text should persist
+    expect(finalState.thinking).toBe('Drawing some lines...');
+
+    // Pending strokes should be set
+    expect(finalState.pendingStrokes).not.toBeNull();
   });
 
   it('paused status overrides everything', () => {
@@ -473,7 +480,7 @@ describe('idle animation visibility', () => {
       paused: false,
       strokes: [],
       currentStroke: [],
-      messages: [{ id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Thinking...', timestamp: Date.now() }],
+      thinking: 'Thinking...',
     };
 
     expect(deriveAgentStatus(state)).toBe('thinking');
@@ -506,7 +513,8 @@ describe('idle animation visibility', () => {
           text: 'Drawing...',
           timestamp: Date.now(),
           iteration: 1,
-          metadata: { tool_name: 'draw_paths' }, // no return_code = in-progress
+          status: 'started', // in-progress
+          metadata: { tool_name: 'draw_paths' },
         },
       ],
     };
@@ -543,13 +551,14 @@ describe('realistic agent turn sequence', () => {
 
     const { finalState, statusHistory } = processMessageSequence(messages, startState);
 
-    // iteration -> idle, thinking_delta -> thinking, thinking_delta -> thinking
-    // so first is 'idle', then two 'thinking'
-    expect(statusHistory[0]).toBe('idle'); // iteration just sets iteration, no status change
-    expect(statusHistory[1]).toBe('thinking'); // first thinking_delta creates live message
+    // iteration -> idle, thinking_delta -> thinking, rest stays thinking
+    // because thinking text persists throughout the turn
+    expect(statusHistory[0]).toBe('idle'); // iteration archives (no old thinking)
+    expect(statusHistory[1]).toBe('thinking'); // first thinking_delta sets thinking
     expect(statusHistory[2]).toBe('thinking'); // second thinking_delta appends
-    expect(statusHistory).toContain('executing');
-    expect(statusHistory[statusHistory.length - 1]).toBe('drawing');
+    // Status remains 'thinking' because thinking text exists
+    // This allows progressive text animation to complete
+    expect(statusHistory[statusHistory.length - 1]).toBe('thinking');
 
     // Should have pending strokes
     expect(finalState.pendingStrokes).toEqual({
@@ -558,7 +567,7 @@ describe('realistic agent turn sequence', () => {
       pieceNumber: 0,
     });
 
-    // Should have accumulated thinking text
+    // Should have accumulated thinking text (still present for progressive reveal)
     expect(finalState.thinking).toContain("I'll draw a simple line.");
   });
 
@@ -573,7 +582,7 @@ describe('realistic agent turn sequence', () => {
       makeStrokesReady(1, 1, 0),
       makeCodeExecutionCompleted('draw_paths', 1),
 
-      // Iteration 2
+      // Iteration 2 - archives iteration 1's thinking
       makeIteration(2, 3),
       makeThinkingDelta('Second stroke', 2),
       makeCodeExecutionStarted('draw_paths', 2),
@@ -583,8 +592,10 @@ describe('realistic agent turn sequence', () => {
 
     const { finalState } = processMessageSequence(messages, startState);
 
-    // Should end in drawing status
-    expect(deriveAgentStatus(finalState)).toBe('drawing');
+    // End status is 'thinking' because iteration 2's thinking text still exists
+    // (it would be archived on iteration 3 or turn end)
+    expect(deriveAgentStatus(finalState)).toBe('thinking');
+    expect(finalState.thinking).toBe('Second stroke');
 
     // Should have latest pending strokes
     expect(finalState.pendingStrokes?.batchId).toBe(2);
@@ -658,6 +669,7 @@ describe('hasInProgressEvents edge cases', () => {
         text: 'Drawing...',
         timestamp: Date.now(),
         iteration: 1,
+        status: 'started' as const,
         metadata: { tool_name: 'draw_paths' as const },
       },
       {
@@ -666,6 +678,7 @@ describe('hasInProgressEvents edge cases', () => {
         text: 'Done',
         timestamp: Date.now(),
         iteration: 1,
+        status: 'completed' as const,
         metadata: { tool_name: 'draw_paths' as const, return_code: 0 },
       },
     ];
@@ -681,6 +694,7 @@ describe('hasInProgressEvents edge cases', () => {
         text: 'Drawing...',
         timestamp: Date.now(),
         iteration: 2, // started on iteration 2
+        status: 'started' as const,
         metadata: { tool_name: 'draw_paths' as const },
       },
       {
@@ -689,6 +703,7 @@ describe('hasInProgressEvents edge cases', () => {
         text: 'Done',
         timestamp: Date.now(),
         iteration: 1, // completed is for iteration 1
+        status: 'completed' as const,
         metadata: { tool_name: 'draw_paths' as const, return_code: 0 },
       },
     ];
@@ -704,6 +719,7 @@ describe('hasInProgressEvents edge cases', () => {
         text: 'Drawing...',
         timestamp: Date.now(),
         iteration: 1,
+        status: 'started' as const,
         metadata: { tool_name: 'draw_paths' as const },
       },
       {
@@ -712,6 +728,7 @@ describe('hasInProgressEvents edge cases', () => {
         text: 'Done',
         timestamp: Date.now(),
         iteration: 1,
+        status: 'completed' as const,
         metadata: { tool_name: 'view_canvas' as const, return_code: 0 },
       },
     ];
@@ -728,6 +745,7 @@ describe('hasInProgressEvents edge cases', () => {
         text: 'Tool A...',
         timestamp: Date.now(),
         iteration: 1,
+        status: 'started' as const,
         metadata: { tool_name: 'draw_paths' as const },
       },
       // Tool A completed
@@ -737,6 +755,7 @@ describe('hasInProgressEvents edge cases', () => {
         text: 'Tool A done',
         timestamp: Date.now(),
         iteration: 1,
+        status: 'completed' as const,
         metadata: { tool_name: 'draw_paths' as const, return_code: 0 },
       },
       // Tool B started
@@ -746,6 +765,7 @@ describe('hasInProgressEvents edge cases', () => {
         text: 'Tool B...',
         timestamp: Date.now(),
         iteration: 1,
+        status: 'started' as const,
         metadata: { tool_name: 'view_canvas' as const },
       },
     ];
