@@ -15,7 +15,6 @@ import {
   canvasReducer,
   initialState,
   type CanvasHookState,
-  type PerformanceItem,
 } from '@code-monet/shared';
 import type { PendingStroke, Point, StrokeStyle } from '@code-monet/shared';
 
@@ -24,16 +23,16 @@ import type { PendingStroke, Point, StrokeStyle } from '@code-monet/shared';
  */
 function makeStroke(
   points: Point[],
-  author: 'agent' | 'human' = 'agent',
-  style?: StrokeStyle
+  author: 'agent' | 'human' = 'agent'
 ): PendingStroke {
   return {
+    batch_id: 0,
     path: {
       type: 'polyline',
       points,
       author,
-      style,
     },
+    points, // Pre-interpolated points (same as path.points for test)
   };
 }
 
@@ -165,7 +164,13 @@ describe('Stroke Animation - STROKE_PROGRESS', () => {
   it('captures stroke style on first point', () => {
     let state: CanvasHookState = { ...initialState, paused: false };
 
-    const style: StrokeStyle = { color: '#FF0000', width: 5 };
+    const style: StrokeStyle = {
+      color: '#FF0000',
+      stroke_width: 5,
+      opacity: 1,
+      stroke_linecap: 'round',
+      stroke_linejoin: 'round',
+    };
     state = canvasReducer(state, { type: 'STROKE_PROGRESS', point: { x: 10, y: 10 }, style });
 
     expect(state.performance.agentStrokeStyle).toEqual(style);
@@ -174,8 +179,20 @@ describe('Stroke Animation - STROKE_PROGRESS', () => {
   it('does not override style on subsequent points', () => {
     let state: CanvasHookState = { ...initialState, paused: false };
 
-    const style1: StrokeStyle = { color: '#FF0000', width: 5 };
-    const style2: StrokeStyle = { color: '#00FF00', width: 10 };
+    const style1: StrokeStyle = {
+      color: '#FF0000',
+      stroke_width: 5,
+      opacity: 1,
+      stroke_linecap: 'round',
+      stroke_linejoin: 'round',
+    };
+    const style2: StrokeStyle = {
+      color: '#00FF00',
+      stroke_width: 10,
+      opacity: 1,
+      stroke_linecap: 'round',
+      stroke_linejoin: 'round',
+    };
 
     state = canvasReducer(state, { type: 'STROKE_PROGRESS', point: { x: 10, y: 10 }, style: style1 });
     state = canvasReducer(state, { type: 'STROKE_PROGRESS', point: { x: 20, y: 20 }, style: style2 });
@@ -244,8 +261,14 @@ describe('Stroke Animation - STROKE_COMPLETE', () => {
   it('clears stroke style', () => {
     let state: CanvasHookState = { ...initialState, paused: false };
 
-    const style: StrokeStyle = { color: '#FF0000', width: 5 };
-    state = canvasReducer(state, { type: 'ENQUEUE_STROKES', strokes: [makeStroke([{ x: 0, y: 0 }], 'agent', style)] });
+    const style: StrokeStyle = {
+      color: '#FF0000',
+      stroke_width: 5,
+      opacity: 1,
+      stroke_linecap: 'round',
+      stroke_linejoin: 'round',
+    };
+    state = canvasReducer(state, { type: 'ENQUEUE_STROKES', strokes: [makeStroke([{ x: 0, y: 0 }])] });
     state = canvasReducer(state, { type: 'ADVANCE_STAGE' });
     state = canvasReducer(state, { type: 'STROKE_PROGRESS', point: { x: 0, y: 0 }, style });
 

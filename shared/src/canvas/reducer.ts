@@ -22,7 +22,7 @@ export const MAX_MESSAGES = 50;
 // Max history items to keep (completed performance items)
 export const MAX_HISTORY = 100;
 
-// Max words per chunk before starting a new buffer item (~5 seconds at 50ms/word)
+// Max words per chunk before starting a new buffer item (~1.25 seconds at 50ms/word)
 export const MAX_WORDS_PER_CHUNK = 25;
 
 // Generate unique message ID for archived thinking

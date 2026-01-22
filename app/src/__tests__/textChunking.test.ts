@@ -34,19 +34,6 @@ interface Fixture {
 }
 
 /**
- * Process a single message through the routing/reducer chain.
- */
-function processMessage(state: CanvasHookState, message: ServerMessage): CanvasHookState {
-  const actions: Parameters<typeof canvasReducer>[1][] = [];
-  const dispatch = (action: Parameters<typeof canvasReducer>[1]) => {
-    actions.push(action);
-  };
-
-  routeMessage(message, dispatch);
-  return actions.reduce((s, action) => canvasReducer(s, action), state);
-}
-
-/**
  * Replay all messages through the reducer chain.
  */
 function replayMessages(messages: FixtureMessage[]): {
