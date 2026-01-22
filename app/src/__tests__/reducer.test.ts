@@ -7,7 +7,6 @@ import {
   deriveAgentStatus,
   hasInProgressEvents,
   initialState,
-  LIVE_MESSAGE_ID,
   shouldShowIdleAnimation,
   type CanvasHookState,
 } from '@code-monet/shared';
@@ -18,11 +17,11 @@ describe('hasInProgressEvents', () => {
     expect(hasInProgressEvents([])).toBe(false);
   });
 
-  it('returns false when only live thinking message exists (thinking does not block)', () => {
+  it('returns false when only thinking messages exist (thinking does not block)', () => {
     // NOTE: hasInProgressEvents only blocks on code_execution, not thinking
-    // This allows strokes to render while agent is thinking
+    // Thinking text is now in state.thinking, not messages. Archived thinking also doesn't block.
     const messages: AgentMessage[] = [
-      { id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Thinking...', timestamp: Date.now() },
+      { id: 'thinking_123', type: 'thinking', text: 'Archived thinking...', timestamp: Date.now() },
     ];
     expect(hasInProgressEvents(messages)).toBe(false);
   });
@@ -34,13 +33,14 @@ describe('hasInProgressEvents', () => {
     expect(hasInProgressEvents(messages)).toBe(false);
   });
 
-  it('returns true for code_execution without return_code', () => {
+  it('returns true for code_execution with status started', () => {
     const messages: AgentMessage[] = [
       {
         id: 'exec_1',
         type: 'code_execution',
         text: 'Running tool',
         timestamp: Date.now(),
+        status: 'started',
         metadata: { tool_name: 'draw_paths' },
       },
     ];
@@ -68,6 +68,7 @@ describe('hasInProgressEvents', () => {
         type: 'code_execution',
         text: 'Running',
         timestamp: Date.now(),
+        status: 'started',
         metadata: { tool_name: 'draw_paths' },
       },
     ];
@@ -119,6 +120,7 @@ describe('hasInProgressEvents', () => {
         text: 'Drawing...',
         timestamp: Date.now(),
         iteration: 2, // Different iteration
+        status: 'started',
         metadata: { tool_name: 'draw_paths' },
       },
       {
@@ -127,6 +129,7 @@ describe('hasInProgressEvents', () => {
         text: 'Drew paths',
         timestamp: Date.now(),
         iteration: 1, // Completed is for iteration 1
+        status: 'completed',
         metadata: { tool_name: 'draw_paths', return_code: 0 },
       },
     ];
@@ -153,12 +156,10 @@ describe('deriveAgentStatus', () => {
     expect(deriveAgentStatus(state)).toBe('error');
   });
 
-  it('returns thinking when live message exists', () => {
+  it('returns thinking when thinking text exists', () => {
     const state: CanvasHookState = {
       ...baseState,
-      messages: [
-        { id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Thinking...', timestamp: Date.now() },
-      ],
+      thinking: 'I am currently thinking about this...',
     };
     expect(deriveAgentStatus(state)).toBe('thinking');
   });
@@ -172,6 +173,7 @@ describe('deriveAgentStatus', () => {
           type: 'code_execution',
           text: 'Running',
           timestamp: Date.now(),
+          status: 'started',
           metadata: { tool_name: 'draw_paths' },
         },
       ],
@@ -189,6 +191,7 @@ describe('deriveAgentStatus', () => {
           type: 'code_execution',
           text: 'Done',
           timestamp: Date.now(),
+          status: 'completed',
           metadata: { tool_name: 'draw_paths', return_code: 0 },
         },
       ],
@@ -206,6 +209,7 @@ describe('deriveAgentStatus', () => {
           type: 'code_execution',
           text: 'Running',
           timestamp: Date.now(),
+          status: 'started',
           metadata: { tool_name: 'draw_paths' },
         },
       ],
@@ -223,7 +227,7 @@ describe('deriveAgentStatus', () => {
       ...baseState,
       paused: true,
       pendingStrokes: { count: 5, batchId: 1, pieceNumber: 0 },
-      messages: [{ id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Active', timestamp: Date.now() }],
+      thinking: 'I am thinking...',
     };
     expect(deriveAgentStatus(state)).toBe('paused');
   });
@@ -231,10 +235,8 @@ describe('deriveAgentStatus', () => {
   it('prioritizes error over thinking', () => {
     const state: CanvasHookState = {
       ...baseState,
-      messages: [
-        { id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Thinking', timestamp: Date.now() },
-        { id: 'err_1', type: 'error', text: 'Failed', timestamp: Date.now() },
-      ],
+      thinking: 'I am thinking...',
+      messages: [{ id: 'err_1', type: 'error', text: 'Failed', timestamp: Date.now() }],
     };
     expect(deriveAgentStatus(state)).toBe('error');
   });
@@ -277,9 +279,7 @@ describe('shouldShowIdleAnimation', () => {
   it('returns false when thinking (even with empty canvas)', () => {
     const state: CanvasHookState = {
       ...baseState,
-      messages: [
-        { id: LIVE_MESSAGE_ID, type: 'thinking', text: 'Thinking...', timestamp: Date.now() },
-      ],
+      thinking: 'I am thinking...',
     };
     expect(shouldShowIdleAnimation(state)).toBe(false);
   });

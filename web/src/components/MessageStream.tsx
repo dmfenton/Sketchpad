@@ -3,28 +3,10 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { AgentMessage } from '@code-monet/shared';
-import { LIVE_MESSAGE_ID } from '@code-monet/shared';
+import { type AgentMessage, formatTime, getCodeFromInput } from '@code-monet/shared';
 
 interface MessageStreamProps {
   messages: AgentMessage[];
-}
-
-/**
- * Extract code from tool_input metadata for preview
- */
-function getCodeFromInput(toolInput: Record<string, unknown> | null | undefined): string | null {
-  if (!toolInput) return null;
-  const code = toolInput.code;
-  if (typeof code === 'string') {
-    return code;
-  }
-  return null;
-}
-
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 interface MessageBubbleProps {
@@ -99,19 +81,11 @@ function MessageBubble({ message }: MessageBubbleProps): React.ReactElement {
     );
   }
 
-  // Default thinking message
-  const isLive = message.id === LIVE_MESSAGE_ID;
+  // Default thinking message (all thinking messages are now archived)
   return (
     <div className="message thinking">
       <div className="message-text">{message.text}</div>
-      {isLive ? (
-        <div className="message-time streaming">
-          streaming
-          <span className="streaming-indicator" />
-        </div>
-      ) : (
-        <div className="message-time">{formatTime(message.timestamp)}</div>
-      )}
+      <div className="message-time">{formatTime(message.timestamp)}</div>
     </div>
   );
 }

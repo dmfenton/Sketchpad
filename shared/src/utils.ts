@@ -5,6 +5,26 @@
 import type { AgentMessage, ToolName } from './types';
 
 /**
+ * Format a timestamp as a short time string (e.g., "10:30 AM").
+ */
+export function formatTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * Extract code from tool_input metadata for preview.
+ */
+export function getCodeFromInput(toolInput: Record<string, unknown> | null | undefined): string | null {
+  if (!toolInput) return null;
+  const code = toolInput.code;
+  if (typeof code === 'string') {
+    return code;
+  }
+  return null;
+}
+
+/**
  * Push an item to an array with a maximum length, dropping oldest items.
  * This is a pure function - returns a new array.
  */

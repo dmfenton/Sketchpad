@@ -1,16 +1,13 @@
 /**
- * Canvas state hook for web.
+ * Canvas state and interaction hook.
+ * Platform-agnostic core logic - used by both React Native and web.
  */
 
 import { useCallback, useReducer } from 'react';
-import type { Path, ServerMessage } from '@code-monet/shared';
-import {
-  canvasReducer,
-  initialState,
-  routeMessage,
-  type CanvasAction,
-  type CanvasHookState,
-} from '@code-monet/shared';
+
+import type { Path, ServerMessage } from '../types';
+import { canvasReducer, initialState, type CanvasAction, type CanvasHookState } from '../canvas';
+import { routeMessage } from '../websocket';
 
 export interface UseCanvasReturn {
   state: CanvasHookState;
@@ -25,22 +22,14 @@ export interface UseCanvasReturn {
   setPaused: (paused: boolean) => void;
 }
 
+/**
+ * Core canvas hook without platform-specific logging.
+ * Platform wrappers can add their own logging by wrapping this.
+ */
 export function useCanvas(): UseCanvasReturn {
   const [state, dispatch] = useReducer(canvasReducer, initialState);
 
   const handleMessage = useCallback((message: ServerMessage) => {
-    // Debug logging for all messages
-    if (message.type === 'thinking_delta') {
-      const delta = message as { text: string };
-      console.log(`[WS] thinking_delta: "${delta.text.slice(0, 50)}..." (len=${delta.text.length})`);
-    } else if (message.type === 'agent_strokes_ready') {
-      console.log('[WS] agent_strokes_ready:', message);
-    } else if (message.type === 'code_execution') {
-      const exec = message as { status: string; tool_name?: string };
-      console.log(`[WS] code_execution: ${exec.tool_name} status=${exec.status}`);
-    } else {
-      console.log('[WS] message:', message.type);
-    }
     routeMessage(message, dispatch);
   }, []);
 

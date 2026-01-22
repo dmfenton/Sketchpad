@@ -2,25 +2,24 @@
  * StatusOverlay - Shows agent status in a fixed position above the canvas.
  *
  * Modes:
- * - Thinking: Bionic reading display, 2-3 words at a time with fade animation
+ * - Thinking: Bionic reading display from performance.revealedText
  * - Executing: "Running [tool_name]..." with spinner
  * - Drawing: "Drawing..." with animated indicator
  * - Idle/Paused: Subtle indicator
  */
 
 import React, { useMemo } from 'react';
-import type { AgentMessage, AgentStatus } from '@code-monet/shared';
+import type { AgentMessage, AgentStatus, PerformanceState } from '@code-monet/shared';
 import {
   bionicWord,
   getLastToolCall,
   splitWords,
   TOOL_DISPLAY_NAMES,
-  useProgressiveText,
 } from '@code-monet/shared';
 
 interface StatusOverlayProps {
   status: AgentStatus;
-  thinking: string;
+  performance: PerformanceState;
   messages: AgentMessage[];
 }
 
@@ -38,52 +37,56 @@ function BionicWord({ word }: { word: string }): React.ReactElement {
 }
 
 /**
- * Thinking display with progressive bionic reading.
- * Accumulates words at a readable pace, showing a few words at a time.
- * Uses bionic formatting (bold first 40% of each word) to guide eye movement.
- * The hook handles buffering internally - keeps displaying until caught up.
+ * Thinking display with bionic reading.
+ * Uses performance.revealedText which is already progressively revealed by usePerformer.
  */
 function ThinkingDisplay({
-  text,
-  isAnimating = true,
+  performance,
 }: {
-  text: string;
-  isAnimating?: boolean;
+  performance: PerformanceState;
 }): React.ReactElement {
-  // Progressive text display via shared hook (only when animating)
-  // Hook handles buffering internally - keeps displaying until caught up
-  const { displayedWords, isBuffering } = useProgressiveText(isAnimating ? text : null);
+  // Get revealed text from performance state (already progressively revealed)
+  const displayedWords = useMemo(
+    () => splitWords(performance.revealedText),
+    [performance.revealedText]
+  );
 
-  // All words for when not animating (show everything immediately)
-  const allWords = useMemo(() => splitWords(text), [text]);
+  // Check if there are more words to reveal
+  const isBuffering = useMemo(() => {
+    const hasWordsInBuffer = performance.buffer.some((item) => item.type === 'words');
+    if (performance.onStage?.type === 'words') {
+      const totalWords = splitWords(performance.onStage.text).length;
+      if (performance.wordIndex < totalWords) return true;
+    }
+    return hasWordsInBuffer;
+  }, [performance.buffer, performance.onStage, performance.wordIndex]);
 
-  // When not animating, show all words immediately
-  const wordsToShow = isAnimating ? displayedWords : allWords;
-  const showCursor = isAnimating && isBuffering;
-
-  if (allWords.length === 0) {
+  if (displayedWords.length === 0) {
     return <span className="status-text">Thinking...</span>;
   }
 
   return (
     <div className="thinking-display">
-      {wordsToShow.map((word, i) => (
+      {displayedWords.map((word, i) => (
         <React.Fragment key={`${i}-${word}`}>
           <BionicWord word={word} />
-          {i < wordsToShow.length - 1 && ' '}
+          {i < displayedWords.length - 1 && ' '}
         </React.Fragment>
       ))}
-      {showCursor && <span className="cursor"> ▍</span>}
+      {isBuffering && <span className="cursor"> ▍</span>}
     </div>
   );
 }
 
 export function StatusOverlay({
   status,
-  thinking,
+  performance,
   messages,
 }: StatusOverlayProps): React.ReactElement | null {
   const lastTool = getLastToolCall(messages);
+
+  // Check if there's any revealed text
+  const hasContent = performance.revealedText.length > 0 || performance.buffer.length > 0;
 
   // Show status indicator for non-thinking active states
   const renderStatusBadge = (): React.ReactElement | null => {
@@ -137,12 +140,11 @@ export function StatusOverlay({
 
   // Active state: show thinking text (if any) with status badge
   const statusBadge = renderStatusBadge();
-  const isThinking = status === 'thinking';
 
   return (
     <div className="status-overlay">
-      {thinking ? (
-        <ThinkingDisplay text={thinking} isAnimating={isThinking} />
+      {hasContent ? (
+        <ThinkingDisplay performance={performance} />
       ) : (
         <span className="status-text">Thinking...</span>
       )}

@@ -16,9 +16,6 @@ export * from './websocket';
 // React hooks
 export * from './hooks';
 
-// Services (testable business logic)
-export * from './services';
-
 // Utilities
 export {
   boundedConcat,
@@ -28,6 +25,8 @@ export {
   chunkWords,
   splitWords,
   getLastToolCall,
+  formatTime,
+  getCodeFromInput,
   BIONIC_CHUNK_INTERVAL_MS,
   BIONIC_CHUNK_SIZE,
 } from './utils';
@@ -41,6 +40,9 @@ export {
   createTaperedStrokePath,
   simplifyPoints,
 } from './utils/strokeSmoothing';
+
+// SVG path utilities
+export { pathToSvgD, pointsToSvgD } from './utils/svgPath';
 
 // Log forwarding utilities
 export {

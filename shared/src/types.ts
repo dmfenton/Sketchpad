@@ -661,6 +661,7 @@ export interface AgentMessage {
   text: string;
   timestamp: number;
   iteration?: number; // For iteration-aware messages
+  status?: 'started' | 'completed'; // For code_execution messages
   metadata?: {
     tool_name?: ToolName | null;
     tool_input?: Record<string, unknown> | null;

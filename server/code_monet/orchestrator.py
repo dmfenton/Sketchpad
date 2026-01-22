@@ -64,6 +64,8 @@ class AgentOrchestrator:
     def __post_init__(self) -> None:
         # Set up the agent's draw callback to use our _draw_paths method
         self.agent.set_on_draw(self._draw_paths)
+        # Set up tool completion callback to broadcast "completed" events
+        self.agent.set_on_tool_complete(self._handle_tool_complete)
 
     def signal_animation_done(self) -> None:
         """Signal that client has finished animating strokes.
@@ -207,6 +209,25 @@ class AgentOrchestrator:
                 stderr=result.stderr[:max_stderr] if result.stderr else None,
                 return_code=result.return_code,
                 iteration=result.iteration,
+            )
+        )
+
+    async def _handle_tool_complete(
+        self, tool_name: str, tool_input: dict[str, Any] | None, iteration: int
+    ) -> None:
+        """Handle tool completion from PostToolUse hook.
+
+        This broadcasts the "completed" CodeExecutionMessage that unblocks
+        client-side stroke rendering (hasInProgressEvents checks for return_code).
+        """
+        logger.info(f"Tool completed via PostToolUse hook: {tool_name} (iteration {iteration})")
+        await self.broadcaster.broadcast(
+            CodeExecutionMessage(
+                status="completed",
+                tool_name=tool_name,
+                tool_input=tool_input,
+                return_code=0,  # PostToolUse only runs on success
+                iteration=iteration,
             )
         )
 

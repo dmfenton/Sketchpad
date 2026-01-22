@@ -2,8 +2,8 @@
  * Shared React hooks.
  */
 
-export { useStrokeAnimation } from './useStrokeAnimation';
-export type { UseStrokeAnimationOptions } from './useStrokeAnimation';
+export { useCanvas } from './useCanvas';
+export type { UseCanvasReturn } from './useCanvas';
 
-export { useProgressiveText } from './useProgressiveText';
-export type { UseProgressiveTextOptions, UseProgressiveTextResult } from './useProgressiveText';
+export { usePerformer } from './usePerformer';
+export type { UsePerformerOptions } from './usePerformer';

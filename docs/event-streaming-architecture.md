@@ -67,22 +67,60 @@ Server (Python)          Shared Library (TS)        Clients (React/RN)
 The canvas reducer is the single source of truth for UI state:
 
 ```typescript
+/**
+ * Canvas state has two text representations:
+ *   - thinking: Accumulates for archiving when iteration ends (legacy, used for history)
+ *   - performance.revealedText: What's currently displayed (progressive animation)
+ */
 interface CanvasHookState {
+  // Performance system (animation queue)
+  performance: PerformanceState;
+
+  // Strokes
   strokes: Path[]; // Completed strokes on canvas
   currentStroke: Point[]; // Human's in-progress stroke
-  agentStroke: Point[]; // Agent's in-progress stroke
-  penPosition: Point | null; // Pen cursor position
-  penDown: boolean; // Pen touching canvas
+
+  // Thinking text (legacy - used for loading history)
+  thinking: string;
+
+  // Messages
   messages: AgentMessage[]; // Agent thought/action stream
+
+  // Canvas metadata
   pieceNumber: number; // Current piece ID
   viewingPiece: number | null; // Gallery piece being viewed
   drawingEnabled: boolean; // Human can draw
   gallery: SavedCanvas[]; // Gallery pieces
   paused: boolean; // Agent is paused
   currentIteration: number; // Current iteration (0-5)
+  maxIterations: number; // Max iterations per piece (default 5)
   pendingStrokes: PendingStrokesInfo | null; // Strokes to fetch
   drawingStyle: DrawingStyleType; // plotter or paint
   styleConfig: DrawingStyleConfig; // Full style configuration
+}
+
+/**
+ * Performance state manages the animation queue for progressive reveal.
+ *
+ * Data flow:
+ *   Server message → ENQUEUE_* → buffer → ADVANCE_STAGE → onStage → STAGE_COMPLETE → history
+ */
+interface PerformanceState {
+  buffer: PerformanceItem[];      // Items waiting to perform
+  onStage: PerformanceItem | null; // Currently performing
+  history: PerformanceItem[];     // Completed items
+
+  // Progress tracking
+  wordIndex: number;              // For words: current position
+  strokeIndex: number;            // For strokes: current stroke
+  strokeProgress: number;         // For strokes: 0-1 within stroke
+
+  // Live display state
+  revealedText: string;           // Progressive text reveal
+  penPosition: Point | null;      // Cursor position
+  penDown: boolean;               // Pen touching canvas
+  agentStroke: Point[];           // In-progress stroke points
+  agentStrokeStyle: StrokeStyle | null;
 }
 ```
 
@@ -121,19 +159,41 @@ export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
   const lastMessage = state.messages[state.messages.length - 1];
   if (lastMessage?.type === 'error') return 'error';
 
-  // Live message = actively thinking
-  const hasLiveMessage = state.messages.some((m) => m.id === LIVE_MESSAGE_ID);
-  if (hasLiveMessage) return 'thinking';
+  const perf = state.performance;
 
-  // Any in-progress event blocks drawing and shows as executing
+  // Check performance state for active items
+  const hasWordsOnStage = perf.onStage?.type === 'words';
+  const hasWordsInBuffer = perf.buffer.some((item) => item.type === 'words');
+  const hasStrokesOnStage = perf.onStage?.type === 'strokes';
+  const hasStrokesInBuffer = perf.buffer.some((item) => item.type === 'strokes');
+  const hasEventOnStage = perf.onStage?.type === 'event';
+
+  // Thinking = words being revealed or waiting
+  if (hasWordsOnStage || hasWordsInBuffer || state.thinking) return 'thinking';
+
+  // Executing = event on stage
+  if (hasEventOnStage) return 'executing';
+
+  // Any in-progress event blocks drawing and shows as executing (legacy check)
   if (hasInProgressEvents(state.messages)) return 'executing';
 
-  // Pending strokes = drawing phase (only when no in-progress events)
+  // Drawing = strokes being animated or waiting
+  if (hasStrokesOnStage || hasStrokesInBuffer) return 'drawing';
+
+  // Pending strokes = drawing phase (legacy check)
   if (state.pendingStrokes !== null) return 'drawing';
 
   return 'idle';
 }
 ```
+
+**Status Priority (highest to lowest):**
+1. `paused` - explicitly paused
+2. `error` - last message is error
+3. `thinking` - words in buffer/onStage OR thinking text
+4. `executing` - code_execution started but not completed
+5. `drawing` - strokes in buffer/onStage or pendingStrokes
+6. `idle` - default
 
 ### In-Progress Event Detection (`hasInProgressEvents`)
 

@@ -1,211 +1,256 @@
-# Stroke Animation Flow - Debug Documentation
+# Stroke Animation Flow - Performance Model
 
-## Complete Flow Diagram
+## Overview
+
+Code Monet uses a **performance model** for progressive reveal of agent content. Text and strokes are queued, staged, and animated to create a natural "watching the artist work" experience.
+
+## Performance Model Architecture
 
 ```
-SERVER                                  CLIENT
-======                                  ======
-
-1. Agent calls draw_paths tool
-   |
-   v
-2. ToolUseBlock detected
-   |
-   +---> on_code_start callback
-         |
-         v
-3. Broadcast: code_execution        --> Receives code_execution started
-   (status="started",                   |
-    tool_name="draw_paths")             v
-                                    4. ADD_MESSAGE action
-                                       - message.type = 'code_execution'
-                                       - message.metadata.return_code = undefined
-                                       |
-                                       v
-                                    5. deriveAgentStatus():
-                                       - hasInProgressEvents() = true
-                                       - return 'executing'
-                                       |
-                                       v
-                                    6. canRender = (status === 'drawing') = false
-
-7. Tool executes:
-   - _add_strokes_callback adds
-     strokes to canvas state
-   - _draw_callback collects paths
-   |
-   v
-8. PostToolUse hook runs
-   |
-   v
-9. orchestrator._draw_paths():
-   - state.queue_strokes(paths)
-     * Interpolates paths to points
-     * Stores in _pending_strokes
-   - Broadcast: agent_strokes_ready       --> Receives agent_strokes_ready
-     (count, batch_id, piece_number)        |
-   - Sleep (animation wait)             v
-                                    10. STROKES_READY action
-                                        - IF pieceNumber !== state.pieceNumber:
-                                          SILENTLY IGNORED! (return state)
-                                        - ELSE: pendingStrokes = {count, batchId, pieceNumber}
-                                        |
-                                        v
-                                    11. deriveAgentStatus():
-                                        - hasInProgressEvents() = true (still!)
-                                        - return 'executing' (NOT 'drawing')
-                                        |
-                                        v
-                                    12. useStrokeAnimation effect:
-                                        - pendingStrokes set, canRender=false
-                                        - Store batchId in waitingToRenderRef
-
-13. ToolResultBlock detected
-    |
-    +---> on_code_result callback
-          |
-          v
-14. Broadcast: code_execution       --> Receives code_execution completed
-    (status="completed",                |
-     return_code=0)                     v
-                                    15. ADD_MESSAGE action
-                                        - message.metadata.return_code = 0
-                                        |
-                                        v
-                                    16. deriveAgentStatus():
-                                        - hasInProgressEvents() = false
-                                        - pendingStrokes !== null
-                                        - return 'drawing'
-                                        |
-                                        v
-                                    17. canRender = true
-                                        |
-                                        v
-                                    18. useStrokeAnimation effect (canRender changed):
-                                        - waitingToRenderRef !== null
-                                        - Call startRenderWithDelay(batchId)
-                                        |
-                                        v (800ms delay)
-                                    19. StrokeRenderer.handleStrokesReady(batchId):
-                                        - Dispatch CLEAR_PENDING_STROKES
-                                        - fetchStrokes() --> GET /strokes/pending
-                                        |                        |
-                                        |<-----------------------+
-                                        v                   Returns: {strokes, count, piece_number}
-                                    20. animateStrokes():
-                                        - For each stroke:
-                                          - SET_PEN (down=false) - move to start
-                                          - For each point:
-                                            - SET_PEN (down=true) - draw point
-                                            - agentStroke accumulates
-                                          - SET_PEN (down=false) - lift pen
-                                          - ADD_STROKE - finalize stroke
-                                        |
-                                        v
-                                    21. Canvas renders:
-                                        - agentStroke -> live preview
-                                        - strokes -> completed strokes
+Server Message → Handler → ENQUEUE_* → Buffer → ADVANCE_STAGE → OnStage → Animation → STAGE_COMPLETE → History
 ```
 
-## Potential Failure Points
-
-### 1. pieceNumber Mismatch (SILENT FAILURE)
-
-**Location:** `reducer.ts:373`
+### State Structure (`PerformanceState`)
 
 ```typescript
-case 'STROKES_READY':
-  if (action.pieceNumber !== state.pieceNumber) {
-    return state;  // SILENTLY IGNORED!
-  }
+interface PerformanceState {
+  // Queue management
+  buffer: PerformanceItem[];      // Items waiting to be performed
+  onStage: PerformanceItem | null; // Currently performing item
+  history: PerformanceItem[];     // Completed items
+
+  // Progress tracking
+  wordIndex: number;              // For words: current word position
+  strokeIndex: number;            // For strokes: current stroke position
+  strokeProgress: number;         // For strokes: 0-1 within current stroke
+
+  // Live display (what the UI renders)
+  revealedText: string;           // Progressive text reveal
+  penPosition: Point | null;      // Cursor position
+  penDown: boolean;               // Is pen touching canvas
+  agentStroke: Point[];           // In-progress stroke points
+  agentStrokeStyle: StrokeStyle | null;
+}
 ```
 
-**Symptom:** `agent_strokes_ready` arrives but `pendingStrokes` is never set.
-**Debug:** Add logging before the check.
-
-### 2. canRender Never Becomes True
-
-**Location:** `App.tsx:96`
+### Performance Item Types
 
 ```typescript
-canRender: agentStatus === 'drawing';
+type PerformanceItem =
+  | { type: 'words'; text: string; id: string }      // Text to reveal word-by-word
+  | { type: 'event'; message: AgentMessage; id: string }  // Tool execution event
+  | { type: 'strokes'; strokes: PendingStroke[]; id: string }; // Strokes to animate
 ```
 
-**Cause:** If agent immediately starts thinking after draw_paths completes:
+## Data Flow
 
-- Live message appears -> status = 'thinking'
-- hasInProgressEvents() still returns false
-- But status is 'thinking', not 'drawing'
-- canRender stays false
+### 1. Text Streaming (Thinking)
 
-**Status priority in deriveAgentStatus():**
+```
+Server                              Client
+  │                                   │
+  │ thinking_delta {text: "Planning"} │
+  ├──────────────────────────────────►│ handleThinkingDelta()
+  │                                   │   dispatch(ENQUEUE_WORDS)
+  │                                   │   buffer.push({type: 'words', text})
+  │                                   │
+  │                                   │ usePerformer hook
+  │                                   │   ADVANCE_STAGE (buffer → onStage)
+  │                                   │   Animation loop:
+  │                                   │     - REVEAL_WORD (increment wordIndex)
+  │                                   │     - Update revealedText
+  │                                   │   STAGE_COMPLETE (onStage → history)
+```
 
-1. paused -> 'paused'
-2. last message is error -> 'error'
-3. hasLiveMessage -> 'thinking' <-- Takes precedence!
-4. hasInProgressEvents() -> 'executing'
-5. pendingStrokes !== null -> 'drawing'
-6. else -> 'idle'
+### 2. Stroke Animation
 
-### 3. fetchStrokes Returns Empty
+```
+Server                              Client
+  │                                   │
+  │ code_execution {                  │
+  │   status: "started",              │
+  │   tool_name: "draw_paths"         │
+  │ }                                 │
+  ├──────────────────────────────────►│ ENQUEUE_EVENT
+  │                                   │   buffer.push({type: 'event', message})
+  │                                   │
+  │ agent_strokes_ready {             │
+  │   count: 5,                       │
+  │   piece_number: 1                 │
+  │ }                                 │
+  ├──────────────────────────────────►│ STROKES_READY
+  │                                   │   pendingStrokes = {count, batchId, pieceNumber}
+  │                                   │
+  │        GET /strokes/pending       │
+  │◄──────────────────────────────────┤ usePerformer fetches strokes
+  │                                   │
+  │ {strokes: [...]}                  │
+  ├──────────────────────────────────►│ ENQUEUE_STROKES
+  │                                   │   buffer.push({type: 'strokes', strokes})
+  │                                   │
+  │                                   │ Animation loop:
+  │                                   │   ADVANCE_STAGE
+  │                                   │   For each stroke:
+  │                                   │     For each point:
+  │                                   │       STROKE_PROGRESS (penPosition, agentStroke)
+  │                                   │     STROKE_COMPLETE (agentStroke → strokes)
+  │                                   │   STAGE_COMPLETE
+```
 
-**Location:** `StrokeRenderer.ts:93`
+## usePerformer Hook
+
+The `usePerformer` hook (`shared/src/hooks/usePerformer.ts`) drives the animation:
 
 ```typescript
-const strokes = await this.fetchStrokes();
+export function usePerformer(
+  performance: PerformanceState,
+  dispatch: Dispatch<CanvasAction>,
+  styleConfig: DrawingStyleConfig
+) {
+  // 1. Advance stage when buffer has items and stage is empty
+  useEffect(() => {
+    if (!performance.onStage && performance.buffer.length > 0) {
+      dispatch({ type: 'ADVANCE_STAGE' });
+    }
+  }, [performance.onStage, performance.buffer.length]);
+
+  // 2. Animate words (reveal one word at a time)
+  useEffect(() => {
+    if (performance.onStage?.type === 'words') {
+      const words = performance.onStage.text.split(/\s+/);
+      if (performance.wordIndex < words.length) {
+        const timer = setTimeout(() => {
+          dispatch({ type: 'REVEAL_WORD' });
+        }, WORD_REVEAL_INTERVAL);
+        return () => clearTimeout(timer);
+      } else {
+        dispatch({ type: 'STAGE_COMPLETE' });
+      }
+    }
+  }, [performance.onStage, performance.wordIndex]);
+
+  // 3. Animate strokes (progressive point reveal)
+  // Similar pattern with requestAnimationFrame for smooth 60fps
+}
 ```
 
-**Cause:** Strokes were already popped (double fetch) or never queued.
-**Debug:** Check server logs for "Queueing X paths" message.
+## Status Derivation
 
-### 4. Animation Stopped Early
-
-**Location:** `StrokeRenderer.ts:130`
+Agent status is derived from performance state:
 
 ```typescript
-for (const stroke of strokes) {
-  if (this.stopped) break;  // Could exit early
+function deriveAgentStatus(state: CanvasHookState): AgentStatus {
+  if (state.paused) return 'paused';
+
+  const lastMessage = state.messages[state.messages.length - 1];
+  if (lastMessage?.type === 'error') return 'error';
+
+  const perf = state.performance;
+
+  // Words being revealed = thinking
+  const hasWordsOnStage = perf.onStage?.type === 'words';
+  const hasWordsInBuffer = perf.buffer.some((item) => item.type === 'words');
+  if (hasWordsOnStage || hasWordsInBuffer || state.thinking) return 'thinking';
+
+  // Event on stage = executing
+  if (perf.onStage?.type === 'event') return 'executing';
+
+  // Code execution in progress = executing
+  if (hasInProgressEvents(state.messages)) return 'executing';
+
+  // Strokes in queue = drawing
+  const hasStrokesOnStage = perf.onStage?.type === 'strokes';
+  const hasStrokesInBuffer = perf.buffer.some((item) => item.type === 'strokes');
+  if (hasStrokesOnStage || hasStrokesInBuffer) return 'drawing';
+  if (state.pendingStrokes !== null) return 'drawing';
+
+  return 'idle';
+}
 ```
 
-**Cause:** Component unmounted during animation.
+**Status Priority (highest to lowest):**
+1. `paused` - explicitly paused
+2. `error` - last message is error
+3. `thinking` - words in buffer/onStage OR thinking text
+4. `executing` - code_execution started but not completed
+5. `drawing` - strokes in buffer/onStage or pendingStrokes
+6. `idle` - default
 
-### 5. agentStroke Not Rendered
+## Canvas Rendering
 
-**Location:** `Canvas.tsx:229`
+The Canvas component reads from performance state:
 
-```typescript
-{agentStroke.length > 1 && ...}
+```tsx
+function Canvas({ strokes, agentStroke, penPosition, penDown, ... }) {
+  return (
+    <Svg>
+      {/* Completed strokes */}
+      {strokes.map((path, i) => (
+        <Path key={i} d={pathToSvgD(path)} ... />
+      ))}
+
+      {/* In-progress agent stroke */}
+      {agentStroke.length > 1 && (
+        <Path d={pointsToSvgD(agentStroke)} ... />
+      )}
+
+      {/* Pen cursor indicator */}
+      {penPosition && (
+        <Circle cx={penPosition.x} cy={penPosition.y} r={penDown ? 4 : 6} />
+      )}
+    </Svg>
+  );
+}
 ```
 
-**Cause:** If agentStroke only has 0 or 1 point, nothing renders.
+## Key Design Decisions
 
-## Key Console Logs to Check
+### Why a Performance Model?
+
+1. **Decoupled timing** - Server sends data immediately; client animates at its own pace
+2. **Interruptible** - New content can be queued while animation runs
+3. **Testable** - Pure reducer actions, easy to unit test
+4. **Consistent** - Same animation behavior on web and mobile
+
+### Why Queue + Stage + History?
+
+1. **Buffer** - Accumulates incoming content without blocking
+2. **OnStage** - Single item being animated (predictable state)
+3. **History** - Enables replay and debug inspection
+
+### Why Not Stream Strokes Directly?
+
+1. **Piece number validation** - Ensures strokes go to correct canvas
+2. **Batch efficiency** - One HTTP request for many strokes
+3. **Animation timing** - Client controls reveal speed
+
+## Debugging
+
+### Key Console Logs
 
 ```
-[useStrokeAnimation] Effect triggered: pendingStrokes=..., canRender=...
-[useStrokeAnimation] canRender is false, storing batchId: X
-[useStrokeAnimation] canRender is true, starting render for batchId: X
-[useStrokeAnimation] canRender changed: true/false, waitingBatch: X
-[StrokeRenderer] handleStrokesReady called, batchId: X
-[StrokeRenderer] Fetched N strokes for batch X
-[StrokeRenderer] Starting animation of N strokes
+[usePerformer] Advancing stage, next: {type: 'words', text: '...'}
+[usePerformer] Revealing word 3/10: "planning"
+[usePerformer] Stage complete, moving to history
+[usePerformer] Fetching strokes for batch 42
+[usePerformer] Animating stroke 2/5, point 15/100
 ```
 
-## Most Likely Bug: hasInProgressEvents Key Matching
+### Common Issues
 
-The `hasInProgressEvents()` function matches started/completed messages by:
+| Symptom | Likely Cause |
+|---------|--------------|
+| Text appears all at once | `ADVANCE_STAGE` not triggering |
+| Strokes don't animate | `pendingStrokes` pieceNumber mismatch |
+| Animation stuck | `STAGE_COMPLETE` not dispatched |
+| Pen cursor frozen | `penPosition` not updating |
 
-```typescript
-const key = `${tool_name}_${iteration}`;
+### Debug Endpoints
+
+```bash
+# Check agent state
+curl localhost:8000/debug/agent
+
+# Get pending strokes
+curl localhost:8000/strokes/pending
 ```
-
-**Problem:** If multiple calls to the same tool happen in one turn (iteration stays at 1):
-
-1. draw_paths started (key: draw_paths_1)
-2. draw_paths completed (key: draw_paths_1)
-3. draw_paths started (key: draw_paths_1) <- SAME KEY!
-4. The second started message is incorrectly considered "completed"
-   because completedTools already has draw_paths_1
-
-This could cause premature status transition to 'drawing' or incorrect
-in-progress tracking.

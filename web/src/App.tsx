@@ -2,14 +2,14 @@
  * Drawing Agent Web App - Studio View
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import type { PendingStroke, ServerMessage } from '@code-monet/shared';
 import {
   deriveAgentStatus,
-  hasInProgressEvents,
   shouldShowIdleAnimation,
   STATUS_LABELS,
-  useStrokeAnimation,
+  useCanvas,
+  usePerformer,
 } from '@code-monet/shared';
 import { getApiUrl } from './config';
 
@@ -18,7 +18,6 @@ import { MessageStream } from './components/MessageStream';
 import { DebugPanel } from './components/DebugPanel';
 import { ActionBar } from './components/ActionBar';
 import { StatusOverlay } from './components/StatusOverlay';
-import { useCanvas } from './hooks/useCanvas';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useDebug } from './hooks/useDebug';
 import { useAuth } from './context/AuthContext';
@@ -30,46 +29,47 @@ function App(): React.ReactElement {
   const { accessToken } = useAuth();
   const { logMessage, ...debug } = useDebug({ token: accessToken });
 
-  // Fetch pending strokes from server
-  const fetchStrokes = useCallback(async (): Promise<PendingStroke[]> => {
-    if (!accessToken) throw new Error('Not authenticated');
-    const response = await fetch(`${getApiUrl()}/strokes/pending`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch strokes');
-    const data = await response.json();
-    return data.strokes as PendingStroke[];
-  }, [accessToken]);
-
   // Derive status from messages
   const agentStatus = deriveAgentStatus(state);
 
-  // Use shared animation hook for agent-drawn strokes
-  // Gate on: not paused AND no in-progress tool calls
-  // This ensures tool completion events are shown before animation starts,
-  // but allows animation while agent is thinking (so it's not blocked forever)
-  const inProgressEvents = hasInProgressEvents(state.messages);
-  const canRenderStrokes = !state.paused && !inProgressEvents;
+  // Fetch and enqueue strokes when pendingStrokes arrives
+  const lastFetchedBatchRef = useRef<number>(0);
+  useEffect(() => {
+    const { pendingStrokes } = state;
+    if (!pendingStrokes || !accessToken) return;
+    if (pendingStrokes.batchId <= lastFetchedBatchRef.current) return;
 
-  // Debug logging for stroke rendering
-  console.log('[DEBUG] Stroke state:', {
-    pendingStrokes: state.pendingStrokes,
-    paused: state.paused,
-    inProgressEvents,
-    canRenderStrokes,
-    strokeCount: state.strokes.length,
-    messages: state.messages.map((m) => ({
-      type: m.type,
-      tool: m.metadata?.tool_name,
-      returnCode: m.metadata?.return_code,
-    })),
-  });
+    const fetchAndEnqueue = async () => {
+      try {
+        const response = await fetch(`${getApiUrl()}/strokes/pending`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!response.ok) throw new Error('Failed to fetch strokes');
+        const data = (await response.json()) as { strokes: PendingStroke[] };
+        lastFetchedBatchRef.current = pendingStrokes.batchId;
+        dispatch({ type: 'ENQUEUE_STROKES', strokes: data.strokes });
+        dispatch({ type: 'CLEAR_PENDING_STROKES' });
+      } catch (error) {
+        console.error('[App] Failed to fetch strokes:', error);
+      }
+    };
 
-  useStrokeAnimation({
-    pendingStrokes: state.pendingStrokes,
+    void fetchAndEnqueue();
+  }, [state.pendingStrokes, accessToken, dispatch]);
+
+  // Callback when stroke animation completes
+  const sendRef = useRef<((msg: { type: 'animation_done' }) => void) | null>(null);
+  const handleStrokesComplete = useCallback(() => {
+    sendRef.current?.({ type: 'animation_done' });
+  }, []);
+
+  // Performance animation loop
+  usePerformer({
+    performance: state.performance,
     dispatch,
-    fetchStrokes,
-    canRender: canRenderStrokes,
+    paused: state.paused,
+    inStudio: true, // Web app is always in studio mode
+    onStrokesComplete: handleStrokesComplete,
   });
 
   const onMessage = useCallback(
@@ -81,6 +81,11 @@ function App(): React.ReactElement {
   );
 
   const { status: wsStatus, send } = useWebSocket({ onMessage, token: accessToken });
+
+  // Keep sendRef in sync for stroke completion callback
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
 
   const handleStrokeEnd = useCallback(() => {
     const path = endStroke();
@@ -115,17 +120,17 @@ function App(): React.ReactElement {
       />
 
       <div className="thinking-strip">
-        <StatusOverlay status={agentStatus} thinking={state.thinking} messages={state.messages} />
+        <StatusOverlay status={agentStatus} performance={state.performance} messages={state.messages} />
       </div>
 
       <div className="canvas-container">
         <Canvas
           strokes={state.strokes}
           currentStroke={state.currentStroke}
-          agentStroke={state.agentStroke}
-          agentStrokeStyle={state.agentStrokeStyle}
-          penPosition={state.penPosition}
-          penDown={state.penDown}
+          agentStroke={state.performance.agentStroke}
+          agentStrokeStyle={state.performance.agentStrokeStyle}
+          penPosition={state.performance.penPosition}
+          penDown={state.performance.penDown}
           drawingEnabled={state.drawingEnabled}
           styleConfig={state.styleConfig}
           showIdleAnimation={shouldShowIdleAnimation(state)}

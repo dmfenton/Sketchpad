@@ -119,8 +119,14 @@ class DrawingAgent:
 
         # Drawing hook support - orchestrator sets this callback
         self._on_draw: Callable[[list[Path]], Coroutine[Any, Any, None]] | None = None
+        # Tool completion callback - orchestrator sets this to broadcast completed events
+        self._on_tool_complete: (
+            Callable[[str, dict[str, Any] | None, int], Coroutine[Any, Any, None]] | None
+        ) = None
         self._collected_paths: list[Path] = []
         self._piece_done = False
+        # Track current iteration for tool completion callback
+        self._current_iteration: int = 1
 
         # Track current style for session management
         self._current_style: DrawingStyleType | None = None
@@ -178,6 +184,16 @@ class DrawingAgent:
         """Set the callback for drawing paths. Called by orchestrator."""
         self._on_draw = callback
 
+    def set_on_tool_complete(
+        self, callback: Callable[[str, dict[str, Any] | None, int], Coroutine[Any, Any, None]]
+    ) -> None:
+        """Set the callback for tool completion. Called by orchestrator.
+
+        Args:
+            callback: Async function taking (tool_name, tool_input, iteration)
+        """
+        self._on_tool_complete = callback
+
     async def _post_tool_use_hook(
         self,
         input_data: HookInputOrDict,
@@ -190,6 +206,17 @@ class DrawingAgent:
         documentation suggesting objects. We use extract_tool_name() to handle both.
         """
         tool_name = extract_tool_name(input_data)
+        # Extract tool_input from hook data
+        tool_input: dict[str, Any] | None = None
+        if isinstance(input_data, dict):
+            raw_input = input_data.get("tool_input")
+            if isinstance(raw_input, dict):
+                tool_input = raw_input
+        else:
+            raw_input = getattr(input_data, "tool_input", None)
+            if isinstance(raw_input, dict):
+                tool_input = raw_input
+
         logger.info(f"PostToolUse: tool={tool_name}, collected_paths={len(self._collected_paths)}")
 
         # After drawing tools, execute drawing and wait
@@ -210,6 +237,17 @@ class DrawingAgent:
         # After mark_piece_done, flag completion
         elif tool_name == "mcp__drawing__mark_piece_done":
             self._piece_done = True
+
+        # Signal tool completion for all drawing tools (broadcasts "completed" message)
+        # This unblocks client-side stroke rendering that waits for in-progress events to clear
+        if self._on_tool_complete and tool_name.startswith("mcp__drawing__"):
+            # Strip prefix for cleaner tool name (matches on_code_start format)
+            clean_name = (
+                tool_name[len("mcp__drawing__") :]
+                if tool_name.startswith("mcp__drawing__")
+                else tool_name
+            )
+            await self._on_tool_complete(clean_name, tool_input, self._current_iteration)
 
         return SyncHookJSONOutput()
 
@@ -413,6 +451,9 @@ class DrawingAgent:
             # Send the turn prompt with canvas image
             await self._client.query(self._build_multimodal_prompt())
 
+            # Track iteration for tool completion callback
+            self._current_iteration = 1
+
             # Notify iteration start
             if cb.on_iteration_start:
                 await cb.on_iteration_start(1, 1)
@@ -422,7 +463,7 @@ class DrawingAgent:
                 client=self._client,
                 callbacks=cb,
                 is_aborted=lambda: self._abort,
-                iteration=1,
+                iteration=self._current_iteration,
             )
 
             # Handle abort
