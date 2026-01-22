@@ -5,7 +5,7 @@
  * 1. Message arrives → reducer processes → state updates
  * 2. State changes → status derived correctly
  * 3. Rendering gates open at the right time
- * 4. Animation would trigger (mocking StrokeRenderer)
+ * 4. Animation would trigger (via usePerformer hook)
  *
  * Key scenarios tested:
  * - Full turn sequence from iteration to agent_strokes_ready
@@ -350,7 +350,7 @@ describe('Render Flow - Status Derivation Edge Cases', () => {
     });
     expect(state.pendingStrokes).not.toBeNull();
 
-    // Manually dispatch CLEAR_PENDING_STROKES (as StrokeRenderer would)
+    // Manually dispatch CLEAR_PENDING_STROKES (as usePerformer would)
     state = canvasReducer(state, { type: 'CLEAR_PENDING_STROKES' });
     expect(state.pendingStrokes).toBeNull();
     expect(deriveAgentStatus(state)).toBe('idle');
@@ -379,7 +379,7 @@ describe('Render Flow - Multi-Turn Scenario', () => {
         return_code: 0,
         iteration: 1,
       },
-      // Simulate CLEAR_PENDING_STROKES (happens when StrokeRenderer starts animating)
+      // Simulate CLEAR_PENDING_STROKES (happens when usePerformer starts animating)
       // (We can't simulate this via ServerMessage, but it happens in the hook)
 
       // Turn 2 - iteration archives turn 1's thinking

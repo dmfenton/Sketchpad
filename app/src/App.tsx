@@ -7,7 +7,6 @@ import * as Linking from 'expo-linking';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   AppState,
   StatusBar,
   StyleSheet,
@@ -17,7 +16,7 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { ClientMessage, PendingStroke, ToolName } from '@code-monet/shared';
+import type { PendingStroke, ToolName } from '@code-monet/shared';
 import {
   deriveAgentStatus,
   forwardLogs,
@@ -108,8 +107,8 @@ function MainApp(): React.JSX.Element {
 
   // Fetch and enqueue strokes when pendingStrokes arrives
   const lastFetchedBatchRef = React.useRef<number>(0);
+  const pendingStrokes = canvas.state.pendingStrokes;
   React.useEffect(() => {
-    const { pendingStrokes } = canvas.state;
     if (!pendingStrokes || !accessToken) return;
     if (pendingStrokes.batchId <= lastFetchedBatchRef.current) return;
 
@@ -127,7 +126,7 @@ function MainApp(): React.JSX.Element {
     };
 
     void fetchAndEnqueue();
-  }, [canvas.state.pendingStrokes, accessToken, api, dispatch]);
+  }, [pendingStrokes, accessToken, api, dispatch]);
 
   // Callback when stroke animation completes
   const handleStrokesComplete = React.useCallback(() => {
@@ -186,20 +185,6 @@ function MainApp(): React.JSX.Element {
           break;
         case 'nudge':
           openModal('nudge');
-          break;
-        case 'clear':
-          Alert.alert('Clear Canvas', 'Clear the canvas and start fresh?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Clear',
-              style: 'destructive',
-              onPress: () => {
-                tracer.recordEvent('action.clear');
-                send({ type: 'clear' });
-                canvas.clear();
-              },
-            },
-          ]);
           break;
         case 'pause_toggle':
           if (canvas.state.paused) {

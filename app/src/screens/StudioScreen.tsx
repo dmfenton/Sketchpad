@@ -3,22 +3,20 @@
  * Encapsulates Canvas, LiveStatus, MessageStream, and ActionBar.
  */
 
-import React, { useCallback, useMemo } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import React, { useCallback } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import type { AgentMessage, AgentStatus, DrawingStyleConfig, Path, Point, StrokeStyle, ToolName } from '@code-monet/shared';
+import type { AgentStatus, DrawingStyleConfig, Path, Point, StrokeStyle, ToolName } from '@code-monet/shared';
 import { shouldShowIdleAnimation } from '@code-monet/shared';
 
 import { ActionBar, Canvas, LiveStatus, MessageStream } from '../components';
 import type { UseCanvasReturn } from '../hooks';
-import { tracer } from '../utils/tracing';
 
 /** Action types for the action bar */
 export type StudioAction =
   | { type: 'draw_toggle' }
   | { type: 'nudge' }
   | { type: 'pause_toggle' }
-  | { type: 'clear' }
   | { type: 'home' }
   | { type: 'gallery' };
 
