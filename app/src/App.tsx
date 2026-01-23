@@ -346,6 +346,7 @@ function MainApp(): React.JSX.Element {
               api={api}
               wsConnected={wsState.connected}
               hasCurrentWork={canvas.state.strokes.length > 0}
+              pieceNumber={canvas.state.pieceNumber}
               gallery={canvas.state.gallery}
               drawingStyle={canvas.state.drawingStyle}
               onStyleChange={handleStyleChange}

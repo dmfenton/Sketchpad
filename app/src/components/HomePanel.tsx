@@ -25,6 +25,7 @@ interface HomePanelProps {
   api: ApiClient;
   connected: boolean;
   hasCurrentWork: boolean;
+  pieceNumber: number;
   recentCanvas: SavedCanvas | null;
   drawingStyle: DrawingStyleType;
   galleryCount: number;
@@ -39,6 +40,7 @@ export function HomePanel({
   api,
   connected,
   hasCurrentWork,
+  pieceNumber,
   recentCanvas,
   drawingStyle,
   galleryCount,
@@ -51,7 +53,11 @@ export function HomePanel({
   const { colors, shadows } = useTheme();
   const [prompt, setPrompt] = useState('');
 
-  const hasRecentWork = hasCurrentWork || recentCanvas !== null;
+  // Show continue section if:
+  // - There are strokes on the current canvas (hasCurrentWork)
+  // - There's a saved canvas in gallery (recentCanvas)
+  // - There's an active session in progress (pieceNumber > 0)
+  const hasRecentWork = hasCurrentWork || recentCanvas !== null || pieceNumber > 0;
 
   // Build thumbnail URL
   const thumbnailPath = recentCanvas?.thumbnail_token
