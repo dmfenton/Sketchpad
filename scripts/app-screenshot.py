@@ -130,6 +130,7 @@ def screenshot_app(
     viewport: tuple[int, int] = DEFAULT_VIEWPORT,
     expo_port: int = DEFAULT_EXPO_PORT,
     backend_port: int = DEFAULT_BACKEND_PORT,
+    start_prompt: str | None = None,
 ) -> str | None:
     """Take a screenshot of the Expo web app.
 
@@ -141,6 +142,7 @@ def screenshot_app(
         viewport: (width, height) tuple for viewport size
         expo_port: Expo web server port
         backend_port: Backend server port (for auth token)
+        start_prompt: If provided, enter this prompt in HomePanel and submit to enter studio
 
     Returns:
         Path to saved screenshot, or None on failure
@@ -205,6 +207,34 @@ def screenshot_app(
             )
             browser.close()
             return None
+
+        # If start_prompt provided, enter it via HomePanel to transition to studio
+        if start_prompt:
+            print_status(f"Entering prompt via HomePanel: {start_prompt}")
+            input_selector = '[data-testid="home-prompt-input"]'
+            submit_selector = '[data-testid="home-prompt-submit"]'
+
+            try:
+                # Wait for home panel input
+                page.wait_for_selector(input_selector, timeout=10000)
+                print_status("Found home panel input", "green")
+
+                # Fill the prompt
+                page.fill(input_selector, start_prompt)
+                page.wait_for_timeout(200)  # Brief pause for state update
+
+                # Click submit
+                page.click(submit_selector)
+                print_status("Submitted prompt", "green")
+
+                # Wait for transition to studio (canvas should appear)
+                canvas_selector = '[data-testid="canvas-view"]'
+                page.wait_for_selector(canvas_selector, timeout=10000)
+                print_status("Entered studio mode", "green")
+
+            except Exception as e:
+                print_error(f"Failed to enter via HomePanel: {e}")
+                # Continue anyway, take screenshot of current state
 
         # Wait for specific selector if provided
         if selector:
@@ -287,6 +317,11 @@ Prerequisites:
         default=DEFAULT_BACKEND_PORT,
         help=f"Backend server port for auth (default: {DEFAULT_BACKEND_PORT})",
     )
+    parser.add_argument(
+        "--start-prompt",
+        metavar="PROMPT",
+        help="Enter this prompt via HomePanel to start drawing and enter studio mode",
+    )
 
     args = parser.parse_args()
 
@@ -305,6 +340,7 @@ Prerequisites:
         viewport=viewport,
         expo_port=args.expo_port,
         backend_port=args.backend_port,
+        start_prompt=args.start_prompt,
     )
 
     if result is None:

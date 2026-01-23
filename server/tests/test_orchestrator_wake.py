@@ -212,6 +212,68 @@ class TestDrawPathsAnimationWait:
         # Should be nearly instant
         assert elapsed < 0.1
 
+    @pytest.mark.asyncio
+    async def test_draw_paths_uses_expanded_count(
+        self, orchestrator: AgentOrchestrator, mock_agent, mock_broadcaster
+    ) -> None:
+        """_draw_paths should report expanded stroke count in paint mode."""
+        from code_monet.types import DrawingStyleType, Path, Point
+
+        mock_state = MagicMock()
+        mock_state.queue_strokes = AsyncMock(return_value=(1, 1))
+        mock_state.canvas = MagicMock(drawing_style=DrawingStyleType.PAINT)
+        mock_state.piece_number = 0
+        mock_agent.get_state.return_value = mock_state
+
+        path = Path(
+            type="line",
+            points=[Point(x=0, y=0), Point(x=1, y=1)],
+            author="agent",
+            brush="oil_round",
+        )
+        expanded = [
+            Path(type="line", points=[Point(x=0, y=0)], author="agent"),
+            Path(type="line", points=[Point(x=1, y=1)], author="agent"),
+        ]
+
+        with (
+            patch("code_monet.orchestrator.expand_brush_stroke", return_value=expanded),
+            patch("code_monet.orchestrator.settings") as mock_settings,
+        ):
+            mock_settings.client_animation_fps = 60
+            mock_settings.animation_wait_buffer_ms = 0
+            mock_settings.max_animation_wait_s = 0.0
+
+            await orchestrator._draw_paths([path])
+
+        ready_messages = [
+            call.args[0]
+            for call in mock_broadcaster.broadcast.call_args_list
+            if getattr(call.args[0], "type", None) == "agent_strokes_ready"
+        ]
+        assert ready_messages, "Expected agent_strokes_ready broadcast"
+        assert ready_messages[0].count == len(expanded)
+
+
+class TestAnimationDoneBatchMatching:
+    """Tests for animation_done batch ID handling."""
+
+    def test_signal_animation_done_matches_batch(self, orchestrator: AgentOrchestrator) -> None:
+        orchestrator._animation_wait_batch_id = 3
+
+        assert not orchestrator._animation_done_event.is_set()
+        orchestrator.signal_animation_done(3)
+
+        assert orchestrator._animation_done_event.is_set()
+
+    def test_signal_animation_done_ignores_mismatch(self, orchestrator: AgentOrchestrator) -> None:
+        orchestrator._animation_wait_batch_id = 3
+
+        assert not orchestrator._animation_done_event.is_set()
+        orchestrator.signal_animation_done(2)
+
+        assert not orchestrator._animation_done_event.is_set()
+
 
 class TestOrchestratorWakeIntegration:
     """Integration tests for wake behavior."""

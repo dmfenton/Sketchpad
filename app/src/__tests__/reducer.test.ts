@@ -248,7 +248,7 @@ describe('shouldShowIdleAnimation', () => {
     paused: false,
   };
 
-  it('returns true when canvas empty and status is idle', () => {
+  it('returns true when canvas empty and not drawing', () => {
     expect(shouldShowIdleAnimation(baseState)).toBe(true);
   });
 
@@ -267,47 +267,22 @@ describe('shouldShowIdleAnimation', () => {
     };
     expect(shouldShowIdleAnimation(state)).toBe(false);
   });
+});
 
-  it('returns false when paused (even with empty canvas)', () => {
+describe('canvasReducer - LOAD_CANVAS', () => {
+  it('clears pendingStrokes when loading a canvas', () => {
     const state: CanvasHookState = {
-      ...baseState,
-      paused: true,
+      ...initialState,
+      pendingStrokes: { count: 2, batchId: 4, pieceNumber: 1 },
     };
-    expect(shouldShowIdleAnimation(state)).toBe(false);
-  });
 
-  it('returns false when thinking (even with empty canvas)', () => {
-    const state: CanvasHookState = {
-      ...baseState,
-      thinking: 'I am thinking...',
-    };
-    expect(shouldShowIdleAnimation(state)).toBe(false);
-  });
+    const result = canvasReducer(state, {
+      type: 'LOAD_CANVAS',
+      strokes: [{ type: 'polyline', points: [{ x: 0, y: 0 }] }],
+      pieceNumber: 3,
+    });
 
-  it('returns false when drawing (even with empty canvas)', () => {
-    const state: CanvasHookState = {
-      ...baseState,
-      pendingStrokes: { count: 5, batchId: 1, pieceNumber: 0 },
-    };
-    expect(shouldShowIdleAnimation(state)).toBe(false);
-  });
-
-  it('returns false when has strokes even if would otherwise be idle', () => {
-    const state: CanvasHookState = {
-      ...baseState,
-      strokes: [
-        {
-          type: 'line',
-          points: [
-            { x: 0, y: 0 },
-            { x: 10, y: 10 },
-          ],
-        },
-      ],
-    };
-    // Status would be 'idle' but strokes exist
-    expect(deriveAgentStatus(state)).toBe('idle');
-    expect(shouldShowIdleAnimation(state)).toBe(false);
+    expect(result.pendingStrokes).toBeNull();
   });
 });
 

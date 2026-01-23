@@ -229,16 +229,10 @@ export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
 
 /**
  * Determine if the idle animation should show.
- * Single source of truth: canvas is empty, user is not drawing, AND agent is idle.
+ * Simple rule: show only until the first stroke is committed.
  */
 export function shouldShowIdleAnimation(state: CanvasHookState): boolean {
-  return (
-    state.strokes.length === 0 &&
-    state.currentStroke.length === 0 &&
-    state.performance.buffer.length === 0 &&
-    state.performance.onStage === null &&
-    deriveAgentStatus(state) === 'idle'
-  );
+  return state.strokes.length === 0 && state.currentStroke.length === 0;
 }
 
 // Performance actions
@@ -416,6 +410,7 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         strokes: action.strokes,
         currentStroke: [],
         viewingPiece: action.pieceNumber,
+        pendingStrokes: null,
         drawingStyle: loadedStyle,
         styleConfig: loadedStyleConfig,
       };

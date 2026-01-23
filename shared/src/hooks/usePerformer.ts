@@ -28,7 +28,7 @@ export interface UsePerformerOptions {
   /** Whether user is in the studio (animation only runs in studio) */
   inStudio: boolean;
   /** Callback when strokes animation completes (to signal server) */
-  onStrokesComplete?: () => void;
+  onStrokesComplete?: (batchId: number) => void;
   /** Delay between word reveals in ms (default: BIONIC_CHUNK_INTERVAL_MS / BIONIC_CHUNK_SIZE) */
   wordDelayMs?: number;
   /** Animation frame delay in ms (default: 16.67 = 60fps) */
@@ -175,7 +175,10 @@ export function usePerformer({
             // All strokes done
             dispatch({ type: 'STAGE_COMPLETE' });
             // Signal server that animation is done
-            onStrokesCompleteRef.current?.();
+            const batchId = strokes[0]?.batch_id;
+            if (batchId !== undefined) {
+              onStrokesCompleteRef.current?.(batchId);
+            }
           }
           break;
         }

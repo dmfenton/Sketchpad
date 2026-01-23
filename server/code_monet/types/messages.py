@@ -156,6 +156,13 @@ class ClientNewCanvasMessage(BaseModel):
     drawing_style: DrawingStyleType | None = None  # Optional style for the new canvas
 
 
+class ClientAnimationDoneMessage(BaseModel):
+    """Client finished animating the current stroke batch."""
+
+    type: Literal["animation_done"] = "animation_done"
+    batch_id: int
+
+
 # Union types for message routing
 
 ServerMessage = (
@@ -180,6 +187,7 @@ ClientMessage = (
     | ClientControlMessage
     | ClientNewCanvasMessage
     | ClientSetStyleMessage
+    | ClientAnimationDoneMessage
 )
 
 

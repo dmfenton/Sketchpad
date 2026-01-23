@@ -84,6 +84,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     dev_mode: bool = True  # Set to False in production; enables live reload
+    max_connections_per_user: int = 0  # 0 = unlimited
 
     # Agent
     agent_interval: int = 60  # UNUSED - kept for backwards compat, agent only runs on explicit wake

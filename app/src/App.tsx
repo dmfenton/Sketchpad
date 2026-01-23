@@ -22,6 +22,7 @@ import {
   forwardLogs,
   initLogForwarder,
   startLogSession,
+  usePendingStrokes,
   usePerformer,
 } from '@code-monet/shared';
 
@@ -105,33 +106,31 @@ function MainApp(): React.JSX.Element {
     setPaused: canvas.setPaused,
   });
 
-  // Fetch and enqueue strokes when pendingStrokes arrives
-  const lastFetchedBatchRef = React.useRef<number>(0);
   const pendingStrokes = canvas.state.pendingStrokes;
-  React.useEffect(() => {
-    if (!pendingStrokes || !accessToken) return;
-    if (pendingStrokes.batchId <= lastFetchedBatchRef.current) return;
+  const fetchPendingStrokes = useCallback(async (): Promise<PendingStroke[]> => {
+    const response = await api.fetch('/strokes/pending');
+    if (!response.ok) throw new Error('Failed to fetch strokes');
+    const data = (await response.json()) as { strokes: PendingStroke[] };
+    return data.strokes;
+  }, [api]);
 
-    const fetchAndEnqueue = async () => {
-      try {
-        const response = await api.fetch('/strokes/pending');
-        if (!response.ok) throw new Error('Failed to fetch strokes');
-        const data = (await response.json()) as { strokes: PendingStroke[] };
-        lastFetchedBatchRef.current = pendingStrokes.batchId;
-        dispatch({ type: 'ENQUEUE_STROKES', strokes: data.strokes });
-        dispatch({ type: 'CLEAR_PENDING_STROKES' });
-      } catch (error) {
-        console.error('[App] Failed to fetch strokes:', error);
-      }
-    };
-
-    void fetchAndEnqueue();
-  }, [pendingStrokes, accessToken, api, dispatch]);
+  usePendingStrokes({
+    pendingStrokes: accessToken ? pendingStrokes : null,
+    fetchPendingStrokes,
+    enqueueStrokes: (strokes) => dispatch({ type: 'ENQUEUE_STROKES', strokes }),
+    clearPending: () => dispatch({ type: 'CLEAR_PENDING_STROKES' }),
+    onError: (error) => {
+      console.error('[App] Failed to fetch strokes:', error);
+    },
+  });
 
   // Callback when stroke animation completes
-  const handleStrokesComplete = React.useCallback(() => {
-    send({ type: 'animation_done' });
-  }, [send]);
+  const handleStrokesComplete = React.useCallback(
+    (batchId: number) => {
+      send({ type: 'animation_done', batch_id: batchId });
+    },
+    [send]
+  );
 
   // Performance animation loop - drives text and stroke animation
   usePerformer({
