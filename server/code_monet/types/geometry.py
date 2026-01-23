@@ -36,3 +36,8 @@ class PathType(str, Enum):
     CUBIC = "cubic"
     POLYLINE = "polyline"
     SVG = "svg"  # Raw SVG path d-string
+
+
+def clamp_value(value: float, low: float, high: float) -> float:
+    """Clamp a value to a range [low, high]."""
+    return max(low, min(high, value))

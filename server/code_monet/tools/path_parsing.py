@@ -5,11 +5,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from code_monet.types import BRUSH_PRESETS, Path, PathType, Point
-
-
-def _clamp_value(value: float, low: float, high: float) -> float:
-    return max(low, min(high, value))
+from code_monet.types import BRUSH_PRESETS, Path, PathType, Point, clamp_value
 
 
 def _clamp_point(
@@ -19,8 +15,8 @@ def _clamp_point(
     canvas_height: float,
 ) -> tuple[float, float]:
     return (
-        _clamp_value(x, 0.0, canvas_width),
-        _clamp_value(y, 0.0, canvas_height),
+        clamp_value(x, 0.0, canvas_width),
+        clamp_value(y, 0.0, canvas_height),
     )
 
 

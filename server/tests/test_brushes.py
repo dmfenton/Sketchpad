@@ -3,6 +3,8 @@
 from code_monet.brushes import (
     _apply_edge_noise,
     _calculate_velocity_widths,
+    _clamp_points,
+    _clamp_stroke_width,
     _get_path_points,
     _offset_path,
     expand_brush_stroke,
@@ -321,3 +323,82 @@ class TestBrushPresetValues:
         """Palette knife should have high opacity."""
         preset = BRUSH_PRESETS["palette_knife"]
         assert preset.main_opacity > 0.9
+
+
+class TestClampStrokeWidth:
+    """Tests for _clamp_stroke_width()."""
+
+    def test_clamps_below_minimum(self):
+        """Values below 0.5 should clamp to 0.5."""
+        assert _clamp_stroke_width(0.1) == 0.5
+        assert _clamp_stroke_width(0.0) == 0.5
+        assert _clamp_stroke_width(-5.0) == 0.5
+
+    def test_clamps_above_maximum(self):
+        """Values above 30 should clamp to 30."""
+        assert _clamp_stroke_width(50.0) == 30.0
+        assert _clamp_stroke_width(100.0) == 30.0
+
+    def test_preserves_valid_width(self):
+        """Values in range should be unchanged."""
+        assert _clamp_stroke_width(0.5) == 0.5
+        assert _clamp_stroke_width(15.0) == 15.0
+        assert _clamp_stroke_width(30.0) == 30.0
+
+
+class TestClampPoints:
+    """Tests for _clamp_points()."""
+
+    def test_clamps_negative_coordinates(self):
+        """Negative coordinates should clamp to 0."""
+        points = [Point(x=-10, y=-5)]
+        result = _clamp_points(points, 800, 600)
+        assert result[0].x == 0.0
+        assert result[0].y == 0.0
+
+    def test_clamps_overflow_coordinates(self):
+        """Coordinates beyond canvas should clamp to max."""
+        points = [Point(x=850, y=650)]
+        result = _clamp_points(points, 800, 600)
+        assert result[0].x == 800.0
+        assert result[0].y == 600.0
+
+    def test_preserves_valid_coordinates(self):
+        """Coordinates within bounds should be unchanged."""
+        points = [Point(x=400, y=300)]
+        result = _clamp_points(points, 800, 600)
+        assert result[0].x == 400.0
+        assert result[0].y == 300.0
+
+    def test_no_clamp_when_dimensions_none(self):
+        """No clamping when canvas dimensions are None."""
+        points = [Point(x=850, y=650)]
+        result = _clamp_points(points, None, None)
+        assert result[0].x == 850
+        assert result[0].y == 650
+
+    def test_no_clamp_when_width_none(self):
+        """No clamping when only width is None."""
+        points = [Point(x=850, y=650)]
+        result = _clamp_points(points, None, 600)
+        assert result[0].x == 850
+        assert result[0].y == 650
+
+    def test_returns_same_list_when_no_changes(self):
+        """Should return original list if no clamping needed."""
+        points = [Point(x=100, y=100), Point(x=200, y=200)]
+        result = _clamp_points(points, 800, 600)
+        assert result is points
+
+    def test_returns_new_list_when_clamped(self):
+        """Should return new list if any point was clamped."""
+        points = [Point(x=100, y=100), Point(x=900, y=200)]
+        result = _clamp_points(points, 800, 600)
+        assert result is not points
+        assert result[1].x == 800.0
+
+    def test_empty_list(self):
+        """Empty list should return unchanged."""
+        points: list[Point] = []
+        result = _clamp_points(points, 800, 600)
+        assert result == []

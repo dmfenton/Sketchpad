@@ -15,6 +15,7 @@ from .types import (
     Path,
     PathType,
     Point,
+    clamp_value,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,11 +29,7 @@ STROKE_WIDTH_MAX = 30.0
 
 
 def _clamp_stroke_width(value: float) -> float:
-    return max(STROKE_WIDTH_MIN, min(STROKE_WIDTH_MAX, value))
-
-
-def _clamp_value(value: float, low: float, high: float) -> float:
-    return max(low, min(high, value))
+    return clamp_value(value, STROKE_WIDTH_MIN, STROKE_WIDTH_MAX)
 
 
 def _clamp_points(
@@ -47,8 +44,8 @@ def _clamp_points(
     clamped: list[Point] = []
     changed = False
     for point in points:
-        x = _clamp_value(point.x, 0.0, max_x)
-        y = _clamp_value(point.y, 0.0, max_y)
+        x = clamp_value(point.x, 0.0, max_x)
+        y = clamp_value(point.y, 0.0, max_y)
         if x != point.x or y != point.y:
             changed = True
         clamped.append(Point(x=x, y=y))
