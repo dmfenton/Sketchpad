@@ -11,7 +11,6 @@
 import React, { useMemo } from 'react';
 import type { AgentMessage, AgentStatus, PerformanceState } from '@code-monet/shared';
 import {
-  bionicWord,
   getLastToolCall,
   splitWords,
   TOOL_DISPLAY_NAMES,
@@ -24,16 +23,10 @@ interface StatusOverlayProps {
 }
 
 /**
- * Render a word with bionic formatting (bold first part).
+ * Render a word (bionic reading disabled - renders as plain text).
  */
 function BionicWord({ word }: { word: string }): React.ReactElement {
-  const { bold, regular } = bionicWord(word);
-  return (
-    <span className="bionic-word">
-      <strong>{bold}</strong>
-      {regular}
-    </span>
-  );
+  return <span className="bionic-word">{word}</span>;
 }
 
 /**
