@@ -61,6 +61,7 @@ async def handle_nudge(workspace: ActiveWorkspace, message: dict[str, Any]) -> N
         # Clear piece_completed flag and wake the orchestrator
         if workspace.orchestrator:
             workspace.orchestrator.clear_piece_completed()
+            await workspace.start_agent_loop()
             workspace.orchestrator.wake()
         logger.info(f"User {workspace.user_id} nudge: {text}")
 
@@ -119,6 +120,7 @@ async def handle_new_canvas(
     # Clear piece_completed flag and wake the orchestrator
     if workspace.orchestrator:
         workspace.orchestrator.clear_piece_completed()
+        await workspace.start_agent_loop()
         workspace.orchestrator.wake()
 
     logger.info(
@@ -182,15 +184,19 @@ async def handle_resume(workspace: ActiveWorkspace, message: dict[str, Any] | No
     await workspace.connections.broadcast(PausedMessage(paused=False))
     # Wake the orchestrator immediately to start working
     if workspace.orchestrator:
+        await workspace.start_agent_loop()
         workspace.orchestrator.wake()
     logger.info(f"User {workspace.user_id}: agent resumed")
 
 
-async def handle_animation_done(workspace: ActiveWorkspace) -> None:
+async def handle_animation_done(
+    workspace: ActiveWorkspace, message: dict[str, Any] | None = None
+) -> None:
     """Handle client signaling animation complete."""
+    batch_id = message.get("batch_id") if message else None
     if workspace.orchestrator:
-        workspace.orchestrator.signal_animation_done()
-    logger.info(f"User {workspace.user_id}: animation_done received")
+        workspace.orchestrator.signal_animation_done(batch_id)
+    logger.info(f"User {workspace.user_id}: animation_done received (batch_id={batch_id})")
 
 
 async def handle_set_style(workspace: ActiveWorkspace, message: dict[str, Any]) -> None:
@@ -260,7 +266,15 @@ async def handle_user_message(workspace: ActiveWorkspace, message: dict[str, Any
 
     if handler:
         # Handlers that need the message get it, others don't
-        if msg_type in ("stroke", "nudge", "load_canvas", "new_canvas", "resume", "set_style"):
+        if msg_type in (
+            "stroke",
+            "nudge",
+            "load_canvas",
+            "new_canvas",
+            "resume",
+            "set_style",
+            "animation_done",
+        ):
             await handler(workspace, message)
         else:
             await handler(workspace)

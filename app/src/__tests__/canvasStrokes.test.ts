@@ -9,7 +9,7 @@
  * 1. human_stroke messages add strokes directly
  * 2. agent_strokes_ready signals pending strokes for REST fetch
  * 3. Status transitions gate when drawing starts
- * 4. Idle animation shows only when canvas empty + status idle
+ * 4. Idle animation shows only until first stroke is committed
  */
 
 import {
@@ -426,15 +426,13 @@ describe('status transitions during drawing', () => {
 // =============================================================================
 
 describe('idle animation visibility', () => {
-  it('shows idle animation when canvas empty, no user stroke, status idle', () => {
+  it('shows idle animation when canvas empty and not drawing', () => {
     const state: CanvasHookState = {
       ...initialState,
-      paused: false,
       strokes: [],
       currentStroke: [],
     };
 
-    expect(deriveAgentStatus(state)).toBe('idle');
     expect(shouldShowIdleAnimation(state)).toBe(true);
   });
 
@@ -446,7 +444,6 @@ describe('idle animation visibility', () => {
       currentStroke: [],
     };
 
-    expect(deriveAgentStatus(state)).toBe('idle');
     expect(shouldShowIdleAnimation(state)).toBe(false);
   });
 
@@ -458,68 +455,6 @@ describe('idle animation visibility', () => {
       currentStroke: [{ x: 5, y: 5 }], // user mid-stroke
     };
 
-    expect(deriveAgentStatus(state)).toBe('idle');
-    expect(shouldShowIdleAnimation(state)).toBe(false);
-  });
-
-  it('hides idle animation when paused', () => {
-    const state: CanvasHookState = {
-      ...initialState,
-      paused: true,
-      strokes: [],
-      currentStroke: [],
-    };
-
-    expect(deriveAgentStatus(state)).toBe('paused');
-    expect(shouldShowIdleAnimation(state)).toBe(false);
-  });
-
-  it('hides idle animation when thinking', () => {
-    const state: CanvasHookState = {
-      ...initialState,
-      paused: false,
-      strokes: [],
-      currentStroke: [],
-      thinking: 'Thinking...',
-    };
-
-    expect(deriveAgentStatus(state)).toBe('thinking');
-    expect(shouldShowIdleAnimation(state)).toBe(false);
-  });
-
-  it('hides idle animation when drawing (pendingStrokes set)', () => {
-    const state: CanvasHookState = {
-      ...initialState,
-      paused: false,
-      strokes: [],
-      currentStroke: [],
-      pendingStrokes: { count: 5, batchId: 1, pieceNumber: 0 },
-    };
-
-    expect(deriveAgentStatus(state)).toBe('drawing');
-    expect(shouldShowIdleAnimation(state)).toBe(false);
-  });
-
-  it('hides idle animation when executing', () => {
-    const state: CanvasHookState = {
-      ...initialState,
-      paused: false,
-      strokes: [],
-      currentStroke: [],
-      messages: [
-        {
-          id: 'exec_1',
-          type: 'code_execution',
-          text: 'Drawing...',
-          timestamp: Date.now(),
-          iteration: 1,
-          status: 'started', // in-progress
-          metadata: { tool_name: 'draw_paths' },
-        },
-      ],
-    };
-
-    expect(deriveAgentStatus(state)).toBe('executing');
     expect(shouldShowIdleAnimation(state)).toBe(false);
   });
 });

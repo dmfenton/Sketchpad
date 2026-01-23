@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi import WebSocket
 
+from code_monet.config import settings
 from code_monet.workspace import WorkspaceState
 
 logger = logging.getLogger(__name__)
@@ -15,8 +16,8 @@ logger = logging.getLogger(__name__)
 # Grace period before deactivating idle workspace (seconds)
 IDLE_GRACE_PERIOD = 300  # 5 minutes
 
-# Maximum WebSocket connections per user (prevents resource exhaustion)
-MAX_CONNECTIONS_PER_USER = 5
+# Maximum WebSocket connections per user (0 = unlimited)
+MAX_CONNECTIONS_PER_USER = settings.max_connections_per_user
 
 
 class UserConnectionManager:
@@ -35,10 +36,12 @@ class UserConnectionManager:
 
         Returns True if connection was added, False if limit reached.
         """
-        if len(self.connections) >= MAX_CONNECTIONS_PER_USER:
-            logger.warning(
+        if MAX_CONNECTIONS_PER_USER > 0 and len(self.connections) >= MAX_CONNECTIONS_PER_USER:
+            client = getattr(websocket, "client", None)
+            client_info = f"{client.host}:{client.port}" if client else "unknown"
+            logger.error(
                 f"User {self.user_id}: connection limit reached "
-                f"({MAX_CONNECTIONS_PER_USER}), rejecting new connection"
+                f"({MAX_CONNECTIONS_PER_USER}), rejecting connection from {client_info}"
             )
             return False
         self.connections.append(websocket)
@@ -124,10 +127,26 @@ class ActiveWorkspace:
     _idle_task: asyncio.Task[None] | None = field(default=None, repr=False)
 
     async def start_agent_loop(self) -> None:
-        """Start the agent orchestrator loop."""
-        if self.orchestrator and self.loop_task is None:
-            self.loop_task = asyncio.create_task(self.orchestrator.run_loop())
-            logger.info(f"User {self.user_id}: agent loop started")
+        """Start (or restart) the agent orchestrator loop."""
+        if not self.orchestrator:
+            return
+
+        if self.loop_task and not self.loop_task.done():
+            return
+
+        if self.loop_task and self.loop_task.done():
+            if self.loop_task.cancelled():
+                logger.info(f"User {self.user_id}: agent loop cancelled, restarting")
+            else:
+                exc = self.loop_task.exception()
+                if exc:
+                    logger.warning(
+                        f"User {self.user_id}: agent loop exited with error, restarting: {exc}"
+                    )
+            self.loop_task = None
+
+        self.loop_task = asyncio.create_task(self.orchestrator.run_loop())
+        logger.info(f"User {self.user_id}: agent loop started")
 
     async def stop_agent_loop(self) -> None:
         """Stop the agent orchestrator loop."""
@@ -162,15 +181,20 @@ class WorkspaceRegistry:
         """
         # Fast path: check if already exists (no lock needed for read)
         if user_id in self._workspaces:
-            ws = self._workspaces[user_id]
+            ws: ActiveWorkspace | None = None
             # Cancel any pending deactivation
             async with self._lock:
-                if ws._idle_task and not ws._idle_task.done():
+                ws = self._workspaces.get(user_id)
+                if ws and ws._idle_task and not ws._idle_task.done():
                     ws._idle_task.cancel()
                     ws._idle_task = None
-            return ws
+            if ws:
+                await ws.start_agent_loop()
+                return ws
 
         # Slow path: need to activate
+        ws = None
+        should_activate = False
         async with self._lock:
             # Double-check after acquiring lock
             if user_id in self._workspaces:
@@ -178,18 +202,19 @@ class WorkspaceRegistry:
                 if ws._idle_task and not ws._idle_task.done():
                     ws._idle_task.cancel()
                     ws._idle_task = None
-                return ws
 
             # Check if another task is already loading this workspace
-            if user_id in self._loading:
-                # Wait for the other task to finish loading
-                pass
-            else:
+            elif user_id not in self._loading:
                 # Mark as loading and release lock during I/O
                 self._loading.add(user_id)
+                should_activate = True
+
+        if ws:
+            await ws.start_agent_loop()
+            return ws
 
         # If we marked it as loading, do the activation outside the lock
-        if user_id in self._loading:
+        if should_activate:
             try:
                 workspace = await self._activate_workspace(user_id)
                 async with self._lock:
@@ -207,8 +232,10 @@ class WorkspaceRegistry:
 
         # Should now be available
         async with self._lock:
-            if user_id in self._workspaces:
-                return self._workspaces[user_id]
+            ws = self._workspaces.get(user_id)
+        if ws:
+            await ws.start_agent_loop()
+            return ws
 
         # Fallback: load ourselves (shouldn't normally reach here)
         return await self.get_or_activate(user_id)

@@ -633,6 +633,7 @@ export interface ClientSetStyleMessage {
 
 export interface ClientAnimationDoneMessage {
   type: 'animation_done';
+  batch_id: number;
 }
 
 export type ClientMessage =

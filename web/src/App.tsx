@@ -9,6 +9,7 @@ import {
   shouldShowIdleAnimation,
   STATUS_LABELS,
   useCanvas,
+  usePendingStrokes,
   usePerformer,
 } from '@code-monet/shared';
 import { getApiUrl } from './config';
@@ -32,35 +33,34 @@ function App(): React.ReactElement {
   // Derive status from messages
   const agentStatus = deriveAgentStatus(state);
 
-  // Fetch and enqueue strokes when pendingStrokes arrives
-  const lastFetchedBatchRef = useRef<number>(0);
-  useEffect(() => {
-    const { pendingStrokes } = state;
-    if (!pendingStrokes || !accessToken) return;
-    if (pendingStrokes.batchId <= lastFetchedBatchRef.current) return;
+  const fetchPendingStrokes = useCallback(async (): Promise<PendingStroke[]> => {
+    if (!accessToken) {
+      throw new Error('Missing access token');
+    }
+    const response = await fetch(`${getApiUrl()}/strokes/pending`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch strokes');
+    const data = (await response.json()) as { strokes: PendingStroke[] };
+    return data.strokes;
+  }, [accessToken]);
 
-    const fetchAndEnqueue = async () => {
-      try {
-        const response = await fetch(`${getApiUrl()}/strokes/pending`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (!response.ok) throw new Error('Failed to fetch strokes');
-        const data = (await response.json()) as { strokes: PendingStroke[] };
-        lastFetchedBatchRef.current = pendingStrokes.batchId;
-        dispatch({ type: 'ENQUEUE_STROKES', strokes: data.strokes });
-        dispatch({ type: 'CLEAR_PENDING_STROKES' });
-      } catch (error) {
-        console.error('[App] Failed to fetch strokes:', error);
-      }
-    };
-
-    void fetchAndEnqueue();
-  }, [state.pendingStrokes, accessToken, dispatch]);
+  usePendingStrokes({
+    pendingStrokes: accessToken ? state.pendingStrokes : null,
+    fetchPendingStrokes,
+    enqueueStrokes: (strokes) => dispatch({ type: 'ENQUEUE_STROKES', strokes }),
+    clearPending: () => dispatch({ type: 'CLEAR_PENDING_STROKES' }),
+    onError: (error) => {
+      console.error('[App] Failed to fetch strokes:', error);
+    },
+  });
 
   // Callback when stroke animation completes
-  const sendRef = useRef<((msg: { type: 'animation_done' }) => void) | null>(null);
-  const handleStrokesComplete = useCallback(() => {
-    sendRef.current?.({ type: 'animation_done' });
+  const sendRef = useRef<((msg: { type: 'animation_done'; batch_id: number }) => void) | null>(
+    null
+  );
+  const handleStrokesComplete = useCallback((batchId: number) => {
+    sendRef.current?.({ type: 'animation_done', batch_id: batchId });
   }, []);
 
   // Performance animation loop

@@ -294,6 +294,8 @@ class VisualFlowTest:
         modal_input_selector = ".modal input[type='text']"
         try:
             await self.page.wait_for_selector(modal_input_selector, timeout=5000)
+            if not await self.wait_for_input_enabled(modal_input_selector, timeout=10.0):
+                self.log("[UI] Modal input disabled (WS not connected?)", YELLOW)
             await self.page.fill(modal_input_selector, self.prompt)
             self.record_event("prompt_entered", {"prompt": self.prompt})
 
@@ -317,6 +319,9 @@ class VisualFlowTest:
         except Exception:
             self.log("Home panel input not found, trying to continue anyway", YELLOW)
             return
+
+        if not await self.wait_for_input_enabled(input_selector, timeout=10.0):
+            self.log("[UI] Prompt input disabled (WS not connected?)", YELLOW)
 
         # Type the prompt
         await self.page.fill(input_selector, self.prompt)
@@ -421,6 +426,27 @@ class VisualFlowTest:
         while not self.init_received and time.monotonic() - start < timeout:
             await asyncio.sleep(0.1)
         return self.init_received
+
+    async def wait_for_input_enabled(self, selector: str, timeout: float = 10.0) -> bool:
+        """Wait for an input element to become enabled."""
+        if not self.page:
+            return False
+        try:
+            await self.page.wait_for_function(
+                """
+                (sel) => {
+                    const el = document.querySelector(sel);
+                    if (!el) return false;
+                    const disabled = el.disabled || el.getAttribute('aria-disabled') === 'true';
+                    return !disabled;
+                }
+                """,
+                selector,
+                timeout=timeout * 1000,
+            )
+            return True
+        except Exception:
+            return False
 
     def write_summary(self) -> None:
         """Write test summary to file."""

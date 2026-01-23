@@ -57,6 +57,7 @@ class AgentOrchestrator:
 
     # Event for client animation completion
     _animation_done_event: asyncio.Event = field(default_factory=asyncio.Event)
+    _animation_wait_batch_id: int | None = field(default=None)
 
     # Track piece completion - prevents auto-starting new turns
     _piece_completed: bool = field(default=False)
@@ -67,12 +68,21 @@ class AgentOrchestrator:
         # Set up tool completion callback to broadcast "completed" events
         self.agent.set_on_tool_complete(self._handle_tool_complete)
 
-    def signal_animation_done(self) -> None:
+    def signal_animation_done(self, batch_id: int | None) -> None:
         """Signal that client has finished animating strokes.
 
         Called from user_handlers when client sends animation_done message.
         """
-        logger.info("[ORCH] animation_done signal received")
+        if self._animation_wait_batch_id is None:
+            logger.warning("[ORCH] animation_done received with no pending batch")
+            return
+        if batch_id != self._animation_wait_batch_id:
+            logger.warning(
+                "[ORCH] animation_done ignored (batch mismatch): "
+                f"expected={self._animation_wait_batch_id}, got={batch_id}"
+            )
+            return
+        logger.info(f"[ORCH] animation_done received for batch {batch_id}")
         self._animation_done_event.set()
 
     def wake(self) -> None:
@@ -131,7 +141,9 @@ class AgentOrchestrator:
         # Notify clients that strokes are ready (include piece_number to prevent cross-canvas rendering)
         await self.broadcaster.broadcast(
             AgentStrokesReadyMessage(
-                count=len(paths), batch_id=batch_id, piece_number=state.piece_number
+                count=len(expanded_paths),
+                batch_id=batch_id,
+                piece_number=state.piece_number,
             )
         )
 
@@ -144,11 +156,14 @@ class AgentOrchestrator:
 
         logger.info(f">>> Waiting for animation_done signal (timeout: {timeout_s:.2f}s)")
         self._animation_done_event.clear()
+        self._animation_wait_batch_id = batch_id
         try:
             await asyncio.wait_for(self._animation_done_event.wait(), timeout=timeout_s)
             logger.info(">>> Client signaled animation_done")
         except TimeoutError:
             logger.warning(f">>> Animation wait timed out after {timeout_s:.2f}s")
+        finally:
+            self._animation_wait_batch_id = None
 
     def create_callbacks(self) -> AgentCallbacks:
         """Create callbacks for agent events."""
