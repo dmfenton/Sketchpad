@@ -11,7 +11,7 @@ import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { AgentStatus, PerformanceState, ToolName } from '@code-monet/shared';
-import { bionicWord, TOOL_DISPLAY_NAMES } from '@code-monet/shared';
+import { TOOL_DISPLAY_NAMES } from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
 import { debugRender } from '../utils/debugLog';
 
@@ -62,15 +62,9 @@ function getStatusLabel(status: AgentStatus, currentTool?: ToolName | null): str
   }
 }
 
-/** Renders a word with bionic reading formatting (bold first ~40%) */
+/** Renders a word (bionic reading disabled - renders as plain text) */
 function BionicWord({ word }: { word: string }): React.JSX.Element {
-  const { bold, regular } = bionicWord(word);
-  return (
-    <Text>
-      <Text style={{ fontWeight: '700' }}>{bold}</Text>
-      <Text>{regular}</Text>
-    </Text>
-  );
+  return <Text>{word}</Text>;
 }
 
 export function LiveStatus({
