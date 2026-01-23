@@ -124,7 +124,7 @@ export function Canvas({
           const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
           const isPaintMode = styleConfig.type === 'paint';
           if (stroke.type !== 'svg' && stroke.points.length === 1) {
-            const pt = stroke.points[0];
+            const pt = stroke.points[0]!;
             const radius = Math.max(1, effectiveStyle.stroke_width / 2);
             return (
               <circle
@@ -155,8 +155,8 @@ export function Canvas({
         {currentStroke.length > 0 &&
           (currentStroke.length === 1 ? (
             <circle
-              cx={currentStroke[0].x}
-              cy={currentStroke[0].y}
+              cx={currentStroke[0]!.x}
+              cy={currentStroke[0]!.y}
               r={Math.max(1, styleConfig.human_stroke.stroke_width / 2)}
               fill={styleConfig.human_stroke.color}
               opacity={styleConfig.human_stroke.opacity}
@@ -204,8 +204,8 @@ export function Canvas({
             if (agentStroke.length === 1) {
               return (
                 <circle
-                  cx={agentStroke[0].x}
-                  cy={agentStroke[0].y}
+                  cx={agentStroke[0]!.x}
+                  cy={agentStroke[0]!.y}
                   r={Math.max(1, effectiveWidth / 2)}
                   fill={effectiveColor}
                   opacity={effectiveOpacity}
