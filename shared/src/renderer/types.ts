@@ -7,8 +7,11 @@ import type { DrawingStyleConfig, Path, Point, StrokeStyle } from '../types';
 
 /**
  * Available renderer types.
+ * - 'svg': Basic SVG rendering (default, no extra dependencies)
+ * - 'freehand': SVG with perfect-freehand natural strokes (works now)
+ * - 'skia': GPU-accelerated with @shopify/react-native-skia (requires install)
  */
-export type RendererType = 'svg' | 'skia';
+export type RendererType = 'svg' | 'freehand' | 'skia';
 
 /**
  * Renderer configuration with feature flags.

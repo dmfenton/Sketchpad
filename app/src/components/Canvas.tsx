@@ -11,7 +11,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { screenToCanvas } from '../hooks/useCanvas';
 import { useRendererConfig } from '../context/RendererContext';
-import { SvgRenderer } from '../renderers/SvgRenderer';
+import { SvgRenderer, FreehandSvgRenderer } from '../renderers';
 import type { DrawingStyleConfig, Path, Point, RendererProps, StrokeStyle } from '@code-monet/shared';
 import { CANVAS_ASPECT_RATIO, CANVAS_HEIGHT, CANVAS_WIDTH, PLOTTER_STYLE } from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
@@ -96,10 +96,20 @@ export function Canvas({
   };
 
   // Select renderer based on config
-  // For now, only SvgRenderer is available
-  // When Skia is installed, this will be:
-  // const Renderer = config.renderer === 'skia' ? SkiaRenderer : SvgRenderer;
-  const Renderer = SvgRenderer;
+  // - 'svg': Basic SVG rendering (default)
+  // - 'freehand': SVG with perfect-freehand natural strokes
+  // - 'skia': GPU-accelerated (requires @shopify/react-native-skia)
+  const Renderer = (() => {
+    switch (config.renderer) {
+      case 'freehand':
+        return FreehandSvgRenderer;
+      // case 'skia':
+      //   return SkiaRenderer; // Uncomment when Skia is installed
+      case 'svg':
+      default:
+        return SvgRenderer;
+    }
+  })();
 
   return (
     <View
