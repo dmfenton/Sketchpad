@@ -18,6 +18,9 @@ import { BIONIC_CHUNK_INTERVAL_MS, BIONIC_CHUNK_SIZE } from '../utils';
 // Hold completed text for this duration before advancing to next chunk
 const HOLD_AFTER_WORDS_MS = 800;
 
+// Hold events on stage for this duration so "executing" status is visible
+const HOLD_EVENT_MS = 500;
+
 export interface UsePerformerOptions {
   /** Current performance state */
   performance: PerformanceState;
@@ -129,9 +132,14 @@ export function usePerformer({
         }
 
         case 'event': {
-          // Events are instant - just complete
-          // The event message is already in the performance history
-          dispatch({ type: 'STAGE_COMPLETE' });
+          // Hold event on stage briefly so "executing" status is visible
+          if (holdStartRef.current === null) {
+            holdStartRef.current = time;
+          }
+          if (time - holdStartRef.current >= HOLD_EVENT_MS) {
+            holdStartRef.current = null;
+            dispatch({ type: 'STAGE_COMPLETE' });
+          }
           break;
         }
 
