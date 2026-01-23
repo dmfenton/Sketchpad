@@ -1,35 +1,9 @@
 /**
- * Tests for bionic reading utilities.
+ * Tests for text utilities.
  */
 
-import { bionicWord, chunkWords, getLastToolCall } from '@code-monet/shared';
+import { chunkWords, getLastToolCall } from '@code-monet/shared';
 import type { AgentMessage } from '@code-monet/shared';
-
-describe('bionicWord', () => {
-  it('returns empty bold for single char', () => {
-    expect(bionicWord('a')).toEqual({ bold: '', regular: 'a' });
-  });
-
-  it('returns empty bold for empty string', () => {
-    expect(bionicWord('')).toEqual({ bold: '', regular: '' });
-  });
-
-  it('bolds first char for 2-3 char words', () => {
-    expect(bionicWord('hi')).toEqual({ bold: 'h', regular: 'i' });
-    expect(bionicWord('the')).toEqual({ bold: 't', regular: 'he' });
-  });
-
-  it('bolds first 2 chars for 4 char words', () => {
-    expect(bionicWord('word')).toEqual({ bold: 'wo', regular: 'rd' });
-    expect(bionicWord('test')).toEqual({ bold: 'te', regular: 'st' });
-  });
-
-  it('bolds ~40% for longer words', () => {
-    expect(bionicWord('reading')).toEqual({ bold: 'rea', regular: 'ding' }); // 7 chars, ceil(7*0.4)=3
-    expect(bionicWord('hello')).toEqual({ bold: 'he', regular: 'llo' }); // 5 chars, ceil(5*0.4)=2
-    expect(bionicWord('beautiful')).toEqual({ bold: 'beau', regular: 'tiful' }); // 9 chars, ceil(9*0.4)=4
-  });
-});
 
 describe('chunkWords', () => {
   it('splits text into chunks of specified size', () => {
