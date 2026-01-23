@@ -148,7 +148,13 @@ def render_strokes(
     if options.expand_brushes:
         for path in strokes:
             if path.brush:
-                paths_to_render.extend(expand_brush_stroke(path))
+                paths_to_render.extend(
+                    expand_brush_stroke(
+                        path,
+                        canvas_width=options.width,
+                        canvas_height=options.height,
+                    )
+                )
             else:
                 paths_to_render.append(path)
     else:

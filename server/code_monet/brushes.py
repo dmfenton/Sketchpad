@@ -15,6 +15,7 @@ from .types import (
     Path,
     PathType,
     Point,
+    clamp_value,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,9 +24,40 @@ logger = logging.getLogger(__name__)
 EDGE_NOISE_SCALE = 0.3  # Scale factor for edge noise displacement
 BRISTLE_OPACITY_VARIANCE = (0.8, 1.2)  # Min/max opacity variation for bristles
 BRISTLE_OFFSET_RANDOMNESS = 0.1  # Randomness factor for bristle offsets
+STROKE_WIDTH_MIN = 0.5
+STROKE_WIDTH_MAX = 30.0
 
 
-def expand_brush_stroke(path: Path, preset: BrushPreset | None = None) -> list[Path]:
+def _clamp_stroke_width(value: float) -> float:
+    return clamp_value(value, STROKE_WIDTH_MIN, STROKE_WIDTH_MAX)
+
+
+def _clamp_points(
+    points: list[Point],
+    canvas_width: float | None,
+    canvas_height: float | None,
+) -> list[Point]:
+    if canvas_width is None or canvas_height is None or not points:
+        return points
+    max_x = float(canvas_width)
+    max_y = float(canvas_height)
+    clamped: list[Point] = []
+    changed = False
+    for point in points:
+        x = clamp_value(point.x, 0.0, max_x)
+        y = clamp_value(point.y, 0.0, max_y)
+        if x != point.x or y != point.y:
+            changed = True
+        clamped.append(Point(x=x, y=y))
+    return clamped if changed else points
+
+
+def expand_brush_stroke(
+    path: Path,
+    preset: BrushPreset | None = None,
+    canvas_width: float | None = None,
+    canvas_height: float | None = None,
+) -> list[Path]:
     """Expand a single path into multiple paths based on brush preset.
 
     Args:
@@ -57,13 +89,16 @@ def expand_brush_stroke(path: Path, preset: BrushPreset | None = None) -> list[P
 
     # Determine effective stroke width
     base_width = path.stroke_width if path.stroke_width else preset.base_width
+    base_width = _clamp_stroke_width(base_width)
 
     # Calculate velocity-based width variation if pressure_response > 0
     widths = _calculate_velocity_widths(points, base_width, preset.pressure_response)
+    widths = [_clamp_stroke_width(width) for width in widths]
 
     # Apply edge noise if configured
     if preset.edge_noise > 0:
         points = _apply_edge_noise(points, preset.edge_noise, base_width)
+    points = _clamp_points(points, canvas_width, canvas_height)
 
     result_paths: list[Path] = []
 
@@ -86,6 +121,8 @@ def expand_brush_stroke(path: Path, preset: BrushPreset | None = None) -> list[P
             preset=preset,
             color=path.color,
             author=path.author,
+            canvas_width=canvas_width,
+            canvas_height=canvas_height,
         )
         result_paths.extend(bristle_paths)
 
@@ -223,6 +260,7 @@ def _create_stroke_path(
     """
     # Calculate average width (client will handle actual tapering)
     avg_width = sum(widths) / len(widths) if widths else 8.0
+    avg_width = _clamp_stroke_width(avg_width)
 
     return Path(
         type=PathType.POLYLINE,
@@ -241,6 +279,8 @@ def _create_bristle_strokes(
     preset: BrushPreset,
     color: str | None,
     author: str,
+    canvas_width: float | None = None,
+    canvas_height: float | None = None,
 ) -> list[Path]:
     """Create bristle sub-strokes offset from the main path.
 
@@ -259,11 +299,12 @@ def _create_bristle_strokes(
 
     bristle_paths: list[Path] = []
     avg_width = sum(widths) / len(widths) if widths else preset.base_width
+    avg_width = _clamp_stroke_width(avg_width)
 
     # Calculate bristle offsets
     # Distribute bristles across the stroke width
     total_spread = avg_width * preset.bristle_spread
-    bristle_width = avg_width * preset.bristle_width_ratio
+    bristle_width = _clamp_stroke_width(avg_width * preset.bristle_width_ratio)
 
     for i in range(preset.bristle_count):
         # Calculate offset position for this bristle
@@ -281,6 +322,7 @@ def _create_bristle_strokes(
 
         # Create offset points for this bristle
         bristle_points = _offset_path(points, offset)
+        bristle_points = _clamp_points(bristle_points, canvas_width, canvas_height)
 
         # Vary opacity slightly per bristle
         opacity_variation = random.uniform(*BRISTLE_OPACITY_VARIANCE)

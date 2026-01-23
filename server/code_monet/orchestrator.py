@@ -122,7 +122,11 @@ class AgentOrchestrator:
         for path in paths:
             if is_paint_mode and path.brush:
                 # Expand this path into multiple bristle strokes
-                brush_paths = expand_brush_stroke(path)
+                brush_paths = expand_brush_stroke(
+                    path,
+                    canvas_width=state.canvas.width,
+                    canvas_height=state.canvas.height,
+                )
                 expanded_paths.extend(brush_paths)
                 logger.debug(f"Expanded brush '{path.brush}' into {len(brush_paths)} paths")
             else:

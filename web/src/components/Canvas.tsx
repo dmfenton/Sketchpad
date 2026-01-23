@@ -123,6 +123,20 @@ export function Canvas({
         {strokes.map((stroke, index) => {
           const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
           const isPaintMode = styleConfig.type === 'paint';
+          if (stroke.type !== 'svg' && stroke.points.length === 1) {
+            const pt = stroke.points[0]!;
+            const radius = Math.max(1, effectiveStyle.stroke_width / 2);
+            return (
+              <circle
+                key={`stroke-dot-${index}`}
+                cx={pt.x}
+                cy={pt.y}
+                r={radius}
+                fill={effectiveStyle.color}
+                opacity={effectiveStyle.opacity}
+              />
+            );
+          }
           return (
             <path
               key={`stroke-${index}`}
@@ -139,7 +153,15 @@ export function Canvas({
 
         {/* Current stroke in progress (human drawing) */}
         {currentStroke.length > 0 &&
-          (styleConfig.type === 'paint' && currentStroke.length > 3 ? (
+          (currentStroke.length === 1 ? (
+            <circle
+              cx={currentStroke[0]!.x}
+              cy={currentStroke[0]!.y}
+              r={Math.max(1, styleConfig.human_stroke.stroke_width / 2)}
+              fill={styleConfig.human_stroke.color}
+              opacity={styleConfig.human_stroke.opacity}
+            />
+          ) : styleConfig.type === 'paint' && currentStroke.length > 3 ? (
             // Paint mode: tapered brush stroke
             <path
               d={createTaperedStrokePath(
@@ -163,7 +185,7 @@ export function Canvas({
           ))}
 
         {/* Agent's in-progress stroke */}
-        {agentStroke.length > 1 &&
+        {agentStroke.length > 0 &&
           (() => {
             // Get effective style - use agentStrokeStyle overrides in paint mode
             const effectiveColor =
@@ -178,6 +200,18 @@ export function Canvas({
               styleConfig.supports_opacity && agentStrokeStyle?.opacity !== undefined
                 ? agentStrokeStyle.opacity
                 : styleConfig.agent_stroke.opacity;
+
+            if (agentStroke.length === 1) {
+              return (
+                <circle
+                  cx={agentStroke[0]!.x}
+                  cy={agentStroke[0]!.y}
+                  r={Math.max(1, effectiveWidth / 2)}
+                  fill={effectiveColor}
+                  opacity={effectiveOpacity}
+                />
+              );
+            }
 
             return styleConfig.type === 'paint' && agentStroke.length > 3 ? (
               // Paint mode: tapered brush stroke with smooth curves

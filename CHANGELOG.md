@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Single-point strokes now render as visible circles instead of invisible zero-length paths
+- Stroke widths clamped to [0.5, 30] range to prevent rendering artifacts
+- Brush expansion points clamped to canvas boundaries preventing out-of-bounds strokes
+
+### Added
+
+- Painting experiment scripts for stroke correctness analysis
+
 ## [1.33.1] - 2026-01-22
 
 ### Fixed

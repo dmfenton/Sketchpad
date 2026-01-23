@@ -21,6 +21,7 @@ from code_monet.types.geometry import (
     PendingStrokeDict,
     Point,
     PointDict,
+    clamp_value,
 )
 from code_monet.types.messages import (
     AgentEvent,
@@ -73,6 +74,7 @@ __all__ = [
     "PendingStrokeDict",
     "Point",
     "PointDict",
+    "clamp_value",
     # Brushes
     "BRUSH_PRESETS",
     "BrushPreset",
