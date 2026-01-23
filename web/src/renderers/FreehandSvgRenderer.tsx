@@ -1,19 +1,14 @@
 /**
- * SVG renderer with perfect-freehand for natural strokes.
+ * SVG renderer with perfect-freehand for natural strokes (web version).
  *
  * This renderer uses perfect-freehand to generate natural-looking
  * stroke outlines, then renders them as filled SVG paths.
- * Works without Skia, providing painterly effects via SVG.
  */
 
 import React, { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
-import Svg, { Circle, Defs, G, Path as SvgPath, Filter, FeGaussianBlur } from 'react-native-svg';
 
 import type { Point, RendererProps, StrokeStyle, BrushName } from '@code-monet/shared';
 import {
-  CANVAS_HEIGHT,
-  CANVAS_WIDTH,
   getEffectiveStyle,
   getFreehandOutline,
   outlineToSvgPath,
@@ -72,10 +67,10 @@ function FreehandStroke({
   const filterId = blur ? 'painterly-blur' : undefined;
 
   return (
-    <G filter={filterId ? `url(#${filterId})` : undefined}>
+    <g filter={filterId ? `url(#${filterId})` : undefined}>
       {/* Bristle strokes (background texture) */}
       {bristlePaths.map((d, i) => (
-        <SvgPath
+        <path
           key={`bristle-${i}`}
           d={d}
           fill={style.color}
@@ -84,12 +79,12 @@ function FreehandStroke({
       ))}
 
       {/* Main stroke */}
-      <SvgPath
+      <path
         d={mainPath}
         fill={style.color}
         fillOpacity={(brush?.mainOpacity ?? 1) * style.opacity}
       />
-    </G>
+    </g>
   );
 }
 
@@ -98,7 +93,7 @@ function FreehandStroke({
  */
 function StrokeDot({ point, style }: { point: Point; style: StrokeStyle }): React.ReactElement {
   const radius = Math.max(style.stroke_width / 2, 1.5);
-  return <Circle cx={point.x} cy={point.y} r={radius} fill={style.color} fillOpacity={style.opacity} />;
+  return <circle cx={point.x} cy={point.y} r={radius} fill={style.color} fillOpacity={style.opacity} />;
 }
 
 /**
@@ -117,8 +112,8 @@ function PenIndicator({
   const innerRadius = penDown ? 3 : 4;
 
   return (
-    <G>
-      <Circle
+    <g>
+      <circle
         cx={position.x}
         cy={position.y}
         r={outerRadius}
@@ -127,15 +122,15 @@ function PenIndicator({
         strokeWidth={1.5}
         strokeOpacity={0.6}
       />
-      <Circle cx={position.x} cy={position.y} r={innerRadius} fill={color} fillOpacity={0.8} />
-    </G>
+      <circle cx={position.x} cy={position.y} r={innerRadius} fill={color} fillOpacity={0.8} />
+    </g>
   );
 }
 
 /**
- * FreehandSvgRenderer - SVG renderer with perfect-freehand strokes.
+ * FreehandSvgRenderer - SVG renderer with perfect-freehand strokes (web version).
  *
- * Provides painterly effects without requiring Skia:
+ * Provides painterly effects without requiring Skia/canvaskit:
  * - Natural pressure-sensitive stroke outlines
  * - Bristle texture simulation
  * - SVG blur filter for soft edges
@@ -149,29 +144,18 @@ export function FreehandSvgRenderer({
   penDown,
   styleConfig,
   showIdleAnimation,
-  // width and height come from props but we use CANVAS_WIDTH/HEIGHT constants
-  width: _width,
-  height: _height,
   primaryColor,
 }: RendererProps): React.ReactElement {
-  void _width;
-  void _height;
   const isPaintMode = styleConfig.type === 'paint';
 
   return (
-    <Svg
-      width="100%"
-      height="100%"
-      viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
-      preserveAspectRatio="xMidYMid meet"
-      style={styles.svg}
-    >
+    <>
       {/* Define blur filter for painterly effect */}
-      <Defs>
-        <Filter id="painterly-blur" x="-20%" y="-20%" width="140%" height="140%">
-          <FeGaussianBlur stdDeviation="1.5" />
-        </Filter>
-      </Defs>
+      <defs>
+        <filter id="painterly-blur" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="1.5" />
+        </filter>
+      </defs>
 
       {/* Idle animation particles */}
       <IdleParticles visible={showIdleAnimation} />
@@ -220,12 +204,6 @@ export function FreehandSvgRenderer({
 
       {/* Pen position indicator */}
       {penPosition && <PenIndicator position={penPosition} penDown={penDown} color={primaryColor} />}
-    </Svg>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  svg: {
-    flex: 1,
-  },
-});

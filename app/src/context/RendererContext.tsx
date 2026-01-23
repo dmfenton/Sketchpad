@@ -16,7 +16,7 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 import Constants from 'expo-constants';
 
 import type { RendererConfig, RendererContextValue, RendererType } from '@code-monet/shared';
-import { DEFAULT_RENDERER_CONFIG, getDefaultConfigForRenderer } from '@code-monet/shared';
+import { getDefaultConfigForRenderer } from '@code-monet/shared';
 
 const RendererContext = createContext<RendererContextValue | null>(null);
 

@@ -14,7 +14,7 @@ import {
 } from '@code-monet/shared';
 
 import { useRendererConfig } from '../context/RendererContext';
-import { SvgRenderer } from '../renderers/SvgRenderer';
+import { SvgRenderer, FreehandSvgRenderer } from '../renderers';
 
 interface CanvasProps {
   strokes: Path[];
@@ -59,8 +59,7 @@ export function Canvas({
 }: CanvasProps): React.ReactElement {
   const svgRef = useRef<SVGSVGElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  // config will be used when Skia renderer is available
-  const { config: _config } = useRendererConfig();
+  const { config } = useRendererConfig();
 
   const getPoint = useCallback((e: React.MouseEvent): Point | null => {
     if (!svgRef.current) return null;
@@ -121,10 +120,20 @@ export function Canvas({
   };
 
   // Select renderer based on config
-  // For now, only SvgRenderer is available
-  // When Skia/canvaskit is installed, this will be:
-  // const Renderer = config.renderer === 'skia' ? SkiaRenderer : SvgRenderer;
-  const Renderer = SvgRenderer;
+  // - 'svg': Basic SVG rendering (default)
+  // - 'freehand': SVG with perfect-freehand natural strokes
+  // - 'skia': GPU-accelerated (requires canvaskit-wasm)
+  const Renderer = (() => {
+    switch (config.renderer) {
+      case 'freehand':
+        return FreehandSvgRenderer;
+      // case 'skia':
+      //   return SkiaRenderer; // Uncomment when canvaskit is installed
+      case 'svg':
+      default:
+        return SvgRenderer;
+    }
+  })();
 
   return (
     <div className="canvas-wrapper">
