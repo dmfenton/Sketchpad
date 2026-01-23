@@ -73,7 +73,8 @@ export interface BionicWord {
 export const bionicWord = (word: string): BionicWord => {
   const len = word.length;
   if (len <= 1) return { bold: '', regular: word };
-  if (len <= 3) return { bold: word[0], regular: word.slice(1) };
+  // Safe: we've verified len >= 2, so word[0] exists
+  if (len <= 3) return { bold: word[0]!, regular: word.slice(1) };
   if (len === 4) return { bold: word.slice(0, 2), regular: word.slice(2) };
   const boldLen = Math.ceil(len * 0.4);
   return { bold: word.slice(0, boldLen), regular: word.slice(boldLen) };

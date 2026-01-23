@@ -9,10 +9,10 @@
  *                         [stage free? -> advance]
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import type { CanvasAction, PerformanceState } from '../canvas/reducer';
-import type { PendingStroke, StrokeStyle } from '../types';
+import type { StrokeStyle } from '../types';
 import { BIONIC_CHUNK_INTERVAL_MS, BIONIC_CHUNK_SIZE } from '../utils';
 
 // Hold completed text for this duration before advancing to next chunk
@@ -145,15 +145,15 @@ export function usePerformer({
 
         case 'strokes': {
           const strokes = onStage.strokes;
-          if (strokeIndex < strokes.length) {
-            const stroke = strokes[strokeIndex];
+          const stroke = strokes[strokeIndex];
+          if (stroke !== undefined) {
             const points = stroke.points;
             const pointIndex = strokePointIndexRef.current;
+            const point = points[pointIndex];
 
-            if (pointIndex < points.length) {
+            if (point !== undefined) {
               // Check if enough time has passed since last frame
               if (time - lastStrokeTimeRef.current >= frameDelayMs) {
-                const point = points[pointIndex];
                 // Extract style from path for first point
                 const style: Partial<StrokeStyle> | undefined =
                   pointIndex === 0

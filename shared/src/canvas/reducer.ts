@@ -553,10 +553,11 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
     case 'ADVANCE_STAGE': {
       const perf = state.performance;
       // Only advance if stage is empty and buffer has items
-      if (perf.onStage !== null || perf.buffer.length === 0) {
+      const next = perf.buffer[0];
+      if (perf.onStage !== null || next === undefined) {
         return state;
       }
-      const [next, ...rest] = perf.buffer;
+      const rest = perf.buffer.slice(1);
       return {
         ...state,
         performance: {
