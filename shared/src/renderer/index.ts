@@ -26,5 +26,6 @@ export {
   getFreehandOutline,
   outlineToSvgPath,
   pointsToFreehandPath,
+  samplePathPoints,
   getBristleOutlines,
 } from './freehand';

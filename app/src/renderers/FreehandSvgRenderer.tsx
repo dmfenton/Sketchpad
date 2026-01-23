@@ -21,6 +21,8 @@ import {
   getBristleOutlines,
   getBrushPreset,
   brushPresetToFreehandOptions,
+  pathToSvgD,
+  samplePathPoints,
 } from '@code-monet/shared';
 
 import { IdleParticles } from '../components/IdleParticles';
@@ -46,7 +48,7 @@ function FreehandStroke({
     const brushPreset = brushName ? getBrushPreset(brushName) : null;
     const options = brushPreset
       ? brushPresetToFreehandOptions(brushPreset, style.stroke_width)
-      : { ...PAINTERLY_FREEHAND_OPTIONS, size: style.stroke_width * 2 };
+      : { ...PAINTERLY_FREEHAND_OPTIONS, size: style.stroke_width };
 
     // Main stroke outline
     const outline = getFreehandOutline(points, options);
@@ -179,7 +181,28 @@ export function FreehandSvgRenderer({
       {/* Completed strokes */}
       {strokes.map((stroke, index) => {
         const style = getEffectiveStyle(stroke, styleConfig);
-        const points = stroke.points;
+        const points = samplePathPoints(stroke);
+
+        if (stroke.type === 'svg') {
+          const d = pathToSvgD(stroke, isPaintMode);
+          if (!d) return null;
+          const filterId = isPaintMode ? 'painterly-blur' : undefined;
+          return (
+            <SvgPath
+              key={index}
+              d={d}
+              stroke={style.color}
+              strokeWidth={style.stroke_width}
+              fill="none"
+              strokeLinecap={style.stroke_linecap}
+              strokeLinejoin={style.stroke_linejoin}
+              opacity={style.opacity}
+              filter={filterId ? `url(#${filterId})` : undefined}
+            />
+          );
+        }
+
+        if (points.length === 0) return null;
 
         // Single point = dot
         if (points.length === 1 && points[0]) {
@@ -198,25 +221,37 @@ export function FreehandSvgRenderer({
       })}
 
       {/* Current human stroke */}
-      {currentStroke.length > 0 && (
-        <FreehandStroke
-          points={currentStroke}
-          style={styleConfig.human_stroke}
-          blur={isPaintMode}
-        />
-      )}
+      {currentStroke.length > 0 &&
+        (currentStroke.length === 1 ? (
+          <StrokeDot point={currentStroke[0]!} style={styleConfig.human_stroke} />
+        ) : (
+          <FreehandStroke
+            points={currentStroke}
+            style={styleConfig.human_stroke}
+            blur={isPaintMode}
+          />
+        ))}
 
       {/* Agent in-progress stroke */}
-      {agentStroke.length > 0 && (
-        <FreehandStroke
-          points={agentStroke}
-          style={{
-            ...styleConfig.agent_stroke,
-            ...agentStrokeStyle,
-          }}
-          blur={isPaintMode}
-        />
-      )}
+      {agentStroke.length > 0 &&
+        (agentStroke.length === 1 ? (
+          <StrokeDot
+            point={agentStroke[0]!}
+            style={{
+              ...styleConfig.agent_stroke,
+              ...agentStrokeStyle,
+            }}
+          />
+        ) : (
+          <FreehandStroke
+            points={agentStroke}
+            style={{
+              ...styleConfig.agent_stroke,
+              ...agentStrokeStyle,
+            }}
+            blur={isPaintMode}
+          />
+        ))}
 
       {/* Pen position indicator */}
       {penPosition && <PenIndicator position={penPosition} penDown={penDown} color={primaryColor} />}
