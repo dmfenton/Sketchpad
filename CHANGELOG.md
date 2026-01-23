@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.33.1] - 2026-01-22
+
 ### Fixed
 
 - nginx now re-resolves Docker container IPs every 10s, eliminating 502 errors after container restarts
