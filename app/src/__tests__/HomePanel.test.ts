@@ -90,19 +90,24 @@ describe('HomePanel', () => {
 
   describe('hasRecentWork derivation', () => {
     // Mirror of hasRecentWork logic from HomePanel
+    // Show continue section if:
+    // - There are strokes on the current canvas (hasCurrentWork)
+    // - There's a saved canvas in gallery (recentCanvas)
+    // - There's an active session in progress (pieceNumber > 0)
     const hasRecentWork = (
       hasCurrentWork: boolean,
-      recentCanvas: SavedCanvas | null
+      recentCanvas: SavedCanvas | null,
+      pieceNumber: number
     ): boolean => {
-      return hasCurrentWork || recentCanvas !== null;
+      return hasCurrentWork || recentCanvas !== null || pieceNumber > 0;
     };
 
-    it('returns false when no current work and no recent canvas', () => {
-      expect(hasRecentWork(false, null)).toBe(false);
+    it('returns false when no current work, no recent canvas, and pieceNumber is 0', () => {
+      expect(hasRecentWork(false, null, 0)).toBe(false);
     });
 
     it('returns true when has current work', () => {
-      expect(hasRecentWork(true, null)).toBe(true);
+      expect(hasRecentWork(true, null, 0)).toBe(true);
     });
 
     it('returns true when has recent canvas', () => {
@@ -112,7 +117,7 @@ describe('HomePanel', () => {
         stroke_count: 10,
         created_at: '2024-01-01T00:00:00Z',
       };
-      expect(hasRecentWork(false, canvas)).toBe(true);
+      expect(hasRecentWork(false, canvas, 0)).toBe(true);
     });
 
     it('returns true when has both current work and recent canvas', () => {
@@ -122,7 +127,16 @@ describe('HomePanel', () => {
         stroke_count: 10,
         created_at: '2024-01-01T00:00:00Z',
       };
-      expect(hasRecentWork(true, canvas)).toBe(true);
+      expect(hasRecentWork(true, canvas, 0)).toBe(true);
+    });
+
+    it('returns true when pieceNumber > 0 (active session)', () => {
+      expect(hasRecentWork(false, null, 1)).toBe(true);
+      expect(hasRecentWork(false, null, 42)).toBe(true);
+    });
+
+    it('returns false when pieceNumber is negative', () => {
+      expect(hasRecentWork(false, null, -1)).toBe(false);
     });
   });
 

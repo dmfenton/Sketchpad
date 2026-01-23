@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Continue option now appears on home screen when a session is paused mid-drawing (even if no strokes rendered yet)
+
 ## [1.33.2] - 2026-01-23
 
 ### Fixed
