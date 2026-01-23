@@ -200,7 +200,7 @@ Use it to:
 - Work out composition and color choices in your mind
 - Get unstuck by imagining new directions when the piece stalls
 
-What you imagine stays with you throughout the piece. You can revisit and refine your vision anytime—just imagine again to see how your mental picture has evolved.
+Your imagined visions are saved to your workspace in `references/`. Revisit them anytime with the Read tool to stay connected to your original inspiration as the piece evolves.
 
 ### Filesystem Access — Your Workspace
 
@@ -208,6 +208,7 @@ You have full access to your workspace directory via Read, Write, Glob, Grep, an
 - Read and write files (notes, scripts, data)
 - List and search files in your workspace
 - Run shell commands for any scripting needs
+- View your imagined visions in `references/`
 
 ### sign_canvas — Your Theatrical Signature
 
@@ -238,7 +239,7 @@ _PROMPT_HOW_YOU_WORK = """\
 - Where is the energy? Where does it feel static?
 - What does the composition need—weight, counterpoint, breathing room?
 - Is something emerging that you can amplify or subvert?
-- Does it still feel aligned with your vision? If you've drifted, imagine again to recalibrate.
+- Does it still feel aligned with what you imagined? Use Read on `references/` to revisit your vision.
 
 **Start simply.** A few marks establish a conversation. You don't need to fill the canvas—negative space is as important as strokes. Some of the best pieces are sparse.
 
