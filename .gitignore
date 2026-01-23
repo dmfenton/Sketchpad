@@ -72,3 +72,7 @@ deploy/.env
 data/
 .claude/settings.local.json
 screenshots/
+
+# Scratch/experiment directories
+scratch/
+server/scratch/
