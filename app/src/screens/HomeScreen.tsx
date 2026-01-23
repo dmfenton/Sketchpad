@@ -19,6 +19,8 @@ export interface HomeScreenProps {
   wsConnected: boolean;
   /** Whether there are strokes on the current canvas */
   hasCurrentWork: boolean;
+  /** Current piece number (0 = no piece started) */
+  pieceNumber: number;
   /** Gallery entries for deriving recent canvas */
   gallery: SavedCanvas[];
   /** Current drawing style */
@@ -39,6 +41,7 @@ export function HomeScreen({
   api,
   wsConnected,
   hasCurrentWork,
+  pieceNumber,
   gallery,
   drawingStyle,
   onStyleChange,
@@ -64,6 +67,7 @@ export function HomeScreen({
         api={api}
         connected={wsConnected}
         hasCurrentWork={hasCurrentWork}
+        pieceNumber={pieceNumber}
         recentCanvas={recentCanvas}
         drawingStyle={drawingStyle}
         galleryCount={gallery.length}
