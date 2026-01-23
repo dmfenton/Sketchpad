@@ -30,7 +30,7 @@ export interface UseAppNavigationReturn {
 
 /**
  * Hook to manage app navigation between home and studio screens.
- * Handles app backgrounding - pauses agent and returns to home.
+ * Handles app backgrounding - pauses agent, stays in studio, resumes on foreground.
  */
 export function useAppNavigation({
   send,
@@ -39,9 +39,15 @@ export function useAppNavigation({
 }: UseAppNavigationOptions): UseAppNavigationReturn {
   const [inStudio, setInStudio] = useState(false);
 
-  // Track paused state in ref for AppState callback (avoids stale closure)
+  // Track state in refs for AppState callback (avoids stale closure)
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
+
+  const inStudioRef = useRef(inStudio);
+  inStudioRef.current = inStudio;
+
+  // Track if agent was running before backgrounding (for auto-resume)
+  const wasRunningBeforeBackgroundRef = useRef(false);
 
   // Enter studio mode
   const enterStudio = useCallback(() => {
@@ -57,15 +63,26 @@ export function useAppNavigation({
     setInStudio(false);
   }, [send, setPaused]);
 
-  // Pause agent and return to home when app goes to background
+  // Handle app backgrounding/foregrounding
+  // - Background: Pause agent but stay in studio
+  // - Foreground: Auto-resume if agent was running before background
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'background') {
+        // Remember if agent was running (for auto-resume on foreground)
+        wasRunningBeforeBackgroundRef.current = !pausedRef.current;
         if (!pausedRef.current) {
           send({ type: 'pause' });
           setPaused(true);
         }
-        setInStudio(false);
+        // Stay in studio - don't exit to home screen
+      } else if (nextAppState === 'active') {
+        // Auto-resume if we're in studio and agent was running before background
+        if (inStudioRef.current && wasRunningBeforeBackgroundRef.current) {
+          send({ type: 'resume' });
+          setPaused(false);
+          wasRunningBeforeBackgroundRef.current = false;
+        }
       }
     });
     return () => subscription.remove();

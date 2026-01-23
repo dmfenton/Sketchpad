@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Continue option now appears on home screen when a session is paused mid-drawing (even if no strokes rendered yet)
 
+### Changed
+
+- App now stays on canvas when backgrounded instead of returning to home screen
+- Agent auto-resumes on foreground if it was running before backgrounding
+
 ## [1.33.2] - 2026-01-23
 
 ### Fixed
