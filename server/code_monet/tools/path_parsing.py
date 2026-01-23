@@ -2,12 +2,33 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from code_monet.types import BRUSH_PRESETS, Path, PathType, Point
 
 
-def parse_path_data(path_data: dict[str, Any]) -> Path | None:
+def _clamp_value(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
+
+
+def _clamp_point(
+    x: float,
+    y: float,
+    canvas_width: float,
+    canvas_height: float,
+) -> tuple[float, float]:
+    return (
+        _clamp_value(x, 0.0, canvas_width),
+        _clamp_value(y, 0.0, canvas_height),
+    )
+
+
+def parse_path_data(
+    path_data: dict[str, Any],
+    canvas_width: float | None = None,
+    canvas_height: float | None = None,
+) -> Path | None:
     """Parse a path dictionary into a Path object.
 
     Supports optional style properties: brush, color, stroke_width, opacity.
@@ -58,6 +79,8 @@ def parse_path_data(path_data: dict[str, Any]) -> Path | None:
             d_string = path_data.get("d", "")
             if not d_string or not isinstance(d_string, str):
                 return None
+            # Brushes are ignored for SVG paths - drop to avoid confusion.
+            brush = None
             return Path(
                 type=PathType.SVG,
                 points=[],
@@ -70,9 +93,21 @@ def parse_path_data(path_data: dict[str, Any]) -> Path | None:
 
         # Parse points for other path types
         points = []
+        clamp_points = canvas_width is not None and canvas_height is not None
+        max_x = float(canvas_width) if canvas_width is not None else 0.0
+        max_y = float(canvas_height) if canvas_height is not None else 0.0
         for pt in points_data:
             if isinstance(pt, dict) and "x" in pt and "y" in pt:
-                points.append(Point(x=float(pt["x"]), y=float(pt["y"])))
+                try:
+                    x = float(pt["x"])
+                    y = float(pt["y"])
+                except (TypeError, ValueError):
+                    return None
+                if not math.isfinite(x) or not math.isfinite(y):
+                    return None
+                if clamp_points:
+                    x, y = _clamp_point(x, y, max_x, max_y)
+                points.append(Point(x=x, y=y))
             else:
                 return None
 

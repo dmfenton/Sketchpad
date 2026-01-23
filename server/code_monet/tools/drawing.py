@@ -13,6 +13,7 @@ from code_monet.types import Path
 from .callbacks import (
     get_add_strokes_callback,
     get_canvas_callback,
+    get_canvas_dimensions,
     get_draw_callback,
     inject_canvas_image,
 )
@@ -42,13 +43,18 @@ async def handle_draw_paths(args: dict[str, Any]) -> dict[str, Any]:
     # Parse paths
     parsed_paths: list[Path] = []
     errors: list[str] = []
+    canvas_width, canvas_height = get_canvas_dimensions()
 
     for i, path_data in enumerate(paths_data):
         if not isinstance(path_data, dict):
             errors.append(f"Path {i}: must be an object")
             continue
 
-        path = parse_path_data(path_data)
+        path = parse_path_data(
+            path_data,
+            canvas_width=canvas_width,
+            canvas_height=canvas_height,
+        )
         if path is None:
             errors.append(f"Path {i}: invalid format (need type and points)")
         else:

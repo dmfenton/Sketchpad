@@ -153,7 +153,11 @@ def output_svg_paths(svg_d_strings: list):
                     # Handle paths array
                     if "paths" in output:
                         for path_data in output["paths"]:
-                            parsed = parse_path_data(path_data)
+                            parsed = parse_path_data(
+                                path_data,
+                                canvas_width=canvas_width,
+                                canvas_height=canvas_height,
+                            )
                             if parsed:
                                 paths.append(parsed)
 
