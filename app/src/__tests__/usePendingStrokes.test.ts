@@ -98,7 +98,11 @@ describe('usePendingStrokes', () => {
     const clearPending = jest.fn();
 
     const { rerender } = renderHook(
-      ({ pendingStrokes }) =>
+      ({
+        pendingStrokes,
+      }: {
+        pendingStrokes: { count: number; batchId: number; pieceNumber: number } | null;
+      }) =>
         usePendingStrokes({
           pendingStrokes,
           fetchPendingStrokes,
@@ -108,7 +112,11 @@ describe('usePendingStrokes', () => {
         }),
       {
         initialProps: {
-          pendingStrokes: { count: 1, batchId: 4, pieceNumber: 0 },
+          pendingStrokes: { count: 1, batchId: 4, pieceNumber: 0 } as {
+            count: number;
+            batchId: number;
+            pieceNumber: number;
+          } | null,
         },
       }
     );

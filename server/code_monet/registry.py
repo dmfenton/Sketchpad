@@ -193,7 +193,7 @@ class WorkspaceRegistry:
                 return ws
 
         # Slow path: need to activate
-        ws: ActiveWorkspace | None = None
+        ws = None
         should_activate = False
         async with self._lock:
             # Double-check after acquiring lock

@@ -372,7 +372,7 @@ describe('Full Session Flow', () => {
       piece_number: 1,
       monologue: '',
       drawing_style: 'plotter',
-      style_config: null,
+      style_config: undefined,
     });
     expect(state.paused).toBe(true);
 
@@ -434,7 +434,7 @@ describe('Full Session Flow', () => {
       piece_number: 1,
       monologue: '',
       drawing_style: 'plotter',
-      style_config: null,
+      style_config: undefined,
     });
     expect(state.paused).toBe(true);
 
