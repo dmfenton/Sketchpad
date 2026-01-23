@@ -2,24 +2,24 @@
   "name": "@code-monet/shared",
   "version": "1.0.0",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
     },
     "./types": {
-      "types": "./dist/types.d.ts",
-      "import": "./dist/types.js"
+      "types": "./src/types.ts",
+      "import": "./src/types.ts"
     },
     "./canvas": {
-      "types": "./dist/canvas/index.d.ts",
-      "import": "./dist/canvas/index.js"
+      "types": "./src/canvas/index.ts",
+      "import": "./src/canvas/index.ts"
     },
     "./websocket": {
-      "types": "./dist/websocket/index.d.ts",
-      "import": "./dist/websocket/index.js"
+      "types": "./src/websocket/index.ts",
+      "import": "./src/websocket/index.ts"
     }
   },
   "scripts": {
