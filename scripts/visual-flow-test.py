@@ -19,6 +19,7 @@ Options:
     --timeout N       Max test duration in seconds (default: 120)
     --output DIR      Output directory (default: screenshots/flow-{timestamp}/)
     --expo-port N     Expo port (default: 8081 for mobile, 5173 for web)
+    --renderer TYPE   Renderer to use: svg or freehand (default: svg)
     --no-headless     Show browser window for debugging
     --no-clear        Skip clearing canvas before test
     --no-teardown     Skip killing stale processes and clearing state
@@ -78,11 +79,25 @@ async def get_token() -> str:
 
 async def full_teardown(token: str) -> None:
     """Clean slate before test - kill stale processes and clear agent state."""
-    print(f"{CYAN}[TEARDOWN] Killing stale test processes...{RESET}")
-    subprocess.run(
-        ["pkill", "-f", "visual-flow-test"],
+    import os
+    my_pid = os.getpid()
+    print(f"{CYAN}[TEARDOWN] Killing stale test processes (excluding pid {my_pid})...{RESET}")
+    # Find other visual-flow-test processes and kill them (not ourselves)
+    result = subprocess.run(
+        ["pgrep", "-f", "visual-flow-test"],
         capture_output=True,
+        text=True,
     )
+    if result.returncode == 0:
+        for pid_str in result.stdout.strip().split("\n"):
+            if pid_str:
+                pid = int(pid_str)
+                if pid != my_pid:
+                    try:
+                        os.kill(pid, 9)
+                        print(f"{CYAN}[TEARDOWN] Killed stale process {pid}{RESET}")
+                    except ProcessLookupError:
+                        pass
 
     print(f"{CYAN}[TEARDOWN] Clearing agent state...{RESET}")
     try:
@@ -124,6 +139,7 @@ class VisualFlowTest:
         clear_canvas: bool = True,
         do_teardown: bool = True,
         create_video: bool = True,
+        renderer: str = "svg",
     ):
         self.prompt = prompt
         self.interval = interval
@@ -133,6 +149,7 @@ class VisualFlowTest:
         self.clear_canvas = clear_canvas
         self.do_teardown = do_teardown
         self.create_video = create_video
+        self.renderer = renderer
 
         # Output directory
         if output_dir:
@@ -207,18 +224,23 @@ class VisualFlowTest:
         self.page.on("console", lambda msg: self.log(f"CONSOLE: {msg.text}", DIM))
         self.page.on("pageerror", lambda err: self.log(f"PAGE ERROR: {err}", RED))
 
-        # Navigate to app first
+        # Navigate to blank page first to set up localStorage before app loads
+        # This prevents creating multiple WebSocket connections
         url = f"http://localhost:{self.expo_port}/"
-        self.log(f"Navigating to {url}...", CYAN)
+        self.log(f"Setting up auth for {url}...", CYAN)
+
+        # Navigate to about:blank first (same origin not required for localStorage)
+        # Actually, we need to be on the same origin to set localStorage
+        # So we navigate to the app URL but intercept before it fully loads
         try:
-            await self.page.goto(url, wait_until="networkidle", timeout=30000)
+            # Quick navigate to set origin for localStorage
+            await self.page.goto(url, wait_until="commit", timeout=10000)
         except Exception as e:
             print(f"{RED}Error: Failed to load {url}: {e}{RESET}")
             print(f"Is Expo running? Port: {self.expo_port}")
             sys.exit(1)
 
-        # Inject auth token into localStorage
-        # Web app (5173) uses 'auth_' prefix, mobile app uses no prefix
+        # Inject auth token into localStorage BEFORE app fully initializes
         token_js = json.dumps(self.token)
         if self.expo_port == 5173:
             await self.page.evaluate(f"""
@@ -232,14 +254,13 @@ class VisualFlowTest:
             """)
         self.log("Injected auth token", GREEN)
 
-        # For Vite web app, navigate to /studio after auth injection
-        # (homepage is marketing, /studio is the actual app)
+        # Now navigate properly (or wait for networkidle)
         if self.expo_port == 5173:
             await self.page.goto(f"http://localhost:{self.expo_port}/studio", wait_until="networkidle")
             self.log("Navigated to /studio", GREEN)
         else:
-            # Expo web - reload to pick up auth
-            await self.page.reload(wait_until="networkidle")
+            # Wait for the page to fully load with auth in place
+            await self.page.wait_for_load_state("networkidle")
         self.log("Browser ready", GREEN)
 
         # Wait for WebSocket to connect
@@ -322,6 +343,18 @@ class VisualFlowTest:
 
         if not await self.wait_for_input_enabled(input_selector, timeout=10.0):
             self.log("[UI] Prompt input disabled (WS not connected?)", YELLOW)
+
+        # Select renderer if specified (click the button)
+        renderer_btn = f'[data-testid="renderer-{self.renderer}-button"]'
+        try:
+            btn = await self.page.wait_for_selector(renderer_btn, timeout=3000)
+            if btn:
+                await btn.click()
+                self.log(f"[UI] Selected renderer: {self.renderer}", GREEN)
+                self.record_event("renderer_selected", {"renderer": self.renderer})
+                await asyncio.sleep(0.2)
+        except Exception:
+            self.log(f"[UI] Renderer button not found: {renderer_btn}", YELLOW)
 
         # Type the prompt
         await self.page.fill(input_selector, self.prompt)
@@ -463,6 +496,7 @@ class VisualFlowTest:
             "========================",
             "",
             f"Prompt: {self.prompt}",
+            f"Renderer: {self.renderer}",
             f"Duration: {duration:.1f}s",
             f"Screenshots: {self.screenshot_count}",
             f"Strokes: {self.stroke_count}",
@@ -649,6 +683,13 @@ Prerequisites:
         help=f"Expo port (default: {DEFAULT_EXPO_PORT})",
     )
     parser.add_argument(
+        "--renderer",
+        type=str,
+        choices=["svg", "freehand"],
+        default="svg",
+        help="Renderer to use: svg or freehand (default: svg)",
+    )
+    parser.add_argument(
         "--no-headless",
         action="store_true",
         help="Show browser window for debugging",
@@ -688,6 +729,7 @@ Prerequisites:
         clear_canvas=not args.no_clear,
         do_teardown=not args.no_teardown,
         create_video=not args.no_video,
+        renderer=args.renderer,
     )
 
     try:

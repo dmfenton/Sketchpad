@@ -51,3 +51,6 @@ export {
   forwardLogs,
   stopForwarding,
 } from './utils/logForwarder';
+
+// Renderer abstraction
+export * from './renderer';

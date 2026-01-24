@@ -1,25 +1,19 @@
 /**
- * SVG canvas component with stroke rendering and touch handling.
+ * Canvas component with stroke rendering and touch handling.
+ *
+ * This component handles gesture detection and delegates rendering
+ * to the appropriate renderer (SVG or Skia) based on configuration.
  */
 
 import React, { useCallback, useMemo, useRef } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Circle, Path as SvgPath } from 'react-native-svg';
 
 import { screenToCanvas } from '../hooks/useCanvas';
-import { IdleParticles } from './IdleParticles';
-import type { DrawingStyleConfig, Path, Point, StrokeStyle } from '@code-monet/shared';
-import {
-  CANVAS_ASPECT_RATIO,
-  CANVAS_HEIGHT,
-  CANVAS_WIDTH,
-  getEffectiveStyle,
-  PLOTTER_STYLE,
-  createTaperedStrokePath,
-  pathToSvgD,
-  pointsToSvgD,
-} from '@code-monet/shared';
+import { useRendererConfig } from '../context/RendererContext';
+import { SvgRenderer, FreehandSvgRenderer } from '../renderers';
+import type { DrawingStyleConfig, Path, Point, RendererProps, StrokeStyle } from '@code-monet/shared';
+import { CANVAS_ASPECT_RATIO, CANVAS_HEIGHT, CANVAS_WIDTH, PLOTTER_STYLE } from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
 
 interface CanvasProps {
@@ -52,6 +46,7 @@ export function Canvas({
   onStrokeEnd,
 }: CanvasProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
+  const { config } = useRendererConfig();
   const containerRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
@@ -85,6 +80,37 @@ export function Canvas({
     [drawingEnabled, onStrokeStart, onStrokeMove, onStrokeEnd]
   );
 
+  // Build renderer props
+  const rendererProps: RendererProps = {
+    strokes,
+    currentStroke,
+    agentStroke,
+    agentStrokeStyle: agentStrokeStyle ?? null,
+    penPosition,
+    penDown,
+    styleConfig,
+    showIdleAnimation,
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+    primaryColor: colors.primary,
+  };
+
+  // Select renderer based on config
+  // - 'svg': Basic SVG rendering (default)
+  // - 'freehand': SVG with perfect-freehand natural strokes
+  // - 'skia': GPU-accelerated (requires @shopify/react-native-skia)
+  const Renderer = (() => {
+    switch (config.renderer) {
+      case 'freehand':
+        return FreehandSvgRenderer;
+      // case 'skia':
+      //   return SkiaRenderer; // Uncomment when Skia is installed
+      case 'svg':
+      default:
+        return SvgRenderer;
+    }
+  })();
+
   return (
     <View
       style={[styles.container, { backgroundColor: colors.canvasBackground }, shadows.md]}
@@ -93,154 +119,7 @@ export function Canvas({
     >
       <GestureDetector gesture={panGesture}>
         <View style={styles.canvasWrapper}>
-          <Svg
-            width="100%"
-            height="100%"
-            viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
-            preserveAspectRatio="xMidYMid meet"
-          >
-            {/* Idle animation - floating particles when canvas is empty and agent is idle */}
-            <IdleParticles visible={showIdleAnimation} />
-
-            {/* Completed strokes - render with effective style */}
-            {strokes.map((stroke, index) => {
-              const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
-              const isPaintMode = styleConfig.type === 'paint';
-              if (stroke.type !== 'svg' && stroke.points.length === 1) {
-                const pt = stroke.points[0]!;
-                const radius = Math.max(1, effectiveStyle.stroke_width / 2);
-                return (
-                  <Circle
-                    key={`stroke-dot-${index}`}
-                    cx={pt.x}
-                    cy={pt.y}
-                    r={radius}
-                    fill={effectiveStyle.color}
-                    opacity={effectiveStyle.opacity}
-                  />
-                );
-              }
-              return (
-                <SvgPath
-                  key={`stroke-${index}`}
-                  d={pathToSvgD(stroke, isPaintMode)}
-                  stroke={effectiveStyle.color}
-                  strokeWidth={effectiveStyle.stroke_width}
-                  fill="none"
-                  strokeLinecap={effectiveStyle.stroke_linecap}
-                  strokeLinejoin={effectiveStyle.stroke_linejoin}
-                  opacity={effectiveStyle.opacity}
-                />
-              );
-            })}
-
-            {/* Current stroke in progress (human drawing) */}
-            {currentStroke.length > 0 &&
-              (currentStroke.length === 1 ? (
-                <Circle
-                  cx={currentStroke[0]!.x}
-                  cy={currentStroke[0]!.y}
-                  r={Math.max(1, styleConfig.human_stroke.stroke_width / 2)}
-                  fill={styleConfig.human_stroke.color}
-                  opacity={styleConfig.human_stroke.opacity}
-                />
-              ) : styleConfig.type === 'paint' && currentStroke.length > 3 ? (
-                // Paint mode: tapered brush stroke
-                <SvgPath
-                  d={createTaperedStrokePath(
-                    currentStroke,
-                    styleConfig.human_stroke.stroke_width * 1.5,
-                    0.7
-                  )}
-                  fill={styleConfig.human_stroke.color}
-                  opacity={styleConfig.human_stroke.opacity * 0.9}
-                />
-              ) : (
-                // Plotter mode: simple polyline
-                <SvgPath
-                  d={pointsToSvgD(currentStroke)}
-                  stroke={styleConfig.human_stroke.color}
-                  strokeWidth={styleConfig.human_stroke.stroke_width}
-                  fill="none"
-                  strokeLinecap={styleConfig.human_stroke.stroke_linecap}
-                  strokeLinejoin={styleConfig.human_stroke.stroke_linejoin}
-                />
-              ))}
-
-            {/* Agent's in-progress stroke */}
-            {agentStroke.length > 0 &&
-              (() => {
-                // Get effective style - use agentStrokeStyle overrides in paint mode
-                const effectiveColor =
-                  styleConfig.supports_color && agentStrokeStyle?.color
-                    ? agentStrokeStyle.color
-                    : styleConfig.agent_stroke.color;
-                const effectiveWidth =
-                  styleConfig.supports_variable_width && agentStrokeStyle?.stroke_width
-                    ? agentStrokeStyle.stroke_width
-                    : styleConfig.agent_stroke.stroke_width;
-                const effectiveOpacity =
-                  styleConfig.supports_opacity && agentStrokeStyle?.opacity !== undefined
-                    ? agentStrokeStyle.opacity
-                    : styleConfig.agent_stroke.opacity;
-
-                if (agentStroke.length === 1) {
-                  return (
-                    <Circle
-                      cx={agentStroke[0]!.x}
-                      cy={agentStroke[0]!.y}
-                      r={Math.max(1, effectiveWidth / 2)}
-                      fill={effectiveColor}
-                      opacity={effectiveOpacity}
-                    />
-                  );
-                }
-
-                return styleConfig.type === 'paint' && agentStroke.length > 3 ? (
-                  // Paint mode: tapered brush stroke
-                  <SvgPath
-                    d={createTaperedStrokePath(agentStroke, effectiveWidth * 1.5, 0.7)}
-                    fill={effectiveColor}
-                    opacity={effectiveOpacity * 0.9}
-                  />
-                ) : (
-                  // Plotter mode: simple polyline
-                  <SvgPath
-                    d={pointsToSvgD(agentStroke)}
-                    stroke={effectiveColor}
-                    strokeWidth={effectiveWidth}
-                    fill="none"
-                    strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
-                    strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
-                  />
-                );
-              })()}
-
-            {/* Pen position indicator - larger and more visible */}
-            {penPosition && (
-              <>
-                {/* Outer ring */}
-                <Circle
-                  cx={penPosition.x}
-                  cy={penPosition.y}
-                  r={penDown ? 12 : 16}
-                  fill="none"
-                  stroke={colors.primary}
-                  strokeWidth={2}
-                  opacity={0.5}
-                />
-                {/* Inner dot */}
-                <Circle
-                  cx={penPosition.x}
-                  cy={penPosition.y}
-                  r={penDown ? 6 : 4}
-                  fill={penDown ? colors.primary : 'none'}
-                  stroke={colors.primary}
-                  strokeWidth={2}
-                />
-              </>
-            )}
-          </Svg>
+          <Renderer {...rendererProps} />
 
           {/* Drawing mode indicator */}
           {drawingEnabled && (

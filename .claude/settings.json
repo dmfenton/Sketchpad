@@ -60,8 +60,22 @@
       "Bash(xargs kill:*)",
       "Bash(tail:*)",
       "Bash(nohup:*)",
+      "Bash(cat:*)",
+      "Bash(jq:*)",
+      "Bash(tee:*)",
+      "Bash(timeout:*)",
+      "Bash(sleep:*)",
+      "Bash(cd:*)",
+      "Bash(head:*)",
+      "Bash(grep:*)",
+      "Bash(xargs:*)",
+      "Bash(basename:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(wc:*)",
       "Edit(/Users/dmfenton/.cache/uv/**)",
-      "Edit(/Users/dmfenton/.expo/**)"
+      "Edit(/Users/dmfenton/.expo/**)",
+      "Edit(/home/dmfenton/.cache/uv/**)"
     ],
     "deny": [
       "Read(.env)",

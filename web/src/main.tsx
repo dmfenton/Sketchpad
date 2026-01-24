@@ -4,6 +4,7 @@ import App from './App';
 import { Homepage } from './components/Homepage';
 import { AuthScreen } from './components/AuthScreen';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { RendererProvider } from './context/RendererContext';
 import './styles.css';
 import './homepage.css';
 import './components/AuthScreen.css';
@@ -97,9 +98,11 @@ function Router(): React.ReactElement {
 
 function Root(): React.ReactElement {
   return (
-    <AuthProvider>
-      <Router />
-    </AuthProvider>
+    <RendererProvider>
+      <AuthProvider>
+        <Router />
+      </AuthProvider>
+    </RendererProvider>
   );
 }
 

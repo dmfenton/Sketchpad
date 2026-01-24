@@ -117,7 +117,9 @@ function MainApp(): React.JSX.Element {
   usePendingStrokes({
     pendingStrokes: accessToken ? pendingStrokes : null,
     fetchPendingStrokes,
-    enqueueStrokes: (strokes) => dispatch({ type: 'ENQUEUE_STROKES', strokes }),
+    enqueueStrokes: (strokes) => {
+      dispatch({ type: 'ENQUEUE_STROKES', strokes });
+    },
     clearPending: () => dispatch({ type: 'CLEAR_PENDING_STROKES' }),
     onError: (error) => {
       console.error('[App] Failed to fetch strokes:', error);
