@@ -267,6 +267,17 @@ describe('shouldShowIdleAnimation', () => {
     };
     expect(shouldShowIdleAnimation(state)).toBe(false);
   });
+
+  it('returns false when agent is drawing (agentStroke has points)', () => {
+    const state: CanvasHookState = {
+      ...baseState,
+      performance: {
+        ...baseState.performance,
+        agentStroke: [{ x: 10, y: 10 }],
+      },
+    };
+    expect(shouldShowIdleAnimation(state)).toBe(false);
+  });
 });
 
 describe('canvasReducer - LOAD_CANVAS', () => {
