@@ -79,6 +79,14 @@ export function LiveStatus({
   // Get revealed text from performance state
   const revealedText = performance.revealedText;
 
+  // Get event text if an event is currently on stage
+  const eventText = useMemo(() => {
+    if (performance.onStage?.type === 'event') {
+      return performance.onStage.message.text;
+    }
+    return null;
+  }, [performance.onStage]);
+
   // Split revealed text into words for bionic rendering
   const displayedWords = useMemo(
     () => revealedText.split(/\s+/).filter((w) => w.length > 0),
@@ -133,8 +141,8 @@ export function LiveStatus({
     }
   }, [status, pulseAnim]);
 
-  // Don't show anything when idle and no words displayed
-  const hasContent = displayedWords.length > 0 || performance.buffer.length > 0;
+  // Don't show anything when idle and no content
+  const hasContent = displayedWords.length > 0 || performance.buffer.length > 0 || eventText !== null;
   if (status === 'idle' && !hasContent) {
     return null;
   }
@@ -162,6 +170,13 @@ export function LiveStatus({
           {isActive && '...'}
         </Text>
       </View>
+
+      {/* Event text when executing a tool */}
+      {eventText && (
+        <Text style={[styles.eventText, { color: colors.textSecondary }]}>
+          {eventText}
+        </Text>
+      )}
 
       {/* Live thought text with bionic formatting */}
       {displayedWords.length > 0 && (
@@ -197,5 +212,9 @@ const styles = StyleSheet.create({
   thoughtText: {
     ...typography.body,
     lineHeight: 22,
+  },
+  eventText: {
+    ...typography.small,
+    fontStyle: 'italic',
   },
 });
