@@ -25,11 +25,15 @@ import {
 import { createApiClient, type ApiClient } from '../api';
 import { getWebSocketUrl } from '../config';
 import { useCanvas, useModals, useWebSocket } from '../hooks';
+import type { ModalType } from '../hooks';
 import { useTokenRefresh } from '../hooks/useTokenRefresh';
 import { tracer } from '../utils/tracing';
 
 import { useAuth } from './AuthContext';
 import { useNavigation } from './NavigationContext';
+
+// Re-export ModalType for consumers
+export type { ModalType } from '../hooks';
 
 // Types for studio actions (from screens)
 export type StudioAction =
@@ -38,8 +42,6 @@ export type StudioAction =
   | { type: 'pause_toggle' }
   | { type: 'home' }
   | { type: 'gallery' };
-
-export type ModalType = 'nudge' | 'gallery' | 'newCanvas' | null;
 
 export interface StudioContextValue {
   // Canvas state (read-only for consumers)
@@ -135,6 +137,10 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
   const inStudioRef = useRef(inStudio);
   inStudioRef.current = inStudio;
 
+  // Stable ref for setPaused to avoid re-subscribing to AppState on every render
+  const setPausedRef = useRef(canvas.setPaused);
+  setPausedRef.current = canvas.setPaused;
+
   // Track if agent was running before backgrounding (for auto-resume)
   const wasRunningBeforeBackgroundRef = useRef(false);
 
@@ -146,21 +152,21 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
         wasRunningBeforeBackgroundRef.current = !pausedRef.current;
         if (!pausedRef.current) {
           send({ type: 'pause' });
-          canvas.setPaused(true);
+          setPausedRef.current(true);
         }
         // Stay in current screen - don't exit to home
       } else if (nextAppState === 'active') {
         // Auto-resume if we're in studio and agent was running before background
         if (inStudioRef.current && wasRunningBeforeBackgroundRef.current) {
           send({ type: 'resume' });
-          canvas.setPaused(false);
+          setPausedRef.current(false);
           wasRunningBeforeBackgroundRef.current = false;
         }
       }
     });
 
     return () => subscription.remove();
-  }, [send, canvas]);
+  }, [send]);
 
   // Pending strokes fetching
   const pendingStrokes = canvas.state.pendingStrokes;
