@@ -169,6 +169,32 @@ Logs include `trace_id` for correlation with X-Ray traces:
 2. Get the `trace_id` from the log entry
 3. View trace details: `/diagnose trace <TRACE_ID>`
 
+## Bash Scripts
+
+Convenience scripts for common operations:
+
+### Local Development
+
+```bash
+./scripts/logs.sh              # Recent logs from debug endpoint
+./scripts/logs.sh errors       # Error logs only
+./scripts/logs.sh tail         # Follow log file in real-time
+./scripts/logs.sh search TERM  # Search logs for pattern
+```
+
+### Production
+
+```bash
+./scripts/logs-prod.sh         # Recent from CloudWatch (30 min)
+./scripts/logs-prod.sh errors  # Error logs only
+./scripts/logs-prod.sh auth    # Authentication logs
+./scripts/logs-prod.sh agent   # Agent activity logs
+./scripts/logs-prod.sh ws      # WebSocket logs
+./scripts/logs-prod.sh user 42 # Logs for user ID 42
+./scripts/logs-prod.sh search "magic link"  # Search logs
+./scripts/logs-prod.sh status  # Service health check
+```
+
 ## Local Development
 
 For local dev, use debug endpoints directly:
@@ -213,6 +239,25 @@ filter category = "auth" and level in ["WARNING", "ERROR"]
 - CloudWatch Logs read permissions
 - Tracing enabled on server (OTEL_ENABLED=true)
 
+## Log Format
+
+Logs are structured JSON in production:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "INFO",
+  "category": "auth",
+  "logger": "code_monet.auth.routes",
+  "message": "User signed in",
+  "user_id": 42,
+  "trace_id": "1-abc123...",
+  "extra": { "email": "user@example.com", "method": "magic_link" }
+}
+```
+
+**Categories:** auth, agent, websocket, workspace, system, http
+
 ## Troubleshooting
 
 ### No traces found
@@ -226,14 +271,15 @@ filter category = "auth" and level in ["WARNING", "ERROR"]
 **Local:**
 
 - Check server is running: `curl localhost:8000/health`
-- Check log file exists: `ls server/logs/`
-- Server may be writing to stdout only
+- In dev mode, logs go to stdout (terminal)
+- File logging only in prod mode
 
 **Production:**
 
-- Check CloudWatch agent: `systemctl status amazon-cloudwatch-agent`
-- Check log file permissions
-- Verify log group exists in CloudWatch console
+- Log files must exist at `/home/ec2-user/data/logs/`
+- CloudWatch agent reads from those files
+- Check agent config includes log collection
+- Check IAM role has CloudWatch Logs permissions
 
 ### Permission denied
 
