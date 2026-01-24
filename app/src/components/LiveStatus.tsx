@@ -171,15 +171,12 @@ export function LiveStatus({
         </Text>
       </View>
 
-      {/* Event text when executing a tool */}
-      {eventText && (
+      {/* Event text displaces thinking text while active */}
+      {eventText ? (
         <Text style={[styles.eventText, { color: colors.textSecondary }]}>
           {eventText}
         </Text>
-      )}
-
-      {/* Live thought text with bionic formatting */}
-      {displayedWords.length > 0 && (
+      ) : displayedWords.length > 0 ? (
         <Text style={[styles.thoughtText, { color: colors.textPrimary }]} numberOfLines={3}>
           {displayedWords.map((word, i) => (
             <React.Fragment key={`${i}-${word}`}>
@@ -189,7 +186,7 @@ export function LiveStatus({
           ))}
           {isBuffering && <Text style={{ color: colors.textMuted }}> ▍</Text>}
         </Text>
-      )}
+      ) : null}
     </View>
   );
 }
