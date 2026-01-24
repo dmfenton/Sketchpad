@@ -87,7 +87,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gallery thumbnails now use authenticated image loading instead of public token URLs
 - Centralized image rendering into new `rendering.py` module for consistency and reduced duplication
 - Logging configuration moved from inline `basicConfig` to dedicated `logging_config.py` module
-- Centralized image rendering into new `rendering.py` module for consistency and reduced duplication
 
 ### Fixed
 
