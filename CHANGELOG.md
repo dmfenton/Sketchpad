@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Live WIP preview on Continue card shows current drawing strokes instead of placeholder
+
 ## [1.34.0] - 2026-01-24
 
 ### Added

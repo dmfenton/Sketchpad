@@ -351,6 +351,8 @@ function MainApp(): React.JSX.Element {
               pieceNumber={canvas.state.pieceNumber}
               gallery={canvas.state.gallery}
               drawingStyle={canvas.state.drawingStyle}
+              strokes={canvas.state.strokes}
+              styleConfig={canvas.state.styleConfig}
               onStyleChange={handleStyleChange}
               onContinue={handleContinue}
               onStartWithPrompt={handleStartWithPrompt}
