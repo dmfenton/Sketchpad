@@ -42,7 +42,7 @@ export {
 } from './utils/strokeSmoothing';
 
 // SVG path utilities
-export { pathToSvgD, pointsToSvgD } from './utils/svgPath';
+export { pathToSvgD, pointsToSvgD, pathToSvgDScaled } from './utils/svgPath';
 
 // Log forwarding utilities
 export {

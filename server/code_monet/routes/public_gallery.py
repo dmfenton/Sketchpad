@@ -12,10 +12,67 @@ from fastapi.responses import Response
 
 from code_monet.config import settings
 from code_monet.db import get_session, repository
-from code_monet.rendering import options_for_og_image, render_strokes_async
+from code_monet.rendering import options_for_og_image, options_for_thumbnail, render_strokes_async
 from code_monet.types import DrawingStyleType, Path
 
 router = APIRouter()
+
+# Regex pattern for validating UUIDs
+_UUID_PATTERN = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+async def _load_public_piece(user_id: str, piece_id: str) -> tuple[list[Path], DrawingStyleType]:
+    """Load strokes and style for a public gallery piece with validation.
+
+    Args:
+        user_id: UUID of the user who owns the piece
+        piece_id: Piece identifier (e.g., "piece_000001")
+
+    Returns:
+        Tuple of (strokes list, drawing style)
+
+    Raises:
+        HTTPException: For invalid input, unauthorized access, or missing pieces
+    """
+    # Validate user_id is UUID format (prevent path traversal)
+    if not _UUID_PATTERN.match(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user_id")
+
+    # Validate piece_id format (alphanumeric, underscore, hyphen only)
+    if not piece_id.replace("_", "").replace("-", "").isalnum():
+        raise HTTPException(status_code=400, detail="Invalid piece_id")
+
+    # Verify user has opted into public gallery
+    async with get_session() as session:
+        user = await repository.get_user_by_id(session, user_id)
+        if not user or not user.gallery_public:
+            raise HTTPException(status_code=404, detail="Gallery not found")
+
+    # Load piece file with path traversal protection
+    workspace_base = FilePath(settings.workspace_base_dir).resolve()
+    piece_file = (workspace_base / user_id / "gallery" / f"{piece_id}.json").resolve()
+
+    if not str(piece_file).startswith(str(workspace_base)):
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    if not piece_file.exists():
+        raise HTTPException(status_code=404, detail="Piece not found")
+
+    try:
+        data = json.loads(piece_file.read_text())
+        strokes = [Path(**s) for s in data.get("strokes", [])]
+        # Parse drawing style with fallback to plotter
+        style_str = data.get("drawing_style", "plotter")
+        try:
+            drawing_style = DrawingStyleType(style_str)
+        except ValueError:
+            drawing_style = DrawingStyleType.PLOTTER
+        return strokes, drawing_style
+    except (json.JSONDecodeError, OSError) as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load piece: {e}") from e
 
 
 @router.get("/public/gallery")
@@ -77,8 +134,7 @@ async def get_public_piece_strokes(user_id: str, piece_id: str) -> dict[str, Any
     Only returns data if the user has opted into public gallery.
     """
     # Validate user_id is a valid UUID format to prevent path traversal
-    uuid_pattern = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-    if not re.match(uuid_pattern, user_id, re.IGNORECASE):
+    if not _UUID_PATTERN.match(user_id):
         raise HTTPException(status_code=400, detail="Invalid user_id")
 
     # Validate piece_id format (alphanumeric, underscore, hyphen only)
@@ -117,6 +173,26 @@ async def get_public_piece_strokes(user_id: str, piece_id: str) -> dict[str, Any
         raise HTTPException(status_code=500, detail=f"Failed to load piece: {e}") from e
 
 
+@router.get("/public/gallery/{user_id}/{piece_id}/thumbnail.png")
+async def get_public_piece_thumbnail(user_id: str, piece_id: str) -> Response:
+    """Get thumbnail PNG for a gallery piece.
+
+    Renders gallery piece strokes to 800x600 PNG (same as authenticated thumbnails).
+    Only returns image if user has opted into public gallery.
+    """
+    strokes, drawing_style = await _load_public_piece(user_id, piece_id)
+
+    options = options_for_thumbnail(drawing_style)
+    result = await render_strokes_async(strokes, options)
+    assert isinstance(result, bytes)
+
+    return Response(
+        content=result,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=604800"},  # 7 days
+    )
+
+
 @router.get("/public/gallery/{user_id}/{piece_id}/og-image.png")
 async def get_public_piece_og_image(user_id: str, piece_id: str) -> Response:
     """Get OG image for social sharing.
@@ -124,53 +200,14 @@ async def get_public_piece_og_image(user_id: str, piece_id: str) -> Response:
     Renders gallery piece strokes to 1200x630 PNG (optimal OG image size).
     Only returns image if user has opted into public gallery.
     """
-    # Validate user_id is UUID format (prevent path traversal)
-    uuid_pattern = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-    if not re.match(uuid_pattern, user_id, re.IGNORECASE):
-        raise HTTPException(status_code=400, detail="Invalid user_id")
+    strokes, drawing_style = await _load_public_piece(user_id, piece_id)
 
-    # Validate piece_id format
-    if not piece_id.replace("_", "").replace("-", "").isalnum():
-        raise HTTPException(status_code=400, detail="Invalid piece_id")
-
-    # Verify user has opted into public gallery
-    async with get_session() as session:
-        user = await repository.get_user_by_id(session, user_id)
-        if not user or not user.gallery_public:
-            raise HTTPException(status_code=404, detail="Gallery not found")
-
-    # Load piece strokes
-    workspace_base = FilePath(settings.workspace_base_dir).resolve()
-    piece_file = (workspace_base / user_id / "gallery" / f"{piece_id}.json").resolve()
-
-    if not str(piece_file).startswith(str(workspace_base)):
-        raise HTTPException(status_code=400, detail="Invalid path")
-
-    if not piece_file.exists():
-        raise HTTPException(status_code=404, detail="Piece not found")
-
-    try:
-        data = json.loads(piece_file.read_text())
-        strokes = [Path(**s) for s in data.get("strokes", [])]
-        # Parse drawing style with fallback to plotter
-        style_str = data.get("drawing_style", "plotter")
-        try:
-            drawing_style = DrawingStyleType(style_str)
-        except ValueError:
-            drawing_style = DrawingStyleType.PLOTTER
-    except (json.JSONDecodeError, OSError) as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load piece: {e}") from e
-
-    # Render to PNG (1200x630 is optimal OG image size)
     options = options_for_og_image(drawing_style)
     result = await render_strokes_async(strokes, options)
     assert isinstance(result, bytes)
-    image_bytes = result
 
     return Response(
-        content=image_bytes,
+        content=result,
         media_type="image/png",
-        headers={
-            "Cache-Control": "public, max-age=604800",  # 7 days (immutable)
-        },
+        headers={"Cache-Control": "public, max-age=604800"},  # 7 days
     )

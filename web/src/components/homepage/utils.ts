@@ -2,7 +2,7 @@
  * Utility functions for Homepage components
  */
 
-import { StrokePoint, PathData } from './types';
+import { StrokePoint } from './types';
 
 /**
  * Generate a smooth bezier curve path for fallback animation
@@ -55,54 +55,4 @@ export function pointsToPath(points: StrokePoint[], progress: number): string {
   }
 
   return d;
-}
-
-/**
- * Convert server path data to SVG path string.
- * Matches the rendering behavior of Canvas.tsx pathToSvgD.
- */
-export function pathDataToSvg(path: PathData, scale: number = 1): string {
-  // SVG paths with 'd' attribute - scale coordinates
-  if (path.d) {
-    if (scale === 1) return path.d;
-    return path.d.replace(/[\d.]+/g, (match) => String(parseFloat(match) * scale));
-  }
-
-  if (!path.points || path.points.length === 0) return '';
-
-  const pts = path.points;
-  const s = scale; // shorthand
-
-  switch (path.type) {
-    case 'line':
-      if (pts.length >= 2) {
-        return `M ${pts[0].x * s} ${pts[0].y * s} L ${pts[1].x * s} ${pts[1].y * s}`;
-      }
-      return '';
-
-    case 'quadratic':
-      if (pts.length >= 3) {
-        return `M ${pts[0].x * s} ${pts[0].y * s} Q ${pts[1].x * s} ${pts[1].y * s} ${pts[2].x * s} ${pts[2].y * s}`;
-      }
-      return '';
-
-    case 'cubic':
-      if (pts.length >= 4) {
-        return `M ${pts[0].x * s} ${pts[0].y * s} C ${pts[1].x * s} ${pts[1].y * s} ${pts[2].x * s} ${pts[2].y * s} ${pts[3].x * s} ${pts[3].y * s}`;
-      }
-      return '';
-
-    case 'polyline':
-    case 'svg':
-    default:
-      // Polyline: straight line segments between points
-      if (pts.length >= 2) {
-        let d = `M ${pts[0].x * s} ${pts[0].y * s}`;
-        for (let i = 1; i < pts.length; i++) {
-          d += ` L ${pts[i].x * s} ${pts[i].y * s}`;
-        }
-        return d;
-      }
-      return '';
-  }
 }
