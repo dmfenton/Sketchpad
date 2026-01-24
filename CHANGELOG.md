@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Renderer picker in HomePanel for switching between SVG and Freehand renderers
+- FreehandSvgRenderer using perfect-freehand library for natural brush stroke outlines
+- RendererContext for managing renderer configuration across app
+- Renderer abstraction layer in shared library (`shared/src/renderer/`)
+- `--renderer` option in visual-flow-test.py for testing different renderers
 - Public thumbnail endpoint `/public/gallery/{user_id}/{piece_id}/thumbnail.png` for consistent gallery rendering
 - `pathToSvgDScaled` utility in shared library for scaled SVG path rendering
 
