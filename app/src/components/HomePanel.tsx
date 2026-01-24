@@ -59,10 +59,13 @@ export function HomePanel({
   // - There's an active session in progress (pieceNumber > 0)
   const hasRecentWork = hasCurrentWork || recentCanvas !== null || pieceNumber > 0;
 
-  // Build thumbnail URL
-  const thumbnailPath = recentCanvas?.thumbnail_token
-    ? `/gallery/thumbnail/${recentCanvas.thumbnail_token}.png`
-    : undefined;
+  // Build thumbnail URL - only use gallery thumbnail when there's no current work
+  // When hasCurrentWork=true, we want to show "Work in progress" placeholder instead
+  // of the old gallery thumbnail, which would be misleading
+  const thumbnailPath =
+    !hasCurrentWork && recentCanvas?.thumbnail_token
+      ? `/gallery/thumbnail/${recentCanvas.thumbnail_token}.png`
+      : undefined;
   const thumbnailSource = thumbnailPath ? api.getImageSource(thumbnailPath) : null;
 
   const handleSubmitPrompt = () => {
