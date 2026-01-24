@@ -142,6 +142,7 @@ class DrawingAgent:
                 "mcp__drawing__view_canvas",
                 "mcp__drawing__imagine",
                 "mcp__drawing__sign_canvas",
+                "mcp__drawing__name_piece",
                 # Filesystem tools (scoped to workspace via working_directory)
                 "Read",
                 "Write",
