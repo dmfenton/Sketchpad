@@ -56,6 +56,7 @@ from code_monet.types.state import (
     CanvasState,
     GalleryEntry,
     GalleryState,
+    PauseReason,
     SavedCanvas,
 )
 from code_monet.types.styles import (
@@ -97,6 +98,7 @@ __all__ = [
     "CanvasState",
     "GalleryEntry",
     "GalleryState",
+    "PauseReason",
     "SavedCanvas",
     # Messages
     "AgentEvent",

@@ -18,6 +18,7 @@ from code_monet.types import (
     Path,
     PathType,
     PausedMessage,
+    PauseReason,
     PieceStateMessage,
     Point,
     StyleChangeMessage,
@@ -115,6 +116,7 @@ async def handle_new_canvas(
     # Auto-start the agent on new canvas
     await workspace.agent.resume()
     workspace.state.status = AgentStatus.IDLE
+    workspace.state.pause_reason = PauseReason.NONE  # Clear pause reason on new canvas
     await workspace.state.save()
     await workspace.connections.broadcast(PausedMessage(paused=False))
     # Clear piece_completed flag and wake the orchestrator
@@ -165,6 +167,7 @@ async def handle_pause(workspace: ActiveWorkspace) -> None:
     """Handle pause request."""
     await workspace.agent.pause()
     workspace.state.status = AgentStatus.PAUSED
+    workspace.state.pause_reason = PauseReason.USER  # User explicitly paused
     await workspace.state.save()
     await workspace.connections.broadcast(PausedMessage(paused=True))
     logger.info(f"User {workspace.user_id}: agent paused")
@@ -180,6 +183,7 @@ async def handle_resume(workspace: ActiveWorkspace, message: dict[str, Any] | No
 
     await workspace.agent.resume()
     workspace.state.status = AgentStatus.IDLE
+    workspace.state.pause_reason = PauseReason.NONE  # Clear pause reason on resume
     await workspace.state.save()
     await workspace.connections.broadcast(PausedMessage(paused=False))
     # Wake the orchestrator immediately to start working

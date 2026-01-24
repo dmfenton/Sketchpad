@@ -21,6 +21,7 @@ from code_monet.routes import create_api_router
 from code_monet.share import share_router
 from code_monet.shutdown import shutdown_manager
 from code_monet.tracing import get_current_trace_id, setup_tracing
+from code_monet.types import AgentStatus, PausedMessage, PauseReason
 from code_monet.user_handlers import handle_user_message
 
 # Configure logging with clean format
@@ -241,6 +242,22 @@ async def websocket_endpoint(
             f"User {user_id}: sent init with {len(workspace.state.canvas.strokes)} strokes, "
             f"{len(gallery_data)} gallery, piece #{workspace.state.piece_number}"
         )
+
+        # Auto-resume if agent was paused due to disconnect (not user action)
+        if (
+            workspace.agent.paused
+            and workspace.state.pause_reason == PauseReason.DISCONNECT
+        ):
+            await workspace.agent.resume()
+            workspace.state.status = AgentStatus.IDLE
+            workspace.state.pause_reason = PauseReason.NONE
+            await workspace.state.save()
+            await workspace.connections.broadcast(PausedMessage(paused=False))
+            # Wake the orchestrator to continue working
+            if workspace.orchestrator:
+                await workspace.start_agent_loop()
+                workspace.orchestrator.wake()
+            logger.info(f"User {user_id}: agent auto-resumed (client reconnected)")
 
         # Notify if there are pending strokes to fetch (reconnection scenario)
         # Only send if not paused - paused canvases shouldn't trigger animation

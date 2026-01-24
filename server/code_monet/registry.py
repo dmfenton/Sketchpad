@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import WebSocket
 
 from code_monet.config import settings
+from code_monet.types import AgentStatus, PauseReason
 from code_monet.workspace import WorkspaceState
 
 logger = logging.getLogger(__name__)
@@ -285,7 +286,7 @@ class WorkspaceRegistry:
         return workspace
 
     async def on_disconnect(self, user_id: str, websocket: WebSocket) -> None:
-        """Handle user disconnect - schedule deactivation if no connections remain."""
+        """Handle user disconnect - pause agent and schedule deactivation if no connections remain."""
         async with self._lock:
             if user_id not in self._workspaces:
                 return
@@ -294,6 +295,15 @@ class WorkspaceRegistry:
             ws.connections.remove(websocket)
 
             if ws.connections.is_empty:
+                # Pause the agent if not already paused by user
+                # This prevents wasted API calls while no one is watching
+                if ws.agent and not ws.agent.paused:
+                    await ws.agent.pause()
+                    ws.state.status = AgentStatus.PAUSED
+                    ws.state.pause_reason = PauseReason.DISCONNECT
+                    await ws.state.save()
+                    logger.info(f"User {user_id}: agent paused (no clients connected)")
+
                 # Schedule deactivation after grace period
                 ws._idle_task = asyncio.create_task(
                     self._deactivate_after_delay(user_id, IDLE_GRACE_PERIOD)
