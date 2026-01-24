@@ -5,33 +5,49 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { ImageSourcePropType } from 'react-native';
 
 import { CANVAS_ASPECT_RATIO, type SavedCanvas } from '@code-monet/shared';
+import type { ApiClient } from '../../api';
+import { useAuthenticatedImage } from '../../hooks';
 import { spacing, borderRadius, typography, useTheme } from '../../theme';
 
 interface ContinueCardProps {
+  api: ApiClient;
   recentCanvas: SavedCanvas | null;
   hasCurrentWork: boolean;
-  thumbnailSource: ImageSourcePropType | null;
   onContinue: () => void;
   disabled?: boolean;
 }
 
 export function ContinueCard({
+  api,
   recentCanvas,
   hasCurrentWork,
-  thumbnailSource,
   onContinue,
   disabled = false,
 }: ContinueCardProps): React.JSX.Element {
   const { colors } = useTheme();
-  const [imageLoading, setImageLoading] = useState(true);
+  const [nativeLoading, setNativeLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+
+  // Build thumbnail path for hook
+  // Only show gallery thumbnail when there's no current work - otherwise the
+  // thumbnail would show an old image, which is misleading
+  const thumbnailPath =
+    !hasCurrentWork && recentCanvas?.thumbnail_token
+      ? `/gallery/thumbnail/${recentCanvas.thumbnail_token}.png`
+      : undefined;
+
+  // Use authenticated image hook for web blob URL workaround
+  const { source: thumbnailSource, loading: hookLoading } =
+    useAuthenticatedImage(api, thumbnailPath);
+
+  // Combine loading states: hook loading (web) + native image loading
+  const imageLoading = hookLoading || nativeLoading;
 
   // Reset image state when canvas changes
   useEffect(() => {
-    setImageLoading(true);
+    setNativeLoading(true);
     setImageError(false);
   }, [recentCanvas?.thumbnail_token]);
 
@@ -62,10 +78,10 @@ export function ContinueCard({
               source={thumbnailSource}
               style={styles.thumbnailImage}
               resizeMode="contain"
-              onLoadStart={() => setImageLoading(true)}
-              onLoadEnd={() => setImageLoading(false)}
+              onLoadStart={() => setNativeLoading(true)}
+              onLoadEnd={() => setNativeLoading(false)}
               onError={() => {
-                setImageLoading(false);
+                setNativeLoading(false);
                 setImageError(true);
               }}
             />
