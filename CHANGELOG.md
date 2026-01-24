@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Event text (svg, imagine, etc.) now displaces thinking text in LiveStatus instead of overlapping
+- Gallery image selection now correctly loads the selected image instead of a previously cached one
 
 ## [1.33.4] - 2026-01-24
 
