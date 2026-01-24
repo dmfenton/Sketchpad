@@ -19,6 +19,7 @@ Options:
     --timeout N       Max test duration in seconds (default: 120)
     --output DIR      Output directory (default: screenshots/flow-{timestamp}/)
     --expo-port N     Expo port (default: 8081 for mobile, 5173 for web)
+    --renderer TYPE   Renderer to use: svg or freehand (default: svg)
     --no-headless     Show browser window for debugging
     --no-clear        Skip clearing canvas before test
     --no-teardown     Skip killing stale processes and clearing state
@@ -124,6 +125,7 @@ class VisualFlowTest:
         clear_canvas: bool = True,
         do_teardown: bool = True,
         create_video: bool = True,
+        renderer: str = "svg",
     ):
         self.prompt = prompt
         self.interval = interval
@@ -133,6 +135,7 @@ class VisualFlowTest:
         self.clear_canvas = clear_canvas
         self.do_teardown = do_teardown
         self.create_video = create_video
+        self.renderer = renderer
 
         # Output directory
         if output_dir:
@@ -323,6 +326,18 @@ class VisualFlowTest:
         if not await self.wait_for_input_enabled(input_selector, timeout=10.0):
             self.log("[UI] Prompt input disabled (WS not connected?)", YELLOW)
 
+        # Select renderer if specified (click the button)
+        renderer_btn = f'[data-testid="renderer-{self.renderer}-button"]'
+        try:
+            btn = await self.page.wait_for_selector(renderer_btn, timeout=3000)
+            if btn:
+                await btn.click()
+                self.log(f"[UI] Selected renderer: {self.renderer}", GREEN)
+                self.record_event("renderer_selected", {"renderer": self.renderer})
+                await asyncio.sleep(0.2)
+        except Exception:
+            self.log(f"[UI] Renderer button not found: {renderer_btn}", YELLOW)
+
         # Type the prompt
         await self.page.fill(input_selector, self.prompt)
         self.record_event("prompt_entered", {"prompt": self.prompt})
@@ -463,6 +478,7 @@ class VisualFlowTest:
             "========================",
             "",
             f"Prompt: {self.prompt}",
+            f"Renderer: {self.renderer}",
             f"Duration: {duration:.1f}s",
             f"Screenshots: {self.screenshot_count}",
             f"Strokes: {self.stroke_count}",
@@ -649,6 +665,13 @@ Prerequisites:
         help=f"Expo port (default: {DEFAULT_EXPO_PORT})",
     )
     parser.add_argument(
+        "--renderer",
+        type=str,
+        choices=["svg", "freehand"],
+        default="svg",
+        help="Renderer to use: svg or freehand (default: svg)",
+    )
+    parser.add_argument(
         "--no-headless",
         action="store_true",
         help="Show browser window for debugging",
@@ -688,6 +711,7 @@ Prerequisites:
         clear_canvas=not args.no_clear,
         do_teardown=not args.no_teardown,
         create_video=not args.no_video,
+        renderer=args.renderer,
     )
 
     try:
