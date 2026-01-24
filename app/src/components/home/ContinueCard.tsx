@@ -7,7 +7,7 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import type { ImageSourcePropType } from 'react-native';
 
-import type { SavedCanvas } from '@code-monet/shared';
+import { CANVAS_ASPECT_RATIO, type SavedCanvas } from '@code-monet/shared';
 import { spacing, borderRadius, typography, useTheme } from '../../theme';
 
 interface ContinueCardProps {
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   preview: {
-    aspectRatio: 16 / 9,
+    aspectRatio: CANVAS_ASPECT_RATIO,
     justifyContent: 'center',
     alignItems: 'center',
   },
