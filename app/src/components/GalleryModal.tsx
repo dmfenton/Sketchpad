@@ -54,7 +54,8 @@ interface GalleryItemProps {
   api: ApiClient;
   canvas: SavedCanvas;
   thumbnailSize: number;
-  onPress: () => void;
+  pieceNumber: number;
+  onSelect: (pieceNumber: number) => void;
   colors: ColorScheme;
   shadows: ShadowScheme;
 }
@@ -63,7 +64,8 @@ function GalleryItem({
   api,
   canvas,
   thumbnailSize,
-  onPress,
+  pieceNumber,
+  onSelect,
   colors,
   shadows,
 }: GalleryItemProps): React.JSX.Element {
@@ -83,6 +85,12 @@ function GalleryItem({
   // Combine loading states: hook loading (web) + native image loading
   const loading = hookLoading || nativeLoading;
 
+  // Create handler using props directly to avoid stale closures
+  // when FlatList reuses/caches component instances
+  const handlePress = useCallback(() => {
+    onSelect(pieceNumber);
+  }, [onSelect, pieceNumber]);
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -91,7 +99,7 @@ function GalleryItem({
         shadows.sm,
         pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
       ]}
-      onPress={onPress}
+      onPress={handlePress}
     >
       <View
         style={[
@@ -157,7 +165,8 @@ export function GalleryModal({
         api={api}
         canvas={item}
         thumbnailSize={thumbnailSize}
-        onPress={() => onSelect(item.piece_number)}
+        pieceNumber={item.piece_number}
+        onSelect={onSelect}
         colors={colors}
         shadows={shadows}
       />
