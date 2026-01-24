@@ -126,28 +126,34 @@ class ActiveWorkspace:
     orchestrator: Any = None  # AgentOrchestrator - set after creation
     loop_task: asyncio.Task[None] | None = None
     _idle_task: asyncio.Task[None] | None = field(default=None, repr=False)
+    _loop_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     async def start_agent_loop(self) -> None:
-        """Start (or restart) the agent orchestrator loop."""
+        """Start (or restart) the agent orchestrator loop.
+
+        Thread-safe: uses internal lock to prevent race conditions when
+        multiple clients connect simultaneously.
+        """
         if not self.orchestrator:
             return
 
-        if self.loop_task and not self.loop_task.done():
-            return
+        async with self._loop_lock:
+            if self.loop_task and not self.loop_task.done():
+                return
 
-        if self.loop_task and self.loop_task.done():
-            if self.loop_task.cancelled():
-                logger.info(f"User {self.user_id}: agent loop cancelled, restarting")
-            else:
-                exc = self.loop_task.exception()
-                if exc:
-                    logger.warning(
-                        f"User {self.user_id}: agent loop exited with error, restarting: {exc}"
-                    )
-            self.loop_task = None
+            if self.loop_task and self.loop_task.done():
+                if self.loop_task.cancelled():
+                    logger.info(f"User {self.user_id}: agent loop cancelled, restarting")
+                else:
+                    exc = self.loop_task.exception()
+                    if exc:
+                        logger.warning(
+                            f"User {self.user_id}: agent loop exited with error, restarting: {exc}"
+                        )
+                self.loop_task = None
 
-        self.loop_task = asyncio.create_task(self.orchestrator.run_loop())
-        logger.info(f"User {self.user_id}: agent loop started")
+            self.loop_task = asyncio.create_task(self.orchestrator.run_loop())
+            logger.info(f"User {self.user_id}: agent loop started")
 
     async def stop_agent_loop(self) -> None:
         """Stop the agent orchestrator loop."""
