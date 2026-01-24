@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Public thumbnail endpoint `/public/gallery/{user_id}/{piece_id}/thumbnail.png` for consistent gallery rendering
+- `pathToSvgDScaled` utility in shared library for scaled SVG path rendering
+
 ### Fixed
 
+- Web homepage gallery images now render identically to mobile (switched from client-side SVG to server PNG thumbnails)
+- Mobile ContinueCard now uses correct 4:3 canvas aspect ratio (was 16:9)
+- Mobile ContinueCard thumbnails now load correctly in Expo web mode via `useAuthenticatedImage` hook
 - Event text (svg, imagine, etc.) now displaces thinking text in LiveStatus instead of overlapping
 - Gallery image selection now correctly loads the selected image instead of a previously cached one
 - Home screen now shows "Work in progress" placeholder instead of stale gallery thumbnail when there's an active drawing
