@@ -15,20 +15,25 @@ import type { Point } from '../types';
  */
 export function smoothPolylineToPath(points: Point[], tension = 0.5): string {
   if (points.length === 0) return '';
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  // Safe: length >= 1
+  const first = points[0]!;
+  if (points.length === 1) return `M ${first.x} ${first.y}`;
+  // Safe: length >= 2
+  const second = points[1]!;
   if (points.length === 2) {
-    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+    return `M ${first.x} ${first.y} L ${second.x} ${second.y}`;
   }
 
   // Start at first point
-  let path = `M ${points[0].x} ${points[0].y}`;
+  let path = `M ${first.x} ${first.y}`;
 
   // For each segment, calculate bezier control points using Catmull-Rom
   for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[Math.max(0, i - 1)];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[Math.min(points.length - 1, i + 2)];
+    // Safe: indices are clamped to valid range
+    const p0 = points[Math.max(0, i - 1)]!;
+    const p1 = points[i]!;
+    const p2 = points[i + 1]!;
+    const p3 = points[Math.min(points.length - 1, i + 2)]!;
 
     // Calculate control points
     const cp1x = p1.x + ((p2.x - p0.x) * tension) / 6;
@@ -51,11 +56,14 @@ export function smoothPolylineToPath(points: Point[], tension = 0.5): string {
  */
 export function polylineToPath(points: Point[]): string {
   if (points.length === 0) return '';
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  // Safe: length >= 1
+  const first = points[0]!;
+  if (points.length === 1) return `M ${first.x} ${first.y}`;
 
-  let path = `M ${points[0].x} ${points[0].y}`;
+  let path = `M ${first.x} ${first.y}`;
   for (let i = 1; i < points.length; i++) {
-    path += ` L ${points[i].x} ${points[i].y}`;
+    const p = points[i]!; // Safe: i < length
+    path += ` L ${p.x} ${p.y}`;
   }
   return path;
 }
@@ -92,7 +100,8 @@ export function calculateVelocityWidths(
   // Calculate distances between consecutive points
   const distances: number[] = [];
   for (let i = 1; i < points.length; i++) {
-    distances.push(distance(points[i - 1], points[i]));
+    // Safe: i-1 >= 0 and i < length
+    distances.push(distance(points[i - 1]!, points[i]!));
   }
 
   // Find max distance for normalization
@@ -101,7 +110,8 @@ export function calculateVelocityWidths(
   // Calculate widths - slower = wider, faster = thinner
   const widths: number[] = [baseWidth * maxWidthRatio]; // Start thick
   for (let i = 0; i < distances.length; i++) {
-    const normalizedVelocity = distances[i] / maxDist;
+    const d = distances[i]!; // Safe: i < length
+    const normalizedVelocity = d / maxDist;
     // Invert: high velocity = thin, low velocity = thick
     const widthRatio = maxWidthRatio - normalizedVelocity * (maxWidthRatio - minWidthRatio);
     widths.push(baseWidth * widthRatio);
@@ -131,7 +141,7 @@ export function createTaperedStrokePath(
   const rightEdge: Point[] = [];
 
   for (let i = 0; i < points.length; i++) {
-    const point = points[i];
+    const point = points[i]!; // Safe: i < length
     const progress = i / (points.length - 1); // 0 to 1
 
     // Taper: thin at start and end, thick in middle
@@ -143,7 +153,7 @@ export function createTaperedStrokePath(
     let perpX: number, perpY: number;
     if (i === 0) {
       // Use direction to next point
-      const next = points[1];
+      const next = points[1]!; // Safe: length >= 2
       const dx = next.x - point.x;
       const dy = next.y - point.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -151,7 +161,7 @@ export function createTaperedStrokePath(
       perpY = dx / len;
     } else if (i === points.length - 1) {
       // Use direction from previous point
-      const prev = points[i - 1];
+      const prev = points[i - 1]!; // Safe: i >= 1
       const dx = point.x - prev.x;
       const dy = point.y - prev.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -159,8 +169,8 @@ export function createTaperedStrokePath(
       perpY = dx / len;
     } else {
       // Average of directions
-      const prev = points[i - 1];
-      const next = points[i + 1];
+      const prev = points[i - 1]!; // Safe: i >= 1
+      const next = points[i + 1]!; // Safe: i < length - 1
       const dx = next.x - prev.x;
       const dy = next.y - prev.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -180,16 +190,19 @@ export function createTaperedStrokePath(
   }
 
   // Build closed path: left edge forward, right edge backward
-  let path = `M ${leftEdge[0].x} ${leftEdge[0].y}`;
+  // Safe: leftEdge has same length as points (>= 2)
+  let path = `M ${leftEdge[0]!.x} ${leftEdge[0]!.y}`;
 
   // Smooth the left edge
   for (let i = 1; i < leftEdge.length; i++) {
-    path += ` L ${leftEdge[i].x} ${leftEdge[i].y}`;
+    const p = leftEdge[i]!; // Safe: i < length
+    path += ` L ${p.x} ${p.y}`;
   }
 
   // Connect to right edge (reversed)
   for (let i = rightEdge.length - 1; i >= 0; i--) {
-    path += ` L ${rightEdge[i].x} ${rightEdge[i].y}`;
+    const p = rightEdge[i]!; // Safe: i >= 0 and i < length
+    path += ` L ${p.x} ${p.y}`;
   }
 
   path += ' Z'; // Close the path
@@ -208,18 +221,21 @@ export function createTaperedStrokePath(
 export function simplifyPoints(points: Point[], minDistance = 2): Point[] {
   if (points.length <= 2) return points;
 
-  const result: Point[] = [points[0]];
-  let lastPoint = points[0];
+  // Safe: length > 2
+  const first = points[0]!;
+  const result: Point[] = [first];
+  let lastPoint = first;
 
   for (let i = 1; i < points.length - 1; i++) {
-    if (distance(lastPoint, points[i]) >= minDistance) {
-      result.push(points[i]);
-      lastPoint = points[i];
+    const p = points[i]!; // Safe: i < length - 1
+    if (distance(lastPoint, p) >= minDistance) {
+      result.push(p);
+      lastPoint = p;
     }
   }
 
-  // Always include last point
-  result.push(points[points.length - 1]);
+  // Always include last point (safe: length > 2)
+  result.push(points[points.length - 1]!);
 
   return result;
 }
