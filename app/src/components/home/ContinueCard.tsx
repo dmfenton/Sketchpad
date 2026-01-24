@@ -34,8 +34,9 @@ interface ContinueCardProps {
 /**
  * Simple SVG preview of work-in-progress strokes.
  * Renders completed strokes without animation.
+ * Memoized to avoid re-renders when parent state changes.
  */
-function WipPreview({
+const WipPreview = React.memo(function WipPreview({
   strokes,
   styleConfig,
 }: {
@@ -85,7 +86,7 @@ function WipPreview({
       })}
     </Svg>
   );
-}
+});
 
 export function ContinueCard({
   api,
