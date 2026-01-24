@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Idle animation now turns off when agent starts drawing, not when first stroke completes
 - Event text (svg, imagine, draw_paths) now displays in mobile LiveStatus during tool execution
 
 ## [1.33.3] - 2026-01-23
