@@ -142,7 +142,7 @@ export function LiveStatus({
   }, [status, pulseAnim]);
 
   // Don't show anything when idle and no content
-  const hasContent = displayedWords.length > 0 || performance.buffer.length > 0 || eventText !== null;
+  const hasContent = displayedWords.length > 0 || performance.buffer.length > 0 || !!eventText;
   if (status === 'idle' && !hasContent) {
     return null;
   }
