@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.33.4] - 2026-01-24
+
 ### Added
 
 - Agent automatically pauses when all clients disconnect to save API costs
