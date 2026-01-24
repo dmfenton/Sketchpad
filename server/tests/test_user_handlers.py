@@ -4,9 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from code_monet.types import DrawingStyleType, StyleChangeMessage
+from code_monet.types import AgentStatus, DrawingStyleType, PauseReason, StyleChangeMessage
 from code_monet.user_handlers import (
     handle_new_canvas,
+    handle_pause,
     handle_resume,
     handle_set_style,
     handle_user_message,
@@ -207,6 +208,123 @@ class TestHandleResume:
         await handle_resume(mock_workspace, {"direction": "test"})
 
         mock_workspace.start_agent_loop.assert_awaited_once()
+
+
+class TestHandlePause:
+    """Test handle_pause function and PauseReason."""
+
+    @pytest.fixture
+    def mock_workspace(self) -> MagicMock:
+        """Create a mock workspace for pause tests."""
+        workspace = MagicMock()
+        workspace.user_id = 1
+        workspace.state = MagicMock()
+        workspace.state.status = AgentStatus.IDLE
+        workspace.state.pause_reason = PauseReason.NONE
+        workspace.state.save = AsyncMock()
+        workspace.agent = MagicMock()
+        workspace.agent.pause = AsyncMock()
+        workspace.connections = MagicMock()
+        workspace.connections.broadcast = AsyncMock()
+        return workspace
+
+    @pytest.mark.asyncio
+    async def test_pause_sets_user_reason(self, mock_workspace: MagicMock) -> None:
+        """User-initiated pause should set pause_reason to USER."""
+        await handle_pause(mock_workspace)
+
+        assert mock_workspace.state.status == AgentStatus.PAUSED
+        assert mock_workspace.state.pause_reason == PauseReason.USER
+        mock_workspace.agent.pause.assert_awaited_once()
+        mock_workspace.state.save.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_pause_broadcasts_paused_true(self, mock_workspace: MagicMock) -> None:
+        """Pause should broadcast paused=True to all clients."""
+        await handle_pause(mock_workspace)
+
+        broadcast_calls = mock_workspace.connections.broadcast.call_args_list
+        assert len(broadcast_calls) == 1
+        assert broadcast_calls[0][0][0].paused is True
+
+
+class TestHandleResumeWithPauseReason:
+    """Test handle_resume clears pause_reason."""
+
+    @pytest.fixture
+    def mock_workspace(self) -> MagicMock:
+        """Create a mock workspace for resume tests."""
+        workspace = MagicMock()
+        workspace.user_id = 1
+        workspace.state = MagicMock()
+        workspace.state.status = AgentStatus.PAUSED
+        workspace.state.pause_reason = PauseReason.USER
+        workspace.state.save = AsyncMock()
+        workspace.agent = MagicMock()
+        workspace.agent.add_nudge = MagicMock()
+        workspace.agent.resume = AsyncMock()
+        workspace.connections = MagicMock()
+        workspace.connections.broadcast = AsyncMock()
+        workspace.orchestrator = MagicMock()
+        workspace.orchestrator.wake = MagicMock()
+        workspace.start_agent_loop = AsyncMock()
+        return workspace
+
+    @pytest.mark.asyncio
+    async def test_resume_clears_pause_reason(self, mock_workspace: MagicMock) -> None:
+        """Resume should set pause_reason to NONE."""
+        await handle_resume(mock_workspace, {})
+
+        assert mock_workspace.state.status == AgentStatus.IDLE
+        assert mock_workspace.state.pause_reason == PauseReason.NONE
+        mock_workspace.agent.resume.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_resume_clears_disconnect_reason(self, mock_workspace: MagicMock) -> None:
+        """Resume should clear DISCONNECT reason as well."""
+        mock_workspace.state.pause_reason = PauseReason.DISCONNECT
+
+        await handle_resume(mock_workspace, {})
+
+        assert mock_workspace.state.pause_reason == PauseReason.NONE
+
+
+class TestHandleNewCanvasWithPauseReason:
+    """Test handle_new_canvas clears pause_reason."""
+
+    @pytest.fixture
+    def mock_workspace(self) -> MagicMock:
+        """Create a mock workspace for new_canvas tests."""
+        workspace = MagicMock()
+        workspace.user_id = 1
+        workspace.state = MagicMock()
+        workspace.state.new_canvas = AsyncMock(return_value="piece_001")
+        workspace.state.piece_number = 1
+        workspace.state.list_gallery = AsyncMock(return_value=[])
+        workspace.state.canvas = MagicMock()
+        workspace.state.canvas.drawing_style = DrawingStyleType.PLOTTER
+        workspace.state.status = AgentStatus.PAUSED
+        workspace.state.pause_reason = PauseReason.USER
+        workspace.state.save = AsyncMock()
+        workspace.agent = MagicMock()
+        workspace.agent.reset_container = MagicMock()
+        workspace.agent.add_nudge = MagicMock()
+        workspace.agent.resume = AsyncMock()
+        workspace.connections = MagicMock()
+        workspace.connections.broadcast = AsyncMock()
+        workspace.orchestrator = MagicMock()
+        workspace.orchestrator.clear_piece_completed = MagicMock()
+        workspace.orchestrator.wake = MagicMock()
+        workspace.start_agent_loop = AsyncMock()
+        return workspace
+
+    @pytest.mark.asyncio
+    async def test_new_canvas_clears_pause_reason(self, mock_workspace: MagicMock) -> None:
+        """New canvas should clear pause_reason."""
+        await handle_new_canvas(mock_workspace, {})
+
+        assert mock_workspace.state.status == AgentStatus.IDLE
+        assert mock_workspace.state.pause_reason == PauseReason.NONE
 
 
 class TestHandleAnimationDone:

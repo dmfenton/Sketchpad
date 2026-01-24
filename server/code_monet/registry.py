@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import WebSocket
 
 from code_monet.config import settings
+from code_monet.types import AgentStatus, PauseReason
 from code_monet.workspace import WorkspaceState
 
 logger = logging.getLogger(__name__)
@@ -125,28 +126,34 @@ class ActiveWorkspace:
     orchestrator: Any = None  # AgentOrchestrator - set after creation
     loop_task: asyncio.Task[None] | None = None
     _idle_task: asyncio.Task[None] | None = field(default=None, repr=False)
+    _loop_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     async def start_agent_loop(self) -> None:
-        """Start (or restart) the agent orchestrator loop."""
+        """Start (or restart) the agent orchestrator loop.
+
+        Thread-safe: uses internal lock to prevent race conditions when
+        multiple clients connect simultaneously.
+        """
         if not self.orchestrator:
             return
 
-        if self.loop_task and not self.loop_task.done():
-            return
+        async with self._loop_lock:
+            if self.loop_task and not self.loop_task.done():
+                return
 
-        if self.loop_task and self.loop_task.done():
-            if self.loop_task.cancelled():
-                logger.info(f"User {self.user_id}: agent loop cancelled, restarting")
-            else:
-                exc = self.loop_task.exception()
-                if exc:
-                    logger.warning(
-                        f"User {self.user_id}: agent loop exited with error, restarting: {exc}"
-                    )
-            self.loop_task = None
+            if self.loop_task and self.loop_task.done():
+                if self.loop_task.cancelled():
+                    logger.info(f"User {self.user_id}: agent loop cancelled, restarting")
+                else:
+                    exc = self.loop_task.exception()
+                    if exc:
+                        logger.warning(
+                            f"User {self.user_id}: agent loop exited with error, restarting: {exc}"
+                        )
+                self.loop_task = None
 
-        self.loop_task = asyncio.create_task(self.orchestrator.run_loop())
-        logger.info(f"User {self.user_id}: agent loop started")
+            self.loop_task = asyncio.create_task(self.orchestrator.run_loop())
+            logger.info(f"User {self.user_id}: agent loop started")
 
     async def stop_agent_loop(self) -> None:
         """Stop the agent orchestrator loop."""
@@ -285,7 +292,7 @@ class WorkspaceRegistry:
         return workspace
 
     async def on_disconnect(self, user_id: str, websocket: WebSocket) -> None:
-        """Handle user disconnect - schedule deactivation if no connections remain."""
+        """Handle user disconnect - pause agent and schedule deactivation if no connections remain."""
         async with self._lock:
             if user_id not in self._workspaces:
                 return
@@ -294,6 +301,15 @@ class WorkspaceRegistry:
             ws.connections.remove(websocket)
 
             if ws.connections.is_empty:
+                # Pause the agent if not already paused by user
+                # This prevents wasted API calls while no one is watching
+                if ws.agent and not ws.agent.paused:
+                    await ws.agent.pause()
+                    ws.state.status = AgentStatus.PAUSED
+                    ws.state.pause_reason = PauseReason.DISCONNECT
+                    await ws.state.save()
+                    logger.info(f"User {user_id}: agent paused (no clients connected)")
+
                 # Schedule deactivation after grace period
                 ws._idle_task = asyncio.create_task(
                     self._deactivate_after_delay(user_id, IDLE_GRACE_PERIOD)

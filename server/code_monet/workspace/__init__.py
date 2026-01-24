@@ -24,6 +24,7 @@ from code_monet.types import (
     DrawingStyleType,
     GalleryEntry,
     Path,
+    PauseReason,
     PendingStrokeDict,
     SavedCanvas,
 )
@@ -74,6 +75,7 @@ class WorkspaceState:
         # In-memory state
         self._canvas: CanvasState = CanvasState()
         self._status: AgentStatus = AgentStatus.PAUSED
+        self._pause_reason: PauseReason = PauseReason.NONE
         self._piece_number: int = 0
         self._notes: str = ""
         self._monologue: str = ""
@@ -132,6 +134,12 @@ class WorkspaceState:
                 drawing_style=parse_drawing_style(canvas_data.get("drawing_style", "plotter")),
             )
             self._status = AgentStatus(data.get("status", "paused"))
+            # Load pause_reason, default to NONE for backwards compatibility
+            pause_reason_str = data.get("pause_reason", "none")
+            try:
+                self._pause_reason = PauseReason(pause_reason_str)
+            except ValueError:
+                self._pause_reason = PauseReason.NONE
             self._piece_number = data.get("piece_number", 0)
             self._notes = data.get("notes", "")
             self._monologue = data.get("monologue", "")
@@ -183,6 +191,7 @@ class WorkspaceState:
             data = {
                 "canvas": self._canvas.model_dump(),
                 "status": self._status.value,
+                "pause_reason": self._pause_reason.value,
                 "piece_number": self._piece_number,
                 "notes": self._notes,
                 "monologue": self._monologue,
@@ -224,6 +233,14 @@ class WorkspaceState:
     @status.setter
     def status(self, value: AgentStatus) -> None:
         self._status = value
+
+    @property
+    def pause_reason(self) -> PauseReason:
+        return self._pause_reason
+
+    @pause_reason.setter
+    def pause_reason(self, value: PauseReason) -> None:
+        self._pause_reason = value
 
     @property
     def piece_number(self) -> int:

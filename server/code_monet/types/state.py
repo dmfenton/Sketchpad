@@ -19,6 +19,20 @@ class AgentStatus(str, Enum):
     ERROR = "error"
 
 
+class PauseReason(str, Enum):
+    """Reason why the agent is paused.
+
+    Used to determine whether to auto-resume on reconnect:
+    - NONE: Agent is not paused (or was never paused)
+    - USER: User explicitly paused - don't auto-resume
+    - DISCONNECT: System paused due to no clients - auto-resume on reconnect
+    """
+
+    NONE = "none"
+    USER = "user"
+    DISCONNECT = "disconnect"
+
+
 class CanvasState(BaseModel):
     """Canvas state."""
 
