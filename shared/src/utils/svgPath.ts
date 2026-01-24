@@ -84,3 +84,65 @@ export function pointsToSvgD(points: Point[], smooth = false): string {
   }
   return parts.join(' ');
 }
+
+/**
+ * Convert a Path object to SVG path 'd' attribute with optional scaling.
+ * Used for rendering strokes at different sizes (e.g., thumbnails).
+ * @param path - The path to convert
+ * @param scale - Scale factor to apply to coordinates (default: 1)
+ */
+export function pathToSvgDScaled(path: Path, scale = 1): string {
+  // SVG paths with 'd' attribute - scale coordinates in the d-string
+  if (path.type === 'svg' && path.d) {
+    if (scale === 1) return path.d;
+    return path.d.replace(/[\d.]+/g, (match) => String(parseFloat(match) * scale));
+  }
+
+  if (!path.points || path.points.length === 0) return '';
+
+  const pts = path.points;
+  const s = scale;
+
+  switch (path.type) {
+    case 'line':
+      if (pts.length >= 2) {
+        const p0 = pts[0]!;
+        const p1 = pts[1]!;
+        return `M ${p0.x * s} ${p0.y * s} L ${p1.x * s} ${p1.y * s}`;
+      }
+      return '';
+
+    case 'quadratic':
+      if (pts.length >= 3) {
+        const p0 = pts[0]!;
+        const p1 = pts[1]!;
+        const p2 = pts[2]!;
+        return `M ${p0.x * s} ${p0.y * s} Q ${p1.x * s} ${p1.y * s} ${p2.x * s} ${p2.y * s}`;
+      }
+      return '';
+
+    case 'cubic':
+      if (pts.length >= 4) {
+        const p0 = pts[0]!;
+        const p1 = pts[1]!;
+        const p2 = pts[2]!;
+        const p3 = pts[3]!;
+        return `M ${p0.x * s} ${p0.y * s} C ${p1.x * s} ${p1.y * s} ${p2.x * s} ${p2.y * s} ${p3.x * s} ${p3.y * s}`;
+      }
+      return '';
+
+    case 'polyline':
+    default:
+      // Polyline: straight line segments between points
+      if (pts.length >= 2) {
+        const p0 = pts[0]!;
+        let d = `M ${p0.x * s} ${p0.y * s}`;
+        for (let i = 1; i < pts.length; i++) {
+          const p = pts[i]!;
+          d += ` L ${p.x * s} ${p.y * s}`;
+        }
+        return d;
+      }
+      return '';
+  }
+}

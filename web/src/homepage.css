@@ -845,6 +845,23 @@
   z-index: 1;
 }
 
+.gallery-artwork.gallery-thumbnail {
+  object-fit: contain;
+  background: #fdfcf8;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gallery-artwork.gallery-thumbnail.loaded {
+  opacity: 1;
+}
+
+.gallery-artwork.gallery-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
 .gallery-label {
   display: block;
   margin-top: 16px;

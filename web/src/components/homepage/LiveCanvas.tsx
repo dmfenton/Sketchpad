@@ -4,12 +4,13 @@
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { pathToSvgDScaled, type Path } from '@code-monet/shared';
 import { getWebSocketUrl } from '../../config';
-import { PathData, SimulatedStroke, STROKE_COLORS } from './types';
-import { generateArtisticPath, pointsToPath, pathDataToSvg } from './utils';
+import { SimulatedStroke, STROKE_COLORS } from './types';
+import { generateArtisticPath, pointsToPath } from './utils';
 
 export function LiveCanvas(): React.ReactElement {
-  const [realStrokes, setRealStrokes] = useState<PathData[]>([]);
+  const [realStrokes, setRealStrokes] = useState<Path[]>([]);
   const [wsConnected, setWsConnected] = useState(false);
   const [simStrokes, setSimStrokes] = useState<SimulatedStroke[]>([]);
   const [currentStroke, setCurrentStroke] = useState<SimulatedStroke | null>(null);
@@ -133,7 +134,7 @@ export function LiveCanvas(): React.ReactElement {
           .map((stroke, i) => (
             <path
               key={i}
-              d={pathDataToSvg(stroke, 0.5)}
+              d={pathToSvgDScaled(stroke, 0.5)}
               fill="none"
               stroke={stroke.color ?? (stroke.author === 'human' ? '#6a9fb5' : '#2c3e50')}
               strokeWidth={(stroke.stroke_width ?? 8) * 0.5}

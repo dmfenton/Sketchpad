@@ -4,9 +4,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { pathToSvgDScaled, type Path } from '@code-monet/shared';
 import { getApiUrl } from '../config';
-import type { GalleryPiece, PathData, PieceStrokes } from '../components/homepage/types';
-import { pathDataToSvg } from '../components/homepage/utils';
+import type { GalleryPiece, PieceStrokes } from '../components/homepage/types';
 
 interface GalleryPiecePageProps {
   userId: string;
@@ -22,7 +22,7 @@ export function GalleryPiecePage({
   initialStrokes,
 }: GalleryPiecePageProps): React.ReactElement {
   const [piece, setPiece] = useState<GalleryPiece | undefined>(initialPiece);
-  const [strokes, setStrokes] = useState<PathData[]>(initialStrokes?.strokes ?? []);
+  const [strokes, setStrokes] = useState<Path[]>((initialStrokes?.strokes ?? []) as Path[]);
   const [loading, setLoading] = useState(!initialStrokes);
   const navigate = useNavigate();
 
@@ -34,7 +34,7 @@ export function GalleryPiecePage({
         const response = await fetch(`${getApiUrl()}/public/gallery/${userId}/${pieceId}/strokes`);
         if (response.ok) {
           const data: PieceStrokes = await response.json();
-          setStrokes(data.strokes ?? []);
+          setStrokes((data.strokes ?? []) as Path[]);
           // Create a piece object from the response
           setPiece({
             id: data.id,
@@ -101,7 +101,7 @@ export function GalleryPiecePage({
                   {strokes.map((stroke, i) => (
                     <path
                       key={i}
-                      d={pathDataToSvg(stroke, 1)}
+                      d={pathToSvgDScaled(stroke, 1)}
                       fill="none"
                       stroke={stroke.color ?? (stroke.author === 'human' ? '#6a9fb5' : '#2c3e50')}
                       strokeWidth={stroke.stroke_width ?? (stroke.author === 'human' ? 4 : 3)}
