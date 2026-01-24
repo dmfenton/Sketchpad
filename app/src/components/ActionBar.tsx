@@ -136,7 +136,7 @@ export function ActionBar({
         <ActionButton
           icon="images-outline"
           label="Gallery"
-          disabled={!connected || galleryCount === 0}
+          disabled={galleryCount === 0}
           onPress={onGallery}
           colors={colors}
           testID="action-gallery"
