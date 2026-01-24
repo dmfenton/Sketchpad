@@ -229,10 +229,15 @@ export function deriveAgentStatus(state: CanvasHookState): AgentStatus {
 
 /**
  * Determine if the idle animation should show.
- * Simple rule: show only until the first stroke is committed.
+ * Show only until drawing begins - including when the agent starts drawing
+ * (agentStroke has points), not just when the stroke is completed.
  */
 export function shouldShowIdleAnimation(state: CanvasHookState): boolean {
-  return state.strokes.length === 0 && state.currentStroke.length === 0;
+  return (
+    state.strokes.length === 0 &&
+    state.currentStroke.length === 0 &&
+    state.performance.agentStroke.length === 0
+  );
 }
 
 // Performance actions

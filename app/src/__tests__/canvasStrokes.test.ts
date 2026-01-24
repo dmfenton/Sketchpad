@@ -457,6 +457,21 @@ describe('idle animation visibility', () => {
 
     expect(shouldShowIdleAnimation(state)).toBe(false);
   });
+
+  it('hides idle animation when agent is drawing', () => {
+    const state: CanvasHookState = {
+      ...initialState,
+      paused: false,
+      strokes: [],
+      currentStroke: [],
+      performance: {
+        ...initialState.performance,
+        agentStroke: [{ x: 5, y: 5 }], // agent mid-stroke
+      },
+    };
+
+    expect(shouldShowIdleAnimation(state)).toBe(false);
+  });
 });
 
 // =============================================================================
