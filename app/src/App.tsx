@@ -1,308 +1,67 @@
 /**
  * Code Monet - Main Application
  * An AI-powered drawing experience inspired by impressionist art.
+ *
+ * This file is now simplified to just composition - all business logic
+ * lives in contexts (StudioContext, NavigationContext).
  */
 
-import * as Linking from 'expo-linking';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
   StatusBar,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { PendingStroke, ToolName } from '@code-monet/shared';
 import {
-  deriveAgentStatus,
   forwardLogs,
   initLogForwarder,
   startLogSession,
-  usePendingStrokes,
-  usePerformer,
 } from '@code-monet/shared';
 
 import {
+  DebugOverlay,
   GalleryModal,
   NewCanvasModal,
   NudgeModal,
   SplashScreen,
 } from './components';
-import { createApiClient } from './api';
-import { getApiUrl, getWebSocketUrl } from './config';
-import { useAuth } from './context';
-import { useAppNavigation, useCanvas, useModals, useWebSocket } from './hooks';
-import { useTokenRefresh } from './hooks/useTokenRefresh';
+import { getApiUrl } from './config';
+import {
+  NavigationProvider,
+  StudioProvider,
+  useAuth,
+  useNavigation,
+  useStudio,
+} from './context';
+import { useDeepLinks } from './hooks';
 import { AuthScreen, HomeScreen, StudioScreen } from './screens';
-import type { StudioAction } from './screens';
 import { spacing, useTheme } from './theme';
 import { tracer } from './utils/tracing';
 
-// Debug overlay for diagnosing render loops (only in __DEV__)
-const DebugOverlay = React.memo(function DebugOverlay({
-  data,
-}: {
-  data: Record<string, string | number | boolean | null>;
-}) {
-  if (!__DEV__) return null;
-  return (
-    <View
-      pointerEvents="none"
-      style={{
-        backgroundColor: 'rgba(0,0,0,0.85)',
-        padding: 6,
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 999,
-      }}
-    >
-      {Object.entries(data).map(([key, val]) => (
-        <Text key={key} style={{ color: '#0f0', fontFamily: 'monospace', fontSize: 10 }}>
-          {key}: {String(val)}
-        </Text>
-      ))}
-    </View>
-  );
-});
-
+/**
+ * Main app content - uses contexts for all state and actions.
+ * This component is responsible for rendering screens and modals.
+ */
 function MainApp(): React.JSX.Element {
   const { colors, isDark } = useTheme();
-  const { accessToken, signOut, refreshToken } = useAuth();
-  const api = useMemo(() => createApiClient(accessToken), [accessToken]);
+  const { inStudio } = useNavigation();
+  const {
+    canvasState,
+    agentStatus,
+    currentTool,
+    wsConnected,
+    activeModal,
+    closeModal,
+    api,
+    actions,
+  } = useStudio();
+
   const [showSplash, setShowSplash] = useState(true);
-
-  // Core state
-  const canvas = useCanvas();
-  const { handleMessage, dispatch } = canvas;
-
-  // Modal management
-  const { activeModal, openModal, closeModal } = useModals();
-
-  // Handle auth errors from WebSocket
-  const { handleAuthError } = useTokenRefresh({
-    refreshToken,
-    signOut,
-    cooldownMs: 5000,
-  });
-
-  // WebSocket connection
-  const { state: wsState, send } = useWebSocket({
-    url: getWebSocketUrl(),
-    token: accessToken,
-    onMessage: handleMessage,
-    onAuthError: handleAuthError,
-  });
-
-  // Navigation (studio/home state)
-  const { inStudio, enterStudio, exitStudio, setInStudio } = useAppNavigation({
-    send,
-    paused: canvas.state.paused,
-    setPaused: canvas.setPaused,
-  });
-
-  const pendingStrokes = canvas.state.pendingStrokes;
-  const fetchPendingStrokes = useCallback(async (): Promise<PendingStroke[]> => {
-    const response = await api.fetch('/strokes/pending');
-    if (!response.ok) throw new Error('Failed to fetch strokes');
-    const data = (await response.json()) as { strokes: PendingStroke[] };
-    return data.strokes;
-  }, [api]);
-
-  usePendingStrokes({
-    pendingStrokes: accessToken ? pendingStrokes : null,
-    fetchPendingStrokes,
-    enqueueStrokes: (strokes) => {
-      dispatch({ type: 'ENQUEUE_STROKES', strokes });
-    },
-    clearPending: () => dispatch({ type: 'CLEAR_PENDING_STROKES' }),
-    onError: (error) => {
-      console.error('[App] Failed to fetch strokes:', error);
-    },
-  });
-
-  // Callback when stroke animation completes
-  const handleStrokesComplete = React.useCallback(
-    (batchId: number) => {
-      send({ type: 'animation_done', batch_id: batchId });
-    },
-    [send]
-  );
-
-  // Performance animation loop - drives text and stroke animation
-  usePerformer({
-    performance: canvas.state.performance,
-    dispatch,
-    paused: canvas.state.paused,
-    inStudio,
-    onStrokesComplete: handleStrokesComplete,
-  });
-
-  // Derive agent status from canvas state
-  const agentStatus = deriveAgentStatus(canvas.state);
-
-  // Get current tool from the last code_execution message
-  const currentTool = useMemo((): ToolName | null => {
-    for (let i = canvas.state.messages.length - 1; i >= 0; i--) {
-      const m = canvas.state.messages[i];
-      if (m && m.type === 'code_execution') {
-        return (m.metadata?.tool_name as ToolName) ?? null;
-      }
-    }
-    return null;
-  }, [canvas.state.messages]);
-
-  // Fetch gallery via HTTP on mount
-  useEffect(() => {
-    if (!accessToken) return;
-    if (canvas.state.gallery.length > 0) return;
-
-    const fetchGallery = async () => {
-      try {
-        const response = await api.fetch('/gallery');
-        if (response.ok) {
-          const gallery = await response.json();
-          dispatch({ type: 'SET_GALLERY', canvases: gallery });
-        }
-      } catch {
-        // Silently fail - WebSocket init will provide gallery as backup
-      }
-    };
-
-    void fetchGallery();
-  }, [accessToken, api, dispatch, canvas.state.gallery.length]);
-
-  // Studio action handler
-  const handleStudioAction = useCallback(
-    (action: StudioAction) => {
-      switch (action.type) {
-        case 'draw_toggle':
-          canvas.toggleDrawing();
-          break;
-        case 'nudge':
-          openModal('nudge');
-          break;
-        case 'pause_toggle':
-          if (canvas.state.paused) {
-            tracer.recordEvent('action.resume');
-            send({ type: 'resume' });
-            canvas.setPaused(false);
-          } else {
-            tracer.recordEvent('action.pause');
-            send({ type: 'pause' });
-            canvas.setPaused(true);
-          }
-          break;
-        case 'home':
-          tracer.recordEvent('session.back_to_home');
-          exitStudio();
-          break;
-        case 'gallery':
-          openModal('gallery');
-          break;
-      }
-    },
-    [canvas, send, openModal, exitStudio]
-  );
-
-  // Stroke handlers
-  const handleStrokeStart = useCallback(
-    (x: number, y: number) => {
-      canvas.startStroke(x, y);
-    },
-    [canvas]
-  );
-
-  const handleStrokeMove = useCallback(
-    (x: number, y: number) => {
-      canvas.addPoint(x, y);
-    },
-    [canvas]
-  );
-
-  const handleStrokeEnd = useCallback(() => {
-    const path = canvas.endStroke();
-    if (path) {
-      send({ type: 'stroke', points: path.points });
-    }
-  }, [canvas, send]);
-
-  // Home screen handlers
-  const handleStyleChange = useCallback(
-    (style: 'plotter' | 'paint') => {
-      send({ type: 'set_style', drawing_style: style });
-    },
-    [send]
-  );
-
-  const handleContinue = useCallback(() => {
-    tracer.recordEvent('session.continue');
-    if (canvas.state.paused) {
-      send({ type: 'resume' });
-      canvas.setPaused(false);
-    }
-    enterStudio();
-  }, [send, canvas, enterStudio]);
-
-  const handleStartWithPrompt = useCallback(
-    (prompt: string) => {
-      tracer.recordEvent('session.start', { hasDirection: true });
-      tracer.newSession();
-      send({ type: 'new_canvas', direction: prompt });
-      send({ type: 'resume' });
-      canvas.setPaused(false);
-      enterStudio();
-    },
-    [send, canvas, enterStudio]
-  );
-
-  const handleSurpriseMe = useCallback(() => {
-    tracer.recordEvent('session.start', { hasDirection: false });
-    tracer.newSession();
-    send({ type: 'new_canvas' });
-    send({ type: 'resume' });
-    canvas.setPaused(false);
-    enterStudio();
-  }, [send, canvas, enterStudio]);
-
-  // Modal handlers
-  const handleNudgeSend = useCallback(
-    (text: string) => {
-      tracer.recordEvent('action.nudge', { hasText: text.length > 0 });
-      send({ type: 'nudge', text });
-    },
-    [send]
-  );
-
-  const handleNewCanvasStart = useCallback(
-    (direction?: string, style?: 'plotter' | 'paint') => {
-      tracer.recordEvent('action.new_canvas', { hasDirection: !!direction, style });
-      tracer.newSession();
-      send({ type: 'new_canvas', direction, drawing_style: style });
-      send({ type: 'resume' });
-      canvas.setPaused(false);
-      enterStudio();
-    },
-    [send, canvas, enterStudio]
-  );
-
-  const handleGallerySelect = useCallback(
-    (pieceNumber: number) => {
-      send({ type: 'load_canvas', piece_number: pieceNumber });
-      closeModal();
-      setInStudio(true);
-    },
-    [send, closeModal, setInStudio]
-  );
-
-  const handleSplashFinish = useCallback(() => {
-    setShowSplash(false);
-  }, []);
 
   return (
     <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
@@ -312,7 +71,7 @@ function MainApp(): React.JSX.Element {
       />
 
       {/* Splash Screen */}
-      {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
 
       <SafeAreaView
         style={[styles.container, { backgroundColor: colors.background }]}
@@ -321,43 +80,44 @@ function MainApp(): React.JSX.Element {
         <DebugOverlay
           data={{
             inStudio,
-            paused: canvas.state.paused,
+            paused: canvasState.paused,
             status: agentStatus,
-            strokes: canvas.state.strokes.length,
-            pending: canvas.state.pendingStrokes?.batchId ?? null,
-            thinking: canvas.state.thinking.length,
-            ws: wsState.connected,
-            gallery: canvas.state.gallery.length,
+            strokes: canvasState.strokes.length,
+            pending: canvasState.pendingStrokes?.batchId ?? null,
+            thinking: canvasState.thinking.length,
+            ws: wsConnected,
+            gallery: canvasState.gallery.length,
           }}
         />
+
         <View style={styles.content}>
           {inStudio ? (
             <StudioScreen
-              canvas={canvas}
+              canvasState={canvasState}
               agentStatus={agentStatus}
               currentTool={currentTool}
-              wsConnected={wsState.connected}
-              galleryCount={canvas.state.gallery.length}
-              onAction={handleStudioAction}
-              onStrokeStart={handleStrokeStart}
-              onStrokeMove={handleStrokeMove}
-              onStrokeEnd={handleStrokeEnd}
+              wsConnected={wsConnected}
+              galleryCount={canvasState.gallery.length}
+              onAction={actions.handleStudioAction}
+              onStrokeStart={actions.handleStrokeStart}
+              onStrokeMove={actions.handleStrokeMove}
+              onStrokeEnd={actions.handleStrokeEnd}
             />
           ) : (
             <HomeScreen
               api={api}
-              wsConnected={wsState.connected}
-              hasCurrentWork={canvas.state.strokes.length > 0}
-              pieceNumber={canvas.state.pieceNumber}
-              gallery={canvas.state.gallery}
-              drawingStyle={canvas.state.drawingStyle}
-              strokes={canvas.state.strokes}
-              styleConfig={canvas.state.styleConfig}
-              onStyleChange={handleStyleChange}
-              onContinue={handleContinue}
-              onStartWithPrompt={handleStartWithPrompt}
-              onSurpriseMe={handleSurpriseMe}
-              onOpenGallery={() => openModal('gallery')}
+              wsConnected={wsConnected}
+              hasCurrentWork={canvasState.strokes.length > 0}
+              pieceNumber={canvasState.pieceNumber}
+              gallery={canvasState.gallery}
+              drawingStyle={canvasState.drawingStyle}
+              strokes={canvasState.strokes}
+              styleConfig={canvasState.styleConfig}
+              onStyleChange={actions.handleStyleChange}
+              onContinue={actions.handleContinue}
+              onStartWithPrompt={actions.handleStartWithPrompt}
+              onSurpriseMe={actions.handleSurpriseMe}
+              onOpenGallery={() => actions.handleStudioAction({ type: 'gallery' })}
             />
           )}
         </View>
@@ -366,125 +126,41 @@ function MainApp(): React.JSX.Element {
         <NudgeModal
           visible={activeModal === 'nudge'}
           onClose={closeModal}
-          onSend={handleNudgeSend}
+          onSend={actions.handleNudgeSend}
         />
 
         <NewCanvasModal
           visible={activeModal === 'newCanvas'}
-          currentStyle={canvas.state.drawingStyle}
+          currentStyle={canvasState.drawingStyle}
           onClose={closeModal}
-          onStart={handleNewCanvasStart}
+          onStart={actions.handleNewCanvasStart}
         />
 
         <GalleryModal
           api={api}
           visible={activeModal === 'gallery'}
-          canvases={canvas.state.gallery}
+          canvases={canvasState.gallery}
           onClose={closeModal}
-          onSelect={handleGallerySelect}
+          onSelect={actions.handleGallerySelect}
         />
       </SafeAreaView>
     </GestureHandlerRootView>
   );
 }
 
+/**
+ * App content with auth routing.
+ * Handles deep links and shows appropriate screen based on auth state.
+ */
 function AppContent(): React.JSX.Element {
   const { colors } = useTheme();
   const { isLoading, isAuthenticated, verifyMagicLink, setTokensFromCallback } = useAuth();
-  const [magicLinkError, setMagicLinkError] = useState<string | null>(null);
-  const [verifyingMagicLink, setVerifyingMagicLink] = useState(false);
 
   // Handle deep links for magic link authentication
-  const handleDeepLink = useCallback(
-    async (url: string | null) => {
-      if (!url) return;
-
-      try {
-        const parsed = Linking.parse(url);
-
-        // Handle callback from web page: codemonet://auth/callback?access_token=...&refresh_token=...
-        if (
-          parsed.path === 'auth/callback' &&
-          parsed.queryParams?.access_token &&
-          parsed.queryParams?.refresh_token
-        ) {
-          const accessToken = parsed.queryParams.access_token as string;
-          const refreshToken = parsed.queryParams.refresh_token as string;
-          console.log('[App] Setting tokens from web callback');
-          setVerifyingMagicLink(true);
-          setMagicLinkError(null);
-
-          const result = await setTokensFromCallback(accessToken, refreshToken);
-          if (!result.success) {
-            setMagicLinkError(result.error ?? 'Failed to authenticate');
-          }
-          setVerifyingMagicLink(false);
-          return;
-        }
-
-        // Handle magic link verification via Universal Links: /auth/verify?token=...
-        if (parsed.path === 'auth/verify' && parsed.queryParams?.token) {
-          const token = parsed.queryParams.token as string;
-          console.log('[App] Verifying magic link token');
-          setVerifyingMagicLink(true);
-          setMagicLinkError(null);
-
-          const result = await verifyMagicLink(token);
-          if (!result.success) {
-            setMagicLinkError(result.error ?? 'Magic link verification failed');
-          }
-          setVerifyingMagicLink(false);
-          return;
-        }
-
-        // Handle magic_token from expo-router redirect
-        if (parsed.queryParams?.magic_token) {
-          const token = parsed.queryParams.magic_token as string;
-          console.log('[App] Verifying magic link token from redirect');
-          setVerifyingMagicLink(true);
-          setMagicLinkError(null);
-
-          const result = await verifyMagicLink(token);
-          if (!result.success) {
-            setMagicLinkError(result.error ?? 'Magic link verification failed');
-          }
-          setVerifyingMagicLink(false);
-          return;
-        }
-
-        // Handle tokens from expo-router redirect
-        if (parsed.queryParams?.access_token && parsed.queryParams?.refresh_token) {
-          const accessToken = parsed.queryParams.access_token as string;
-          const refreshToken = parsed.queryParams.refresh_token as string;
-          console.log('[App] Setting tokens from expo-router redirect');
-          setVerifyingMagicLink(true);
-          setMagicLinkError(null);
-
-          const result = await setTokensFromCallback(accessToken, refreshToken);
-          if (!result.success) {
-            setMagicLinkError(result.error ?? 'Failed to authenticate');
-          }
-          setVerifyingMagicLink(false);
-        }
-      } catch (error) {
-        console.error('[App] Deep link error:', error);
-        setVerifyingMagicLink(false);
-      }
-    },
-    [verifyMagicLink, setTokensFromCallback]
-  );
-
-  // Listen for deep links when app is already running
-  useEffect(() => {
-    const subscription = Linking.addEventListener('url', (event) => {
-      void handleDeepLink(event.url);
-    });
-
-    // Check for initial URL (app opened via deep link)
-    void Linking.getInitialURL().then(handleDeepLink);
-
-    return () => subscription.remove();
-  }, [handleDeepLink]);
+  const { verifyingMagicLink, magicLinkError, clearError } = useDeepLinks({
+    verifyMagicLink,
+    setTokensFromCallback,
+  });
 
   // Show loading screen while checking auth or verifying magic link
   if (isLoading || verifyingMagicLink) {
@@ -499,15 +175,23 @@ function AppContent(): React.JSX.Element {
 
   // Show auth screen if not authenticated
   if (!isAuthenticated) {
-    return (
-      <AuthScreen magicLinkError={magicLinkError} onClearError={() => setMagicLinkError(null)} />
-    );
+    return <AuthScreen magicLinkError={magicLinkError} onClearError={clearError} />;
   }
 
-  // Show main app
-  return <MainApp />;
+  // Show main app with navigation and studio providers
+  return (
+    <NavigationProvider>
+      <StudioProvider>
+        <MainApp />
+      </StudioProvider>
+    </NavigationProvider>
+  );
 }
 
+/**
+ * Root app component.
+ * Initializes tracing and app state tracking.
+ */
 export default function App(): React.JSX.Element {
   // Initialize tracing and log forwarding on app mount
   useEffect(() => {

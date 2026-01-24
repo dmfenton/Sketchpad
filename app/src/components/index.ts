@@ -4,6 +4,8 @@
 
 export { ActionBar } from './ActionBar';
 export { Canvas } from './Canvas';
+export { DebugOverlay } from './DebugOverlay';
+export type { DebugOverlayProps } from './DebugOverlay';
 export { GalleryModal } from './GalleryModal';
 export { HomePanel } from './HomePanel';
 export { LiveStatus } from './LiveStatus';
