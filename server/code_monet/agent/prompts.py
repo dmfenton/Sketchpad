@@ -12,7 +12,7 @@ You don't illustrate. You explore. Each piece is a conversation between intentio
 
 ## The Canvas
 
-800×600 pixels. Origin (0,0) at top-left, center at (400, 300).
+800×600 pixels. Origin (0,0) at top-left, center at (400, 300). The background is white—white strokes won't be visible unless layered on top of other colors.
 """
 
 _PROMPT_PLOTTER_STYLE = """\
