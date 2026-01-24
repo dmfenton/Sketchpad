@@ -6,37 +6,16 @@
 import React, { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { AgentStatus, DrawingStyleConfig, Path, Point, StrokeStyle, ToolName } from '@code-monet/shared';
+import type { AgentStatus, CanvasHookState, ToolName } from '@code-monet/shared';
 import { shouldShowIdleAnimation } from '@code-monet/shared';
 
 import { ActionBar, Canvas, LiveStatus, MessageStream } from '../components';
-import type { UseCanvasReturn } from '../hooks';
-
-/** Action types for the action bar */
-export type StudioAction =
-  | { type: 'draw_toggle' }
-  | { type: 'nudge' }
-  | { type: 'pause_toggle' }
-  | { type: 'home' }
-  | { type: 'gallery' };
-
-/** Canvas render state - subset of full canvas state needed for rendering */
-export interface CanvasRenderState {
-  strokes: Path[];
-  currentStroke: Point[];
-  agentStroke: Point[];
-  agentStrokeStyle: Partial<StrokeStyle> | null;
-  penPosition: Point | null;
-  penDown: boolean;
-  drawingEnabled: boolean;
-  styleConfig: DrawingStyleConfig;
-  paused: boolean;
-}
+import type { StudioAction } from '../context';
 
 /** Props for StudioScreen */
 export interface StudioScreenProps {
-  /** Canvas hook return - provides state and handlers */
-  canvas: UseCanvasReturn;
+  /** Canvas state from context */
+  canvasState: CanvasHookState;
   /** Current agent status */
   agentStatus: AgentStatus;
   /** Current tool being used */
@@ -56,7 +35,7 @@ export interface StudioScreenProps {
 }
 
 export function StudioScreen({
-  canvas,
+  canvasState,
   agentStatus,
   currentTool,
   wsConnected,
@@ -66,8 +45,6 @@ export function StudioScreen({
   onStrokeMove,
   onStrokeEnd,
 }: StudioScreenProps): React.JSX.Element {
-  const { state } = canvas;
-
   // Action bar callbacks
   const handleDrawToggle = useCallback(() => {
     onAction({ type: 'draw_toggle' });
@@ -92,20 +69,24 @@ export function StudioScreen({
   return (
     <>
       {/* Live Status - Above canvas for visibility */}
-      <LiveStatus performance={state.performance} status={agentStatus} currentTool={currentTool} />
+      <LiveStatus
+        performance={canvasState.performance}
+        status={agentStatus}
+        currentTool={currentTool}
+      />
 
       {/* Canvas - Main area */}
       <View style={styles.canvasContainer}>
         <Canvas
-          strokes={state.strokes}
-          currentStroke={state.currentStroke}
-          agentStroke={state.performance.agentStroke}
-          agentStrokeStyle={state.performance.agentStrokeStyle}
-          penPosition={state.performance.penPosition}
-          penDown={state.performance.penDown}
-          drawingEnabled={state.drawingEnabled}
-          styleConfig={state.styleConfig}
-          showIdleAnimation={shouldShowIdleAnimation(state)}
+          strokes={canvasState.strokes}
+          currentStroke={canvasState.currentStroke}
+          agentStroke={canvasState.performance.agentStroke}
+          agentStrokeStyle={canvasState.performance.agentStrokeStyle}
+          penPosition={canvasState.performance.penPosition}
+          penDown={canvasState.performance.penDown}
+          drawingEnabled={canvasState.drawingEnabled}
+          styleConfig={canvasState.styleConfig}
+          showIdleAnimation={shouldShowIdleAnimation(canvasState)}
           onStrokeStart={onStrokeStart}
           onStrokeMove={onStrokeMove}
           onStrokeEnd={onStrokeEnd}
@@ -113,12 +94,12 @@ export function StudioScreen({
       </View>
 
       {/* Message History - Collapsible */}
-      <MessageStream messages={state.messages} />
+      <MessageStream messages={canvasState.messages} />
 
       {/* Action Bar - Bottom */}
       <ActionBar
-        drawingEnabled={state.drawingEnabled}
-        paused={state.paused}
+        drawingEnabled={canvasState.drawingEnabled}
+        paused={canvasState.paused}
         connected={wsConnected}
         galleryCount={galleryCount}
         onDrawToggle={handleDrawToggle}
