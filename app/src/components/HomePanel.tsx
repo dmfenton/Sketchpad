@@ -17,7 +17,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import type { DrawingStyleType, SavedCanvas } from '@code-monet/shared';
 import type { ApiClient } from '../api';
+import { useRendererConfig } from '../context/RendererContext';
 import { spacing, borderRadius, typography, useTheme } from '../theme';
+import { RendererPicker } from './RendererPicker';
 import { StylePicker } from './StylePicker';
 import { ContinueCard, PromptInput } from './home';
 
@@ -51,6 +53,7 @@ export function HomePanel({
   onOpenGallery,
 }: HomePanelProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
+  const { config, setRenderer } = useRendererConfig();
   const [prompt, setPrompt] = useState('');
 
   // Show continue section if:
@@ -88,6 +91,12 @@ export function HomePanel({
             onChange={onStyleChange}
             variant="segmented"
             label="Style"
+          />
+
+          <RendererPicker
+            value={config.renderer}
+            onChange={setRenderer}
+            label="Renderer"
           />
 
           <Pressable

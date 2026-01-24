@@ -103,7 +103,7 @@ function sampleCubicPoints(
 function estimateControlPolygonLength(points: Point[]): number {
   let total = 0;
   for (let i = 1; i < points.length; i++) {
-    total += distance(points[i - 1], points[i]);
+    total += distance(points[i - 1]!, points[i]!);
   }
   return total;
 }
@@ -125,19 +125,19 @@ export function samplePathPoints(
   switch (path.type) {
     case 'line': {
       if (points.length < 2) return points;
-      return sampleLinePoints(points[0], points[1], maxSegmentLength);
+      return sampleLinePoints(points[0]!, points[1]!, maxSegmentLength);
     }
     case 'quadratic': {
       if (points.length < 3) return points;
       const length = estimateControlPolygonLength(points.slice(0, 3));
       const segments = Math.max(minCurveSegments, Math.ceil(length / maxSegmentLength));
-      return sampleQuadraticPoints(points[0], points[1], points[2], segments);
+      return sampleQuadraticPoints(points[0]!, points[1]!, points[2]!, segments);
     }
     case 'cubic': {
       if (points.length < 4) return points;
       const length = estimateControlPolygonLength(points.slice(0, 4));
       const segments = Math.max(minCurveSegments, Math.ceil(length / maxSegmentLength));
-      return sampleCubicPoints(points[0], points[1], points[2], points[3], segments);
+      return sampleCubicPoints(points[0]!, points[1]!, points[2]!, points[3]!, segments);
     }
     case 'polyline':
     default:
@@ -235,7 +235,7 @@ export function getFreehandOutline(
   const outline = getStroke(points, options as StrokeOptions);
 
   // Convert back to Point objects
-  return outline.map(([x, y]) => ({ x, y }));
+  return outline.map((point) => ({ x: point[0]!, y: point[1]! }));
 }
 
 /**
