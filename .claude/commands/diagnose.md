@@ -1,3 +1,8 @@
+---
+description: Query production observability (X-Ray traces, CloudWatch logs)
+argument-hint: <errors|status|logs|trace ID>
+---
+
 # Diagnose
 
 Query production observability: X-Ray traces and CloudWatch logs.
