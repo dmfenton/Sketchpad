@@ -6,7 +6,7 @@
 import React, { useMemo } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 
-import type { DrawingStyleType, SavedCanvas } from '@code-monet/shared';
+import type { DrawingStyleConfig, DrawingStyleType, Path, SavedCanvas } from '@code-monet/shared';
 import type { ApiClient } from '../api';
 
 import { HomePanel } from '../components';
@@ -25,6 +25,10 @@ export interface HomeScreenProps {
   gallery: SavedCanvas[];
   /** Current drawing style */
   drawingStyle: DrawingStyleType;
+  /** Current strokes on the canvas (for WIP preview) */
+  strokes: Path[];
+  /** Current style configuration (for WIP preview) */
+  styleConfig: DrawingStyleConfig;
   /** Callback when style is changed */
   onStyleChange: (style: DrawingStyleType) => void;
   /** Callback to continue current/recent work */
@@ -44,6 +48,8 @@ export function HomeScreen({
   pieceNumber,
   gallery,
   drawingStyle,
+  strokes,
+  styleConfig,
   onStyleChange,
   onContinue,
   onStartWithPrompt,
@@ -70,6 +76,8 @@ export function HomeScreen({
         pieceNumber={pieceNumber}
         recentCanvas={recentCanvas}
         drawingStyle={drawingStyle}
+        strokes={strokes}
+        styleConfig={styleConfig}
         galleryCount={gallery.length}
         onStyleChange={onStyleChange}
         onContinue={onContinue}

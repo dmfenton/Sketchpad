@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import type { DrawingStyleType, SavedCanvas } from '@code-monet/shared';
+import type { DrawingStyleConfig, DrawingStyleType, Path, SavedCanvas } from '@code-monet/shared';
 import type { ApiClient } from '../api';
 import { useRendererConfig } from '../context/RendererContext';
 import { spacing, borderRadius, typography, useTheme } from '../theme';
@@ -30,6 +30,8 @@ interface HomePanelProps {
   pieceNumber: number;
   recentCanvas: SavedCanvas | null;
   drawingStyle: DrawingStyleType;
+  strokes: Path[];
+  styleConfig: DrawingStyleConfig;
   galleryCount: number;
   onStyleChange: (style: DrawingStyleType) => void;
   onContinue: () => void;
@@ -45,6 +47,8 @@ export function HomePanel({
   pieceNumber,
   recentCanvas,
   drawingStyle,
+  strokes,
+  styleConfig,
   galleryCount,
   onStyleChange,
   onContinue,
@@ -135,6 +139,8 @@ export function HomePanel({
               api={api}
               recentCanvas={recentCanvas}
               hasCurrentWork={hasCurrentWork}
+              strokes={strokes}
+              styleConfig={styleConfig}
               onContinue={onContinue}
               disabled={!connected}
             />

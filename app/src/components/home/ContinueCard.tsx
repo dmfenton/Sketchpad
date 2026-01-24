@@ -5,8 +5,18 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle, Path as SvgPath } from 'react-native-svg';
 
-import { CANVAS_ASPECT_RATIO, type SavedCanvas } from '@code-monet/shared';
+import {
+  CANVAS_ASPECT_RATIO,
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  type DrawingStyleConfig,
+  getEffectiveStyle,
+  type Path,
+  pathToSvgD,
+  type SavedCanvas,
+} from '@code-monet/shared';
 import type { ApiClient } from '../../api';
 import { useAuthenticatedImage } from '../../hooks';
 import { spacing, borderRadius, typography, useTheme } from '../../theme';
@@ -15,14 +25,74 @@ interface ContinueCardProps {
   api: ApiClient;
   recentCanvas: SavedCanvas | null;
   hasCurrentWork: boolean;
+  strokes: Path[];
+  styleConfig: DrawingStyleConfig;
   onContinue: () => void;
   disabled?: boolean;
+}
+
+/**
+ * Simple SVG preview of work-in-progress strokes.
+ * Renders completed strokes without animation.
+ */
+function WipPreview({
+  strokes,
+  styleConfig,
+}: {
+  strokes: Path[];
+  styleConfig: DrawingStyleConfig;
+}): React.JSX.Element {
+  return (
+    <Svg
+      width="100%"
+      height="100%"
+      viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
+      preserveAspectRatio="xMidYMid meet"
+    >
+      {strokes.map((stroke, index) => {
+        const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
+        const isPaintMode = styleConfig.type === 'paint';
+
+        // Render single-point strokes as dots
+        if (stroke.type !== 'svg' && stroke.points.length === 1) {
+          const pt = stroke.points[0]!;
+          const radius = Math.max(1, effectiveStyle.stroke_width / 2);
+          return (
+            <Circle
+              key={`wip-dot-${index}`}
+              cx={pt.x}
+              cy={pt.y}
+              r={radius}
+              fill={effectiveStyle.color}
+              opacity={effectiveStyle.opacity}
+            />
+          );
+        }
+
+        // Render strokes as paths
+        return (
+          <SvgPath
+            key={`wip-stroke-${index}`}
+            d={pathToSvgD(stroke, isPaintMode)}
+            stroke={effectiveStyle.color}
+            strokeWidth={effectiveStyle.stroke_width}
+            fill="none"
+            strokeLinecap={effectiveStyle.stroke_linecap}
+            strokeLinejoin={effectiveStyle.stroke_linejoin}
+            opacity={effectiveStyle.opacity}
+          />
+        );
+      })}
+    </Svg>
+  );
 }
 
 export function ContinueCard({
   api,
   recentCanvas,
   hasCurrentWork,
+  strokes,
+  styleConfig,
   onContinue,
   disabled = false,
 }: ContinueCardProps): React.JSX.Element {
@@ -66,8 +136,12 @@ export function ContinueCard({
       onPress={onContinue}
       disabled={disabled}
     >
-      <View style={styles.preview}>
-        {thumbnailSource && !imageError ? (
+      <View style={[styles.preview, { backgroundColor: colors.canvasBackground }]}>
+        {hasCurrentWork && strokes.length > 0 ? (
+          // Show live WIP preview when there are strokes
+          <WipPreview strokes={strokes} styleConfig={styleConfig} />
+        ) : thumbnailSource && !imageError ? (
+          // Show gallery thumbnail for completed work
           <>
             {imageLoading && (
               <View style={styles.loadingOverlay}>
@@ -87,6 +161,7 @@ export function ContinueCard({
             />
           </>
         ) : (
+          // Fallback placeholder
           <View style={styles.placeholder}>
             <Ionicons name="brush-outline" size={32} color={colors.textMuted} />
             <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
