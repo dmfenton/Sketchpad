@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Event text (svg, imagine, etc.) now displaces thinking text in LiveStatus instead of overlapping
+
 ## [1.33.4] - 2026-01-24
 
 ### Added
