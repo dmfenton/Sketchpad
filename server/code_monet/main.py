@@ -16,6 +16,7 @@ from code_monet.auth import auth_router
 from code_monet.auth.jwt import TokenError, get_user_id_from_token
 from code_monet.config import settings
 from code_monet.db import get_session, repository
+from code_monet.logging_config import setup_dev_logging, setup_production_logging
 from code_monet.registry import workspace_registry
 from code_monet.routes import create_api_router
 from code_monet.share import share_router
@@ -24,19 +25,11 @@ from code_monet.tracing import get_current_trace_id, setup_tracing
 from code_monet.types import AgentStatus, PausedMessage, PauseReason
 from code_monet.user_handlers import handle_user_message
 
-# Configure logging with clean format
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)5s [%(name)s] %(message)s",
-    datefmt="%H:%M:%S",
-)
-
-# Silence noisy loggers
-logging.getLogger("watchfiles").setLevel(logging.WARNING)
-logging.getLogger("httpcore").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("anthropic").setLevel(logging.WARNING)
-logging.getLogger("PIL").setLevel(logging.WARNING)
+# Configure logging based on environment
+if settings.dev_mode:
+    setup_dev_logging()
+else:
+    setup_production_logging()
 
 logger = logging.getLogger(__name__)
 

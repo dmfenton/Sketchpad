@@ -77,6 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `useAuthenticatedImage` hook for loading images with authentication (blob URL workaround for web)
 - Gallery images now load via authenticated API on both native and web platforms
 - `/sync-prod` Claude command for syncing production data to local development
+- Structured JSON logging for CloudWatch compatibility with category detection and trace ID correlation
+- `scripts/logs.sh` - Local development log convenience script
+- `scripts/logs-prod.sh` - Production log operations via CloudWatch/SSM
 
 ### Changed
 
@@ -84,6 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed `/dev-mobile` to `/dev`, added `/dev-web` for Vite web development
 - Gallery thumbnails now use authenticated image loading instead of public token URLs
 - Centralized image rendering into new `rendering.py` module for consistency and reduced duplication
+- Logging configuration moved from inline `basicConfig` to dedicated `logging_config.py` module
 
 ### Fixed
 
