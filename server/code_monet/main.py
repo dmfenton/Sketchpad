@@ -244,10 +244,7 @@ async def websocket_endpoint(
         )
 
         # Auto-resume if agent was paused due to disconnect (not user action)
-        if (
-            workspace.agent.paused
-            and workspace.state.pause_reason == PauseReason.DISCONNECT
-        ):
+        if workspace.agent.paused and workspace.state.pause_reason == PauseReason.DISCONNECT:
             await workspace.agent.resume()
             workspace.state.status = AgentStatus.IDLE
             workspace.state.pause_reason = PauseReason.NONE
