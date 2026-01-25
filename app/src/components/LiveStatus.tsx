@@ -10,7 +10,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import type { AgentMessage, AgentStatus, PerformanceState, ToolName } from '@code-monet/shared';
+import type { AgentStatus, PerformanceState, ToolName } from '@code-monet/shared';
 import { TOOL_DISPLAY_NAMES } from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
 import { TOOL_ICONS } from './messages/types';
@@ -80,10 +80,16 @@ export function LiveStatus({
   // Get revealed text from performance state
   const revealedText = performance.revealedText;
 
-  // Get event message if an event is currently on stage
-  const eventMessage: AgentMessage | null = useMemo(() => {
+  // Get event message and icon if an event is currently on stage
+  const eventDisplay = useMemo(() => {
     if (performance.onStage?.type === 'event') {
-      return performance.onStage.message;
+      const message = performance.onStage.message;
+      const toolKey = message.metadata?.tool_name ?? 'unknown';
+      const iconConfig = TOOL_ICONS[toolKey];
+      return {
+        message,
+        icon: iconConfig?.activeIcon ?? iconConfig?.name ?? 'ellipse-outline',
+      };
     }
     return null;
   }, [performance.onStage]);
@@ -143,7 +149,7 @@ export function LiveStatus({
   }, [status, pulseAnim]);
 
   // Don't show anything when idle and no content
-  const hasContent = displayedWords.length > 0 || performance.buffer.length > 0 || !!eventMessage;
+  const hasContent = displayedWords.length > 0 || performance.buffer.length > 0 || !!eventDisplay;
   if (status === 'idle' && !hasContent) {
     return null;
   }
@@ -173,19 +179,11 @@ export function LiveStatus({
       </View>
 
       {/* Event replaces thinking text permanently - displayed like message bubbles */}
-      {eventMessage ? (
+      {eventDisplay ? (
         <View style={styles.eventRow}>
-          <Ionicons
-            name={
-              TOOL_ICONS[eventMessage.metadata?.tool_name ?? 'unknown']?.activeIcon ??
-              TOOL_ICONS[eventMessage.metadata?.tool_name ?? 'unknown']?.name ??
-              'ellipse-outline'
-            }
-            size={14}
-            color={colors.primary}
-          />
+          <Ionicons name={eventDisplay.icon} size={14} color={colors.primary} />
           <Text style={[styles.eventText, { color: colors.textPrimary }]} numberOfLines={2}>
-            {eventMessage.text}
+            {eventDisplay.message.text}
           </Text>
         </View>
       ) : displayedWords.length > 0 ? (

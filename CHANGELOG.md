@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Events (like "Drawing paths...") now permanently replace thinking text in mobile LiveStatus instead of allowing it to return after the event completes
+
 ## [1.35.0] - 2026-01-24
 
 ### Added
