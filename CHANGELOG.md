@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.35.1] - 2026-01-25
+
 ### Fixed
 
 - Pause/resume buttons now respond immediately with optimistic UI updates instead of waiting for server confirmation
@@ -949,7 +951,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.35.0...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.35.1...HEAD
+[1.35.1]: https://github.com/dmfenton/sketchpad/compare/v1.35.0...v1.35.1
 [1.35.0]: https://github.com/dmfenton/sketchpad/compare/v1.34.0...v1.35.0
 [1.26.0]: https://github.com/dmfenton/sketchpad/compare/v1.25.2...v1.26.0
 [1.21.2]: https://github.com/dmfenton/sketchpad/compare/v1.21.1...v1.21.2
