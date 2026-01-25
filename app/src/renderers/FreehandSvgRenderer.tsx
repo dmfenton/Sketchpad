@@ -234,24 +234,34 @@ export function FreehandSvgRenderer({
 
       {/* Agent in-progress stroke */}
       {agentStroke.length > 0 &&
-        (agentStroke.length === 1 ? (
-          <StrokeDot
-            point={agentStroke[0]!}
-            style={{
-              ...styleConfig.agent_stroke,
-              ...agentStrokeStyle,
-            }}
-          />
-        ) : (
-          <FreehandStroke
-            points={agentStroke}
-            style={{
-              ...styleConfig.agent_stroke,
-              ...agentStrokeStyle,
-            }}
-            blur={isPaintMode}
-          />
-        ))}
+        (() => {
+          // Get effective style - use agentStrokeStyle overrides in paint mode
+          const effectiveColor =
+            styleConfig.supports_color && agentStrokeStyle?.color
+              ? agentStrokeStyle.color
+              : styleConfig.agent_stroke.color;
+          const effectiveWidth =
+            styleConfig.supports_variable_width && agentStrokeStyle?.stroke_width
+              ? agentStrokeStyle.stroke_width
+              : styleConfig.agent_stroke.stroke_width;
+          const effectiveOpacity =
+            styleConfig.supports_opacity && agentStrokeStyle?.opacity !== undefined
+              ? agentStrokeStyle.opacity
+              : styleConfig.agent_stroke.opacity;
+          const effectiveStyle: StrokeStyle = {
+            color: effectiveColor,
+            stroke_width: effectiveWidth,
+            opacity: effectiveOpacity,
+            stroke_linecap: styleConfig.agent_stroke.stroke_linecap,
+            stroke_linejoin: styleConfig.agent_stroke.stroke_linejoin,
+          };
+
+          return agentStroke.length === 1 ? (
+            <StrokeDot point={agentStroke[0]!} style={effectiveStyle} />
+          ) : (
+            <FreehandStroke points={agentStroke} style={effectiveStyle} blur={isPaintMode} />
+          );
+        })()}
 
       {/* Pen position indicator */}
       {penPosition && <PenIndicator position={penPosition} penDown={penDown} color={primaryColor} />}
