@@ -14,6 +14,7 @@ import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   createTaperedStrokePath,
+  getEffectiveAgentStrokeStyle,
   getEffectiveStyle,
   pathToSvgD,
   pointsToSvgD,
@@ -110,28 +111,16 @@ export function SvgRenderer({
       {/* Agent's in-progress stroke */}
       {agentStroke.length > 0 &&
         (() => {
-          // Get effective style - use agentStrokeStyle overrides in paint mode
-          const effectiveColor =
-            styleConfig.supports_color && agentStrokeStyle?.color
-              ? agentStrokeStyle.color
-              : styleConfig.agent_stroke.color;
-          const effectiveWidth =
-            styleConfig.supports_variable_width && agentStrokeStyle?.stroke_width
-              ? agentStrokeStyle.stroke_width
-              : styleConfig.agent_stroke.stroke_width;
-          const effectiveOpacity =
-            styleConfig.supports_opacity && agentStrokeStyle?.opacity !== undefined
-              ? agentStrokeStyle.opacity
-              : styleConfig.agent_stroke.opacity;
+          const style = getEffectiveAgentStrokeStyle(styleConfig, agentStrokeStyle);
 
           if (agentStroke.length === 1) {
             return (
               <Circle
                 cx={agentStroke[0]!.x}
                 cy={agentStroke[0]!.y}
-                r={Math.max(1, effectiveWidth / 2)}
-                fill={effectiveColor}
-                opacity={effectiveOpacity}
+                r={Math.max(1, style.stroke_width / 2)}
+                fill={style.color}
+                opacity={style.opacity}
               />
             );
           }
@@ -139,19 +128,19 @@ export function SvgRenderer({
           return styleConfig.type === 'paint' && agentStroke.length > 3 ? (
             // Paint mode: tapered brush stroke
             <SvgPath
-              d={createTaperedStrokePath(agentStroke, effectiveWidth * 1.5, 0.7)}
-              fill={effectiveColor}
-              opacity={effectiveOpacity * 0.9}
+              d={createTaperedStrokePath(agentStroke, style.stroke_width * 1.5, 0.7)}
+              fill={style.color}
+              opacity={style.opacity * 0.9}
             />
           ) : (
             // Plotter mode: simple polyline
             <SvgPath
               d={pointsToSvgD(agentStroke)}
-              stroke={effectiveColor}
-              strokeWidth={effectiveWidth}
+              stroke={style.color}
+              strokeWidth={style.stroke_width}
               fill="none"
-              strokeLinecap={styleConfig.agent_stroke.stroke_linecap}
-              strokeLinejoin={styleConfig.agent_stroke.stroke_linejoin}
+              strokeLinecap={style.stroke_linecap}
+              strokeLinejoin={style.stroke_linejoin}
             />
           );
         })()}

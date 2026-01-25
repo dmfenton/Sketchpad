@@ -14,6 +14,7 @@ import type { Point, RendererProps, StrokeStyle, BrushName } from '@code-monet/s
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
+  getEffectiveAgentStrokeStyle,
   getEffectiveStyle,
   getFreehandOutline,
   outlineToSvgPath,
@@ -235,31 +236,11 @@ export function FreehandSvgRenderer({
       {/* Agent in-progress stroke */}
       {agentStroke.length > 0 &&
         (() => {
-          // Get effective style - use agentStrokeStyle overrides in paint mode
-          const effectiveColor =
-            styleConfig.supports_color && agentStrokeStyle?.color
-              ? agentStrokeStyle.color
-              : styleConfig.agent_stroke.color;
-          const effectiveWidth =
-            styleConfig.supports_variable_width && agentStrokeStyle?.stroke_width
-              ? agentStrokeStyle.stroke_width
-              : styleConfig.agent_stroke.stroke_width;
-          const effectiveOpacity =
-            styleConfig.supports_opacity && agentStrokeStyle?.opacity !== undefined
-              ? agentStrokeStyle.opacity
-              : styleConfig.agent_stroke.opacity;
-          const effectiveStyle: StrokeStyle = {
-            color: effectiveColor,
-            stroke_width: effectiveWidth,
-            opacity: effectiveOpacity,
-            stroke_linecap: styleConfig.agent_stroke.stroke_linecap,
-            stroke_linejoin: styleConfig.agent_stroke.stroke_linejoin,
-          };
-
+          const style = getEffectiveAgentStrokeStyle(styleConfig, agentStrokeStyle);
           return agentStroke.length === 1 ? (
-            <StrokeDot point={agentStroke[0]!} style={effectiveStyle} />
+            <StrokeDot point={agentStroke[0]!} style={style} />
           ) : (
-            <FreehandStroke points={agentStroke} style={effectiveStyle} blur={isPaintMode} />
+            <FreehandStroke points={agentStroke} style={style} blur={isPaintMode} />
           );
         })()}
 

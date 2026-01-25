@@ -401,6 +401,32 @@ export function getEffectiveStyle(path: Path, styleConfig: DrawingStyleConfig): 
   };
 }
 
+/**
+ * Get the effective style for an in-progress agent stroke.
+ * Applies overrides from agentStrokeStyle only when the style mode supports them.
+ */
+export function getEffectiveAgentStrokeStyle(
+  styleConfig: DrawingStyleConfig,
+  agentStrokeStyle: Partial<StrokeStyle> | null | undefined
+): StrokeStyle {
+  return {
+    color:
+      styleConfig.supports_color && agentStrokeStyle?.color
+        ? agentStrokeStyle.color
+        : styleConfig.agent_stroke.color,
+    stroke_width:
+      styleConfig.supports_variable_width && agentStrokeStyle?.stroke_width
+        ? agentStrokeStyle.stroke_width
+        : styleConfig.agent_stroke.stroke_width,
+    opacity:
+      styleConfig.supports_opacity && agentStrokeStyle?.opacity !== undefined
+        ? agentStrokeStyle.opacity
+        : styleConfig.agent_stroke.opacity,
+    stroke_linecap: styleConfig.agent_stroke.stroke_linecap,
+    stroke_linejoin: styleConfig.agent_stroke.stroke_linejoin,
+  };
+}
+
 // Agent status
 export type AgentStatus = 'idle' | 'thinking' | 'executing' | 'drawing' | 'paused' | 'error';
 
