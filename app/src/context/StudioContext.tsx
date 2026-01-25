@@ -151,15 +151,17 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
         // Remember if agent was running (for auto-resume on foreground)
         wasRunningBeforeBackgroundRef.current = !pausedRef.current;
         if (!pausedRef.current) {
-          send({ type: 'pause' });
+          // Optimistic update order for consistency (though UI isn't visible when backgrounded)
           setPausedRef.current(true);
+          send({ type: 'pause' });
         }
         // Stay in current screen - don't exit to home
       } else if (nextAppState === 'active') {
         // Auto-resume if we're in studio and agent was running before background
         if (inStudioRef.current && wasRunningBeforeBackgroundRef.current) {
-          send({ type: 'resume' });
+          // Optimistic update order for consistency
           setPausedRef.current(false);
+          send({ type: 'resume' });
           wasRunningBeforeBackgroundRef.current = false;
         }
       }
@@ -254,21 +256,23 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
           break;
         case 'pause_toggle':
           if (canvas.state.paused) {
+            // Optimistic update: update UI immediately, then notify server
+            canvas.setPaused(false);
             tracer.recordEvent('action.resume');
             send({ type: 'resume' });
-            canvas.setPaused(false);
           } else {
+            // Optimistic update: update UI immediately, then notify server
+            canvas.setPaused(true);
             tracer.recordEvent('action.pause');
             send({ type: 'pause' });
-            canvas.setPaused(true);
           }
           break;
         case 'home':
           tracer.recordEvent('session.back_to_home');
-          // Pause agent when going home
+          // Pause agent when going home (optimistic update first)
           if (!canvas.state.paused) {
-            send({ type: 'pause' });
             canvas.setPaused(true);
+            send({ type: 'pause' });
           }
           exitStudio();
           break;
@@ -313,8 +317,9 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
   const handleContinue = useCallback(() => {
     tracer.recordEvent('session.continue');
     if (canvas.state.paused) {
-      send({ type: 'resume' });
+      // Optimistic update: update UI immediately, then notify server
       canvas.setPaused(false);
+      send({ type: 'resume' });
     }
     enterStudio();
   }, [send, canvas, enterStudio]);
@@ -323,9 +328,10 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
     (prompt: string) => {
       tracer.recordEvent('session.start', { hasDirection: true });
       tracer.newSession();
+      // Optimistic update: update UI immediately, then notify server
+      canvas.setPaused(false);
       send({ type: 'new_canvas', direction: prompt });
       send({ type: 'resume' });
-      canvas.setPaused(false);
       enterStudio();
     },
     [send, canvas, enterStudio]
@@ -334,9 +340,10 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
   const handleSurpriseMe = useCallback(() => {
     tracer.recordEvent('session.start', { hasDirection: false });
     tracer.newSession();
+    // Optimistic update: update UI immediately, then notify server
+    canvas.setPaused(false);
     send({ type: 'new_canvas' });
     send({ type: 'resume' });
-    canvas.setPaused(false);
     enterStudio();
   }, [send, canvas, enterStudio]);
 
@@ -353,9 +360,10 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
     (direction?: string, style?: DrawingStyleType) => {
       tracer.recordEvent('action.new_canvas', { hasDirection: !!direction, style });
       tracer.newSession();
+      // Optimistic update: update UI immediately, then notify server
+      canvas.setPaused(false);
       send({ type: 'new_canvas', direction, drawing_style: style });
       send({ type: 'resume' });
-      canvas.setPaused(false);
       enterStudio();
     },
     [send, canvas, enterStudio]

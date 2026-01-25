@@ -12,6 +12,8 @@ interface ActionBarProps {
   drawingStyle: DrawingStyleType;
   onSend: (message: ClientMessage) => void;
   onToggleDrawing: () => void;
+  onPause: () => void;
+  onResume: (direction?: string) => void;
 }
 
 export function ActionBar({
@@ -20,6 +22,8 @@ export function ActionBar({
   drawingStyle,
   onSend,
   onToggleDrawing,
+  onPause,
+  onResume,
 }: ActionBarProps): React.ReactElement {
   const [inputText, setInputText] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -45,10 +49,10 @@ export function ActionBar({
 
   const handleModalStart = useCallback(() => {
     const direction = modalDirection.trim();
-    onSend({ type: 'resume', direction: direction || undefined });
+    onResume(direction || undefined);
     setShowModal(false);
     setModalDirection('');
-  }, [modalDirection, onSend]);
+  }, [modalDirection, onResume]);
 
   const handleModalCancel = useCallback(() => {
     setShowModal(false);
@@ -68,8 +72,8 @@ export function ActionBar({
   );
 
   const handlePause = useCallback(() => {
-    onSend({ type: 'pause' });
-  }, [onSend]);
+    onPause();
+  }, [onPause]);
 
   const handleClear = useCallback(() => {
     onSend({ type: 'clear' });
