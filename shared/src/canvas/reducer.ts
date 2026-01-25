@@ -572,8 +572,9 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
           wordIndex: 0,
           strokeIndex: 0,
           strokeProgress: 0,
-          // Reset text when new words chunk starts
-          revealedText: next.type === 'words' ? '' : perf.revealedText,
+          // Reset text when new words chunk starts OR when event starts
+          // Events replace thinking text permanently - it doesn't come back
+          revealedText: next.type === 'strokes' ? perf.revealedText : '',
           // Reset stroke state when strokes start
           agentStroke: next.type === 'strokes' ? [] : perf.agentStroke,
           agentStrokeStyle: next.type === 'strokes' ? null : perf.agentStrokeStyle,
