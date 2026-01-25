@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.35.0] - 2026-01-24
+
 ### Added
 
 - Live WIP preview on Continue card shows current drawing strokes instead of placeholder
@@ -940,7 +942,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.26.0...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.35.0...HEAD
+[1.35.0]: https://github.com/dmfenton/sketchpad/compare/v1.34.0...v1.35.0
 [1.26.0]: https://github.com/dmfenton/sketchpad/compare/v1.25.2...v1.26.0
 [1.21.2]: https://github.com/dmfenton/sketchpad/compare/v1.21.1...v1.21.2
 [1.21.1]: https://github.com/dmfenton/sketchpad/compare/v1.21.0...v1.21.1
