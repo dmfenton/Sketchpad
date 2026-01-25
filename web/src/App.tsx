@@ -24,7 +24,7 @@ import { useDebug } from './hooks/useDebug';
 import { useAuth } from './context/AuthContext';
 
 function App(): React.ReactElement {
-  const { state, dispatch, handleMessage, startStroke, addPoint, endStroke, toggleDrawing } =
+  const { state, dispatch, handleMessage, startStroke, addPoint, endStroke, toggleDrawing, setPaused } =
     useCanvas();
 
   const { accessToken } = useAuth();
@@ -82,6 +82,17 @@ function App(): React.ReactElement {
 
   const { status: wsStatus, send } = useWebSocket({ onMessage, token: accessToken });
 
+  // Optimistic pause/resume handlers - update UI immediately, then notify server
+  const handlePause = useCallback(() => {
+    setPaused(true);
+    send({ type: 'pause' });
+  }, [setPaused, send]);
+
+  const handleResume = useCallback((direction?: string) => {
+    setPaused(false);
+    send({ type: 'resume', direction });
+  }, [setPaused, send]);
+
   // Keep sendRef in sync for stroke completion callback
   useEffect(() => {
     sendRef.current = send;
@@ -117,6 +128,8 @@ function App(): React.ReactElement {
         drawingStyle={state.drawingStyle}
         onSend={send}
         onToggleDrawing={toggleDrawing}
+        onPause={handlePause}
+        onResume={handleResume}
       />
 
       <div className="thinking-strip">
