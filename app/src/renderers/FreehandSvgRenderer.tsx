@@ -14,6 +14,7 @@ import type { Point, RendererProps, StrokeStyle, BrushName } from '@code-monet/s
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
+  getEffectiveAgentStrokeStyle,
   getEffectiveStyle,
   getFreehandOutline,
   outlineToSvgPath,
@@ -234,24 +235,14 @@ export function FreehandSvgRenderer({
 
       {/* Agent in-progress stroke */}
       {agentStroke.length > 0 &&
-        (agentStroke.length === 1 ? (
-          <StrokeDot
-            point={agentStroke[0]!}
-            style={{
-              ...styleConfig.agent_stroke,
-              ...agentStrokeStyle,
-            }}
-          />
-        ) : (
-          <FreehandStroke
-            points={agentStroke}
-            style={{
-              ...styleConfig.agent_stroke,
-              ...agentStrokeStyle,
-            }}
-            blur={isPaintMode}
-          />
-        ))}
+        (() => {
+          const style = getEffectiveAgentStrokeStyle(styleConfig, agentStrokeStyle);
+          return agentStroke.length === 1 ? (
+            <StrokeDot point={agentStroke[0]!} style={style} />
+          ) : (
+            <FreehandStroke points={agentStroke} style={style} blur={isPaintMode} />
+          );
+        })()}
 
       {/* Pen position indicator */}
       {penPosition && <PenIndicator position={penPosition} penDown={penDown} color={primaryColor} />}
