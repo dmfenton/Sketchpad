@@ -151,15 +151,17 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
         // Remember if agent was running (for auto-resume on foreground)
         wasRunningBeforeBackgroundRef.current = !pausedRef.current;
         if (!pausedRef.current) {
-          send({ type: 'pause' });
+          // Optimistic update order for consistency (though UI isn't visible when backgrounded)
           setPausedRef.current(true);
+          send({ type: 'pause' });
         }
         // Stay in current screen - don't exit to home
       } else if (nextAppState === 'active') {
         // Auto-resume if we're in studio and agent was running before background
         if (inStudioRef.current && wasRunningBeforeBackgroundRef.current) {
-          send({ type: 'resume' });
+          // Optimistic update order for consistency
           setPausedRef.current(false);
+          send({ type: 'resume' });
           wasRunningBeforeBackgroundRef.current = false;
         }
       }
