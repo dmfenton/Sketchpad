@@ -56,6 +56,17 @@ export function Canvas({
     };
   }, []);
 
+  // Store callbacks in refs to avoid stale closures in gesture handlers
+  // This prevents "Object is not a function" crashes when callbacks change
+  const onStrokeStartRef = useRef(onStrokeStart);
+  const onStrokeMoveRef = useRef(onStrokeMove);
+  const onStrokeEndRef = useRef(onStrokeEnd);
+
+  // Keep refs up to date
+  onStrokeStartRef.current = onStrokeStart;
+  onStrokeMoveRef.current = onStrokeMove;
+  onStrokeEndRef.current = onStrokeEnd;
+
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
@@ -64,20 +75,29 @@ export function Canvas({
           const { width, height } = containerRef.current;
           if (width > 0 && height > 0) {
             const point = screenToCanvas(event.x, event.y, width, height);
-            onStrokeStart(point.x, point.y);
+            // Use ref to get latest callback and guard against undefined
+            if (typeof onStrokeStartRef.current === 'function') {
+              onStrokeStartRef.current(point.x, point.y);
+            }
           }
         })
         .onUpdate((event) => {
           const { width, height } = containerRef.current;
           if (width > 0 && height > 0) {
             const point = screenToCanvas(event.x, event.y, width, height);
-            onStrokeMove(point.x, point.y);
+            // Use ref to get latest callback and guard against undefined
+            if (typeof onStrokeMoveRef.current === 'function') {
+              onStrokeMoveRef.current(point.x, point.y);
+            }
           }
         })
         .onEnd(() => {
-          onStrokeEnd();
+          // Use ref to get latest callback and guard against undefined
+          if (typeof onStrokeEndRef.current === 'function') {
+            onStrokeEndRef.current();
+          }
         }),
-    [drawingEnabled, onStrokeStart, onStrokeMove, onStrokeEnd]
+    [drawingEnabled]
   );
 
   // Build renderer props
