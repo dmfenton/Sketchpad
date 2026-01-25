@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { AgentStatus, PerformanceState, ToolName } from '@code-monet/shared';
 import { TOOL_DISPLAY_NAMES } from '@code-monet/shared';
 import { borderRadius, spacing, typography, useTheme } from '../theme';
+import { TOOL_ICONS } from './messages/types';
 import { debugRender } from '../utils/debugLog';
 
 interface LiveStatusProps {
@@ -79,10 +80,16 @@ export function LiveStatus({
   // Get revealed text from performance state
   const revealedText = performance.revealedText;
 
-  // Get event text if an event is currently on stage
-  const eventText = useMemo(() => {
+  // Get event message and icon if an event is currently on stage
+  const eventDisplay = useMemo(() => {
     if (performance.onStage?.type === 'event') {
-      return performance.onStage.message.text;
+      const message = performance.onStage.message;
+      const toolKey = message.metadata?.tool_name ?? 'unknown';
+      const iconConfig = TOOL_ICONS[toolKey];
+      return {
+        message,
+        icon: iconConfig?.activeIcon ?? iconConfig?.name ?? 'ellipse-outline',
+      };
     }
     return null;
   }, [performance.onStage]);
@@ -142,7 +149,7 @@ export function LiveStatus({
   }, [status, pulseAnim]);
 
   // Don't show anything when idle and no content
-  const hasContent = displayedWords.length > 0 || performance.buffer.length > 0 || !!eventText;
+  const hasContent = displayedWords.length > 0 || performance.buffer.length > 0 || !!eventDisplay;
   if (status === 'idle' && !hasContent) {
     return null;
   }
@@ -171,11 +178,14 @@ export function LiveStatus({
         </Text>
       </View>
 
-      {/* Event text displaces thinking text while active */}
-      {eventText ? (
-        <Text style={[styles.eventText, { color: colors.textSecondary }]}>
-          {eventText}
-        </Text>
+      {/* Event replaces thinking text permanently - displayed like message bubbles */}
+      {eventDisplay ? (
+        <View style={styles.eventRow}>
+          <Ionicons name={eventDisplay.icon} size={14} color={colors.primary} />
+          <Text style={[styles.eventText, { color: colors.textPrimary }]} numberOfLines={2}>
+            {eventDisplay.message.text}
+          </Text>
+        </View>
       ) : displayedWords.length > 0 ? (
         <Text style={[styles.thoughtText, { color: colors.textPrimary }]} numberOfLines={3}>
           {displayedWords.map((word, i) => (
@@ -210,8 +220,13 @@ const styles = StyleSheet.create({
     ...typography.body,
     lineHeight: 22,
   },
+  eventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   eventText: {
-    ...typography.small,
-    fontStyle: 'italic',
+    ...typography.body,
+    flex: 1,
   },
 });

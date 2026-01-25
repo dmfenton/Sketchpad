@@ -482,6 +482,132 @@ describe('Full Session Flow', () => {
 });
 
 // ============================================================================
+// Event Replaces Thinking Text
+// ============================================================================
+
+describe('Event Replaces Thinking Text', () => {
+  it('ADVANCE_STAGE clears revealedText when event advances to stage', () => {
+    let state = initialState;
+
+    // Build up revealed text
+    state = receiveMessage(state, { type: 'thinking_delta', text: 'Hello world', iteration: 1 });
+    state = canvasReducer(state, { type: 'ADVANCE_STAGE' });
+    state = canvasReducer(state, { type: 'REVEAL_WORD' });
+    state = canvasReducer(state, { type: 'REVEAL_WORD' });
+    expect(state.performance.revealedText).toBe('Hello world');
+
+    // Complete words stage
+    state = canvasReducer(state, { type: 'STAGE_COMPLETE' });
+    expect(state.performance.onStage).toBeNull();
+
+    // Enqueue event
+    state = canvasReducer(state, {
+      type: 'ENQUEUE_EVENT',
+      message: {
+        id: 'test-1',
+        type: 'code_execution',
+        text: 'Drawing 5 paths...',
+        timestamp: Date.now(),
+        status: 'started',
+        metadata: { tool_name: 'draw_paths' },
+      },
+    });
+
+    // Advance event to stage - should clear revealedText
+    state = canvasReducer(state, { type: 'ADVANCE_STAGE' });
+    expect(state.performance.revealedText).toBe('');
+    expect(state.performance.onStage?.type).toBe('event');
+  });
+
+  it('revealedText stays empty after event completes', () => {
+    let state = initialState;
+
+    // Build up revealed text, then advance event
+    state = receiveMessage(state, { type: 'thinking_delta', text: 'Thinking...', iteration: 1 });
+    state = canvasReducer(state, { type: 'ADVANCE_STAGE' });
+    state = canvasReducer(state, { type: 'REVEAL_WORD' });
+    state = canvasReducer(state, { type: 'STAGE_COMPLETE' });
+
+    // Enqueue and advance event
+    state = canvasReducer(state, {
+      type: 'ENQUEUE_EVENT',
+      message: {
+        id: 'test-1',
+        type: 'code_execution',
+        text: 'Executing...',
+        timestamp: Date.now(),
+        status: 'started',
+      },
+    });
+    state = canvasReducer(state, { type: 'ADVANCE_STAGE' });
+    expect(state.performance.revealedText).toBe('');
+
+    // Complete the event
+    state = canvasReducer(state, { type: 'STAGE_COMPLETE' });
+    expect(state.performance.onStage).toBeNull();
+
+    // revealedText should still be empty - old thinking doesn't come back
+    expect(state.performance.revealedText).toBe('');
+  });
+
+  it('new words after event start fresh', () => {
+    let state = initialState;
+
+    // Old thinking
+    state = receiveMessage(state, { type: 'thinking_delta', text: 'Old thinking', iteration: 1 });
+    state = canvasReducer(state, { type: 'ADVANCE_STAGE' });
+    state = canvasReducer(state, { type: 'REVEAL_WORD' });
+    state = canvasReducer(state, { type: 'REVEAL_WORD' });
+    state = canvasReducer(state, { type: 'STAGE_COMPLETE' });
+
+    // Event clears thinking
+    state = canvasReducer(state, {
+      type: 'ENQUEUE_EVENT',
+      message: { id: 'e1', type: 'code_execution', text: 'Running...', timestamp: Date.now() },
+    });
+    state = canvasReducer(state, { type: 'ADVANCE_STAGE' });
+    state = canvasReducer(state, { type: 'STAGE_COMPLETE' });
+
+    // New thinking arrives
+    state = receiveMessage(state, { type: 'thinking_delta', text: 'New thinking', iteration: 2 });
+    state = canvasReducer(state, { type: 'ADVANCE_STAGE' });
+    state = canvasReducer(state, { type: 'REVEAL_WORD' });
+    state = canvasReducer(state, { type: 'REVEAL_WORD' });
+
+    // Should show new thinking, not old
+    expect(state.performance.revealedText).toBe('New thinking');
+    expect(state.performance.revealedText).not.toContain('Old');
+  });
+
+  it('strokes do NOT clear revealedText (only events do)', () => {
+    let state = initialState;
+
+    // Build up revealed text
+    state = receiveMessage(state, { type: 'thinking_delta', text: 'Keep showing', iteration: 1 });
+    state = canvasReducer(state, { type: 'ADVANCE_STAGE' });
+    state = canvasReducer(state, { type: 'REVEAL_WORD' });
+    state = canvasReducer(state, { type: 'REVEAL_WORD' });
+    expect(state.performance.revealedText).toBe('Keep showing');
+    state = canvasReducer(state, { type: 'STAGE_COMPLETE' });
+
+    // Enqueue and advance strokes
+    const strokes = [
+      {
+        batch_id: 1,
+        path: { type: 'polyline' as const, points: [{ x: 0, y: 0 }], author: 'agent' as const },
+        points: [{ x: 0, y: 0 }],
+      },
+    ];
+    state = canvasReducer(state, { type: 'ENQUEUE_STROKES', strokes });
+    state = canvasReducer(state, { type: 'ADVANCE_STAGE' });
+
+    // revealedText should STILL show - strokes don't clear it
+    expect(state.performance.revealedText).toBe('Keep showing');
+    expect(state.performance.onStage?.type).toBe('strokes');
+  });
+});
+
+// ============================================================================
 // Integration: What LiveStatus Needs
 // ============================================================================
 
