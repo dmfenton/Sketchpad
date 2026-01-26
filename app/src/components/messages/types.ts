@@ -36,3 +36,21 @@ export const TOOL_ICONS: Record<
   name_piece: { name: 'text', activeIcon: 'text-outline' },
   unknown: { name: 'help-circle', activeIcon: 'help-circle-outline' },
 };
+
+/** Get border color for tool type */
+export function getToolBorderColor(toolName: string, colors: ColorScheme): string {
+  switch (toolName) {
+    case 'draw_paths':
+      return colors.primary;
+    case 'generate_svg':
+      return '#8B5CF6'; // purple for code
+    case 'view_canvas':
+      return colors.textMuted;
+    case 'mark_piece_done':
+      return colors.success;
+    case 'imagine':
+      return '#F59E0B'; // amber for imagination
+    default:
+      return colors.primary;
+  }
+}

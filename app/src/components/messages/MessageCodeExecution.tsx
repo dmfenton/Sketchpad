@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { formatTime, getCodeFromInput } from '@code-monet/shared';
 
 import type { MessageComponentProps } from './types';
-import { TOOL_ICONS } from './types';
+import { TOOL_ICONS, getToolBorderColor } from './types';
 import { messageStyles } from './styles';
 
 export function MessageCodeExecution({
@@ -33,19 +33,8 @@ export function MessageCodeExecution({
     toolName === 'generate_svg' ? getCodeFromInput(message.metadata?.tool_input) : null;
   const hasExpandableContent = hasOutput || codePreview;
 
-  // Determine border color based on tool type
-  const borderColor =
-    toolName === 'draw_paths'
-      ? colors.primary
-      : toolName === 'generate_svg'
-        ? '#8B5CF6' // purple for code
-        : toolName === 'view_canvas'
-          ? colors.textMuted
-          : toolName === 'mark_piece_done'
-            ? colors.success
-            : toolName === 'imagine'
-              ? '#F59E0B' // amber for imagination
-              : colors.primary;
+  // Get border color based on tool type
+  const borderColor = getToolBorderColor(toolName, colors);
 
   return (
     <Animated.View
