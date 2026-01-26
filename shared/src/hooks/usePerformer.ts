@@ -21,6 +21,9 @@ const HOLD_AFTER_WORDS_MS = 800;
 // Hold events on stage for this duration so "executing" status is visible
 const HOLD_EVENT_MS = 500;
 
+// Maximum time to hold an event without new content (prevents stale UI)
+const MAX_EVENT_HOLD_MS = 5000;
+
 export interface UsePerformerOptions {
   /** Current performance state */
   performance: PerformanceState;
@@ -136,14 +139,15 @@ export function usePerformer({
           if (holdStartRef.current === null) {
             holdStartRef.current = time;
           }
-          const minHoldElapsed = time - holdStartRef.current >= HOLD_EVENT_MS;
-          // After minimum hold, only complete if there's something waiting
-          // Otherwise keep showing the event until the next item arrives
-          if (minHoldElapsed && buffer.length > 0) {
+          const holdTime = time - holdStartRef.current;
+          const minHoldElapsed = holdTime >= HOLD_EVENT_MS;
+          const maxHoldExceeded = holdTime >= MAX_EVENT_HOLD_MS;
+          // After minimum hold, complete if there's something waiting
+          // OR if max hold exceeded (prevents stale UI when agent stops)
+          if (minHoldElapsed && (buffer.length > 0 || maxHoldExceeded)) {
             holdStartRef.current = null;
             dispatch({ type: 'STAGE_COMPLETE' });
           }
-          // If buffer is empty, keep showing event (don't complete)
           break;
         }
 

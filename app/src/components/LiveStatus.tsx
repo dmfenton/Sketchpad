@@ -12,27 +12,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import type { AgentStatus, PerformanceState, ToolName } from '@code-monet/shared';
 import { TOOL_DISPLAY_NAMES } from '@code-monet/shared';
-import { borderRadius, spacing, typography, useTheme, type ColorScheme } from '../theme';
-import { TOOL_ICONS } from './messages/types';
+import { borderRadius, spacing, typography, useTheme } from '../theme';
+import { TOOL_ICONS, getToolBorderColor } from './messages/types';
 import { debugRender } from '../utils/debugLog';
-
-/** Get border color for tool type (matches MessageCodeExecution styling) */
-function getToolBorderColor(toolName: string, colors: ColorScheme): string {
-  switch (toolName) {
-    case 'draw_paths':
-      return colors.primary;
-    case 'generate_svg':
-      return '#8B5CF6'; // purple for code
-    case 'view_canvas':
-      return colors.textMuted;
-    case 'mark_piece_done':
-      return colors.success;
-    case 'imagine':
-      return '#F59E0B'; // amber for imagination
-    default:
-      return colors.primary;
-  }
-}
 
 interface LiveStatusProps {
   /** Performance state (used for revealedText display) */
