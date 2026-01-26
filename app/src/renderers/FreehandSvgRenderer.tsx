@@ -27,6 +27,7 @@ import {
 } from '@code-monet/shared';
 
 import { IdleParticles } from '../components/IdleParticles';
+import { InProgressStroke } from './InProgressStroke';
 
 /**
  * Default fallback color for strokes (dark blue-black).
@@ -280,14 +281,14 @@ export function FreehandSvgRenderer({
           />
         ))}
 
-      {/* Agent in-progress stroke */}
+      {/* Agent in-progress stroke - using optimized incremental renderer */}
       {agentStroke.length > 0 &&
         (() => {
           const style = getEffectiveAgentStrokeStyle(styleConfig, agentStrokeStyle);
           return agentStroke.length === 1 ? (
             <StrokeDot point={agentStroke[0]!} style={style} />
           ) : (
-            <FreehandStroke points={agentStroke} style={style} blur={isPaintMode} />
+            <InProgressStroke points={agentStroke} style={style} blur={isPaintMode} />
           );
         })()}
 

@@ -252,6 +252,24 @@ def distance(p1: Point, p2: Point) -> float:
     return math.sqrt(dx * dx + dy * dy)
 
 
+def dedupe_close_points(points: list[Point], min_distance: float = 1.5) -> list[Point]:
+    """Remove points that are closer than min_distance pixels apart.
+
+    Always keeps first and last points for proper stroke endpoints.
+    This reduces unnecessary animation frames for sub-pixel movements.
+    """
+    if len(points) <= 2:
+        return points
+
+    result = [points[0]]
+    for point in points[1:-1]:
+        if distance(result[-1], point) >= min_distance:
+            result.append(point)
+    # Always keep the last point
+    result.append(points[-1])
+    return result
+
+
 def quadratic_bezier(p0: Point, p1: Point, p2: Point, t: float) -> Point:
     """Evaluate quadratic bezier at t."""
     one_minus_t = 1 - t
@@ -378,16 +396,24 @@ def interpolate_cubic(points: list[Point], num_steps: int) -> list[Point]:
     ]
 
 
-def interpolate_path(path: Path, steps_per_unit: float = 0.5) -> list[Point]:
+def interpolate_path(
+    path: Path, steps_per_unit: float = 0.2, dedupe_min_distance: float = 1.5
+) -> list[Point]:
     """Interpolate a path into discrete points for drawing.
 
     This is a pure function - no side effects or external dependencies.
+
+    Args:
+        path: The path to interpolate.
+        steps_per_unit: Points per pixel of path length. Lower = fewer points = faster animation.
+        dedupe_min_distance: Minimum distance between points. Removes sub-pixel movements.
     """
     # Handle SVG paths specially
     if path.type == PathType.SVG:
         if not path.d:
             return []
-        return interpolate_svg_path(path.d, steps_per_unit)
+        points = interpolate_svg_path(path.d, steps_per_unit)
+        return dedupe_close_points(points, dedupe_min_distance)
 
     if len(path.points) < 2:
         return list(path.points)
@@ -396,18 +422,22 @@ def interpolate_path(path: Path, steps_per_unit: float = 0.5) -> list[Point]:
     length = estimate_path_length(path)
     num_steps = max(2, int(length * steps_per_unit))
 
+    result: list[Point]
     match path.type:
         case PathType.LINE:
-            return interpolate_line(points, num_steps)
+            result = interpolate_line(points, num_steps)
 
         case PathType.POLYLINE:
-            return interpolate_polyline(points, steps_per_unit)
+            result = interpolate_polyline(points, steps_per_unit)
 
         case PathType.QUADRATIC:
-            return interpolate_quadratic(points, num_steps)
+            result = interpolate_quadratic(points, num_steps)
 
         case PathType.CUBIC:
-            return interpolate_cubic(points, num_steps)
+            result = interpolate_cubic(points, num_steps)
 
         case _:
-            return list(points)
+            result = list(points)
+
+    # Remove sub-pixel movements to reduce unnecessary animation frames
+    return dedupe_close_points(result, dedupe_min_distance)

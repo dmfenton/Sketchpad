@@ -12,11 +12,23 @@
 import { useEffect, useRef } from 'react';
 
 import type { CanvasAction, PerformanceState } from '../canvas/reducer';
-import type { StrokeStyle } from '../types';
+import type { Point, StrokeStyle } from '../types';
 import { BIONIC_CHUNK_INTERVAL_MS, BIONIC_CHUNK_SIZE } from '../utils';
 
 // Hold completed text for this duration before advancing to next chunk
 const HOLD_AFTER_WORDS_MS = 800;
+
+// Stroke animation batching constants
+const MIN_POINTS_PER_FRAME = 1;
+const MAX_POINTS_PER_FRAME = 8;
+const TARGET_PIXELS_PER_SECOND = 300; // Visual speed constant for smooth animation
+
+/** Calculate distance between two points */
+function pointDistance(a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
 // Hold events on stage for this duration so "executing" status is visible
 const HOLD_EVENT_MS = 500;
@@ -157,30 +169,62 @@ export function usePerformer({
           if (stroke !== undefined) {
             const points = stroke.points;
             const pointIndex = strokePointIndexRef.current;
-            const point = points[pointIndex];
 
-            if (point !== undefined) {
+            if (pointIndex < points.length) {
               // Check if enough time has passed since last frame
-              if (time - lastStrokeTimeRef.current >= frameDelayMs) {
-                // Extract style from path for first point
-                const style: Partial<StrokeStyle> | undefined =
-                  pointIndex === 0
-                    ? {
-                        ...(stroke.path.color !== undefined && { color: stroke.path.color }),
-                        ...(stroke.path.stroke_width !== undefined && {
-                          stroke_width: stroke.path.stroke_width,
-                        }),
-                        ...(stroke.path.opacity !== undefined && { opacity: stroke.path.opacity }),
-                      }
-                    : undefined;
+              const elapsed = time - lastStrokeTimeRef.current;
+              if (elapsed >= frameDelayMs) {
+                // Calculate how many pixels we should cover based on elapsed time
+                const targetPixels = (elapsed / 1000) * TARGET_PIXELS_PER_SECOND;
 
-                dispatch({
-                  type: 'STROKE_PROGRESS',
-                  point,
-                  style: Object.keys(style ?? {}).length > 0 ? style : undefined,
-                });
-                strokePointIndexRef.current = pointIndex + 1;
-                lastStrokeTimeRef.current = time;
+                // Batch points that fit within our target distance
+                const batchPoints: Point[] = [];
+                let accumulatedDistance = 0;
+                let i = pointIndex;
+
+                while (i < points.length && batchPoints.length < MAX_POINTS_PER_FRAME) {
+                  const point = points[i];
+                  if (point === undefined) break;
+
+                  if (batchPoints.length > 0) {
+                    const prevPoint = batchPoints[batchPoints.length - 1]!;
+                    accumulatedDistance += pointDistance(prevPoint, point);
+
+                    // Stop if we've covered enough distance (unless it's our first point)
+                    if (
+                      accumulatedDistance > targetPixels &&
+                      batchPoints.length >= MIN_POINTS_PER_FRAME
+                    ) {
+                      break;
+                    }
+                  }
+
+                  batchPoints.push(point);
+                  i++;
+                }
+
+                if (batchPoints.length > 0) {
+                  // Extract style from path for first point of stroke
+                  const style: Partial<StrokeStyle> | undefined =
+                    pointIndex === 0
+                      ? {
+                          ...(stroke.path.color !== undefined && { color: stroke.path.color }),
+                          ...(stroke.path.stroke_width !== undefined && {
+                            stroke_width: stroke.path.stroke_width,
+                          }),
+                          ...(stroke.path.opacity !== undefined && { opacity: stroke.path.opacity }),
+                        }
+                      : undefined;
+
+                  // Dispatch batch of points for efficient animation
+                  dispatch({
+                    type: 'STROKE_PROGRESS_BATCH',
+                    points: batchPoints,
+                    style: Object.keys(style ?? {}).length > 0 ? style : undefined,
+                  });
+                  strokePointIndexRef.current = i;
+                  lastStrokeTimeRef.current = time;
+                }
               }
             } else {
               // Stroke complete, move to next
