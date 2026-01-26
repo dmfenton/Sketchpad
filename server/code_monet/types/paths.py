@@ -1,6 +1,6 @@
 """Path model for drawable strokes."""
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -10,7 +10,11 @@ from code_monet.types.styles import DrawingStyleConfig, DrawingStyleType, Stroke
 
 
 class Path(BaseModel):
-    """A drawable path."""
+    """A drawable path.
+
+    Style properties (color, stroke_width, opacity, brush) are optional.
+    When None, they're excluded from serialization and clients use style defaults.
+    """
 
     type: PathType
     points: list[Point] = []  # Empty for SVG paths
@@ -24,6 +28,16 @@ class Path(BaseModel):
 
     # Brush preset (paint mode only)
     brush: str | None = None  # Brush preset name (e.g., "oil_round", "watercolor")
+
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
+        """Serialize path, excluding None values by default.
+
+        This prevents sending null style properties to clients, which would
+        otherwise be misinterpreted as explicit values instead of "use default".
+        """
+        # Default to exclude_none=True unless explicitly overridden
+        kwargs.setdefault("exclude_none", True)
+        return super().model_dump(**kwargs)
 
     def get_brush_preset(self) -> BrushPreset | None:
         """Get the brush preset for this path, if any."""
