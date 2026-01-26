@@ -6,9 +6,9 @@
  * The "green" renderer will be SkiaRenderer (using canvaskit-wasm).
  */
 
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 
-import type { RendererProps } from '@code-monet/shared';
+import type { Path, DrawingStyleConfig, RendererProps } from '@code-monet/shared';
 import {
   createTaperedStrokePath,
   getEffectiveStyle,
@@ -17,6 +17,56 @@ import {
 } from '@code-monet/shared';
 
 import { IdleParticles } from '../components/IdleParticles';
+
+/**
+ * Memoized stroke renderer for completed strokes.
+ * Prevents recalculating style and path on every parent render.
+ */
+interface MemoizedStrokeProps {
+  stroke: Path;
+  styleConfig: DrawingStyleConfig;
+  index: number;
+}
+
+const MemoizedStroke = memo(function MemoizedStroke({
+  stroke,
+  styleConfig,
+  index,
+}: MemoizedStrokeProps): React.ReactElement {
+  const effectiveStyle = useMemo(
+    () => getEffectiveStyle(stroke, styleConfig),
+    [stroke, styleConfig]
+  );
+  const isPaintMode = styleConfig.type === 'paint';
+
+  if (stroke.type !== 'svg' && stroke.points.length === 1) {
+    const pt = stroke.points[0]!;
+    const radius = Math.max(1, effectiveStyle.stroke_width / 2);
+    return (
+      <circle
+        key={`stroke-dot-${index}`}
+        cx={pt.x}
+        cy={pt.y}
+        r={radius}
+        fill={effectiveStyle.color}
+        opacity={effectiveStyle.opacity}
+      />
+    );
+  }
+
+  return (
+    <path
+      key={`stroke-${index}`}
+      d={pathToSvgD(stroke, isPaintMode)}
+      stroke={effectiveStyle.color}
+      strokeWidth={effectiveStyle.stroke_width}
+      fill="none"
+      strokeLinecap={effectiveStyle.stroke_linecap}
+      strokeLinejoin={effectiveStyle.stroke_linejoin}
+      opacity={effectiveStyle.opacity}
+    />
+  );
+});
 
 export function SvgRenderer({
   strokes,
@@ -34,37 +84,15 @@ export function SvgRenderer({
       {/* Idle animation - floating particles when canvas is empty and agent is idle */}
       <IdleParticles visible={showIdleAnimation} />
 
-      {/* Completed strokes - render with effective style */}
-      {strokes.map((stroke, index) => {
-        const effectiveStyle = getEffectiveStyle(stroke, styleConfig);
-        const isPaintMode = styleConfig.type === 'paint';
-        if (stroke.type !== 'svg' && stroke.points.length === 1) {
-          const pt = stroke.points[0]!;
-          const radius = Math.max(1, effectiveStyle.stroke_width / 2);
-          return (
-            <circle
-              key={`stroke-dot-${index}`}
-              cx={pt.x}
-              cy={pt.y}
-              r={radius}
-              fill={effectiveStyle.color}
-              opacity={effectiveStyle.opacity}
-            />
-          );
-        }
-        return (
-          <path
-            key={`stroke-${index}`}
-            d={pathToSvgD(stroke, isPaintMode)}
-            stroke={effectiveStyle.color}
-            strokeWidth={effectiveStyle.stroke_width}
-            fill="none"
-            strokeLinecap={effectiveStyle.stroke_linecap}
-            strokeLinejoin={effectiveStyle.stroke_linejoin}
-            opacity={effectiveStyle.opacity}
-          />
-        );
-      })}
+      {/* Completed strokes - using MemoizedStroke to prevent recalculation */}
+      {strokes.map((stroke, index) => (
+        <MemoizedStroke
+          key={index}
+          stroke={stroke}
+          styleConfig={styleConfig}
+          index={index}
+        />
+      ))}
 
       {/* Current stroke in progress (human drawing) */}
       {currentStroke.length > 0 &&

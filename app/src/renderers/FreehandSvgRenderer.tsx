@@ -6,11 +6,11 @@
  * Works without Skia, providing painterly effects via SVG.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { StyleSheet } from 'react-native';
 import Svg, { Circle, Defs, G, Path as SvgPath, Filter, FeGaussianBlur } from 'react-native-svg';
 
-import type { Point, RendererProps, StrokeStyle, BrushName } from '@code-monet/shared';
+import type { Point, RendererProps, StrokeStyle, BrushName, Path, DrawingStyleConfig } from '@code-monet/shared';
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
@@ -117,6 +117,73 @@ function StrokeDot({ point, style }: { point: Point; style: StrokeStyle }): Reac
 }
 
 /**
+ * Memoized completed stroke renderer.
+ *
+ * This component takes the raw stroke (Path) object and handles all the
+ * expensive computation internally with proper memoization. The stroke object
+ * reference is stable (doesn't change once added), so React.memo prevents
+ * re-renders and the internal useMemo prevents recomputation.
+ *
+ * Previously, samplePathPoints was called in the parent's map() loop,
+ * creating new arrays every render that defeated FreehandStroke's useMemo.
+ */
+interface MemoizedStrokeProps {
+  stroke: Path;
+  styleConfig: DrawingStyleConfig;
+  isPaintMode: boolean;
+}
+
+const MemoizedStroke = memo(function MemoizedStroke({
+  stroke,
+  styleConfig,
+  isPaintMode,
+}: MemoizedStrokeProps): React.ReactElement | null {
+  const style = useMemo(
+    () => getEffectiveStyle(stroke, styleConfig),
+    [stroke, styleConfig]
+  );
+
+  // Sample points from the path - must be called unconditionally (Rules of Hooks)
+  // For SVG type strokes, this returns an empty array which is fine
+  const points = useMemo(() => samplePathPoints(stroke), [stroke]);
+
+  // Handle SVG path type strokes (use raw d string, not sampled points)
+  if (stroke.type === 'svg') {
+    const d = pathToSvgD(stroke, isPaintMode);
+    if (!d) return null;
+    const filterId = isPaintMode ? 'painterly-blur' : undefined;
+    return (
+      <SvgPath
+        d={d}
+        stroke={style.color}
+        strokeWidth={style.stroke_width}
+        fill="none"
+        strokeLinecap={style.stroke_linecap}
+        strokeLinejoin={style.stroke_linejoin}
+        opacity={style.opacity}
+        filter={filterId ? `url(#${filterId})` : undefined}
+      />
+    );
+  }
+
+  if (points.length === 0) return null;
+
+  // Single point = dot
+  if (points.length === 1 && points[0]) {
+    return <StrokeDot point={points[0]} style={style} />;
+  }
+
+  return (
+    <FreehandStroke
+      points={points}
+      style={style}
+      brushName={isPaintMode ? stroke.brush : undefined}
+      blur={isPaintMode}
+    />
+  );
+});
+
+/**
  * Pen position indicator with outer ring and inner dot.
  */
 function PenIndicator({
@@ -191,47 +258,15 @@ export function FreehandSvgRenderer({
       {/* Idle animation particles */}
       <IdleParticles visible={showIdleAnimation} />
 
-      {/* Completed strokes */}
-      {strokes.map((stroke, index) => {
-        const style = getEffectiveStyle(stroke, styleConfig);
-        const points = samplePathPoints(stroke);
-
-        if (stroke.type === 'svg') {
-          const d = pathToSvgD(stroke, isPaintMode);
-          if (!d) return null;
-          const filterId = isPaintMode ? 'painterly-blur' : undefined;
-          return (
-            <SvgPath
-              key={index}
-              d={d}
-              stroke={style.color}
-              strokeWidth={style.stroke_width}
-              fill="none"
-              strokeLinecap={style.stroke_linecap}
-              strokeLinejoin={style.stroke_linejoin}
-              opacity={style.opacity}
-              filter={filterId ? `url(#${filterId})` : undefined}
-            />
-          );
-        }
-
-        if (points.length === 0) return null;
-
-        // Single point = dot
-        if (points.length === 1 && points[0]) {
-          return <StrokeDot key={index} point={points[0]} style={style} />;
-        }
-
-        return (
-          <FreehandStroke
-            key={index}
-            points={points}
-            style={style}
-            brushName={isPaintMode ? stroke.brush : undefined}
-            blur={isPaintMode}
-          />
-        );
-      })}
+      {/* Completed strokes - using MemoizedStroke to prevent re-computation */}
+      {strokes.map((stroke, index) => (
+        <MemoizedStroke
+          key={index}
+          stroke={stroke}
+          styleConfig={styleConfig}
+          isPaintMode={isPaintMode}
+        />
+      ))}
 
       {/* Current human stroke */}
       {currentStroke.length > 0 &&
