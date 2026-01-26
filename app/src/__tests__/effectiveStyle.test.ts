@@ -105,6 +105,16 @@ describe('getEffectiveAgentStrokeStyle', () => {
       expect(style.opacity).toBe(0);
     });
 
+    it('does not use null as opacity override', () => {
+      // This is critical: server sends null for unset fields, which should not override defaults
+      // null !== undefined is true, so we must explicitly check for number type
+      const style = getEffectiveAgentStrokeStyle(PAINT_STYLE, {
+        opacity: null as unknown as number,
+      });
+
+      expect(style.opacity).toBe(PAINT_STYLE.agent_stroke.opacity);
+    });
+
     it('does not use empty string as color override', () => {
       const style = getEffectiveAgentStrokeStyle(PAINT_STYLE, { color: '' });
 
@@ -219,6 +229,14 @@ describe('getEffectiveStyle', () => {
       const style = getEffectiveStyle(path, PAINT_STYLE);
 
       expect(style.opacity).toBe(0);
+    });
+
+    it('does not use null as opacity override', () => {
+      // Server sends null for unset fields, which should not override defaults
+      const path = makePath({ author: 'agent', opacity: null as unknown as number });
+      const style = getEffectiveStyle(path, PAINT_STYLE);
+
+      expect(style.opacity).toBe(PAINT_STYLE.agent_stroke.opacity);
     });
   });
 });
