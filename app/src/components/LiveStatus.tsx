@@ -12,9 +12,27 @@ import { Ionicons } from '@expo/vector-icons';
 
 import type { AgentStatus, PerformanceState, ToolName } from '@code-monet/shared';
 import { TOOL_DISPLAY_NAMES } from '@code-monet/shared';
-import { borderRadius, spacing, typography, useTheme } from '../theme';
+import { borderRadius, spacing, typography, useTheme, type ColorScheme } from '../theme';
 import { TOOL_ICONS } from './messages/types';
 import { debugRender } from '../utils/debugLog';
+
+/** Get border color for tool type (matches MessageCodeExecution styling) */
+function getToolBorderColor(toolName: string, colors: ColorScheme): string {
+  switch (toolName) {
+    case 'draw_paths':
+      return colors.primary;
+    case 'generate_svg':
+      return '#8B5CF6'; // purple for code
+    case 'view_canvas':
+      return colors.textMuted;
+    case 'mark_piece_done':
+      return colors.success;
+    case 'imagine':
+      return '#F59E0B'; // amber for imagination
+    default:
+      return colors.primary;
+  }
+}
 
 interface LiveStatusProps {
   /** Performance state (used for revealedText display) */
@@ -80,19 +98,28 @@ export function LiveStatus({
   // Get revealed text from performance state
   const revealedText = performance.revealedText;
 
-  // Get event message and icon if an event is currently on stage
+  // Get event message, icon, and styling if an event is currently on stage
   const eventDisplay = useMemo(() => {
     if (performance.onStage?.type === 'event') {
       const message = performance.onStage.message;
-      const toolKey = message.metadata?.tool_name ?? 'unknown';
-      const iconConfig = TOOL_ICONS[toolKey];
+      const toolName = message.metadata?.tool_name ?? 'unknown';
+      const iconConfig = TOOL_ICONS[toolName];
+      const borderColor = getToolBorderColor(toolName, colors);
+      const isInProgress =
+        message.text.includes('...') &&
+        !message.text.includes('Drew') &&
+        !message.text.includes('generated');
       return {
         message,
-        icon: iconConfig?.activeIcon ?? iconConfig?.name ?? 'ellipse-outline',
+        toolName,
+        icon: isInProgress
+          ? (iconConfig?.activeIcon ?? iconConfig?.name ?? 'ellipse-outline')
+          : (iconConfig?.name ?? 'ellipse-outline'),
+        borderColor,
       };
     }
     return null;
-  }, [performance.onStage]);
+  }, [performance.onStage, colors]);
 
   // Split revealed text into words for bionic rendering
   const displayedWords = useMemo(
@@ -180,11 +207,21 @@ export function LiveStatus({
 
       {/* Event replaces thinking text permanently - displayed like message bubbles */}
       {eventDisplay ? (
-        <View style={styles.eventRow}>
-          <Ionicons name={eventDisplay.icon} size={14} color={colors.primary} />
-          <Text style={[styles.eventText, { color: colors.textPrimary }]} numberOfLines={2}>
-            {eventDisplay.message.text}
-          </Text>
+        <View
+          style={[
+            styles.eventBubble,
+            {
+              backgroundColor: colors.surfaceElevated,
+              borderLeftColor: eventDisplay.borderColor,
+            },
+          ]}
+        >
+          <View style={styles.eventHeader}>
+            <Ionicons name={eventDisplay.icon} size={16} color={eventDisplay.borderColor} />
+            <Text style={[styles.eventText, { color: colors.textPrimary }]} numberOfLines={2}>
+              {eventDisplay.message.text}
+            </Text>
+          </View>
         </View>
       ) : displayedWords.length > 0 ? (
         <Text style={[styles.thoughtText, { color: colors.textPrimary }]} numberOfLines={3}>
@@ -220,7 +257,12 @@ const styles = StyleSheet.create({
     ...typography.body,
     lineHeight: 22,
   },
-  eventRow: {
+  eventBubble: {
+    borderRadius: borderRadius.sm,
+    borderLeftWidth: 3,
+    padding: spacing.sm,
+  },
+  eventHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,

@@ -132,14 +132,18 @@ export function usePerformer({
         }
 
         case 'event': {
-          // Hold event on stage briefly so "executing" status is visible
+          // Hold event on stage for minimum time so it's visible
           if (holdStartRef.current === null) {
             holdStartRef.current = time;
           }
-          if (time - holdStartRef.current >= HOLD_EVENT_MS) {
+          const minHoldElapsed = time - holdStartRef.current >= HOLD_EVENT_MS;
+          // After minimum hold, only complete if there's something waiting
+          // Otherwise keep showing the event until the next item arrives
+          if (minHoldElapsed && buffer.length > 0) {
             holdStartRef.current = null;
             dispatch({ type: 'STAGE_COMPLETE' });
           }
+          // If buffer is empty, keep showing event (don't complete)
           break;
         }
 
