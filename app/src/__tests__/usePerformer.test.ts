@@ -768,6 +768,112 @@ describe('usePerformer - Edge Cases', () => {
 });
 
 // ============================================================================
+// Event Persistence Tests
+// ============================================================================
+
+describe('usePerformer - Event Persistence', () => {
+  it('keeps event on stage when buffer is empty after minimum hold', () => {
+    const dispatch = jest.fn();
+    const eventMessage = {
+      id: 'test-event',
+      type: 'code_execution' as const,
+      text: 'Drawing paths...',
+      timestamp: Date.now(),
+    };
+
+    const performance: PerformanceState = {
+      ...initialPerformanceState,
+      onStage: { type: 'event', message: eventMessage, id: 'event-1' },
+      buffer: [], // Empty buffer
+    };
+
+    renderHook(() =>
+      usePerformer({
+        performance,
+        dispatch,
+        paused: false,
+        inStudio: true,
+        frameDelayMs: 16.67,
+      })
+    );
+
+    // Advance past minimum hold time (500ms) but not max hold (5000ms)
+    // 40 frames at ~20ms = 800ms
+    act(() => advanceFrames(40, 20));
+
+    // Should NOT dispatch STAGE_COMPLETE because buffer is empty
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'STAGE_COMPLETE' });
+  });
+
+  it('completes event when buffer has items after minimum hold', () => {
+    const dispatch = jest.fn();
+    const eventMessage = {
+      id: 'test-event',
+      type: 'code_execution' as const,
+      text: 'Drawing paths...',
+      timestamp: Date.now(),
+    };
+
+    const strokes = [makeStroke([{ x: 0, y: 0 }])];
+
+    const performance: PerformanceState = {
+      ...initialPerformanceState,
+      onStage: { type: 'event', message: eventMessage, id: 'event-1' },
+      buffer: [{ type: 'strokes', strokes, id: 'strokes-1' }], // Has waiting item
+    };
+
+    renderHook(() =>
+      usePerformer({
+        performance,
+        dispatch,
+        paused: false,
+        inStudio: true,
+        frameDelayMs: 16.67,
+      })
+    );
+
+    // Advance past minimum hold time (500ms)
+    act(() => advanceFrames(35, 20)); // 700ms
+
+    // Should dispatch STAGE_COMPLETE because buffer has items
+    expect(dispatch).toHaveBeenCalledWith({ type: 'STAGE_COMPLETE' });
+  });
+
+  it('completes event after max hold even with empty buffer', () => {
+    const dispatch = jest.fn();
+    const eventMessage = {
+      id: 'test-event',
+      type: 'code_execution' as const,
+      text: 'Drawing paths...',
+      timestamp: Date.now(),
+    };
+
+    const performance: PerformanceState = {
+      ...initialPerformanceState,
+      onStage: { type: 'event', message: eventMessage, id: 'event-1' },
+      buffer: [], // Empty buffer
+    };
+
+    renderHook(() =>
+      usePerformer({
+        performance,
+        dispatch,
+        paused: false,
+        inStudio: true,
+        frameDelayMs: 16.67,
+      })
+    );
+
+    // Advance past max hold time (5000ms)
+    // 260 frames at ~20ms = 5200ms
+    act(() => advanceFrames(260, 20));
+
+    // Should dispatch STAGE_COMPLETE because max hold exceeded
+    expect(dispatch).toHaveBeenCalledWith({ type: 'STAGE_COMPLETE' });
+  });
+});
+
+// ============================================================================
 // Buffer to Stage Flow
 // ============================================================================
 
