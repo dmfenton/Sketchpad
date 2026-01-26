@@ -29,8 +29,11 @@ import {
 import { IdleParticles } from '../components/IdleParticles';
 
 /**
- * Render a stroke with perfect-freehand outline.
+ * Default fallback color for strokes (dark blue-black).
+ * Used as safety fallback if style.color is somehow missing.
  */
+const DEFAULT_STROKE_COLOR = '#1a1a2e';
+
 function FreehandStroke({
   points,
   style,
@@ -42,14 +45,20 @@ function FreehandStroke({
   brushName?: BrushName;
   blur?: boolean;
 }): React.ReactElement | null {
+  // Extract style values with explicit fallbacks for safety
+  // This ensures strokes are always visible even if style is incomplete
+  const strokeColor = style.color || DEFAULT_STROKE_COLOR;
+  const strokeWidth = style.stroke_width || 2.5;
+  const strokeOpacity = style.opacity ?? 1;
+
   const { mainPath, bristlePaths, brush } = useMemo(() => {
     if (points.length === 0) return { mainPath: '', bristlePaths: [], brush: null };
 
     // Get brush preset if specified
     const brushPreset = brushName ? getBrushPreset(brushName) : null;
     const options = brushPreset
-      ? brushPresetToFreehandOptions(brushPreset, style.stroke_width)
-      : { ...PAINTERLY_FREEHAND_OPTIONS, size: style.stroke_width };
+      ? brushPresetToFreehandOptions(brushPreset, strokeWidth)
+      : { ...PAINTERLY_FREEHAND_OPTIONS, size: strokeWidth };
 
     // Main stroke outline
     const outline = getFreehandOutline(points, options);
@@ -61,14 +70,14 @@ function FreehandStroke({
       const bristleOutlines = getBristleOutlines(
         points,
         brushPreset.bristleCount,
-        brushPreset.bristleSpread * style.stroke_width,
+        brushPreset.bristleSpread * strokeWidth,
         options
       );
       bristles = bristleOutlines.map((o) => outlineToSvgPath(o)).filter((d) => d.length > 0);
     }
 
     return { mainPath: main, bristlePaths: bristles, brush: brushPreset };
-  }, [points, style.stroke_width, brushName]);
+  }, [points, strokeWidth, brushName]);
 
   if (!mainPath) return null;
 
@@ -81,16 +90,16 @@ function FreehandStroke({
         <SvgPath
           key={`bristle-${i}`}
           d={d}
-          fill={style.color}
-          fillOpacity={(brush?.bristleOpacity ?? 0.3) * style.opacity}
+          fill={strokeColor}
+          fillOpacity={(brush?.bristleOpacity ?? 0.3) * strokeOpacity}
         />
       ))}
 
       {/* Main stroke */}
       <SvgPath
         d={mainPath}
-        fill={style.color}
-        fillOpacity={(brush?.mainOpacity ?? 1) * style.opacity}
+        fill={strokeColor}
+        fillOpacity={(brush?.mainOpacity ?? 1) * strokeOpacity}
       />
     </G>
   );
@@ -100,8 +109,11 @@ function FreehandStroke({
  * Render a single-point stroke as a filled circle.
  */
 function StrokeDot({ point, style }: { point: Point; style: StrokeStyle }): React.ReactElement {
-  const radius = Math.max(style.stroke_width / 2, 1.5);
-  return <Circle cx={point.x} cy={point.y} r={radius} fill={style.color} fillOpacity={style.opacity} />;
+  // Explicit fallbacks to ensure visibility
+  const color = style.color || DEFAULT_STROKE_COLOR;
+  const opacity = style.opacity ?? 1;
+  const radius = Math.max((style.stroke_width || 2.5) / 2, 1.5);
+  return <Circle cx={point.x} cy={point.y} r={radius} fill={color} fillOpacity={opacity} />;
 }
 
 /**

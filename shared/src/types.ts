@@ -393,7 +393,7 @@ export function getEffectiveStyle(path: Path, styleConfig: DrawingStyleConfig): 
         ? path.stroke_width
         : defaultStyle.stroke_width,
     opacity:
-      path.opacity !== undefined && styleConfig.supports_opacity
+      typeof path.opacity === 'number' && styleConfig.supports_opacity
         ? path.opacity
         : defaultStyle.opacity,
     stroke_linecap: defaultStyle.stroke_linecap,
@@ -419,7 +419,7 @@ export function getEffectiveAgentStrokeStyle(
         ? agentStrokeStyle.stroke_width
         : styleConfig.agent_stroke.stroke_width,
     opacity:
-      styleConfig.supports_opacity && agentStrokeStyle?.opacity !== undefined
+      styleConfig.supports_opacity && typeof agentStrokeStyle?.opacity === 'number'
         ? agentStrokeStyle.opacity
         : styleConfig.agent_stroke.opacity,
     stroke_linecap: styleConfig.agent_stroke.stroke_linecap,
