@@ -141,7 +141,11 @@ const MemoizedStroke = memo(function MemoizedStroke({
     [stroke, styleConfig]
   );
 
-  // Handle SVG path type strokes
+  // Sample points from the path - must be called unconditionally (Rules of Hooks)
+  // For SVG type strokes, this returns an empty array which is fine
+  const points = useMemo(() => samplePathPoints(stroke), [stroke]);
+
+  // Handle SVG path type strokes (use raw d string, not sampled points)
   if (stroke.type === 'svg') {
     const d = pathToSvgD(stroke, isPaintMode);
     if (!d) return null;
@@ -159,9 +163,6 @@ const MemoizedStroke = memo(function MemoizedStroke({
       />
     );
   }
-
-  // Sample points from the path (memoized via useMemo)
-  const points = useMemo(() => samplePathPoints(stroke), [stroke]);
 
   if (points.length === 0) return null;
 
