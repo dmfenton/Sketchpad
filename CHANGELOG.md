@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Optimized stroke animation for smoother rendering with reduced CPU usage
+- Server interpolation now produces fewer points (0.2 vs 0.5 points/pixel) with automatic deduplication of sub-pixel movements
+- Stroke animation batches multiple points per frame for consistent visual speed (~300px/sec)
+- Added InProgressStroke component with body/tail caching to minimize freehand recalculations during animation
+
 ## [1.35.2] - 2026-01-26
 
 ### Fixed

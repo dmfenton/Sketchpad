@@ -9,10 +9,10 @@
  * only recalculate the perfect-freehand outline for recent points.
  */
 
-import React, { useMemo, useRef, memo } from 'react';
+import React, { useMemo, useRef, useEffect, memo } from 'react';
 import { G, Path as SvgPath } from 'react-native-svg';
 
-import type { Point, StrokeStyle, BrushName } from '@code-monet/shared';
+import type { Point, StrokeStyle, BrushName, BrushPreset } from '@code-monet/shared';
 import {
   getFreehandOutline,
   outlineToSvgPath,
@@ -20,6 +20,7 @@ import {
   getBrushPreset,
   brushPresetToFreehandOptions,
   getBristleOutlines,
+  type FreehandStrokeOptions,
 } from '@code-monet/shared';
 
 // How many points from the end to recompute each frame
@@ -29,11 +30,46 @@ const COMMIT_THRESHOLD = 20;
 
 const DEFAULT_STROKE_COLOR = '#1a1a2e';
 
+interface CachedBody {
+  path: string;
+  bristles: string[];
+  committedLength: number;
+}
+
 interface InProgressStrokeProps {
   points: Point[];
   style: StrokeStyle;
   brushName?: BrushName;
   blur?: boolean;
+}
+
+/**
+ * Compute body path and bristles for caching.
+ * Extracted as a pure function to avoid side effects during render.
+ */
+function computeBodyCache(
+  points: Point[],
+  bodyEndIndex: number,
+  options: FreehandStrokeOptions,
+  brushPreset: BrushPreset | null,
+  strokeWidth: number
+): CachedBody {
+  const newBodyPoints = points.slice(0, bodyEndIndex);
+  const bodyOutline = getFreehandOutline(newBodyPoints, options);
+  const path = outlineToSvgPath(bodyOutline);
+
+  let bristles: string[] = [];
+  if (brushPreset && brushPreset.bristleCount > 0 && newBodyPoints.length > 1) {
+    const bristleOutlines = getBristleOutlines(
+      newBodyPoints,
+      brushPreset.bristleCount,
+      brushPreset.bristleSpread * strokeWidth,
+      options
+    );
+    bristles = bristleOutlines.map((o) => outlineToSvgPath(o)).filter((d) => d.length > 0);
+  }
+
+  return { path, bristles, committedLength: bodyEndIndex };
 }
 
 export const InProgressStroke = memo(function InProgressStroke({
@@ -42,96 +78,101 @@ export const InProgressStroke = memo(function InProgressStroke({
   brushName,
   blur = false,
 }: InProgressStrokeProps): React.ReactElement | null {
-  // Track committed body path and how many points it covers
-  const bodyPathRef = useRef<string>('');
-  const bodyBristlesRef = useRef<string[]>([]);
-  const committedLengthRef = useRef<number>(0);
+  // Track committed body path - stored in ref for persistence across renders
+  const cachedBodyRef = useRef<CachedBody>({ path: '', bristles: [], committedLength: 0 });
+  // Track previous points length to detect stroke reset
+  const prevPointsLengthRef = useRef<number>(0);
 
   const strokeWidth = style.stroke_width || 2.5;
   const strokeColor = style.color || DEFAULT_STROKE_COLOR;
   const strokeOpacity = style.opacity ?? 1;
 
-  const { bodyPath, bodyBristles, tailPath, tailBristles, brush } = useMemo(() => {
+  const brushPreset = useMemo(
+    () => (brushName ? getBrushPreset(brushName) : null),
+    [brushName]
+  );
+
+  const options = useMemo(
+    () =>
+      brushPreset
+        ? brushPresetToFreehandOptions(brushPreset, strokeWidth)
+        : { ...PAINTERLY_FREEHAND_OPTIONS, size: strokeWidth },
+    [brushPreset, strokeWidth]
+  );
+
+  // Reset cache when stroke changes (points length decreases = new stroke)
+  useEffect(() => {
+    if (points.length < prevPointsLengthRef.current) {
+      // New stroke started - reset cache
+      cachedBodyRef.current = { path: '', bristles: [], committedLength: 0 };
+    }
+    prevPointsLengthRef.current = points.length;
+  }, [points.length]);
+
+  // Update body cache when we have enough new points
+  // This runs as an effect to avoid side effects during render
+  useEffect(() => {
+    if (points.length === 0) return;
+
+    const bodyEndIndex = Math.max(0, points.length - TAIL_LENGTH);
+    const cached = cachedBodyRef.current;
+
+    // Commit more to body if we have enough new points
+    if (bodyEndIndex > cached.committedLength + COMMIT_THRESHOLD) {
+      cachedBodyRef.current = computeBodyCache(
+        points,
+        bodyEndIndex,
+        options,
+        brushPreset,
+        strokeWidth
+      );
+    }
+  }, [points, options, brushPreset, strokeWidth]);
+
+  // Compute tail (always fresh) - this is a pure calculation, safe in useMemo
+  const { tailPath, tailBristles } = useMemo(() => {
     if (points.length === 0) {
-      return { bodyPath: '', bodyBristles: [], tailPath: '', tailBristles: [], brush: null };
+      return { tailPath: '', tailBristles: [] };
     }
 
-    const brushPreset = brushName ? getBrushPreset(brushName) : null;
-    const options = brushPreset
-      ? brushPresetToFreehandOptions(brushPreset, strokeWidth)
-      : { ...PAINTERLY_FREEHAND_OPTIONS, size: strokeWidth };
-
-    // Determine split point for body vs tail
     const bodyEndIndex = Math.max(0, points.length - TAIL_LENGTH);
 
-    // If we have enough new points, commit more to the body
-    if (bodyEndIndex > committedLengthRef.current + COMMIT_THRESHOLD) {
-      const newBodyPoints = points.slice(0, bodyEndIndex);
-      const bodyOutline = getFreehandOutline(newBodyPoints, options);
-      bodyPathRef.current = outlineToSvgPath(bodyOutline);
-
-      // Compute body bristles if in paint mode
-      if (brushPreset && brushPreset.bristleCount > 0 && newBodyPoints.length > 1) {
-        const bristleOutlines = getBristleOutlines(
-          newBodyPoints,
-          brushPreset.bristleCount,
-          brushPreset.bristleSpread * strokeWidth,
-          options
-        );
-        bodyBristlesRef.current = bristleOutlines
-          .map((o) => outlineToSvgPath(o))
-          .filter((d) => d.length > 0);
-      } else {
-        bodyBristlesRef.current = [];
-      }
-
-      committedLengthRef.current = bodyEndIndex;
-    }
-
-    // Compute tail (always fresh) - overlap a few points for smooth join
+    // Overlap a few points with body for smooth visual join
     const overlapPoints = 3;
     const tailStartIndex = Math.max(0, bodyEndIndex - overlapPoints);
     const tailPoints = points.slice(tailStartIndex);
 
-    let tail = '';
-    let tailBristlesList: string[] = [];
-
-    if (tailPoints.length > 0) {
-      const tailOutline = getFreehandOutline(tailPoints, options);
-      tail = outlineToSvgPath(tailOutline);
-
-      // Bristles only for tail in paint mode (keeps it performant)
-      if (brushPreset && brushPreset.bristleCount > 0 && tailPoints.length > 1) {
-        // Use fewer bristles for tail to maintain performance
-        const tailBristleCount = Math.min(brushPreset.bristleCount, 5);
-        const bristleOutlines = getBristleOutlines(
-          tailPoints,
-          tailBristleCount,
-          brushPreset.bristleSpread * strokeWidth,
-          options
-        );
-        tailBristlesList = bristleOutlines
-          .map((o) => outlineToSvgPath(o))
-          .filter((d) => d.length > 0);
-      }
+    if (tailPoints.length === 0) {
+      return { tailPath: '', tailBristles: [] };
     }
 
-    return {
-      bodyPath: bodyPathRef.current,
-      bodyBristles: bodyBristlesRef.current,
-      tailPath: tail,
-      tailBristles: tailBristlesList,
-      brush: brushPreset,
-    };
-    // Depend on points.length to trigger updates, but avoid deep comparison
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points.length, strokeWidth, brushName]);
+    const tailOutline = getFreehandOutline(tailPoints, options);
+    const tailPath = outlineToSvgPath(tailOutline);
+
+    let tailBristles: string[] = [];
+    if (brushPreset && brushPreset.bristleCount > 0 && tailPoints.length > 1) {
+      // Use fewer bristles for tail to maintain performance
+      const tailBristleCount = Math.min(brushPreset.bristleCount, 5);
+      const bristleOutlines = getBristleOutlines(
+        tailPoints,
+        tailBristleCount,
+        brushPreset.bristleSpread * strokeWidth,
+        options
+      );
+      tailBristles = bristleOutlines.map((o) => outlineToSvgPath(o)).filter((d) => d.length > 0);
+    }
+
+    return { tailPath, tailBristles };
+  }, [points, options, brushPreset, strokeWidth]);
+
+  // Read cached body (computed in effect, read during render is safe)
+  const { path: bodyPath, bristles: bodyBristles } = cachedBodyRef.current;
 
   if (!tailPath && !bodyPath) return null;
 
   const filterId = blur ? 'painterly-blur' : undefined;
-  const mainOpacity = (brush?.mainOpacity ?? 1) * strokeOpacity;
-  const bristleOpacity = (brush?.bristleOpacity ?? 0.3) * strokeOpacity;
+  const mainOpacity = (brushPreset?.mainOpacity ?? 1) * strokeOpacity;
+  const bristleOpacity = (brushPreset?.bristleOpacity ?? 0.3) * strokeOpacity;
 
   return (
     <G filter={filterId ? `url(#${filterId})` : undefined}>
