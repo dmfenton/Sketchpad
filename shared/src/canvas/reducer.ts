@@ -252,6 +252,7 @@ export type PerformanceAction =
   // Progress updates (from animation loop)
   | { type: 'REVEAL_WORD' }
   | { type: 'STROKE_PROGRESS'; point: Point; style?: Partial<StrokeStyle> }
+  | { type: 'STROKE_PROGRESS_BATCH'; points: Point[]; style?: Partial<StrokeStyle> }
   | { type: 'STROKE_COMPLETE' }
   // Control
   | { type: 'CLEAR_PERFORMANCE' };
@@ -611,6 +612,45 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         performance: {
           ...perf,
           penPosition: action.point,
+          penDown: true,
+          agentStroke: newAgentStroke,
+          agentStrokeStyle: newStyle,
+        },
+      };
+    }
+
+    case 'STROKE_PROGRESS_BATCH': {
+      const perf = state.performance;
+      if (action.points.length === 0) return state;
+
+      // Concatenate batch of points efficiently
+      const newAgentStroke = perf.agentStroke.concat(action.points);
+      // Capture style on first batch
+      const newStyle =
+        perf.agentStroke.length === 0 && action.style ? action.style : perf.agentStrokeStyle;
+      // Pen position is the last point in the batch
+      const lastPoint = action.points[action.points.length - 1];
+
+      // Only update pen position if it moved significantly (reduces indicator jitter)
+      const MIN_PEN_MOVE = 2; // pixels
+      let newPenPosition = perf.penPosition;
+      if (lastPoint) {
+        if (!perf.penPosition) {
+          newPenPosition = lastPoint;
+        } else {
+          const dx = lastPoint.x - perf.penPosition.x;
+          const dy = lastPoint.y - perf.penPosition.y;
+          if (Math.sqrt(dx * dx + dy * dy) >= MIN_PEN_MOVE) {
+            newPenPosition = lastPoint;
+          }
+        }
+      }
+
+      return {
+        ...state,
+        performance: {
+          ...perf,
+          penPosition: newPenPosition,
           penDown: true,
           agentStroke: newAgentStroke,
           agentStrokeStyle: newStyle,

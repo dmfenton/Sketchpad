@@ -106,7 +106,7 @@ class Settings(BaseSettings):
     # Drawing (pen plotter motion)
     drawing_fps: int = 30  # frames per second for pen updates
     stroke_delay: float = 0.2  # pause between strokes in seconds
-    path_steps_per_unit: float = 0.5  # interpolation density
+    path_steps_per_unit: float = 0.2  # interpolation density (lower = faster animation)
     travel_speed_multiplier: float = 2.0  # travel faster than drawing (pen up movement)
     pen_settle_delay: float = 0.05  # pause after pen down before moving (servo settling)
     pen_lift_threshold: float = 2.0  # skip pen lift if next path starts within this distance

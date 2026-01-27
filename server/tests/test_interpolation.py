@@ -4,6 +4,7 @@ import pytest
 
 from code_monet.interpolation import (
     cubic_bezier,
+    dedupe_close_points,
     estimate_path_length,
     interpolate_path,
     lerp,
@@ -116,3 +117,61 @@ class TestInterpolatePath:
         assert result[0].y == pytest.approx(0)
         assert result[-1].x == pytest.approx(100)
         assert result[-1].y == pytest.approx(0)
+
+
+class TestDedupeClosePoints:
+    def test_empty_list(self) -> None:
+        result = dedupe_close_points([])
+        assert result == []
+
+    def test_single_point(self) -> None:
+        points = [Point(x=0, y=0)]
+        result = dedupe_close_points(points)
+        assert len(result) == 1
+
+    def test_two_points_always_kept(self) -> None:
+        points = [Point(x=0, y=0), Point(x=0.5, y=0.5)]
+        result = dedupe_close_points(points, min_distance=10)
+        assert len(result) == 2
+
+    def test_removes_close_points(self) -> None:
+        # Points less than 1.5 apart should be removed (except first/last)
+        points = [
+            Point(x=0, y=0),
+            Point(x=0.5, y=0),  # too close, should be removed
+            Point(x=1.0, y=0),  # too close, should be removed
+            Point(x=10, y=0),  # far enough, should be kept
+            Point(x=10.5, y=0),  # too close, should be removed
+            Point(x=20, y=0),  # last point, always kept
+        ]
+        result = dedupe_close_points(points, min_distance=1.5)
+        # Should keep: first (0,0), (10,0), last (20,0)
+        assert len(result) == 3
+        assert result[0].x == 0
+        assert result[1].x == 10
+        assert result[2].x == 20
+
+    def test_preserves_first_and_last(self) -> None:
+        # First and last should always be preserved even if close
+        points = [
+            Point(x=0, y=0),
+            Point(x=50, y=0),
+            Point(x=50.1, y=0),  # very close to last, but last is preserved
+        ]
+        result = dedupe_close_points(points, min_distance=1.5)
+        assert result[0].x == 0
+        assert result[-1].x == 50.1
+
+    def test_custom_min_distance(self) -> None:
+        points = [
+            Point(x=0, y=0),
+            Point(x=5, y=0),
+            Point(x=10, y=0),
+        ]
+        # With min_distance=3, (5,0) should be kept
+        result = dedupe_close_points(points, min_distance=3)
+        assert len(result) == 3
+
+        # With min_distance=6, (5,0) should be removed
+        result = dedupe_close_points(points, min_distance=6)
+        assert len(result) == 2
