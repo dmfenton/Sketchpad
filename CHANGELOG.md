@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.35.3] - 2026-01-27
+
 ### Changed
 
 - Optimized stroke animation for smoother rendering with reduced CPU usage
@@ -964,7 +966,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.35.2...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.35.3...HEAD
+[1.35.3]: https://github.com/dmfenton/sketchpad/compare/v1.35.2...v1.35.3
 [1.35.2]: https://github.com/dmfenton/sketchpad/compare/v1.35.1...v1.35.2
 [1.35.1]: https://github.com/dmfenton/sketchpad/compare/v1.35.0...v1.35.1
 [1.35.0]: https://github.com/dmfenton/sketchpad/compare/v1.34.0...v1.35.0
