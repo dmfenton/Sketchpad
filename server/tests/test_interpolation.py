@@ -140,9 +140,9 @@ class TestDedupeClosePoints:
             Point(x=0, y=0),
             Point(x=0.5, y=0),  # too close, should be removed
             Point(x=1.0, y=0),  # too close, should be removed
-            Point(x=10, y=0),   # far enough, should be kept
-            Point(x=10.5, y=0), # too close, should be removed
-            Point(x=20, y=0),   # last point, always kept
+            Point(x=10, y=0),  # far enough, should be kept
+            Point(x=10.5, y=0),  # too close, should be removed
+            Point(x=20, y=0),  # last point, always kept
         ]
         result = dedupe_close_points(points, min_distance=1.5)
         # Should keep: first (0,0), (10,0), last (20,0)
