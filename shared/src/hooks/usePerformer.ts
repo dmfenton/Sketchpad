@@ -106,7 +106,7 @@ export function usePerformer({
       return;
     }
 
-    const animate = (time: number) => {
+    const animate = (time: number): void => {
       const { onStage, buffer, wordIndex, strokeIndex } = performance;
 
       // If stage is empty, try to advance
