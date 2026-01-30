@@ -384,9 +384,13 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
             drawingStyle: data.drawing_style,
             styleConfig: data.style_config,
           });
+        } else {
+          console.warn(`[StudioContext] Failed to load gallery piece ${pieceNumber}: ${response.status}`);
+          setInStudio(false);
         }
-      } catch {
-        // Silently fail — user sees current canvas, can go back
+      } catch (error) {
+        console.warn('[StudioContext] Failed to load gallery piece:', error);
+        setInStudio(false);
       }
     },
     [closeModal, setInStudio, api, dispatch]
