@@ -370,12 +370,26 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
   );
 
   const handleGallerySelect = useCallback(
-    (pieceNumber: number) => {
-      send({ type: 'load_canvas', piece_number: pieceNumber });
+    async (pieceNumber: number) => {
       closeModal();
       setInStudio(true);
+      try {
+        const response = await api.fetch(`/gallery/${pieceNumber}/strokes`);
+        if (response.ok) {
+          const data = await response.json();
+          dispatch({
+            type: 'LOAD_CANVAS',
+            strokes: data.strokes,
+            pieceNumber: data.piece_number,
+            drawingStyle: data.drawing_style,
+            styleConfig: data.style_config,
+          });
+        }
+      } catch {
+        // Silently fail — user sees current canvas, can go back
+      }
     },
-    [send, closeModal, setInStudio]
+    [closeModal, setInStudio, api, dispatch]
   );
 
   // Bundle actions for stable reference

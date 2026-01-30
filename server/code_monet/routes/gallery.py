@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from code_monet.auth.dependencies import CurrentUser
 from code_monet.db import get_session, repository
 from code_monet.routes.canvas import get_user_state, render_strokes_to_png
+from code_monet.types import get_style_config
 
 router = APIRouter()
 
@@ -19,6 +20,23 @@ async def get_gallery_list(user: CurrentUser) -> list[dict[str, Any]]:
     state = await get_user_state(user)
     entries = await state.list_gallery()
     return [entry.model_dump() for entry in entries]
+
+
+@router.get("/gallery/{piece_number}/strokes")
+async def get_gallery_piece_strokes(piece_number: int, user: CurrentUser) -> dict[str, Any]:
+    """Get strokes for a gallery piece (read-only, no workspace mutation)."""
+    state = await get_user_state(user)
+    result = await state.load_from_gallery(piece_number)
+    if not result:
+        raise HTTPException(status_code=404, detail="Piece not found")
+    strokes, drawing_style = result
+    style_config = get_style_config(drawing_style)
+    return {
+        "strokes": [s.model_dump() for s in strokes],
+        "piece_number": piece_number,
+        "drawing_style": drawing_style.value,
+        "style_config": style_config.model_dump(),
+    }
 
 
 @router.get("/gallery/thumbnail/{piece_id}.png")
