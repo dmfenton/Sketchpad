@@ -142,10 +142,7 @@ async def handle_load_canvas(workspace: ActiveWorkspace, message: dict[str, Any]
 
     if result:
         strokes, drawing_style = result
-        workspace.state.canvas.strokes[:] = strokes
-        workspace.state.canvas.drawing_style = drawing_style
-        await workspace.state.save()
-
+        # Read-only: send strokes to client without mutating workspace state
         style_config = get_style_config(drawing_style)
         await workspace.connections.broadcast(
             LoadCanvasMessage(
