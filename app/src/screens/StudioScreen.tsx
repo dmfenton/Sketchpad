@@ -24,6 +24,8 @@ export interface StudioScreenProps {
   wsConnected: boolean;
   /** Gallery count for action bar */
   galleryCount: number;
+  /** Whether viewing a completed gallery piece (read-only) */
+  viewingPiece: number | null;
   /** Callback when action is triggered */
   onAction: (action: StudioAction) => void;
   /** Callback for stroke start */
@@ -40,11 +42,13 @@ export function StudioScreen({
   currentTool,
   wsConnected,
   galleryCount,
+  viewingPiece,
   onAction,
   onStrokeStart,
   onStrokeMove,
   onStrokeEnd,
 }: StudioScreenProps): React.JSX.Element {
+  const isViewOnly = viewingPiece !== null;
   // Action bar callbacks
   const handleDrawToggle = useCallback(() => {
     onAction({ type: 'draw_toggle' });
@@ -68,12 +72,14 @@ export function StudioScreen({
 
   return (
     <>
-      {/* Live Status - Above canvas for visibility */}
-      <LiveStatus
-        performance={canvasState.performance}
-        status={agentStatus}
-        currentTool={currentTool}
-      />
+      {/* Live Status - Above canvas for visibility (hidden when viewing completed piece) */}
+      {!isViewOnly && (
+        <LiveStatus
+          performance={canvasState.performance}
+          status={agentStatus}
+          currentTool={currentTool}
+        />
+      )}
 
       {/* Canvas - Main area */}
       <View style={styles.canvasContainer}>
@@ -84,17 +90,17 @@ export function StudioScreen({
           agentStrokeStyle={canvasState.performance.agentStrokeStyle}
           penPosition={canvasState.performance.penPosition}
           penDown={canvasState.performance.penDown}
-          drawingEnabled={canvasState.drawingEnabled}
+          drawingEnabled={!isViewOnly && canvasState.drawingEnabled}
           styleConfig={canvasState.styleConfig}
-          showIdleAnimation={shouldShowIdleAnimation(canvasState)}
+          showIdleAnimation={!isViewOnly && shouldShowIdleAnimation(canvasState)}
           onStrokeStart={onStrokeStart}
           onStrokeMove={onStrokeMove}
           onStrokeEnd={onStrokeEnd}
         />
       </View>
 
-      {/* Message History - Collapsible */}
-      <MessageStream messages={canvasState.messages} />
+      {/* Message History - Collapsible (hidden when viewing completed piece) */}
+      {!isViewOnly && <MessageStream messages={canvasState.messages} />}
 
       {/* Action Bar - Bottom */}
       <ActionBar
@@ -102,6 +108,7 @@ export function StudioScreen({
         paused={canvasState.paused}
         connected={wsConnected}
         galleryCount={galleryCount}
+        viewOnly={isViewOnly}
         onDrawToggle={handleDrawToggle}
         onNudge={handleNudge}
         onPauseToggle={handlePauseToggle}
