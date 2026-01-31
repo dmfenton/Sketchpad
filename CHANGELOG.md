@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.35.6] - 2026-01-31
+
+### Fixed
+
+- Gallery piece viewing is now read-only via REST — no longer overwrites current WIP canvas
+- Restart nginx container on release deploy
+
+## [1.35.5] - 2026-01-29
+
+### Fixed
+
+- Strip /api/ prefix when proxying to backend via nginx
+
+## [1.35.4] - 2026-01-28
+
+### Fixed
+
+- Update Umami analytics website ID
+
 ## [1.35.3] - 2026-01-27
 
 ### Changed
@@ -966,7 +985,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.35.3...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.35.6...HEAD
+[1.35.6]: https://github.com/dmfenton/sketchpad/compare/v1.35.5...v1.35.6
+[1.35.5]: https://github.com/dmfenton/sketchpad/compare/v1.35.4...v1.35.5
+[1.35.4]: https://github.com/dmfenton/sketchpad/compare/v1.35.3...v1.35.4
 [1.35.3]: https://github.com/dmfenton/sketchpad/compare/v1.35.2...v1.35.3
 [1.35.2]: https://github.com/dmfenton/sketchpad/compare/v1.35.1...v1.35.2
 [1.35.1]: https://github.com/dmfenton/sketchpad/compare/v1.35.0...v1.35.1
