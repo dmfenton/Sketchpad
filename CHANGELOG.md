@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.35.7] - 2026-01-31
+
 ### Added
 
 - Production-to-dev sync script (`scripts/sync-prod.py`) for automated database and workspace transfer
+- Disable interaction on completed canvases
+
+### Fixed
+
+- Composite paint mode strokes individually for correct layering
+- Add home button to gallery screen when in studio
 
 ## [1.35.6] - 2026-01-31
 
@@ -989,7 +997,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas rasterization for agent vision
 - React Native mobile app with Expo
 
-[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.35.6...HEAD
+[Unreleased]: https://github.com/dmfenton/sketchpad/compare/v1.35.7...HEAD
+[1.35.7]: https://github.com/dmfenton/sketchpad/compare/v1.35.6...v1.35.7
 [1.35.6]: https://github.com/dmfenton/sketchpad/compare/v1.35.5...v1.35.6
 [1.35.5]: https://github.com/dmfenton/sketchpad/compare/v1.35.4...v1.35.5
 [1.35.4]: https://github.com/dmfenton/sketchpad/compare/v1.35.3...v1.35.4
