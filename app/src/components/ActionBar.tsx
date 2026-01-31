@@ -13,6 +13,7 @@ interface ActionBarProps {
   paused: boolean;
   connected: boolean;
   galleryCount: number;
+  viewOnly?: boolean;
   onDrawToggle: () => void;
   onNudge: () => void;
   onPauseToggle: () => void;
@@ -93,6 +94,7 @@ export function ActionBar({
   paused,
   connected,
   galleryCount,
+  viewOnly = false,
   onDrawToggle,
   onNudge,
   onPauseToggle,
@@ -103,8 +105,8 @@ export function ActionBar({
   return (
     <View style={styles.container} testID="action-bar">
       <View style={[styles.bar, { backgroundColor: colors.surface }, shadows.lg]}>
-        {/* Contextual actions - only show when agent is active */}
-        {!paused && (
+        {/* Contextual actions - only show when agent is active and not view-only */}
+        {!paused && !viewOnly && (
           <>
             <ActionButton
               icon={drawingEnabled ? 'pencil' : 'pencil-outline'}
@@ -141,15 +143,18 @@ export function ActionBar({
           colors={colors}
           testID="action-gallery"
         />
-        <ActionButton
-          icon={paused ? 'play' : 'pause'}
-          label={paused ? 'Start' : 'Pause'}
-          active={paused}
-          disabled={!connected}
-          onPress={onPauseToggle}
-          colors={colors}
-          testID="action-pause"
-        />
+        {/* Hide pause/start when viewing completed piece */}
+        {!viewOnly && (
+          <ActionButton
+            icon={paused ? 'play' : 'pause'}
+            label={paused ? 'Start' : 'Pause'}
+            active={paused}
+            disabled={!connected}
+            onPress={onPauseToggle}
+            colors={colors}
+            testID="action-pause"
+          />
+        )}
       </View>
     </View>
   );

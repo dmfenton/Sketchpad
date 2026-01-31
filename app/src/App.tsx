@@ -106,6 +106,7 @@ function MainApp(): React.JSX.Element {
               currentTool={currentTool}
               wsConnected={wsConnected}
               galleryCount={canvasState.gallery.length}
+              viewingPiece={canvasState.viewingPiece}
               onAction={actions.handleStudioAction}
               onStrokeStart={actions.handleStrokeStart}
               onStrokeMove={actions.handleStrokeMove}
