@@ -140,8 +140,15 @@ def render_strokes(
     # Create image with background
     bg_rgba = options._parse_background()
     img = Image.new("RGBA", (options.width, options.height), bg_rgba)
-    draw_layer = Image.new("RGBA", (options.width, options.height), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(draw_layer)
+
+    # In paint mode, each stroke must be composited individually so that
+    # overlapping semi-transparent strokes accumulate opacity correctly
+    # (matching SVG per-element compositing). In plotter mode (opacity=1.0),
+    # a single shared layer is fine and much faster.
+    per_stroke_compositing = options.drawing_style == DrawingStyleType.PAINT
+
+    shared_layer = Image.new("RGBA", (options.width, options.height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(shared_layer)
 
     # Build list of paths, expanding brush strokes if needed
     paths_to_render: list[Path] = []
@@ -180,9 +187,17 @@ def render_strokes(
         scaled_points = transform.apply(points)
         stroke_width = max(1, int(effective_style.stroke_width * transform.scale))
 
-        draw.line(scaled_points, fill=rgba, width=stroke_width)
+        if per_stroke_compositing:
+            # Clear the reusable layer and draw this stroke
+            shared_layer.paste((0, 0, 0, 0), (0, 0, options.width, options.height))
+            draw = ImageDraw.Draw(shared_layer)
+            draw.line(scaled_points, fill=rgba, width=stroke_width)
+            img = Image.alpha_composite(img, shared_layer)
+        else:
+            draw.line(scaled_points, fill=rgba, width=stroke_width)
 
-    img = Image.alpha_composite(img, draw_layer)
+    if not per_stroke_compositing:
+        img = Image.alpha_composite(img, shared_layer)
     img = img.convert("RGB")
 
     # Return in requested format

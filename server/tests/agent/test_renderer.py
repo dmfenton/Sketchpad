@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 from PIL import Image
 
 from code_monet.agent.renderer import image_to_base64
-from code_monet.rendering import options_for_agent_view, render_strokes
+from code_monet.rendering import RenderOptions, options_for_agent_view, render_strokes
 from code_monet.types import DrawingStyleType, Path, PathType, Point
 
 
@@ -154,3 +154,37 @@ class TestImageToBase64:
             result = image_to_base64(img)
             assert isinstance(result, str)
             assert len(result) > 0
+
+
+class TestPaintModeStrokeLayering:
+    """Tests for per-stroke compositing in paint mode."""
+
+    def test_overlapping_strokes_accumulate_opacity(self) -> None:
+        """Two overlapping semi-transparent strokes should be more opaque than one."""
+        # A horizontal line through the center of a small canvas
+        line = Path(
+            type=PathType.POLYLINE,
+            points=[Point(x=10, y=50), Point(x=90, y=50)],
+            color="#000000",
+            opacity=0.5,
+            author="agent",
+        )
+        options = RenderOptions(
+            width=100,
+            height=100,
+            drawing_style=DrawingStyleType.PAINT,
+            output_format="image",
+        )
+
+        img_one = render_strokes([line], options)
+        img_two = render_strokes([line, line], options)
+
+        # Sample a pixel on the stroke path. With two overlapping strokes
+        # the result should be darker (lower RGB on white background).
+        assert isinstance(img_one, Image.Image)
+        assert isinstance(img_two, Image.Image)
+        r_one = img_one.getpixel((50, 50))[0]
+        r_two = img_two.getpixel((50, 50))[0]
+        assert r_two < r_one, (
+            f"Two overlapping strokes should be darker than one, got {r_two} vs {r_one}"
+        )
