@@ -6,7 +6,7 @@
  * This app uses a simple state machine for navigation instead of a library
  * like react-navigation because:
  *
- * 1. Two-screen model - Only Home and Studio screens exist
+ * 1. Three-screen model - Home, Studio, and Gallery screens
  * 2. Controlled transitions - Navigation triggers side effects (pause/resume agent)
  * 3. Backgrounding behavior - Custom logic for app suspend/resume
  * 4. No deep linking needs - App always starts at Home
@@ -14,7 +14,7 @@
  * ## Limitations (Accepted Trade-offs)
  *
  * - No swipe back gesture (intentional - prevents accidental exits during drawing)
- * - No navigation history (not needed for two screens)
+ * - Minimal navigation history (gallery tracks its previous screen)
  * - No URL-based routing (not a web app)
  *
  * ## Future Considerations
@@ -63,7 +63,7 @@ export interface NavigationProviderProps {
  * Provider that manages navigation state and screen transitions.
  *
  * Handles:
- * - Screen transitions (home <-> studio)
+ * - Screen transitions (home <-> studio <-> gallery)
  * - Android back button (exits studio -> home, then exits app)
  *
  * Note: App backgrounding (pause/resume) is handled by StudioProvider,
@@ -103,6 +103,7 @@ export function NavigationProvider({
 
   // Navigate to gallery, remembering where we came from
   const openGallery = useCallback(() => {
+    if (screenRef.current === 'gallery') return;
     previousScreenRef.current = screenRef.current;
     setScreen('gallery');
   }, []);

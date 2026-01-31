@@ -48,7 +48,7 @@ import { tracer } from './utils/tracing';
  */
 function MainApp(): React.JSX.Element {
   const { colors, isDark } = useTheme();
-  const { screen, inStudio, closeGallery, galleryToHome, galleryFromStudio } = useNavigation();
+  const { screen, closeGallery, galleryFromStudio } = useNavigation();
   const {
     canvasState,
     agentStatus,
@@ -96,7 +96,7 @@ function MainApp(): React.JSX.Element {
               canvases={canvasState.gallery}
               onClose={closeGallery}
               onSelect={actions.handleGallerySelect}
-              onHome={galleryToHome}
+              onHome={actions.handleGalleryToHome}
               showHomeButton={galleryFromStudio}
             />
           ) : inStudio ? (

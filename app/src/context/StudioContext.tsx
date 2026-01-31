@@ -87,6 +87,7 @@ export interface StudioContextValue {
     handleNudgeSend: (text: string) => void;
     handleNewCanvasStart: (direction?: string, style?: DrawingStyleType) => void;
     handleGallerySelect: (pieceNumber: number) => void;
+    handleGalleryToHome: () => void;
   };
 }
 
@@ -104,7 +105,7 @@ export interface StudioProviderProps {
  */
 export function StudioProvider({ children }: StudioProviderProps): React.JSX.Element {
   const { accessToken, signOut, refreshToken } = useAuth();
-  const { inStudio, enterStudio, exitStudio, setInStudio, openGallery, closeGallery } = useNavigation();
+  const { inStudio, enterStudio, exitStudio, setInStudio, openGallery, galleryToHome } = useNavigation();
 
   const api = useMemo(() => createApiClient(accessToken), [accessToken]);
 
@@ -396,6 +397,16 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
     [setInStudio, api, dispatch]
   );
 
+  // Navigate from gallery to home, pausing the agent if it was running
+  const handleGalleryToHome = useCallback(() => {
+    tracer.recordEvent('session.back_to_home');
+    if (!canvas.state.paused) {
+      canvas.setPaused(true);
+      send({ type: 'pause' });
+    }
+    galleryToHome();
+  }, [canvas, send, galleryToHome]);
+
   // Bundle actions for stable reference
   const actions = useMemo(
     () => ({
@@ -410,6 +421,7 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
       handleNudgeSend,
       handleNewCanvasStart,
       handleGallerySelect,
+      handleGalleryToHome,
     }),
     [
       handleStudioAction,
@@ -423,6 +435,7 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
       handleNudgeSend,
       handleNewCanvasStart,
       handleGallerySelect,
+      handleGalleryToHome,
     ]
   );
 
