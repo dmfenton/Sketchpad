@@ -181,7 +181,7 @@ export function ContinueCard({
   if (isCompleted) {
     return (
       <View
-        testID="home-continue-button"
+        testID="home-recent-card"
         style={[styles.container, { backgroundColor: colors.canvasBackground }]}
       >
         {content}

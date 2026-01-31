@@ -90,9 +90,9 @@ export function StudioScreen({
           agentStrokeStyle={canvasState.performance.agentStrokeStyle}
           penPosition={canvasState.performance.penPosition}
           penDown={canvasState.performance.penDown}
-          drawingEnabled={isViewOnly ? false : canvasState.drawingEnabled}
+          drawingEnabled={!isViewOnly && canvasState.drawingEnabled}
           styleConfig={canvasState.styleConfig}
-          showIdleAnimation={isViewOnly ? false : shouldShowIdleAnimation(canvasState)}
+          showIdleAnimation={!isViewOnly && shouldShowIdleAnimation(canvasState)}
           onStrokeStart={onStrokeStart}
           onStrokeMove={onStrokeMove}
           onStrokeEnd={onStrokeEnd}
