@@ -147,9 +147,8 @@ def render_strokes(
     # a single shared layer is fine and much faster.
     per_stroke_compositing = options.drawing_style == DrawingStyleType.PAINT
 
-    if not per_stroke_compositing:
-        draw_layer = Image.new("RGBA", (options.width, options.height), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(draw_layer)
+    shared_layer = Image.new("RGBA", (options.width, options.height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(shared_layer)
 
     # Build list of paths, expanding brush strokes if needed
     paths_to_render: list[Path] = []
@@ -189,15 +188,16 @@ def render_strokes(
         stroke_width = max(1, int(effective_style.stroke_width * transform.scale))
 
         if per_stroke_compositing:
-            stroke_layer = Image.new("RGBA", (options.width, options.height), (0, 0, 0, 0))
-            stroke_draw = ImageDraw.Draw(stroke_layer)
-            stroke_draw.line(scaled_points, fill=rgba, width=stroke_width)
-            img = Image.alpha_composite(img, stroke_layer)
+            # Clear the reusable layer and draw this stroke
+            shared_layer.paste((0, 0, 0, 0), (0, 0, options.width, options.height))
+            draw = ImageDraw.Draw(shared_layer)
+            draw.line(scaled_points, fill=rgba, width=stroke_width)
+            img = Image.alpha_composite(img, shared_layer)
         else:
             draw.line(scaled_points, fill=rgba, width=stroke_width)
 
     if not per_stroke_compositing:
-        img = Image.alpha_composite(img, draw_layer)
+        img = Image.alpha_composite(img, shared_layer)
     img = img.convert("RGB")
 
     # Return in requested format
