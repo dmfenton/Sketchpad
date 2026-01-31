@@ -74,8 +74,8 @@ export function NavigationProvider({
   onExitStudio,
 }: NavigationProviderProps): React.JSX.Element {
   const [screen, setScreen] = useState<Screen>('home');
-  // Track which screen the gallery was opened from (ref for callbacks, state for rendering)
-  const previousScreenRef = useRef<Screen>('home');
+  // Track which screen the gallery was opened from
+  const [previousScreen, setPreviousScreen] = useState<Screen>('home');
 
   // Track screen in ref for back button handler (avoids stale closure)
   const screenRef = useRef(screen);
@@ -83,7 +83,7 @@ export function NavigationProvider({
 
   // Derived state
   const inStudio = screen === 'studio';
-  const galleryFromStudio = screen === 'gallery' && previousScreenRef.current === 'studio';
+  const galleryFromStudio = screen === 'gallery' && previousScreen === 'studio';
 
   // Navigate to studio
   const enterStudio = useCallback(() => {
@@ -104,23 +104,19 @@ export function NavigationProvider({
   // Navigate to gallery, remembering where we came from
   const openGallery = useCallback(() => {
     if (screenRef.current === 'gallery') return;
-    previousScreenRef.current = screenRef.current;
+    setPreviousScreen(screenRef.current);
     setScreen('gallery');
   }, []);
 
   // Navigate back from gallery to previous screen
   const closeGallery = useCallback(() => {
-    setScreen(previousScreenRef.current);
-  }, []);
+    setScreen((prev) => prev === 'gallery' ? previousScreen : prev);
+  }, [previousScreen]);
 
   // Navigate from gallery directly to home
   const galleryToHome = useCallback(() => {
-    if (previousScreenRef.current === 'studio') {
-      onExitStudio?.();
-    }
-    previousScreenRef.current = 'home';
     setScreen('home');
-  }, [onExitStudio]);
+  }, []);
 
   // Android back button handler
   useEffect(() => {
