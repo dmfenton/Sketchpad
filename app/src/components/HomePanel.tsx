@@ -132,7 +132,7 @@ export function HomePanel({
         {hasRecentWork && (
           <View style={styles.continueSection}>
             <Text style={[styles.sectionHeader, { color: colors.textPrimary }]}>
-              Continue where you left off
+              {hasCurrentWork || pieceNumber > 0 ? 'Continue where you left off' : 'Recent work'}
             </Text>
 
             <ContinueCard
