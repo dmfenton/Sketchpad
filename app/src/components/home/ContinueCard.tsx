@@ -126,17 +126,11 @@ export function ContinueCard({
     recentCanvas?.title ||
     (hasCurrentWork ? 'Current Drawing' : `#${recentCanvas?.piece_number ?? ''}`);
 
-  return (
-    <Pressable
-      testID="home-continue-button"
-      style={({ pressed }) => [
-        styles.container,
-        { backgroundColor: colors.canvasBackground },
-        pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
-      ]}
-      onPress={onContinue}
-      disabled={disabled}
-    >
+  // Completed canvas = no current work, just showing gallery thumbnail
+  const isCompleted = !hasCurrentWork;
+
+  const content = (
+    <>
       <View style={[styles.preview, { backgroundColor: colors.canvasBackground }]}>
         {hasCurrentWork && strokes.length > 0 ? (
           // Show live WIP preview when there are strokes
@@ -174,11 +168,39 @@ export function ContinueCard({
 
       <View style={styles.info}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
-        <View style={[styles.continueButton, { backgroundColor: colors.primary }]}>
-          <Text style={[styles.continueText, { color: colors.textOnPrimary }]}>Continue</Text>
-          <Ionicons name="arrow-forward" size={16} color={colors.textOnPrimary} />
-        </View>
+        {!isCompleted && (
+          <View style={[styles.continueButton, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.continueText, { color: colors.textOnPrimary }]}>Continue</Text>
+            <Ionicons name="arrow-forward" size={16} color={colors.textOnPrimary} />
+          </View>
+        )}
       </View>
+    </>
+  );
+
+  if (isCompleted) {
+    return (
+      <View
+        testID="home-recent-card"
+        style={[styles.container, { backgroundColor: colors.canvasBackground }]}
+      >
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      testID="home-continue-button"
+      style={({ pressed }) => [
+        styles.container,
+        { backgroundColor: colors.canvasBackground },
+        pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+      ]}
+      onPress={onContinue}
+      disabled={disabled}
+    >
+      {content}
     </Pressable>
   );
 }

@@ -6,7 +6,7 @@
  * This app uses a simple state machine for navigation instead of a library
  * like react-navigation because:
  *
- * 1. Two-screen model - Only Home and Studio screens exist
+ * 1. Three-screen model - Home, Studio, and Gallery screens
  * 2. Controlled transitions - Navigation triggers side effects (pause/resume agent)
  * 3. Backgrounding behavior - Custom logic for app suspend/resume
  * 4. No deep linking needs - App always starts at Home
@@ -14,7 +14,7 @@
  * ## Limitations (Accepted Trade-offs)
  *
  * - No swipe back gesture (intentional - prevents accidental exits during drawing)
- * - No navigation history (not needed for two screens)
+ * - Minimal navigation history (gallery tracks its previous screen)
  * - No URL-based routing (not a web app)
  *
  * ## Future Considerations
@@ -24,11 +24,10 @@
  * persistence to maintain the pause-on-exit behavior.
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Platform } from 'react-native';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 /** Navigation screen type */
-export type Screen = 'home' | 'studio';
+export type Screen = 'home' | 'studio' | 'gallery';
 
 export interface NavigationContextValue {
   /** Current screen */
@@ -41,21 +40,27 @@ export interface NavigationContextValue {
   exitStudio: () => void;
   /** Set screen directly (for gallery selection, etc.) */
   setInStudio: (inStudio: boolean) => void;
+  /** Navigate to gallery screen */
+  openGallery: () => void;
+  /** Navigate back from gallery to the previous screen */
+  closeGallery: () => void;
+  /** Navigate from gallery directly to home */
+  galleryToHome: () => void;
+  /** Whether gallery was opened from the studio screen */
+  galleryFromStudio: boolean;
 }
 
 const NavigationContext = createContext<NavigationContextValue | null>(null);
 
 export interface NavigationProviderProps {
   children: React.ReactNode;
-  /** Optional callback when exiting studio (e.g., to pause agent) */
-  onExitStudio?: () => void;
 }
 
 /**
  * Provider that manages navigation state and screen transitions.
  *
  * Handles:
- * - Screen transitions (home <-> studio)
+ * - Screen transitions (home <-> studio <-> gallery)
  * - Android back button (exits studio -> home, then exits app)
  *
  * Note: App backgrounding (pause/resume) is handled by StudioProvider,
@@ -63,9 +68,10 @@ export interface NavigationProviderProps {
  */
 export function NavigationProvider({
   children,
-  onExitStudio,
 }: NavigationProviderProps): React.JSX.Element {
   const [screen, setScreen] = useState<Screen>('home');
+  // Track which screen the gallery was opened from
+  const [previousScreen, setPreviousScreen] = useState<Screen>('home');
 
   // Track screen in ref for back button handler (avoids stale closure)
   const screenRef = useRef(screen);
@@ -73,37 +79,42 @@ export function NavigationProvider({
 
   // Derived state
   const inStudio = screen === 'studio';
+  const galleryFromStudio = screen === 'gallery' && previousScreen === 'studio';
 
   // Navigate to studio
   const enterStudio = useCallback(() => {
     setScreen('studio');
   }, []);
 
-  // Navigate to home
+  // Navigate to home (caller is responsible for pausing agent if needed)
   const exitStudio = useCallback(() => {
-    onExitStudio?.();
     setScreen('home');
-  }, [onExitStudio]);
+  }, []);
 
   // Set screen directly (for gallery selection)
   const setInStudio = useCallback((value: boolean) => {
     setScreen(value ? 'studio' : 'home');
   }, []);
 
-  // Android back button handler
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
+  // Navigate to gallery, remembering where we came from
+  const openGallery = useCallback(() => {
+    if (screenRef.current === 'gallery') return;
+    setPreviousScreen(screenRef.current);
+    setScreen('gallery');
+  }, []);
 
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (screenRef.current === 'studio') {
-        exitStudio();
-        return true; // Prevent default (don't close app)
-      }
-      return false; // Let system handle (close app)
-    });
+  // Navigate back from gallery to previous screen
+  const closeGallery = useCallback(() => {
+    setScreen((prev) => prev === 'gallery' ? previousScreen : prev);
+  }, [previousScreen]);
 
-    return () => backHandler.remove();
-  }, [exitStudio]);
+  // Navigate from gallery directly to home
+  const galleryToHome = useCallback(() => {
+    setScreen('home');
+  }, []);
+
+  // Note: Android back button is handled in StudioProvider, which has
+  // access to both navigation and the WebSocket (needed to pause agent).
 
   // Memoize context value
   const value = useMemo<NavigationContextValue>(
@@ -113,8 +124,12 @@ export function NavigationProvider({
       enterStudio,
       exitStudio,
       setInStudio,
+      openGallery,
+      closeGallery,
+      galleryToHome,
+      galleryFromStudio,
     }),
-    [screen, inStudio, enterStudio, exitStudio, setInStudio]
+    [screen, inStudio, enterStudio, exitStudio, setInStudio, openGallery, closeGallery, galleryToHome, galleryFromStudio]
   );
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>;
