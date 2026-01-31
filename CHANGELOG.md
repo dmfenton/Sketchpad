@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Production-to-dev sync script (`scripts/sync-prod.py`) for automated database and workspace transfer
+
 ## [1.35.6] - 2026-01-31
 
 ### Fixed
