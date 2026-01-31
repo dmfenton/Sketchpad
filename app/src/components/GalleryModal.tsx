@@ -35,6 +35,8 @@ interface GalleryModalProps {
   canvases: SavedCanvas[];
   onClose: () => void;
   onSelect: (pieceNumber: number) => void;
+  /** Optional home handler - shown when gallery is opened from studio */
+  onHome?: () => void;
 }
 
 // Grid configuration
@@ -148,6 +150,7 @@ export function GalleryModal({
   canvases,
   onClose,
   onSelect,
+  onHome,
 }: GalleryModalProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
@@ -185,6 +188,13 @@ export function GalleryModal({
     >
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          {onHome ? (
+            <Pressable style={styles.closeButton} onPress={onHome}>
+              <Ionicons name="home-outline" size={22} color={colors.textPrimary} />
+            </Pressable>
+          ) : (
+            <View style={styles.closeButton} />
+          )}
           <Text style={[styles.title, { color: colors.textPrimary }]}>Gallery</Text>
           <Pressable style={styles.closeButton} onPress={onClose}>
             <Ionicons name="close" size={24} color={colors.textPrimary} />

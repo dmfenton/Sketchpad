@@ -142,6 +142,10 @@ function MainApp(): React.JSX.Element {
           canvases={canvasState.gallery}
           onClose={closeModal}
           onSelect={actions.handleGallerySelect}
+          onHome={inStudio ? () => {
+            closeModal();
+            actions.handleStudioAction({ type: 'home' });
+          } : undefined}
         />
       </SafeAreaView>
     </GestureHandlerRootView>
