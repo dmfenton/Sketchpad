@@ -25,7 +25,6 @@ import {
 
 import {
   DebugOverlay,
-  GalleryModal,
   NewCanvasModal,
   NudgeModal,
   SplashScreen,
@@ -39,7 +38,7 @@ import {
   useStudio,
 } from './context';
 import { useDeepLinks } from './hooks';
-import { AuthScreen, HomeScreen, StudioScreen } from './screens';
+import { AuthScreen, GalleryScreen, HomeScreen, StudioScreen } from './screens';
 import { spacing, useTheme } from './theme';
 import { tracer } from './utils/tracing';
 
@@ -49,7 +48,7 @@ import { tracer } from './utils/tracing';
  */
 function MainApp(): React.JSX.Element {
   const { colors, isDark } = useTheme();
-  const { inStudio } = useNavigation();
+  const { screen, inStudio, closeGallery, galleryToHome, galleryFromStudio } = useNavigation();
   const {
     canvasState,
     agentStatus,
@@ -91,7 +90,16 @@ function MainApp(): React.JSX.Element {
         />
 
         <View style={styles.content}>
-          {inStudio ? (
+          {screen === 'gallery' ? (
+            <GalleryScreen
+              api={api}
+              canvases={canvasState.gallery}
+              onClose={closeGallery}
+              onSelect={actions.handleGallerySelect}
+              onHome={galleryToHome}
+              showHomeButton={galleryFromStudio}
+            />
+          ) : inStudio ? (
             <StudioScreen
               canvasState={canvasState}
               agentStatus={agentStatus}
@@ -134,18 +142,6 @@ function MainApp(): React.JSX.Element {
           currentStyle={canvasState.drawingStyle}
           onClose={closeModal}
           onStart={actions.handleNewCanvasStart}
-        />
-
-        <GalleryModal
-          api={api}
-          visible={activeModal === 'gallery'}
-          canvases={canvasState.gallery}
-          onClose={closeModal}
-          onSelect={actions.handleGallerySelect}
-          onHome={inStudio ? () => {
-            closeModal();
-            actions.handleStudioAction({ type: 'home' });
-          } : undefined}
         />
       </SafeAreaView>
     </GestureHandlerRootView>

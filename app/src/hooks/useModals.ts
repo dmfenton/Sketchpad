@@ -5,7 +5,7 @@
 
 import { useCallback, useState } from 'react';
 
-export type ModalType = 'nudge' | 'gallery' | 'newCanvas' | null;
+export type ModalType = 'nudge' | 'newCanvas' | null;
 
 export interface UseModalsReturn {
   activeModal: ModalType;

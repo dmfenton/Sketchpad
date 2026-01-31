@@ -104,7 +104,7 @@ export interface StudioProviderProps {
  */
 export function StudioProvider({ children }: StudioProviderProps): React.JSX.Element {
   const { accessToken, signOut, refreshToken } = useAuth();
-  const { inStudio, enterStudio, exitStudio, setInStudio } = useNavigation();
+  const { inStudio, enterStudio, exitStudio, setInStudio, openGallery, closeGallery } = useNavigation();
 
   const api = useMemo(() => createApiClient(accessToken), [accessToken]);
 
@@ -277,11 +277,11 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
           exitStudio();
           break;
         case 'gallery':
-          openModal('gallery');
+          openGallery();
           break;
       }
     },
-    [canvas, send, openModal, exitStudio]
+    [canvas, send, openGallery, exitStudio]
   );
 
   // Stroke handlers (from Canvas)
@@ -371,7 +371,7 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
 
   const handleGallerySelect = useCallback(
     async (pieceNumber: number) => {
-      closeModal();
+      // Navigate directly to studio (replacing gallery screen)
       setInStudio(true);
       try {
         const response = await api.fetch(`/gallery/${pieceNumber}/strokes`);
@@ -393,7 +393,7 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
         setInStudio(false);
       }
     },
-    [closeModal, setInStudio, api, dispatch]
+    [setInStudio, api, dispatch]
   );
 
   // Bundle actions for stable reference

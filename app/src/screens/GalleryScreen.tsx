@@ -1,6 +1,6 @@
 /**
- * Gallery modal showing saved canvases as a grid of thumbnails.
- * Thumbnails are rendered server-side and loaded as images.
+ * GalleryScreen - Full-screen gallery of saved canvases.
+ * Replaces the previous modal approach for reliable navigation.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -29,14 +28,14 @@ import {
   type ShadowScheme,
 } from '../theme';
 
-interface GalleryModalProps {
+export interface GalleryScreenProps {
   api: ApiClient;
-  visible: boolean;
   canvases: SavedCanvas[];
   onClose: () => void;
   onSelect: (pieceNumber: number) => void;
-  /** Optional home handler - shown when gallery is opened from studio */
-  onHome?: () => void;
+  onHome: () => void;
+  /** Whether the gallery was opened from studio (shows home button) */
+  showHomeButton: boolean;
 }
 
 // Grid configuration
@@ -75,20 +74,15 @@ function GalleryItem({
   const [error, setError] = useState(false);
   const imageSize = thumbnailSize - spacing.sm * 2;
 
-  // Build thumbnail path for hook
   const thumbnailPath = canvas.thumbnail_token
     ? `/gallery/thumbnail/${canvas.thumbnail_token}.png`
     : undefined;
 
-  // Use authenticated image hook for web blob URL workaround
   const { source: thumbnailSource, loading: hookLoading } =
     useAuthenticatedImage(api, thumbnailPath);
 
-  // Combine loading states: hook loading (web) + native image loading
   const loading = hookLoading || nativeLoading;
 
-  // Create handler using props directly to avoid stale closures
-  // when FlatList reuses/caches component instances
   const handlePress = useCallback(() => {
     onSelect(pieceNumber);
   }, [onSelect, pieceNumber]);
@@ -144,22 +138,20 @@ function GalleryItem({
   );
 }
 
-export function GalleryModal({
+export function GalleryScreen({
   api,
-  visible,
   canvases,
   onClose,
   onSelect,
   onHome,
-}: GalleryModalProps): React.JSX.Element {
+  showHomeButton,
+}: GalleryScreenProps): React.JSX.Element {
   const { colors, shadows } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
 
-  // Calculate thumbnail size based on screen width (reactive to rotation)
   const availableWidth = screenWidth - HORIZONTAL_PADDING * 2 - GRID_GAP * (NUM_COLUMNS - 1);
   const thumbnailSize = Math.floor(availableWidth / NUM_COLUMNS);
 
-  // Reverse the order so newest is first
   const sortedCanvases = useMemo(() => [...canvases].reverse(), [canvases]);
 
   const renderItem = useCallback(
@@ -180,50 +172,43 @@ export function GalleryModal({
   const keyExtractor = useCallback((item: SavedCanvas) => item.id, []);
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          {onHome ? (
-            <Pressable style={styles.closeButton} onPress={onHome}>
-              <Ionicons name="home-outline" size={22} color={colors.textPrimary} />
-            </Pressable>
-          ) : (
-            <View style={styles.closeButton} />
-          )}
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Gallery</Text>
-          <Pressable style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color={colors.textPrimary} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        {showHomeButton ? (
+          <Pressable style={styles.headerButton} onPress={onHome}>
+            <Ionicons name="home-outline" size={22} color={colors.textPrimary} />
           </Pressable>
-        </View>
-
-        {canvases.length === 0 ? (
-          <View style={styles.empty}>
-            <Ionicons name="images-outline" size={64} color={colors.textMuted} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No saved artwork yet
-            </Text>
-            <Text style={[styles.emptyHint, { color: colors.textMuted }]}>
-              Tap &quot;New&quot; to save the current canvas and start fresh
-            </Text>
-          </View>
         ) : (
-          <FlatList
-            data={sortedCanvases}
-            keyExtractor={keyExtractor}
-            renderItem={renderItem}
-            numColumns={NUM_COLUMNS}
-            contentContainerStyle={styles.grid}
-            columnWrapperStyle={styles.row}
-            showsVerticalScrollIndicator={false}
-          />
+          <View style={styles.headerButton} />
         )}
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Gallery</Text>
+        <Pressable style={styles.headerButton} onPress={onClose}>
+          <Ionicons name="close" size={24} color={colors.textPrimary} />
+        </Pressable>
       </View>
-    </Modal>
+
+      {canvases.length === 0 ? (
+        <View style={styles.empty}>
+          <Ionicons name="images-outline" size={64} color={colors.textMuted} />
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            No saved artwork yet
+          </Text>
+          <Text style={[styles.emptyHint, { color: colors.textMuted }]}>
+            Tap &quot;New&quot; to save the current canvas and start fresh
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={sortedCanvases}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          numColumns={NUM_COLUMNS}
+          contentContainerStyle={styles.grid}
+          columnWrapperStyle={styles.row}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+    </View>
   );
 }
 
@@ -242,7 +227,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.heading,
   },
-  closeButton: {
+  headerButton: {
     padding: spacing.sm,
   },
   grid: {

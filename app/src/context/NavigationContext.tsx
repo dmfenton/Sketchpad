@@ -28,7 +28,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { BackHandler, Platform } from 'react-native';
 
 /** Navigation screen type */
-export type Screen = 'home' | 'studio';
+export type Screen = 'home' | 'studio' | 'gallery';
 
 export interface NavigationContextValue {
   /** Current screen */
@@ -41,6 +41,14 @@ export interface NavigationContextValue {
   exitStudio: () => void;
   /** Set screen directly (for gallery selection, etc.) */
   setInStudio: (inStudio: boolean) => void;
+  /** Navigate to gallery screen */
+  openGallery: () => void;
+  /** Navigate back from gallery to the previous screen */
+  closeGallery: () => void;
+  /** Navigate from gallery directly to home */
+  galleryToHome: () => void;
+  /** Whether gallery was opened from the studio screen */
+  galleryFromStudio: boolean;
 }
 
 const NavigationContext = createContext<NavigationContextValue | null>(null);
@@ -66,6 +74,8 @@ export function NavigationProvider({
   onExitStudio,
 }: NavigationProviderProps): React.JSX.Element {
   const [screen, setScreen] = useState<Screen>('home');
+  // Track which screen the gallery was opened from (ref for callbacks, state for rendering)
+  const previousScreenRef = useRef<Screen>('home');
 
   // Track screen in ref for back button handler (avoids stale closure)
   const screenRef = useRef(screen);
@@ -73,6 +83,7 @@ export function NavigationProvider({
 
   // Derived state
   const inStudio = screen === 'studio';
+  const galleryFromStudio = screen === 'gallery' && previousScreenRef.current === 'studio';
 
   // Navigate to studio
   const enterStudio = useCallback(() => {
@@ -90,11 +101,35 @@ export function NavigationProvider({
     setScreen(value ? 'studio' : 'home');
   }, []);
 
+  // Navigate to gallery, remembering where we came from
+  const openGallery = useCallback(() => {
+    previousScreenRef.current = screenRef.current;
+    setScreen('gallery');
+  }, []);
+
+  // Navigate back from gallery to previous screen
+  const closeGallery = useCallback(() => {
+    setScreen(previousScreenRef.current);
+  }, []);
+
+  // Navigate from gallery directly to home
+  const galleryToHome = useCallback(() => {
+    if (previousScreenRef.current === 'studio') {
+      onExitStudio?.();
+    }
+    previousScreenRef.current = 'home';
+    setScreen('home');
+  }, [onExitStudio]);
+
   // Android back button handler
   useEffect(() => {
     if (Platform.OS !== 'android') return;
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (screenRef.current === 'gallery') {
+        closeGallery();
+        return true;
+      }
       if (screenRef.current === 'studio') {
         exitStudio();
         return true; // Prevent default (don't close app)
@@ -103,7 +138,7 @@ export function NavigationProvider({
     });
 
     return () => backHandler.remove();
-  }, [exitStudio]);
+  }, [exitStudio, closeGallery]);
 
   // Memoize context value
   const value = useMemo<NavigationContextValue>(
@@ -113,8 +148,12 @@ export function NavigationProvider({
       enterStudio,
       exitStudio,
       setInStudio,
+      openGallery,
+      closeGallery,
+      galleryToHome,
+      galleryFromStudio,
     }),
-    [screen, inStudio, enterStudio, exitStudio, setInStudio]
+    [screen, inStudio, enterStudio, exitStudio, setInStudio, openGallery, closeGallery, galleryToHome, galleryFromStudio]
   );
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>;
