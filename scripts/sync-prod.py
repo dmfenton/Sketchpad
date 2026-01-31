@@ -17,7 +17,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
-import time
+import shlex
 
 # Reuse remote.py's SSM infrastructure
 sys.path.insert(0, os.path.dirname(__file__))
@@ -61,7 +61,7 @@ def download_chunked(remote_path: str, local_path: str):
         count = min(CHUNK_SIZE, file_size - offset)
         print(f"  Downloading chunk {i+1}/{num_chunks} (offset={offset}, size={count})...", end=" ", flush=True)
 
-        cmd = f"dd if={remote_path} bs=1 skip={offset} count={count} 2>/dev/null | base64"
+        cmd = f"tail -c +{offset + 1} {shlex.quote(remote_path)} | head -c {count} | base64"
         code, stdout, stderr = run_command(cmd, timeout=60)
         if code != 0:
             raise RuntimeError(f"Failed to download chunk {i+1}: {stderr}")
@@ -77,7 +77,7 @@ def download_chunked(remote_path: str, local_path: str):
 
     print(f"  Written {len(raw_data):,} bytes to {local_path}")
     if len(raw_data) != file_size:
-        print(f"  WARNING: Expected {file_size} bytes but got {len(raw_data)}")
+        raise RuntimeError(f"Size mismatch: expected {file_size} bytes but got {len(raw_data)}")
 
 
 def sync_database():
@@ -117,13 +117,11 @@ def sync_workspace(user_id: str):
     """Download user workspace via tar + chunked transfer."""
     print_step(f"Syncing workspace for user {user_id}")
 
-    remote_workspace = f"{REMOTE_WORKSPACE_BASE}/{user_id}"
-
     # Create tar on remote, get its size
     remote_tar = f"/tmp/workspace-{user_id}.tar.gz"
     print("  Creating tarball on remote...")
     code, stdout, stderr = run_command(
-        f"tar -czf {remote_tar} -C {REMOTE_WORKSPACE_BASE} {user_id} && stat -c%s {remote_tar}",
+        f"tar -czf {shlex.quote(remote_tar)} -C {shlex.quote(REMOTE_WORKSPACE_BASE)} {shlex.quote(user_id)} && stat -c%s {shlex.quote(remote_tar)}",
         timeout=120,
     )
     if code != 0:
@@ -133,10 +131,10 @@ def sync_workspace(user_id: str):
 
     # Download the tarball
     local_tar = os.path.join(tempfile.gettempdir(), f"workspace-{user_id}.tar.gz")
-    download_chunked(remote_tar, local_tar)
-
-    # Clean up remote tarball
-    run_command(f"rm -f {remote_tar}", timeout=10)
+    try:
+        download_chunked(remote_tar, local_tar)
+    finally:
+        run_command(f"rm -f {shlex.quote(remote_tar)}", timeout=10)
 
     # Extract locally
     os.makedirs(LOCAL_WORKSPACE_DIR, exist_ok=True)
@@ -188,21 +186,16 @@ def verify():
 
 
 def main():
-    db_only = "--db-only" in sys.argv
-    ws_only = "--ws-only" in sys.argv
+    sync_db = "--ws-only" not in sys.argv
+    sync_ws = "--db-only" not in sys.argv
 
-    if not db_only and not ws_only:
-        db_only = ws_only = True
-
-    if db_only:
+    if sync_db:
         sync_database()
 
-    if ws_only:
-        if not db_only:
-            # Need DB to look up user ID
-            if not os.path.exists(LOCAL_DB_PATH):
-                print("ERROR: Local database not found. Run without --ws-only first.")
-                sys.exit(1)
+    if sync_ws:
+        if not sync_db and not os.path.exists(LOCAL_DB_PATH):
+            print("ERROR: Local database not found. Run without --ws-only first.")
+            sys.exit(1)
         user_id = get_user_id()
         sync_workspace(user_id)
 
