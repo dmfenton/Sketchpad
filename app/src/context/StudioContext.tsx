@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, BackHandler, Platform } from 'react-native';
 
 import type {
   AgentStatus,
@@ -105,7 +105,7 @@ export interface StudioProviderProps {
  */
 export function StudioProvider({ children }: StudioProviderProps): React.JSX.Element {
   const { accessToken, signOut, refreshToken } = useAuth();
-  const { inStudio, enterStudio, exitStudio, setInStudio, openGallery, galleryToHome } = useNavigation();
+  const { screen, inStudio, enterStudio, exitStudio, setInStudio, openGallery, closeGallery, galleryToHome } = useNavigation();
 
   const api = useMemo(() => createApiClient(accessToken), [accessToken]);
 
@@ -170,6 +170,30 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
 
     return () => subscription.remove();
   }, [send]);
+
+  // Android back button: pause agent when leaving studio, close gallery on back
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (screen === 'gallery') {
+        closeGallery();
+        return true;
+      }
+      if (screen === 'studio') {
+        // Pause agent before navigating home
+        if (!canvas.state.paused) {
+          canvas.setPaused(true);
+          send({ type: 'pause' });
+        }
+        exitStudio();
+        return true;
+      }
+      return false; // Let system handle (close app from home)
+    });
+
+    return () => handler.remove();
+  }, [screen, closeGallery, exitStudio, canvas, send]);
 
   // Pending strokes fetching
   const pendingStrokes = canvas.state.pendingStrokes;
@@ -387,14 +411,22 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
           });
         } else {
           console.warn(`[StudioContext] Failed to load gallery piece ${pieceNumber}: ${response.status}`);
-          setInStudio(false);
+          if (!canvas.state.paused) {
+            canvas.setPaused(true);
+            send({ type: 'pause' });
+          }
+          exitStudio();
         }
       } catch (error) {
         console.warn('[StudioContext] Failed to load gallery piece:', error);
-        setInStudio(false);
+        if (!canvas.state.paused) {
+          canvas.setPaused(true);
+          send({ type: 'pause' });
+        }
+        exitStudio();
       }
     },
-    [setInStudio, api, dispatch]
+    [setInStudio, api, dispatch, canvas, send, exitStudio]
   );
 
   // Navigate from gallery to home, pausing the agent if it was running

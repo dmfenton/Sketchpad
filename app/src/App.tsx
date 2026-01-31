@@ -78,7 +78,7 @@ function MainApp(): React.JSX.Element {
       >
         <DebugOverlay
           data={{
-            inStudio,
+            inStudio: screen === 'studio',
             paused: canvasState.paused,
             status: agentStatus,
             strokes: canvasState.strokes.length,
@@ -99,7 +99,7 @@ function MainApp(): React.JSX.Element {
               onHome={actions.handleGalleryToHome}
               showHomeButton={galleryFromStudio}
             />
-          ) : inStudio ? (
+          ) : screen === 'studio' ? (
             <StudioScreen
               canvasState={canvasState}
               agentStatus={agentStatus}

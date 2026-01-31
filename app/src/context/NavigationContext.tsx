@@ -24,8 +24,7 @@
  * persistence to maintain the pause-on-exit behavior.
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Platform } from 'react-native';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 /** Navigation screen type */
 export type Screen = 'home' | 'studio' | 'gallery';
@@ -55,8 +54,6 @@ const NavigationContext = createContext<NavigationContextValue | null>(null);
 
 export interface NavigationProviderProps {
   children: React.ReactNode;
-  /** Optional callback when exiting studio (e.g., to pause agent) */
-  onExitStudio?: () => void;
 }
 
 /**
@@ -71,7 +68,6 @@ export interface NavigationProviderProps {
  */
 export function NavigationProvider({
   children,
-  onExitStudio,
 }: NavigationProviderProps): React.JSX.Element {
   const [screen, setScreen] = useState<Screen>('home');
   // Track which screen the gallery was opened from
@@ -90,11 +86,10 @@ export function NavigationProvider({
     setScreen('studio');
   }, []);
 
-  // Navigate to home
+  // Navigate to home (caller is responsible for pausing agent if needed)
   const exitStudio = useCallback(() => {
-    onExitStudio?.();
     setScreen('home');
-  }, [onExitStudio]);
+  }, []);
 
   // Set screen directly (for gallery selection)
   const setInStudio = useCallback((value: boolean) => {
@@ -118,24 +113,8 @@ export function NavigationProvider({
     setScreen('home');
   }, []);
 
-  // Android back button handler
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (screenRef.current === 'gallery') {
-        closeGallery();
-        return true;
-      }
-      if (screenRef.current === 'studio') {
-        exitStudio();
-        return true; // Prevent default (don't close app)
-      }
-      return false; // Let system handle (close app)
-    });
-
-    return () => backHandler.remove();
-  }, [exitStudio, closeGallery]);
+  // Note: Android back button is handled in StudioProvider, which has
+  // access to both navigation and the WebSocket (needed to pause agent).
 
   // Memoize context value
   const value = useMemo<NavigationContextValue>(
