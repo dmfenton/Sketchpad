@@ -299,6 +299,10 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
             canvas.setPaused(true);
             send({ type: 'pause' });
           }
+          // Restore original canvas state if viewing a gallery piece
+          if (canvas.state.viewingPiece !== null) {
+            dispatch({ type: 'CLEAR_VIEWING' });
+          }
           exitStudio();
           break;
         case 'gallery':
@@ -306,7 +310,7 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
           break;
       }
     },
-    [canvas, send, openGallery, exitStudio]
+    [canvas, send, dispatch, openGallery, exitStudio]
   );
 
   // Stroke handlers (from Canvas)
@@ -436,8 +440,11 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
       canvas.setPaused(true);
       send({ type: 'pause' });
     }
+    if (canvas.state.viewingPiece !== null) {
+      dispatch({ type: 'CLEAR_VIEWING' });
+    }
     galleryToHome();
-  }, [canvas, send, galleryToHome]);
+  }, [canvas, send, dispatch, galleryToHome]);
 
   // Bundle actions for stable reference
   const actions = useMemo(

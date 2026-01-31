@@ -142,6 +142,13 @@ export interface CanvasHookState {
   pendingStrokes: PendingStrokesInfo | null; // Strokes ready to be fetched
   drawingStyle: DrawingStyleType; // Current drawing style
   styleConfig: DrawingStyleConfig; // Full style configuration
+  /** Saved canvas state before viewing a gallery piece (for restoring on exit) */
+  savedCanvas: {
+    strokes: Path[];
+    pieceNumber: number;
+    drawingStyle: DrawingStyleType;
+    styleConfig: DrawingStyleConfig;
+  } | null;
 }
 
 /**
@@ -293,6 +300,7 @@ export type CanvasAction =
   | { type: 'RESET_TURN' }
   | { type: 'STROKES_READY'; count: number; batchId: number; pieceNumber: number }
   | { type: 'CLEAR_PENDING_STROKES' }
+  | { type: 'CLEAR_VIEWING' }
   | { type: 'SET_STYLE'; drawingStyle: DrawingStyleType; styleConfig: DrawingStyleConfig }
   // Performance actions (merged into CanvasAction for single reducer)
   | PerformanceAction;
@@ -322,6 +330,7 @@ export const initialState: CanvasHookState = {
   pendingStrokes: null,
   drawingStyle: 'plotter',
   styleConfig: PLOTTER_STYLE,
+  savedCanvas: null,
 };
 
 export function canvasReducer(state: CanvasHookState, action: CanvasAction): CanvasHookState {
@@ -344,6 +353,7 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         strokes: [],
         currentStroke: [],
         viewingPiece: null,
+        savedCanvas: null,
         pendingStrokes: null,
         messages: [],
         thinking: '',
@@ -419,7 +429,31 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         pendingStrokes: null,
         drawingStyle: loadedStyle,
         styleConfig: loadedStyleConfig,
+        // Save current canvas state so we can restore when exiting gallery view
+        savedCanvas: state.viewingPiece === null ? {
+          strokes: state.strokes,
+          pieceNumber: state.pieceNumber,
+          drawingStyle: state.drawingStyle,
+          styleConfig: state.styleConfig,
+        } : state.savedCanvas,
       };
+    }
+
+    case 'CLEAR_VIEWING': {
+      if (state.viewingPiece === null) return state;
+      // Restore saved canvas state from before gallery viewing
+      if (state.savedCanvas) {
+        return {
+          ...state,
+          viewingPiece: null,
+          strokes: state.savedCanvas.strokes,
+          pieceNumber: state.savedCanvas.pieceNumber,
+          drawingStyle: state.savedCanvas.drawingStyle,
+          styleConfig: state.savedCanvas.styleConfig,
+          savedCanvas: null,
+        };
+      }
+      return { ...state, viewingPiece: null, savedCanvas: null };
     }
 
     case 'INIT': {
@@ -435,6 +469,7 @@ export function canvasReducer(state: CanvasHookState, action: CanvasAction): Can
         pieceNumber: action.pieceNumber,
         paused: action.paused,
         viewingPiece: null, // Init shows current canvas
+        savedCanvas: null,
         drawingStyle: initStyle,
         styleConfig: initStyleConfig,
         // Reset transient state on init
