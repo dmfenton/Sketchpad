@@ -4,47 +4,34 @@ Sync production database and workspace files to local dev environment for testin
 
 ## Instructions
 
-Execute these steps to sync production data:
+Run the sync script from the server directory:
 
-### 1. Backup existing dev database
 ```bash
-cp server/data/code_monet.db server/data/code_monet.db.bak 2>/dev/null || echo "No existing DB to backup"
+cd server && uv run python ../scripts/sync-prod.py
 ```
 
-### 2. Download production database
-```bash
-uv run python scripts/remote.py shell "base64 /home/ec2-user/data/code_monet.db" | base64 -d > server/data/code_monet.db
-```
+This automatically:
+1. Backs up the existing local database
+2. Downloads the production database (chunked to handle SSM 24KB limit)
+3. Looks up the user ID for dmfenton@gmail.com
+4. Downloads and extracts the user's workspace (gallery, workspace.json, etc.)
+5. Verifies the sync completed
 
-### 3. Get dmfenton@gmail.com user ID
-```bash
-USER_ID=$(sqlite3 server/data/code_monet.db "SELECT id FROM users WHERE email='dmfenton@gmail.com';")
-echo "User ID: $USER_ID"
-```
+### Options
 
-### 4. Create local workspace directory if needed
 ```bash
-mkdir -p server/data/agent_workspace/users
-```
+# Full sync (default)
+cd server && uv run python ../scripts/sync-prod.py
 
-### 5. Download user's workspace (gallery, workspace.json, etc.)
-```bash
-uv run python scripts/remote.py shell "tar -czf - -C /home/ec2-user/data/agent_workspace/users $USER_ID | base64" | base64 -d | tar -xzf - -C server/data/agent_workspace/users/
-```
+# Database only
+cd server && uv run python ../scripts/sync-prod.py --db-only
 
-### 6. Verify sync completed
-```bash
-echo "Database users:"
-sqlite3 server/data/code_monet.db "SELECT id, email FROM users;"
-echo ""
-echo "Workspace files:"
-ls -la server/data/agent_workspace/users/$USER_ID/
-echo ""
-echo "Gallery pieces:"
-ls server/data/agent_workspace/users/$USER_ID/gallery/ 2>/dev/null | wc -l | xargs echo "Total pieces:"
+# Workspace only (requires DB already synced)
+cd server && uv run python ../scripts/sync-prod.py --ws-only
 ```
 
 ## Notes
 - Dev database is backed up to `server/data/code_monet.db.bak`
 - Only syncs workspace for dmfenton@gmail.com user
 - Requires AWS SSM access (configured via AWS credentials)
+- Handles the SSM 24KB output limit automatically via chunked base64 transfer

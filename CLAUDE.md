@@ -595,6 +595,14 @@ uv run python scripts/remote.py restart    # Restart container
 uv run python scripts/remote.py migrate    # Run migrations
 ```
 
+Sync production data to local dev (database + workspace):
+
+```bash
+cd server && uv run python ../scripts/sync-prod.py            # Full sync
+cd server && uv run python ../scripts/sync-prod.py --db-only   # Database only
+cd server && uv run python ../scripts/sync-prod.py --ws-only   # Workspace only
+```
+
 See [docs/infrastructure.md](docs/infrastructure.md) for full details on Terraform, ECR, SES, and SSR architecture.
 
 ---
