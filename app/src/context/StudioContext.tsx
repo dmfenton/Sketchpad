@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, BackHandler, Platform } from 'react-native';
 
 import type {
   AgentStatus,
@@ -87,6 +87,7 @@ export interface StudioContextValue {
     handleNudgeSend: (text: string) => void;
     handleNewCanvasStart: (direction?: string, style?: DrawingStyleType) => void;
     handleGallerySelect: (pieceNumber: number) => void;
+    handleGalleryToHome: () => void;
   };
 }
 
@@ -104,7 +105,7 @@ export interface StudioProviderProps {
  */
 export function StudioProvider({ children }: StudioProviderProps): React.JSX.Element {
   const { accessToken, signOut, refreshToken } = useAuth();
-  const { inStudio, enterStudio, exitStudio, setInStudio } = useNavigation();
+  const { screen, inStudio, enterStudio, exitStudio, setInStudio, openGallery, closeGallery, galleryToHome } = useNavigation();
 
   const api = useMemo(() => createApiClient(accessToken), [accessToken]);
 
@@ -169,6 +170,30 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
 
     return () => subscription.remove();
   }, [send]);
+
+  // Android back button: pause agent when leaving studio, close gallery on back
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (screen === 'gallery') {
+        closeGallery();
+        return true;
+      }
+      if (screen === 'studio') {
+        // Pause agent before navigating home
+        if (!canvas.state.paused) {
+          canvas.setPaused(true);
+          send({ type: 'pause' });
+        }
+        exitStudio();
+        return true;
+      }
+      return false; // Let system handle (close app from home)
+    });
+
+    return () => handler.remove();
+  }, [screen, closeGallery, exitStudio, canvas, send]);
 
   // Pending strokes fetching
   const pendingStrokes = canvas.state.pendingStrokes;
@@ -277,11 +302,11 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
           exitStudio();
           break;
         case 'gallery':
-          openModal('gallery');
+          openGallery();
           break;
       }
     },
-    [canvas, send, openModal, exitStudio]
+    [canvas, send, openGallery, exitStudio]
   );
 
   // Stroke handlers (from Canvas)
@@ -371,7 +396,7 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
 
   const handleGallerySelect = useCallback(
     async (pieceNumber: number) => {
-      closeModal();
+      // Navigate directly to studio (replacing gallery screen)
       setInStudio(true);
       try {
         const response = await api.fetch(`/gallery/${pieceNumber}/strokes`);
@@ -386,15 +411,33 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
           });
         } else {
           console.warn(`[StudioContext] Failed to load gallery piece ${pieceNumber}: ${response.status}`);
-          setInStudio(false);
+          if (!canvas.state.paused) {
+            canvas.setPaused(true);
+            send({ type: 'pause' });
+          }
+          exitStudio();
         }
       } catch (error) {
         console.warn('[StudioContext] Failed to load gallery piece:', error);
-        setInStudio(false);
+        if (!canvas.state.paused) {
+          canvas.setPaused(true);
+          send({ type: 'pause' });
+        }
+        exitStudio();
       }
     },
-    [closeModal, setInStudio, api, dispatch]
+    [setInStudio, api, dispatch, canvas, send, exitStudio]
   );
+
+  // Navigate from gallery to home, pausing the agent if it was running
+  const handleGalleryToHome = useCallback(() => {
+    tracer.recordEvent('session.back_to_home');
+    if (!canvas.state.paused) {
+      canvas.setPaused(true);
+      send({ type: 'pause' });
+    }
+    galleryToHome();
+  }, [canvas, send, galleryToHome]);
 
   // Bundle actions for stable reference
   const actions = useMemo(
@@ -410,6 +453,7 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
       handleNudgeSend,
       handleNewCanvasStart,
       handleGallerySelect,
+      handleGalleryToHome,
     }),
     [
       handleStudioAction,
@@ -423,6 +467,7 @@ export function StudioProvider({ children }: StudioProviderProps): React.JSX.Ele
       handleNudgeSend,
       handleNewCanvasStart,
       handleGallerySelect,
+      handleGalleryToHome,
     ]
   );
 
